@@ -1,200 +1,459 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SpoonPal Editable Planner</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpoonPal Template Manager</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 1em; background: #f9f9f9; }
-  h1, h2 { color: #333; }
-  .config-section, .tasks-section, .eod-section, .preview-section {
-    background: white; padding: 1em; margin-bottom: 1em; border-radius: 8px; box-shadow: 0 0 5px #ccc;
-  }
-  label { display: block; margin-top: 0.5em; }
-  input[type="text"], input[type="number"], select { width: 100%; padding: 0.4em; margin: 0.2em 0; }
-  button { background: #2a7ae2; color: white; padding: 0.7em 1.4em; border: none; border-radius: 4px; margin-top: 1em; cursor: pointer; }
-  button:disabled { background: #999; cursor: not-allowed; }
-  table { width: 100%; border-collapse: collapse; margin-top: 1em; }
-  th, td { border: 1px solid #ddd; padding: 0.6em; text-align: left; }
-  th { background-color: #f2f2f2; }
-  .warning { color: #d9534f; font-weight: bold; }
-  .alert-yellow { background-color: #fff3cd; }
-  .alert-orange { background-color: #ffe5b4; }
-  .alert-red { background-color: #f8d7da; }
+body { 
+  font-family: Arial, sans-serif; 
+  margin: 1em; 
+  background: #f9f9f9; 
+  max-width: 1200px; 
+  margin: 0 auto; 
+  padding: 1em;
+}
+h1, h2 { color: #333; }
+.section {
+  background: white; 
+  padding: 1em; 
+  margin-bottom: 1em; 
+  border-radius: 8px; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+label { 
+  display: block; 
+  margin-top: 0.5em; 
+  font-weight: bold;
+}
+input, select, textarea {
+  width: 100%; 
+  padding: 0.5em; 
+  margin: 0.2em 0; 
+  border: 1px solid #ddd; 
+  border-radius: 4px;
+  font-size: 14px;
+}
+button {
+  background: #2a7ae2; 
+  color: white; 
+  padding: 0.7em 1.4em; 
+  border: none; 
+  border-radius: 4px;
+  margin: 0.5em 0.5em 0.5em 0; 
+  cursor: pointer;
+  font-size: 14px;
+}
+button:hover { background: #1e5bb8; }
+button:disabled { background: #999; cursor: not-allowed; }
+.lmj-order { 
+  background: #e8f4fd; 
+  padding: 1em; 
+  border-left: 4px solid #2a7ae2; 
+  margin: 1em 0;
+}
+.task-row {
+  display: grid;
+  grid-template-columns: 80px 60px 2fr 100px 80px 100px 1fr;
+  gap: 0.5em;
+  align-items: center;
+  padding: 0.5em;
+  border-bottom: 1px solid #eee;
+}
+.task-row:hover { background: #f5f5f5; }
+.task-header {
+  font-weight: bold;
+  background: #f0f0f0;
+  border-bottom: 2px solid #ddd;
+}
+.template-preview {
+  background: #f8f8f8;
+  padding: 1em;
+  border-radius: 4px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.warning {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 1em;
+  border-radius: 4px;
+  margin: 1em 0;
+}
+.success {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+  padding: 1em;
+  border-radius: 4px;
+  margin: 1em 0;
+}
 </style>
 </head>
 <body>
-  <h1>SpoonPal Editable Planner</h1>
-  <section class="config-section" aria-label="Configuration Section">
-    <h2>Configuration</h2>
+
+<h1>🥄 SpoonPal Template Manager</h1>
+
+<div class="section">
+  <h2>Protocol Configuration</h2>
+  <div class="lmj-order">
+    <strong>LMJ Order (Protocol-Locked):</strong> A💊, V🦾, B🍽️, G🐥, N📰, ME🧘, H🧺, CC🛏️, DD💨, EE😷, FF🤚, ZZ📵
+    <br><small>H always comes after ME. G is reserved for Gosling time. Flexible tasks slot between B and G unless specified.</small>
+  </div>
+  
+  <label for="templateName">Template Name:</label>
+  <input type="text" id="templateName" placeholder="e.g., Monday Template, Thursday Workday, Weekend Recovery">
+  
+  <label for="templateType">Template Type:</label>
+  <select id="templateType">
+    <option value="daily">Daily Template</option>
+    <option value="workday">Workday Template</option>
+    <option value="recovery">Recovery Day Template</option>
+    <option value="weekend">Weekend Template</option>
+  </select>
+</div>
+
+<div class="section">
+  <h2>Task Editor</h2>
+  <div id="taskEditor">
+    <div class="task-row task-header">
+      <div>Time</div>
+      <div>LMJ</div>
+      <div>Task Description</div>
+      <div>Priority</div>
+      <div>Spoons</div>
+      <div>Type</div>
+      <div>Area/Notes</div>
+    </div>
+  </div>
+  <button id="addTaskBtn">+ Add Task</button>
+  <button id="addLmjOrderBtn">+ Add LMJ Sequence</button>
+</div>
+
+<div class="section">
+  <h2>Template Management</h2>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em;">
     <div>
-      <label for="lmjOrder">LMJ Task Order (Comma-separated task codes):</label>
-      <input type="text" id="lmjOrder" value="A,V,B,G,N,ME,H,CC,DD,EE,FF,ZZ" aria-describedby="lmjDesc" aria-required="true" />
-      <small id="lmjDesc">Order enforced. Use published LMJ codes.</small>
+      <button id="saveTemplateBtn">💾 Save Template</button>
+      <button id="loadTemplateBtn">📁 Load Template</button>
+      <button id="exportTemplateBtn">📤 Export for Academic Allies</button>
     </div>
     <div>
-      <label for="lmjEmojis">LMJ Emojis (Format: Code:Emoji, separate with commas):</label>
-      <input type="text" id="lmjEmojis" value="A:💊,V:🦾,B:🍽️,G:🐥,N:📰,ME:🧘,H:🧺,CC:🛏️,DD:💨,EE:😷,FF:🤚,ZZ:📵" aria-describedby="lmjEmojisDesc" aria-required="true" />
-      <small id="lmjEmojisDesc">Customize emojis here.</small>
+      <select id="templateSelect" style="margin-bottom: 0.5em;">
+        <option value="">Select saved template...</option>
+      </select>
+      <button id="deleteTemplateBtn">🗑️ Delete Template</button>
     </div>
-    <div>
-      <label for="streakSavers">Streak Savers (Code:Emoji, comma separated):</label>
-      <input type="text" id="streakSavers" value="C:🔗,L:🦙"  aria-describedby="streakSaversDesc" aria-required="true" />
-      <small id="streakSaversDesc">Add your streak saver codes and emojis.</small>
-    </div>
-  </section>
-  
-  <section class="tasks-section" aria-label="Tasks Section">
-    <h2>Today's Tasks</h2>
-    <textarea id="taskInput" rows="4" style="width:100%" placeholder="Enter your daily tasks here, one task per line, with code prefix (eg. A Morning meds)"></textarea>
-    <button id="parseTasksBtn">Parse Tasks & Update Preview</button>
-  </section>
-  
-  <section class="eod-section" aria-label="End of Day Finalization">
-    <h2>End of Day Finalization</h2>
-    <button id="quickSwapBtn">Quick Swap Tasks</button>
-    <button id="wrapUpBtn">Wrap Up All Remaining Tasks</button>
-    <button id="finalReviewBtn">Final Review & Spoon Count</button>
-    <div id="spoonDebtWarning" role="alert" aria-live="assertive"></div>
-  </section>
-  
-  <section class="preview-section" aria-label="Timeline and Spoon Preview">
-    <h2>Live Timeline Preview</h2>
-    <pre id="timelinePreview" style="background:#eee; padding:1em; border-radius:5px; max-height:300px; overflow:auto;"></pre>
-    <button id="exportBtn">Export for Academic Allies</button>
-  </section>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Preview</h2>
+  <div id="templatePreview" class="template-preview">Template preview will appear here...</div>
+</div>
 
 <script>
-  // Internal state
-  let lmjOrder = [];
-  let lmjEmojisMap = {};
-  let streakSaversMap = {};
-  let tasks = [];
-  let spoonDebtDays = 0;
-  let spoonDebtAmount = 0;
-  let previousDaySpoonsRemaining = 10; // Starting baseline
-  let currentSpoonsRemaining = previousDaySpoonsRemaining;
+// LMJ Protocol Configuration
+const LMJ_ORDER = ['A', 'V', 'B', 'G', 'N', 'ME', 'H', 'CC', 'DD', 'EE', 'FF', 'ZZ'];
+const LMJ_EMOJIS = {
+  'A': '💊', 'V': '🦾', 'B': '🍽️', 'G': '🐥', 'N': '📰', 'ME': '🧘', 
+  'H': '🧺', 'CC': '🛏️', 'DD': '💨', 'EE': '😷', 'FF': '🤚', 'ZZ': '📵'
+};
+
+let currentTasks = [];
+let savedTemplates = JSON.parse(localStorage.getItem('spoonpalTemplates') || '{}');
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+  refreshTemplateSelect();
+  addSampleTasks();
+  updatePreview();
   
-  // Helpers
-  function parseConfig() {
-    const orderInput = document.getElementById('lmjOrder').value.trim();
-    lmjOrder = orderInput.split(',').map(s => s.trim());
-    
-    const emojiInput = document.getElementById('lmjEmojis').value.trim();
-    lmjEmojisMap = {};
-    emojiInput.split(',').forEach(pair => {
-      const [code, emoji] = pair.split(':').map(p=>p.trim());
-      if(code && emoji) lmjEmojisMap[code] = emoji;
-    });
-    
-    const streakInput = document.getElementById('streakSavers').value.trim();
-    streakSaversMap = {};
-    streakInput.split(',').forEach(pair => {
-      const [code, emoji] = pair.split(':').map(p=>p.trim());
-      if(code && emoji) streakSaversMap[code] = emoji;
-    });
-  }
+  // Event listeners
+  document.getElementById('addTaskBtn').addEventListener('click', addTask);
+  document.getElementById('addLmjOrderBtn').addEventListener('click', addLmjSequence);
+  document.getElementById('saveTemplateBtn').addEventListener('click', saveTemplate);
+  document.getElementById('loadTemplateBtn').addEventListener('click', loadTemplate);
+  document.getElementById('exportTemplateBtn').addEventListener('click', exportTemplate);
+  document.getElementById('deleteTemplateBtn').addEventListener('click', deleteTemplate);
+});
+
+function addTask(time = '', lmj = '', description = '', priority = 'High', spoons = '1', type = 'Fixed', notes = '') {
+  const taskId = 'task_' + Date.now() + Math.random();
+  const taskRow = document.createElement('div');
+  taskRow.className = 'task-row';
+  taskRow.innerHTML = `
+    <input type="text" value="${time}" placeholder="730 AM" onchange="updatePreview()">
+    <select onchange="updatePreview()">
+      <option value="">--</option>
+      ${LMJ_ORDER.map(code => `<option value="${code}" ${lmj === code ? 'selected' : ''}>${code}${LMJ_EMOJIS[code]}</option>`).join('')}
+    </select>
+    <input type="text" value="${description}" placeholder="Task description" onchange="updatePreview()">
+    <select onchange="updatePreview()">
+      <option value="High" ${priority === 'High' ? 'selected' : ''}>High</option>
+      <option value="Medium" ${priority === 'Medium' ? 'selected' : ''}>Medium</option>
+      <option value="Low" ${priority === 'Low' ? 'selected' : ''}>Low</option>
+    </select>
+    <input type="number" value="${spoons}" min="0" max="10" step="0.5" onchange="updatePreview()">
+    <select onchange="updatePreview()">
+      <option value="Fixed" ${type === 'Fixed' ? 'selected' : ''}>Fixed</option>
+      <option value="Flexible" ${type === 'Flexible' ? 'selected' : ''}>Flexible</option>
+      <option value="Urgent" ${type === 'Urgent' ? 'selected' : ''}>Urgent</option>
+    </select>
+    <input type="text" value="${notes}" placeholder="Area/Notes" onchange="updatePreview()">
+    <button onclick="removeTask(this)" style="background: #dc3545; padding: 0.3em;">×</button>
+  `;
+  document.getElementById('taskEditor').appendChild(taskRow);
+  updatePreview();
+}
+
+function addLmjSequence() {
+  const commonTasks = {
+    'A': ['Morning medications', 'High', '2', 'Fixed', 'Essential start'],
+    'V': ['CPAP prep, wrist brace', 'High', '1', 'Fixed', 'After A'],
+    'B': ['Family scriptures, breakfast', 'High', '2', 'Fixed', 'PB&fruit, hydrate'],
+    'G': ['Gosling time', 'High', '1', 'Fixed', 'PM, fixed 2 wks'],
+    'N': ['News with Mom', 'High', '1', 'Fixed', 'NBC/EWT/YouTube'],
+    'ME': ['Me time', 'High', '0', 'Fixed', 'Recovery'],
+    'H': ['Hamper, clothes, bathroom', 'High', '1', 'Fixed', 'After ME'],
+    'CC': ['In bed', 'High', '0', 'Fixed', 'Settle in'],
+    'DD': ['Breathe, recover', 'High', '0', 'Fixed', 'Post-movement'],
+    'EE': ['CPAP mask on', 'High', '0.5', 'Fixed', 'Final prep'],
+    'FF': ['Wrist brace on', 'High', '0.5', 'Fixed', 'If needed'],
+    'ZZ': ['Device off, crash', 'High', '0', 'Fixed', 'Sleep initiation']
+  };
   
-  function parseTasks() {
-    const input = document.getElementById('taskInput').value.trim();
-    tasks = input.split('\\n').map(line => {
-      line = line.trim();
-      const match = line.match(/^([A-Z]+)\\s+(.*)$/);
-      if(match) {
-        return {code: match[1], description: match[2], done: false};
-      } else {
-        return {code: null, description: line, done: false};
-      }
-    }).filter(t => t.code && lmjOrder.includes(t.code));
-    updateTimelinePreview();
-  }
-  
-  function updateTimelinePreview() {
-    parseConfig();
-    // Sort tasks by lmjOrder index
-    tasks.sort((a,b) => lmjOrder.indexOf(a.code) - lmjOrder.indexOf(b.code));
-    
-    let lines = [];
-    lines.push('Legend:');
-    lmjOrder.forEach(code=>{
-      const emoji = lmjEmojisMap[code] || '';
-      lines.push(`  ${code} ${emoji}`);
-    });
-    Object.entries(streakSaversMap).forEach(([code, emoji])=>{
-      lines.push(`  Streak Saver: ${code} ${emoji}`);
-    });
-    lines.push('');
-    lines.push('Timeline:');
-    tasks.forEach(t => {
-      const emoji = lmjEmojisMap[t.code] || '';
-      lines.push(`${emoji} ${t.code}: ${t.description}`);
-    });
-    lines.push('');
-    lines.push(`Spoons Remaining: ${currentSpoonsRemaining} (Debt Days: ${spoonDebtDays})`);
-    
-    document.getElementById('timelinePreview').textContent = lines.join('\\n');
-  }
-  
-  // EOD Workflows (simplified for demo)
-  
-  document.getElementById('parseTasksBtn').addEventListener('click', () => {
-    parseTasks();
+  let time = 800; // Start at 8:00 AM
+  LMJ_ORDER.forEach(lmj => {
+    if (commonTasks[lmj]) {
+      const [desc, priority, spoons, type, notes] = commonTasks[lmj];
+      const timeStr = formatTime(time);
+      addTask(timeStr, lmj, desc, priority, spoons, type, notes);
+      time += 30; // 30 minutes between tasks
+    }
   });
+}
+
+function formatTime(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHour = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+  return `${displayHour}${mins > 0 ? ':' + mins.toString().padStart(2, '0') : ''} ${period}`;
+}
+
+function addSampleTasks() {
+  addTask('830 AM', 'A', 'Morning medications', 'High', '2', 'Fixed', 'Essential start');
+  addTask('900 AM', 'B', 'Family scriptures, breakfast', 'High', '2', 'Fixed', 'PB&fruit, hydrate');
+}
+
+function removeTask(button) {
+  button.parentElement.remove();
+  updatePreview();
+}
+
+function updatePreview() {
+  const tasks = [];
+  const taskRows = document.querySelectorAll('.task-row:not(.task-header)');
   
-  document.getElementById('wrapUpBtn').addEventListener('click', () => {
-    tasks.forEach(t => t.done = true);
-    // Set a spoon debt example (simulate)
-    spoonDebtAmount += 1;
-    spoonDebtDays++;
-    currentSpoonsRemaining = previousDaySpoonsRemaining - spoonDebtAmount;
-    updateTimelinePreview();
-    updateDebtWarning();
-  });
-  
-  document.getElementById('quickSwapBtn').addEventListener('click', () => {
-    // Quick swap example: swap first task description with second
-    if(tasks.length > 1) {
-      const temp = tasks[0].description;
-      tasks[0].description = tasks[1].description;
-      tasks[1].description = temp;
-      updateTimelinePreview();
+  taskRows.forEach(row => {
+    const inputs = row.querySelectorAll('input, select');
+    if (inputs.length >= 7) {
+      tasks.push({
+        time: inputs[0].value,
+        lmj: inputs[1].value,
+        description: inputs[2].value,
+        priority: inputs[3].value,
+        spoons: inputs[4].value,
+        type: inputs[5].value,
+        notes: inputs[6].value
+      });
     }
   });
   
-  document.getElementById('finalReviewBtn').addEventListener('click', () => {
-    // Reflect final spoons, carry forward debt logic here (simplified)
-    previousDaySpoonsRemaining = currentSpoonsRemaining;
-    alert(`Final spoons remaining: ${currentSpoonsRemaining}, spoon debt days: ${spoonDebtDays}`);
+  let preview = generateTemplatePreview(tasks);
+  document.getElementById('templatePreview').textContent = preview;
+}
+
+function generateTemplatePreview(tasks) {
+  const templateName = document.getElementById('templateName').value || 'Untitled Template';
+  
+  let output = `# ${templateName}\n\n`;
+  output += `## Legend\n`;
+  output += `🔒 Fixed  🔄 Flexible  ⚡ Urgent  🌅 AM  🌙 PM  🥄 Spoon cost\n`;
+  output += `✅ Complete  ⏳ Incomplete  🔄 Partial  ⏭️ Skipped\n\n`;
+  
+  output += `## Spoon Section\n`;
+  output += `| Metric | Value | Notes |\n`;
+  output += `|--------|-------|-------|\n`;
+  output += `| Baseline | 20 | Chronic pain adjusted baseline |\n`;
+  output += `| Spoons borrowed | [pending] | From previous day |\n`;
+  output += `| Spoons at start | [auto-calc] | Baseline minus borrowed |\n`;
+  output += `| Planned spoon cost | ${tasks.reduce((sum, task) => sum + parseFloat(task.spoons || 0), 0)} | Sum of all tasks |\n`;
+  output += `| Spoons spent | 0 | Updates as tasks complete |\n`;
+  output += `| Spoons remaining | [auto-calc] | Start minus spent |\n`;
+  output += `| Weather | [check local] | Grand Junction, CO |\n\n`;
+  
+  output += `## Timeline\n`;
+  output += `| Time | LMJ | Task Description | Priority | 🥄 | Status | Area/Notes |\n`;
+  output += `|------|-----|------------------|----------|---|--------|------------|\n`;
+  
+  tasks.forEach(task => {
+    if (task.time && task.lmj && task.description) {
+      const emoji = LMJ_EMOJIS[task.lmj] || '';
+      const typeIcon = task.type === 'Fixed' ? '🔒' : task.type === 'Urgent' ? '⚡' : '🔄';
+      output += `| ${task.time} ${typeIcon} | ${task.lmj}${emoji} | ${task.description} (${task.priority}) | ${task.priority} | ${task.spoons} | ⏳ | ${task.notes} |\n`;
+    }
   });
   
-  function updateDebtWarning() {
-    const warningDiv = document.getElementById('spoonDebtWarning');
-    if(spoonDebtDays === 0) {
-      warningDiv.textContent = '';
-      warningDiv.className = '';
-      return;
-    } else if(spoonDebtDays < 3) {
-      warningDiv.textContent = `⚠️ Warning: Day ${spoonDebtDays} in Spoon Debt`;
-      warningDiv.className = 'warning alert-yellow';
-    } else if(spoonDebtDays < 5) {
-      warningDiv.textContent = `⚠️ Warning: Day ${spoonDebtDays} in Spoon Debt - Moderate Risk`;
-      warningDiv.className = 'warning alert-orange';
-    } else {
-      warningDiv.textContent = `⚠️ Warning: Day ${spoonDebtDays} in Spoon Debt - High Risk! Take care!`;
-      warningDiv.className = 'warning alert-red';
-    }
+  output += `\n## Protocol Notes\n`;
+  output += `- All LMJ codes follow protocol-locked order\n`;
+  output += `- H always comes after ME\n`;
+  output += `- G reserved for Gosling time\n`;
+  output += `- Flexible tasks slot between B and G unless specified\n`;
+  output += `- All spoon calculations follow chronic pain protocols\n`;
+  
+  return output;
+}
+
+function saveTemplate() {
+  const name = document.getElementById('templateName').value;
+  if (!name) {
+    alert('Please enter a template name');
+    return;
   }
   
-  document.getElementById('exportBtn').addEventListener('click', () => {
-    const exportText = document.getElementById('timelinePreview').textContent;
-    navigator.clipboard.writeText(exportText)
-      .then(() => alert('Timeline copied to clipboard for Academic Allies!'))
-      .catch(() => alert('Failed to copy — please copy manually.'));
+  const tasks = [];
+  const taskRows = document.querySelectorAll('.task-row:not(.task-header)');
+  
+  taskRows.forEach(row => {
+    const inputs = row.querySelectorAll('input, select');
+    if (inputs.length >= 7) {
+      tasks.push({
+        time: inputs[0].value,
+        lmj: inputs[1].value,
+        description: inputs[2].value,
+        priority: inputs[3].value,
+        spoons: inputs[4].value,
+        type: inputs[5].value,
+        notes: inputs[6].value
+      });
+    }
   });
   
-  // Initialize
-  parseConfig();
-  updateTimelinePreview();
+  savedTemplates[name] = {
+    type: document.getElementById('templateType').value,
+    tasks: tasks,
+    created: new Date().toISOString()
+  };
+  
+  localStorage.setItem('spoonpalTemplates', JSON.stringify(savedTemplates));
+  refreshTemplateSelect();
+  
+  showMessage(`Template "${name}" saved successfully!`, 'success');
+}
+
+function loadTemplate() {
+  const name = document.getElementById('templateSelect').value;
+  if (!name || !savedTemplates[name]) {
+    alert('Please select a template to load');
+    return;
+  }
+  
+  const template = savedTemplates[name];
+  document.getElementById('templateName').value = name;
+  document.getElementById('templateType').value = template.type;
+  
+  // Clear existing tasks
+  const taskEditor = document.getElementById('taskEditor');
+  const existingRows = taskEditor.querySelectorAll('.task-row:not(.task-header)');
+  existingRows.forEach(row => row.remove());
+  
+  // Load template tasks
+  template.tasks.forEach(task => {
+    addTask(task.time, task.lmj, task.description, task.priority, task.spoons, task.type, task.notes);
+  });
+  
+  showMessage(`Template "${name}" loaded successfully!`, 'success');
+}
+
+function exportTemplate() {
+  const tasks = [];
+  const taskRows = document.querySelectorAll('.task-row:not(.task-header)');
+  
+  taskRows.forEach(row => {
+    const inputs = row.querySelectorAll('input, select');
+    if (inputs.length >= 7) {
+      tasks.push({
+        time: inputs[0].value,
+        lmj: inputs[1].value,
+        description: inputs[2].value,
+        priority: inputs[3].value,
+        spoons: inputs[4].value,
+        type: inputs[5].value,
+        notes: inputs[6].value
+      });
+    }
+  });
+  
+  const output = generateTemplatePreview(tasks);
+  
+  navigator.clipboard.writeText(output).then(() => {
+    showMessage('Template copied to clipboard! Ready to paste into Academic Allies.', 'success');
+  }, () => {
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = output;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    showMessage('Template copied to clipboard! Ready to paste into Academic Allies.', 'success');
+  });
+}
+
+function deleteTemplate() {
+  const name = document.getElementById('templateSelect').value;
+  if (!name || !savedTemplates[name]) {
+    alert('Please select a template to delete');
+    return;
+  }
+  
+  if (confirm(`Are you sure you want to delete template "${name}"?`)) {
+    delete savedTemplates[name];
+    localStorage.setItem('spoonpalTemplates', JSON.stringify(savedTemplates));
+    refreshTemplateSelect();
+    showMessage(`Template "${name}" deleted.`, 'success');
+  }
+}
+
+function refreshTemplateSelect() {
+  const select = document.getElementById('templateSelect');
+  select.innerHTML = '<option value="">Select saved template...</option>';
+  
+  Object.keys(savedTemplates).forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = `${name} (${savedTemplates[name].type})`;
+    select.appendChild(option);
+  });
+}
+
+function showMessage(message, type) {
+  const existing = document.querySelector('.message');
+  if (existing) existing.remove();
+  
+  const div = document.createElement('div');
+  div.className = `message ${type}`;
+  div.textContent = message;
+  document.body.insertBefore(div, document.body.firstChild);
+  
+  setTimeout(() => div.remove(), 3000);
+}
 </script>
+
 </body>
 </html>
