@@ -1,459 +1,362 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SpoonPal Template Manager</title>
-<style>
-body { 
-  font-family: Arial, sans-serif; 
-  margin: 1em; 
-  background: #f9f9f9; 
-  max-width: 1200px; 
-  margin: 0 auto; 
-  padding: 1em;
-}
-h1, h2 { color: #333; }
-.section {
-  background: white; 
-  padding: 1em; 
-  margin-bottom: 1em; 
-  border-radius: 8px; 
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-label { 
-  display: block; 
-  margin-top: 0.5em; 
-  font-weight: bold;
-}
-input, select, textarea {
-  width: 100%; 
-  padding: 0.5em; 
-  margin: 0.2em 0; 
-  border: 1px solid #ddd; 
-  border-radius: 4px;
-  font-size: 14px;
-}
-button {
-  background: #2a7ae2; 
-  color: white; 
-  padding: 0.7em 1.4em; 
-  border: none; 
-  border-radius: 4px;
-  margin: 0.5em 0.5em 0.5em 0; 
-  cursor: pointer;
-  font-size: 14px;
-}
-button:hover { background: #1e5bb8; }
-button:disabled { background: #999; cursor: not-allowed; }
-.lmj-order { 
-  background: #e8f4fd; 
-  padding: 1em; 
-  border-left: 4px solid #2a7ae2; 
-  margin: 1em 0;
-}
-.task-row {
-  display: grid;
-  grid-template-columns: 80px 60px 2fr 100px 80px 100px 1fr;
-  gap: 0.5em;
-  align-items: center;
-  padding: 0.5em;
-  border-bottom: 1px solid #eee;
-}
-.task-row:hover { background: #f5f5f5; }
-.task-header {
-  font-weight: bold;
-  background: #f0f0f0;
-  border-bottom: 2px solid #ddd;
-}
-.template-preview {
-  background: #f8f8f8;
-  padding: 1em;
-  border-radius: 4px;
-  font-family: monospace;
-  white-space: pre-wrap;
-  max-height: 400px;
-  overflow-y: auto;
-}
-.warning {
-  background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  color: #856404;
-  padding: 1em;
-  border-radius: 4px;
-  margin: 1em 0;
-}
-.success {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
-  padding: 1em;
-  border-radius: 4px;
-  margin: 1em 0;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpoonPal Protocol Timeline</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .timestamp { 
+            font-weight: bold; 
+            font-size: 1.1em; 
+            margin-bottom: 20px; 
+            color: #333; 
+        }
+        .spoon-section { 
+            background: #e8f4fd; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+        }
+        .legend { 
+            background: #fff3cd; 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin-bottom: 15px; 
+            font-family: monospace; 
+            font-size: 0.9em; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 20px; 
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+            font-size: 0.9em; 
+        }
+        th { 
+            background-color: #f8f9fa; 
+            font-weight: bold; 
+        }
+        .reference-section { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-top: 20px; 
+            font-family: monospace; 
+            font-size: 0.85em; 
+        }
+        .nonope-log { 
+            background: #ffe6e6; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-top: 15px; 
+            font-family: monospace; 
+            font-size: 0.85em; 
+        }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 0.9em; 
+        }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+        .btn-danger { background: #dc3545; color: white; }
+        .controls { margin-bottom: 20px; }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <div id="timestamp" class="timestamp"></div>
+        
+        <div id="spoonSection" class="spoon-section">
+            <h3>Spoon Section (Prefilled)</h3>
+            <div>Baseline: <span id="baseline">20</span> | Borrowed: <span id="borrowed">0</span> | Start: <span id="start">20</span></div>
+            <div>Planned Cost: <span id="planned">0</span> | Spent: <span id="spent">0</span> | Remaining: <span id="remaining">20</span></div>
+            <div>Depletion: <span id="depletion">0</span> | Weather: <span id="weather">[fill]</span> | Check-in: <span id="checkin">[fill]</span></div>
+        </div>
 
-<h1>🥄 SpoonPal Template Manager</h1>
+        <div class="controls">
+            <button class="btn-primary" onclick="generateWeekdayTemplate()">Generate Weekday Template</button>
+            <button class="btn-success" onclick="generateSundayTemplate()">Generate Sunday Template</button>
+            <button class="btn-warning" onclick="updateSpoons()">Update Spoons</button>
+            <button class="btn-danger" onclick="clearTimeline()">Clear Timeline</button>
+        </div>
 
-<div class="section">
-  <h2>Protocol Configuration</h2>
-  <div class="lmj-order">
-    <strong>LMJ Order (Protocol-Locked):</strong> A💊, V🦾, B🍽️, G🐥, N📰, ME🧘, H🧺, CC🛏️, DD💨, EE😷, FF🤚, ZZ📵
-    <br><small>H always comes after ME. G is reserved for Gosling time. Flexible tasks slot between B and G unless specified.</small>
-  </div>
-  
-  <label for="templateName">Template Name:</label>
-  <input type="text" id="templateName" placeholder="e.g., Monday Template, Thursday Workday, Weekend Recovery">
-  
-  <label for="templateType">Template Type:</label>
-  <select id="templateType">
-    <option value="daily">Daily Template</option>
-    <option value="workday">Workday Template</option>
-    <option value="recovery">Recovery Day Template</option>
-    <option value="weekend">Weekend Template</option>
-  </select>
-</div>
+        <div id="legend" class="legend"></div>
+        
+        <table id="timelineTable">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Lmj</th>
+                    <th>Task (Priority)</th>
+                    <th>🥄</th>
+                    <th>Status</th>
+                    <th>AreaNotes</th>
+                </tr>
+            </thead>
+            <tbody id="timelineBody">
+            </tbody>
+        </table>
 
-<div class="section">
-  <h2>Task Editor</h2>
-  <div id="taskEditor">
-    <div class="task-row task-header">
-      <div>Time</div>
-      <div>LMJ</div>
-      <div>Task Description</div>
-      <div>Priority</div>
-      <div>Spoons</div>
-      <div>Type</div>
-      <div>Area/Notes</div>
+        <div id="referenceSection" class="reference-section"></div>
+        <div id="nonopeLog" class="nonope-log"></div>
     </div>
-  </div>
-  <button id="addTaskBtn">+ Add Task</button>
-  <button id="addLmjOrderBtn">+ Add LMJ Sequence</button>
-</div>
 
-<div class="section">
-  <h2>Template Management</h2>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em;">
-    <div>
-      <button id="saveTemplateBtn">💾 Save Template</button>
-      <button id="loadTemplateBtn">📁 Load Template</button>
-      <button id="exportTemplateBtn">📤 Export for Academic Allies</button>
-    </div>
-    <div>
-      <select id="templateSelect" style="margin-bottom: 0.5em;">
-        <option value="">Select saved template...</option>
-      </select>
-      <button id="deleteTemplateBtn">🗑️ Delete Template</button>
-    </div>
-  </div>
-</div>
+    <script>
+        // Protocol-Locked LMJ Order and Emojis (from attached file)
+        const LOCKED_LMJ_ORDER = [
+            { lmj: 'A', emoji: '💊', description: 'Morning meds' },
+            { lmj: 'V', emoji: '🦾', description: 'CPAP prep, wrist brace' },
+            { lmj: 'B', emoji: '🍽️', description: 'Family scriptures, breakfast' },
+            { lmj: 'G', emoji: '🐥', description: 'Gosling time' },
+            { lmj: 'N', emoji: '📰', description: 'News with Mom' },
+            { lmj: 'ME', emoji: '🧘', description: 'Me time' },
+            { lmj: 'H', emoji: '🧺', description: 'Hamper/laundry (change clothes, hamper, bathroom)' },
+            { lmj: 'CC', emoji: '🛏️', description: 'In bed' },
+            { lmj: 'DD', emoji: '💨', description: 'Breathe, recover' },
+            { lmj: 'EE', emoji: '😷', description: 'CPAP mask on' },
+            { lmj: 'FF', emoji: '🤚', description: 'Wrist brace on' },
+            { lmj: 'ZZ', emoji: '📵', description: 'Device off, crash' }
+        ];
 
-<div class="section">
-  <h2>Preview</h2>
-  <div id="templatePreview" class="template-preview">Template preview will appear here...</div>
-</div>
+        // Protocol-Locked Status Icons (⏭️ is EXPRESSLY FORBIDDEN)
+        const STATUS_ICONS = {
+            complete: '✅',
+            incomplete: '⬜',
+            partial: '⏳',
+            progress: '🛠️',
+            interrupted: '🚧', 
+            skipped: '❌',  // NOT ⏭️ which is forbidden
+            rescheduled: '🔄'
+        };
 
-<script>
-// LMJ Protocol Configuration
-const LMJ_ORDER = ['A', 'V', 'B', 'G', 'N', 'ME', 'H', 'CC', 'DD', 'EE', 'FF', 'ZZ'];
-const LMJ_EMOJIS = {
-  'A': '💊', 'V': '🦾', 'B': '🍽️', 'G': '🐥', 'N': '📰', 'ME': '🧘', 
-  'H': '🧺', 'CC': '🛏️', 'DD': '💨', 'EE': '😷', 'FF': '🤚', 'ZZ': '📵'
-};
+        // Protocol-Locked Legend
+        const LEGEND = "Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon Lmj 🎯 Status ✅ Complete ⬜ Incomplete ⏳ Partial 🛠️ Progress 🚧 Interrupted ❌ Skipped 🔄 Rescheduled";
 
-let currentTasks = [];
-let savedTemplates = JSON.parse(localStorage.getItem('spoonpalTemplates') || '{}');
+        // Global timeline data
+        let timelineData = [];
+        let bbCounter = 1; // For bathroom break emoji tracking
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-  refreshTemplateSelect();
-  addSampleTasks();
-  updatePreview();
-  
-  // Event listeners
-  document.getElementById('addTaskBtn').addEventListener('click', addTask);
-  document.getElementById('addLmjOrderBtn').addEventListener('click', addLmjSequence);
-  document.getElementById('saveTemplateBtn').addEventListener('click', saveTemplate);
-  document.getElementById('loadTemplateBtn').addEventListener('click', loadTemplate);
-  document.getElementById('exportTemplateBtn').addEventListener('click', exportTemplate);
-  document.getElementById('deleteTemplateBtn').addEventListener('click', deleteTemplate);
-});
+        // Initialize app
+        function init() {
+            updateTimestamp();
+            updateLegend();
+            updateReferenceSection();
+            updateNonopeLog();
+            setInterval(updateTimestamp, 60000); // Update every minute
+        }
 
-function addTask(time = '', lmj = '', description = '', priority = 'High', spoons = '1', type = 'Fixed', notes = '') {
-  const taskId = 'task_' + Date.now() + Math.random();
-  const taskRow = document.createElement('div');
-  taskRow.className = 'task-row';
-  taskRow.innerHTML = `
-    <input type="text" value="${time}" placeholder="730 AM" onchange="updatePreview()">
-    <select onchange="updatePreview()">
-      <option value="">--</option>
-      ${LMJ_ORDER.map(code => `<option value="${code}" ${lmj === code ? 'selected' : ''}>${code}${LMJ_EMOJIS[code]}</option>`).join('')}
-    </select>
-    <input type="text" value="${description}" placeholder="Task description" onchange="updatePreview()">
-    <select onchange="updatePreview()">
-      <option value="High" ${priority === 'High' ? 'selected' : ''}>High</option>
-      <option value="Medium" ${priority === 'Medium' ? 'selected' : ''}>Medium</option>
-      <option value="Low" ${priority === 'Low' ? 'selected' : ''}>Low</option>
-    </select>
-    <input type="number" value="${spoons}" min="0" max="10" step="0.5" onchange="updatePreview()">
-    <select onchange="updatePreview()">
-      <option value="Fixed" ${type === 'Fixed' ? 'selected' : ''}>Fixed</option>
-      <option value="Flexible" ${type === 'Flexible' ? 'selected' : ''}>Flexible</option>
-      <option value="Urgent" ${type === 'Urgent' ? 'selected' : ''}>Urgent</option>
-    </select>
-    <input type="text" value="${notes}" placeholder="Area/Notes" onchange="updatePreview()">
-    <button onclick="removeTask(this)" style="background: #dc3545; padding: 0.3em;">×</button>
-  `;
-  document.getElementById('taskEditor').appendChild(taskRow);
-  updatePreview();
-}
+        // Update timestamp (MUST be first line per protocol)
+        function updateTimestamp() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+                timeZoneName: 'short'
+            };
+            document.getElementById('timestamp').textContent = now.toLocaleDateString('en-US', options);
+        }
 
-function addLmjSequence() {
-  const commonTasks = {
-    'A': ['Morning medications', 'High', '2', 'Fixed', 'Essential start'],
-    'V': ['CPAP prep, wrist brace', 'High', '1', 'Fixed', 'After A'],
-    'B': ['Family scriptures, breakfast', 'High', '2', 'Fixed', 'PB&fruit, hydrate'],
-    'G': ['Gosling time', 'High', '1', 'Fixed', 'PM, fixed 2 wks'],
-    'N': ['News with Mom', 'High', '1', 'Fixed', 'NBC/EWT/YouTube'],
-    'ME': ['Me time', 'High', '0', 'Fixed', 'Recovery'],
-    'H': ['Hamper, clothes, bathroom', 'High', '1', 'Fixed', 'After ME'],
-    'CC': ['In bed', 'High', '0', 'Fixed', 'Settle in'],
-    'DD': ['Breathe, recover', 'High', '0', 'Fixed', 'Post-movement'],
-    'EE': ['CPAP mask on', 'High', '0.5', 'Fixed', 'Final prep'],
-    'FF': ['Wrist brace on', 'High', '0.5', 'Fixed', 'If needed'],
-    'ZZ': ['Device off, crash', 'High', '0', 'Fixed', 'Sleep initiation']
-  };
-  
-  let time = 800; // Start at 8:00 AM
-  LMJ_ORDER.forEach(lmj => {
-    if (commonTasks[lmj]) {
-      const [desc, priority, spoons, type, notes] = commonTasks[lmj];
-      const timeStr = formatTime(time);
-      addTask(timeStr, lmj, desc, priority, spoons, type, notes);
-      time += 30; // 30 minutes between tasks
-    }
-  });
-}
+        // Update legend (must appear above table AND in reference section)
+        function updateLegend() {
+            document.getElementById('legend').textContent = LEGEND;
+        }
 
-function formatTime(minutes) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const displayHour = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
-  return `${displayHour}${mins > 0 ? ':' + mins.toString().padStart(2, '0') : ''} ${period}`;
-}
+        // Generate weekday template following locked LMJ order
+        function generateWeekdayTemplate() {
+            timelineData = [
+                { time: '0730', ampm: 'AM', fixed: true, lmj: 'A', emoji: '💊', description: 'Morning meds (High)', spoonCost: 2, status: 'incomplete', notes: 'Essential start' },
+                { time: '0745', ampm: 'AM', fixed: true, lmj: 'V', emoji: '🦾', description: 'CPAP prep, wrist brace (High)', spoonCost: 1, status: 'incomplete', notes: 'Morning routine' },
+                { time: '0800', ampm: 'AM', fixed: true, lmj: 'B', emoji: '🍽️', description: 'Family scriptures, breakfast (High)', spoonCost: 2, status: 'incomplete', notes: 'Kitchen, hydrate' },
+                { time: '0900', ampm: 'AM', fixed: false, lmj: 'G', emoji: '🐥', description: 'Gosling time (Medium)', spoonCost: 2, status: 'incomplete', notes: 'Outdoor time' },
+                { time: '1000', ampm: 'AM', fixed: false, lmj: 'BB1', emoji: '🚽', description: 'Bathroom break (High)', spoonCost: 0, status: 'incomplete', notes: 'First BB of day' },
+                { time: '1200', ampm: 'PM', fixed: false, lmj: 'L1', emoji: '🍽️', description: 'Lunch (High)', spoonCost: 1, status: 'incomplete', notes: 'Kitchen, hydrate' },
+                { time: '0200', ampm: 'PM', fixed: false, lmj: 'BB2', emoji: '🚻', description: 'Bathroom break (High)', spoonCost: 0, status: 'incomplete', notes: 'Second BB, unique emoji' },
+                { time: '0600', ampm: 'PM', fixed: false, lmj: 'N', emoji: '📰', description: 'News with Mom (High)', spoonCost: 1, status: 'incomplete', notes: 'Evening routine' },
+                { time: '0700', ampm: 'PM', fixed: false, lmj: 'ME', emoji: '🧘', description: 'Me time (Medium)', spoonCost: 1, status: 'incomplete', notes: 'Relaxation' },
+                { time: '0800', ampm: 'PM', fixed: false, lmj: 'H', emoji: '🧺', description: 'Hamper/laundry (Medium)', spoonCost: 1, status: 'incomplete', notes: 'Change clothes, bathroom' },
+                { time: '0900', ampm: 'PM', fixed: true, lmj: 'CC', emoji: '🛏️', description: 'In bed (High)', spoonCost: 0, status: 'incomplete', notes: 'Settle in' },
+                { time: '0915', ampm: 'PM', fixed: true, lmj: 'DD', emoji: '💨', description: 'Breathe, recover (High)', spoonCost: 0, status: 'incomplete', notes: 'Post-movement rest' },
+                { time: '0930', ampm: 'PM', fixed: true, lmj: 'EE', emoji: '😷', description: 'CPAP mask on (High)', spoonCost: 0, status: 'incomplete', notes: 'Sleep prep' },
+                { time: '0945', ampm: 'PM', fixed: true, lmj: 'FF', emoji: '🤚', description: 'Wrist brace on (High)', spoonCost: 0, status: 'incomplete', notes: 'If needed' },
+                { time: '1000', ampm: 'PM', fixed: true, lmj: 'ZZ', emoji: '📵', description: 'Device off, crash (High)', spoonCost: 0, status: 'incomplete', notes: 'Sleep initiation' }
+            ];
+            
+            calculateSpoons();
+            renderTimeline();
+        }
 
-function addSampleTasks() {
-  addTask('830 AM', 'A', 'Morning medications', 'High', '2', 'Fixed', 'Essential start');
-  addTask('900 AM', 'B', 'Family scriptures, breakfast', 'High', '2', 'Fixed', 'PB&fruit, hydrate');
-}
+        // Generate Sunday template (restricted per protocol)
+        function generateSundayTemplate() {
+            timelineData = [
+                { time: '0730', ampm: 'AM', fixed: true, lmj: 'A', emoji: '💊', description: 'Morning meds (High)', spoonCost: 2, status: 'incomplete', notes: 'Essential' },
+                { time: '1130', ampm: 'AM', fixed: true, lmj: 'CH', emoji: '⛪', description: 'Church service (Highest)', spoonCost: 3, status: 'incomplete', notes: 'Fixed slot, locked' },
+                { time: '0600', ampm: 'PM', fixed: false, lmj: 'N', emoji: '📰', description: 'News with Mom (High)', spoonCost: 1, status: 'incomplete', notes: 'Evening routine' },
+                { time: '0900', ampm: 'PM', fixed: true, lmj: 'CC', emoji: '🛏️', description: 'In bed (High)', spoonCost: 0, status: 'incomplete', notes: 'Settle in' },
+                { time: '1000', ampm: 'PM', fixed: true, lmj: 'ZZ', emoji: '📵', description: 'Device off, crash (High)', spoonCost: 0, status: 'incomplete', notes: 'Sleep initiation' }
+            ];
+            
+            calculateSpoons();
+            renderTimeline();
+        }
 
-function removeTask(button) {
-  button.parentElement.remove();
-  updatePreview();
-}
+        // Calculate spoon metrics
+        function calculateSpoons() {
+            const baseline = 20;
+            const borrowed = 0; // Update based on deficit
+            const start = baseline - borrowed;
+            const planned = timelineData.reduce((sum, task) => sum + task.spoonCost, 0);
+            const spent = timelineData.filter(task => task.status === 'complete').reduce((sum, task) => sum + task.spoonCost, 0);
+            const remaining = start - spent;
+            const depletion = remaining - (planned - spent);
 
-function updatePreview() {
-  const tasks = [];
-  const taskRows = document.querySelectorAll('.task-row:not(.task-header)');
-  
-  taskRows.forEach(row => {
-    const inputs = row.querySelectorAll('input, select');
-    if (inputs.length >= 7) {
-      tasks.push({
-        time: inputs[0].value,
-        lmj: inputs[1].value,
-        description: inputs[2].value,
-        priority: inputs[3].value,
-        spoons: inputs[4].value,
-        type: inputs[5].value,
-        notes: inputs[6].value
-      });
-    }
-  });
-  
-  let preview = generateTemplatePreview(tasks);
-  document.getElementById('templatePreview').textContent = preview;
-}
+            document.getElementById('baseline').textContent = baseline;
+            document.getElementById('borrowed').textContent = borrowed;
+            document.getElementById('start').textContent = start;
+            document.getElementById('planned').textContent = planned;
+            document.getElementById('spent').textContent = spent;
+            document.getElementById('remaining').textContent = remaining;
+            document.getElementById('depletion').textContent = depletion;
+        }
 
-function generateTemplatePreview(tasks) {
-  const templateName = document.getElementById('templateName').value || 'Untitled Template';
-  
-  let output = `# ${templateName}\n\n`;
-  output += `## Legend\n`;
-  output += `🔒 Fixed  🔄 Flexible  ⚡ Urgent  🌅 AM  🌙 PM  🥄 Spoon cost\n`;
-  output += `✅ Complete  ⏳ Incomplete  🔄 Partial  ⏭️ Skipped\n\n`;
-  
-  output += `## Spoon Section\n`;
-  output += `| Metric | Value | Notes |\n`;
-  output += `|--------|-------|-------|\n`;
-  output += `| Baseline | 20 | Chronic pain adjusted baseline |\n`;
-  output += `| Spoons borrowed | [pending] | From previous day |\n`;
-  output += `| Spoons at start | [auto-calc] | Baseline minus borrowed |\n`;
-  output += `| Planned spoon cost | ${tasks.reduce((sum, task) => sum + parseFloat(task.spoons || 0), 0)} | Sum of all tasks |\n`;
-  output += `| Spoons spent | 0 | Updates as tasks complete |\n`;
-  output += `| Spoons remaining | [auto-calc] | Start minus spent |\n`;
-  output += `| Weather | [check local] | Grand Junction, CO |\n\n`;
-  
-  output += `## Timeline\n`;
-  output += `| Time | LMJ | Task Description | Priority | 🥄 | Status | Area/Notes |\n`;
-  output += `|------|-----|------------------|----------|---|--------|------------|\n`;
-  
-  tasks.forEach(task => {
-    if (task.time && task.lmj && task.description) {
-      const emoji = LMJ_EMOJIS[task.lmj] || '';
-      const typeIcon = task.type === 'Fixed' ? '🔒' : task.type === 'Urgent' ? '⚡' : '🔄';
-      output += `| ${task.time} ${typeIcon} | ${task.lmj}${emoji} | ${task.description} (${task.priority}) | ${task.priority} | ${task.spoons} | ⏳ | ${task.notes} |\n`;
-    }
-  });
-  
-  output += `\n## Protocol Notes\n`;
-  output += `- All LMJ codes follow protocol-locked order\n`;
-  output += `- H always comes after ME\n`;
-  output += `- G reserved for Gosling time\n`;
-  output += `- Flexible tasks slot between B and G unless specified\n`;
-  output += `- All spoon calculations follow chronic pain protocols\n`;
-  
-  return output;
-}
+        // Render timeline table
+        function renderTimeline() {
+            const tbody = document.getElementById('timelineBody');
+            tbody.innerHTML = '';
 
-function saveTemplate() {
-  const name = document.getElementById('templateName').value;
-  if (!name) {
-    alert('Please enter a template name');
-    return;
-  }
-  
-  const tasks = [];
-  const taskRows = document.querySelectorAll('.task-row:not(.task-header)');
-  
-  taskRows.forEach(row => {
-    const inputs = row.querySelectorAll('input, select');
-    if (inputs.length >= 7) {
-      tasks.push({
-        time: inputs[0].value,
-        lmj: inputs[1].value,
-        description: inputs[2].value,
-        priority: inputs[3].value,
-        spoons: inputs[4].value,
-        type: inputs[5].value,
-        notes: inputs[6].value
-      });
-    }
-  });
-  
-  savedTemplates[name] = {
-    type: document.getElementById('templateType').value,
-    tasks: tasks,
-    created: new Date().toISOString()
-  };
-  
-  localStorage.setItem('spoonpalTemplates', JSON.stringify(savedTemplates));
-  refreshTemplateSelect();
-  
-  showMessage(`Template "${name}" saved successfully!`, 'success');
-}
+            timelineData.forEach((task, index) => {
+                const row = document.createElement('tr');
+                
+                // Time column with icons
+                const timeCell = document.createElement('td');
+                const timeIcon = task.ampm === 'AM' ? '☀️' : '🌙';
+                const flexIcon = task.fixed ? '🔒' : '↕️';
+                timeCell.textContent = `${task.time} ${timeIcon} ${flexIcon}`;
+                row.appendChild(timeCell);
 
-function loadTemplate() {
-  const name = document.getElementById('templateSelect').value;
-  if (!name || !savedTemplates[name]) {
-    alert('Please select a template to load');
-    return;
-  }
-  
-  const template = savedTemplates[name];
-  document.getElementById('templateName').value = name;
-  document.getElementById('templateType').value = template.type;
-  
-  // Clear existing tasks
-  const taskEditor = document.getElementById('taskEditor');
-  const existingRows = taskEditor.querySelectorAll('.task-row:not(.task-header)');
-  existingRows.forEach(row => row.remove());
-  
-  // Load template tasks
-  template.tasks.forEach(task => {
-    addTask(task.time, task.lmj, task.description, task.priority, task.spoons, task.type, task.notes);
-  });
-  
-  showMessage(`Template "${name}" loaded successfully!`, 'success');
-}
+                // Lmj column
+                const lmjCell = document.createElement('td');
+                lmjCell.textContent = `${task.lmj}${task.emoji}`;
+                row.appendChild(lmjCell);
 
-function exportTemplate() {
-  const tasks = [];
-  const taskRows = document.querySelectorAll('.task-row:not(.task-header)');
-  
-  taskRows.forEach(row => {
-    const inputs = row.querySelectorAll('input, select');
-    if (inputs.length >= 7) {
-      tasks.push({
-        time: inputs[0].value,
-        lmj: inputs[1].value,
-        description: inputs[2].value,
-        priority: inputs[3].value,
-        spoons: inputs[4].value,
-        type: inputs[5].value,
-        notes: inputs[6].value
-      });
-    }
-  });
-  
-  const output = generateTemplatePreview(tasks);
-  
-  navigator.clipboard.writeText(output).then(() => {
-    showMessage('Template copied to clipboard! Ready to paste into Academic Allies.', 'success');
-  }, () => {
-    // Fallback for older browsers
-    const textArea = document.createElement('textarea');
-    textArea.value = output;
-    document.body.appendChild(textArea);
-    textArea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textArea);
-    showMessage('Template copied to clipboard! Ready to paste into Academic Allies.', 'success');
-  });
-}
+                // Task description
+                const taskCell = document.createElement('td');
+                taskCell.textContent = task.description;
+                row.appendChild(taskCell);
 
-function deleteTemplate() {
-  const name = document.getElementById('templateSelect').value;
-  if (!name || !savedTemplates[name]) {
-    alert('Please select a template to delete');
-    return;
-  }
-  
-  if (confirm(`Are you sure you want to delete template "${name}"?`)) {
-    delete savedTemplates[name];
-    localStorage.setItem('spoonpalTemplates', JSON.stringify(savedTemplates));
-    refreshTemplateSelect();
-    showMessage(`Template "${name}" deleted.`, 'success');
-  }
-}
+                // Spoon cost
+                const spoonCell = document.createElement('td');
+                spoonCell.textContent = task.spoonCost;
+                row.appendChild(spoonCell);
 
-function refreshTemplateSelect() {
-  const select = document.getElementById('templateSelect');
-  select.innerHTML = '<option value="">Select saved template...</option>';
-  
-  Object.keys(savedTemplates).forEach(name => {
-    const option = document.createElement('option');
-    option.value = name;
-    option.textContent = `${name} (${savedTemplates[name].type})`;
-    select.appendChild(option);
-  });
-}
+                // Status
+                const statusCell = document.createElement('td');
+                statusCell.textContent = STATUS_ICONS[task.status];
+                statusCell.style.cursor = 'pointer';
+                statusCell.onclick = () => toggleStatus(index);
+                row.appendChild(statusCell);
 
-function showMessage(message, type) {
-  const existing = document.querySelector('.message');
-  if (existing) existing.remove();
-  
-  const div = document.createElement('div');
-  div.className = `message ${type}`;
-  div.textContent = message;
-  document.body.insertBefore(div, document.body.firstChild);
-  
-  setTimeout(() => div.remove(), 3000);
-}
-</script>
+                // Area notes
+                const notesCell = document.createElement('td');
+                notesCell.textContent = task.notes;
+                row.appendChild(notesCell);
 
+                tbody.appendChild(row);
+            });
+
+            calculateSpoons();
+        }
+
+        // Toggle task status
+        function toggleStatus(index) {
+            const statuses = ['incomplete', 'partial', 'progress', 'complete', 'skipped'];
+            const currentIndex = statuses.indexOf(timelineData[index].status);
+            const nextIndex = (currentIndex + 1) % statuses.length;
+            timelineData[index].status = statuses[nextIndex];
+            renderTimeline();
+        }
+
+        // Update spoons manually
+        function updateSpoons() {
+            const weather = prompt("Enter weather:");
+            const checkin = prompt("Enter check-in status:");
+            const borrowed = prompt("Enter borrowed spoons (default 0):", "0");
+            
+            if (weather) document.getElementById('weather').textContent = weather;
+            if (checkin) document.getElementById('checkin').textContent = checkin;
+            if (borrowed) document.getElementById('borrowed').textContent = borrowed;
+            
+            calculateSpoons();
+        }
+
+        // Clear timeline
+        function clearTimeline() {
+            if (confirm("Clear all timeline data?")) {
+                timelineData = [];
+                renderTimeline();
+            }
+        }
+
+        // Update reference section (must include legend)
+        function updateReferenceSection() {
+            const referenceHTML = `
+                <h4>Reference Section (System Use Only, Always Last)</h4>
+                <div><strong>Legend:</strong> ${LEGEND}</div>
+                <div><strong>Protocol Notes:</strong></div>
+                <ul>
+                    <li>H comes after ME in locked LMJ order</li>
+                    <li>Evening routines (N, ME, H, CC, DD, EE, FF, ZZ) cannot move ahead of G</li>
+                    <li>Multiple BBs per day require unique emojis</li>
+                    <li>Only one BB per day can use standard 🚽 emoji</li>
+                    <li>All other tasks must be slotted between B and G unless specified</li>
+                    <li>Label-RuleDescription.csv and user corrections always referenced</li>
+                </ul>
+            `;
+            document.getElementById('referenceSection').innerHTML = referenceHTML;
+        }
+
+        // Update NONOPE log
+        function updateNonopeLog() {
+            const nonopeHTML = `
+                <h4>NONOPE Log</h4>
+                <ul>
+                    <li>Use of ⏭️ icon for Skipped status is EXPRESSLY FORBIDDEN</li>
+                    <li>Any drift, unordered LMJs, H before ME permanently rejected</li>
+                    <li>Duplicate BB emojis in same day permanently rejected</li>
+                    <li>Any timeline not following locked LMJ order permanently rejected</li>
+                </ul>
+            `;
+            document.getElementById('nonopeLog').innerHTML = nonopeHTML;
+        }
+
+        // Initialize when page loads
+        window.onload = init;
+    </script>
 </body>
 </html>
