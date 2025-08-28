@@ -1,263 +1,200 @@
-<div id="shared-header"></div>
-<script>fetch("/Academic-Allies/modular/shared-header.html").then(r => r.text()).then(html => {document.getElementById("shared-header").innerHTML = html;});</script>
-<!-- Place this file in components/spoon-planner/spoon-planner.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SpoonPal Editable Planner</title>
 <style>
-.spoon-planner {
-  background: #f8fafc;
-  border-radius: 1rem;
-  max-width: 500px;
-  margin: 2rem auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-}
-
-.spoon-planner h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #22223b;
-}
-
-.spoon-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  font-size: 1.1em;
-}
-
-.reset-btn {
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.4em 1em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.reset-btn:focus {
-  outline: 2px solid #6366f1;
-}
-
-.add-task-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5em 1em;
-  align-items: flex-end;
-  margin-bottom: 1rem;
-}
-.add-task-form label {
-  flex: 1 1 100px;
-  font-weight: 600;
-}
-.add-task-form input {
-  flex: 2 1 120px;
-  padding: 0.3em;
-  border-radius: 0.3em;
-  border: 1px solid #bdbdbd;
-}
-.add-btn {
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.5em 1.2em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.add-btn:focus {
-  outline: 2px solid #6366f1;
-}
-
-.task-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.task-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  border-radius: 0.5em;
-  padding: 0.7em 1em;
-  margin-bottom: 0.5em;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-}
-.task-info {
-  display: flex;
-  flex-direction: column;
-}
-.task-name {
-  font-weight: 600;
-  color: #22223b;
-}
-.task-spoons {
-  color: #3b82f6;
-  font-size: 0.95em;
-}
-.remove-btn {
-  background: #bdbdbd;
-  color: #22223b;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.3em 0.9em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.remove-btn:focus {
-  outline: 2px solid #ef4444;
-}
-@media (max-width: 600px) {
-  .spoon-planner {
-    padding: 1em;
+  body { font-family: Arial, sans-serif; margin: 1em; background: #f9f9f9; }
+  h1, h2 { color: #333; }
+  .config-section, .tasks-section, .eod-section, .preview-section {
+    background: white; padding: 1em; margin-bottom: 1em; border-radius: 8px; box-shadow: 0 0 5px #ccc;
   }
-  .add-task-form {
-    flex-direction: column;
-    gap: 0.5em 0;
-  }
-}
+  label { display: block; margin-top: 0.5em; }
+  input[type="text"], input[type="number"], select { width: 100%; padding: 0.4em; margin: 0.2em 0; }
+  button { background: #2a7ae2; color: white; padding: 0.7em 1.4em; border: none; border-radius: 4px; margin-top: 1em; cursor: pointer; }
+  button:disabled { background: #999; cursor: not-allowed; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+  th, td { border: 1px solid #ddd; padding: 0.6em; text-align: left; }
+  th { background-color: #f2f2f2; }
+  .warning { color: #d9534f; font-weight: bold; }
+  .alert-yellow { background-color: #fff3cd; }
+  .alert-orange { background-color: #ffe5b4; }
+  .alert-red { background-color: #f8d7da; }
 </style>
+</head>
+<body>
+  <h1>SpoonPal Editable Planner</h1>
+  <section class="config-section" aria-label="Configuration Section">
+    <h2>Configuration</h2>
+    <div>
+      <label for="lmjOrder">LMJ Task Order (Comma-separated task codes):</label>
+      <input type="text" id="lmjOrder" value="A,V,B,G,N,ME,H,CC,DD,EE,FF,ZZ" aria-describedby="lmjDesc" aria-required="true" />
+      <small id="lmjDesc">Order enforced. Use published LMJ codes.</small>
+    </div>
+    <div>
+      <label for="lmjEmojis">LMJ Emojis (Format: Code:Emoji, separate with commas):</label>
+      <input type="text" id="lmjEmojis" value="A:💊,V:🦾,B:🍽️,G:🐥,N:📰,ME:🧘,H:🧺,CC:🛏️,DD:💨,EE:😷,FF:🤚,ZZ:📵" aria-describedby="lmjEmojisDesc" aria-required="true" />
+      <small id="lmjEmojisDesc">Customize emojis here.</small>
+    </div>
+    <div>
+      <label for="streakSavers">Streak Savers (Code:Emoji, comma separated):</label>
+      <input type="text" id="streakSavers" value="C:🔗,L:🦙"  aria-describedby="streakSaversDesc" aria-required="true" />
+      <small id="streakSaversDesc">Add your streak saver codes and emojis.</small>
+    </div>
+  </section>
+  
+  <section class="tasks-section" aria-label="Tasks Section">
+    <h2>Today's Tasks</h2>
+    <textarea id="taskInput" rows="4" style="width:100%" placeholder="Enter your daily tasks here, one task per line, with code prefix (eg. A Morning meds)"></textarea>
+    <button id="parseTasksBtn">Parse Tasks & Update Preview</button>
+  </section>
+  
+  <section class="eod-section" aria-label="End of Day Finalization">
+    <h2>End of Day Finalization</h2>
+    <button id="quickSwapBtn">Quick Swap Tasks</button>
+    <button id="wrapUpBtn">Wrap Up All Remaining Tasks</button>
+    <button id="finalReviewBtn">Final Review & Spoon Count</button>
+    <div id="spoonDebtWarning" role="alert" aria-live="assertive"></div>
+  </section>
+  
+  <section class="preview-section" aria-label="Timeline and Spoon Preview">
+    <h2>Live Timeline Preview</h2>
+    <pre id="timelinePreview" style="background:#eee; padding:1em; border-radius:5px; max-height:300px; overflow:auto;"></pre>
+    <button id="exportBtn">Export for Academic Allies</button>
+  </section>
 
-<section id="spoon-planner" class="spoon-planner" aria-label="Daily Spoon Planner">
-  <h2>Daily Spoon Planner</h2>
-  <div class="spoon-summary" aria-live="polite">
-    <span id="spoons-remaining">Spoons Remaining: <strong>12</strong></span>
-    <button type="button" id="reset-spoons" class="reset-btn" aria-label="Reset daily spoons">Reset</button>
-  </div>
-  <form id="add-task-form" class="add-task-form" autocomplete="off">
-    <label for="task-name">Task</label>
-    <input type="text" id="task-name" name="task-name" required aria-required="true" maxlength="40" />
-    <label for="task-spoons">Spoons Needed</label>
-    <input type="number" id="task-spoons" name="task-spoons" min="-12" max="99" required aria-required="true" />
-    <button type="button" id="add-task-btn" class="add-btn">Add Task</button>
-  </form>
-  <ul id="task-list" class="task-list" aria-label="Spoon Tasks">
-    <!-- Tasks will be dynamically added here -->
-  </ul>
-</section>
-
-<style>
-.spoon-planner {
-  background: #f8fafc;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  max-width: 500px;
-  margin: 2rem auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-}
-
-.spoon-planner h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #22223b;
-}
-
-.spoon-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  font-size: 1.1em;
-}
-
-.reset-btn {
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.4em 1em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.reset-btn:focus {
-  outline: 2px solid #6366f1;
-}
-
-.add-task-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5em 1em;
-  align-items: flex-end;
-  margin-bottom: 1rem;
-}
-.add-task-form label {
-  flex: 1 1 100px;
-  font-weight: 600;
-}
-.add-task-form input {
-  flex: 2 1 120px;
-  padding: 0.3em;
-  border-radius: 0.3em;
-  border: 1px solid #bdbdbd;
-}
-.add-btn {
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.5em 1.2em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.add-btn:focus {
-  outline: 2px solid #6366f1;
-}
-
-.task-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.task-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  border-radius: 0.5em;
-  padding: 0.7em 1em;
-  margin-bottom: 0.5em;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-}
-.task-info {
-  display: flex;
-  flex-direction: column;
-}
-.task-name {
-  font-weight: 600;
-  color: #22223b;
-}
-.task-spoons {
-  color: #3b82f6;
-  font-size: 0.95em;
-}
-.remove-btn {
-  background: #bdbdbd;
-  color: #22223b;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.3em 0.9em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.remove-btn:focus {
-  outline: 2px solid #ef4444;
-}
-@media (max-width: 600px) {
-  .spoon-planner {
-    padding: 1em;
+<script>
+  // Internal state
+  let lmjOrder = [];
+  let lmjEmojisMap = {};
+  let streakSaversMap = {};
+  let tasks = [];
+  let spoonDebtDays = 0;
+  let spoonDebtAmount = 0;
+  let previousDaySpoonsRemaining = 10; // Starting baseline
+  let currentSpoonsRemaining = previousDaySpoonsRemaining;
+  
+  // Helpers
+  function parseConfig() {
+    const orderInput = document.getElementById('lmjOrder').value.trim();
+    lmjOrder = orderInput.split(',').map(s => s.trim());
+    
+    const emojiInput = document.getElementById('lmjEmojis').value.trim();
+    lmjEmojisMap = {};
+    emojiInput.split(',').forEach(pair => {
+      const [code, emoji] = pair.split(':').map(p=>p.trim());
+      if(code && emoji) lmjEmojisMap[code] = emoji;
+    });
+    
+    const streakInput = document.getElementById('streakSavers').value.trim();
+    streakSaversMap = {};
+    streakInput.split(',').forEach(pair => {
+      const [code, emoji] = pair.split(':').map(p=>p.trim());
+      if(code && emoji) streakSaversMap[code] = emoji;
+    });
   }
-  .add-task-form {
-    flex-direction: column;
-    gap: 0.5em 0;
+  
+  function parseTasks() {
+    const input = document.getElementById('taskInput').value.trim();
+    tasks = input.split('\\n').map(line => {
+      line = line.trim();
+      const match = line.match(/^([A-Z]+)\\s+(.*)$/);
+      if(match) {
+        return {code: match[1], description: match[2], done: false};
+      } else {
+        return {code: null, description: line, done: false};
+      }
+    }).filter(t => t.code && lmjOrder.includes(t.code));
+    updateTimelinePreview();
   }
-}
-</style>
-
-
-<!-- Add Task Handler Injected [CAj] -->
-<script src="/Academic-Allies/modular/components/spoon-planner/spoon-planner.js"></script>
+  
+  function updateTimelinePreview() {
+    parseConfig();
+    // Sort tasks by lmjOrder index
+    tasks.sort((a,b) => lmjOrder.indexOf(a.code) - lmjOrder.indexOf(b.code));
+    
+    let lines = [];
+    lines.push('Legend:');
+    lmjOrder.forEach(code=>{
+      const emoji = lmjEmojisMap[code] || '';
+      lines.push(`  ${code} ${emoji}`);
+    });
+    Object.entries(streakSaversMap).forEach(([code, emoji])=>{
+      lines.push(`  Streak Saver: ${code} ${emoji}`);
+    });
+    lines.push('');
+    lines.push('Timeline:');
+    tasks.forEach(t => {
+      const emoji = lmjEmojisMap[t.code] || '';
+      lines.push(`${emoji} ${t.code}: ${t.description}`);
+    });
+    lines.push('');
+    lines.push(`Spoons Remaining: ${currentSpoonsRemaining} (Debt Days: ${spoonDebtDays})`);
+    
+    document.getElementById('timelinePreview').textContent = lines.join('\\n');
+  }
+  
+  // EOD Workflows (simplified for demo)
+  
+  document.getElementById('parseTasksBtn').addEventListener('click', () => {
+    parseTasks();
+  });
+  
+  document.getElementById('wrapUpBtn').addEventListener('click', () => {
+    tasks.forEach(t => t.done = true);
+    // Set a spoon debt example (simulate)
+    spoonDebtAmount += 1;
+    spoonDebtDays++;
+    currentSpoonsRemaining = previousDaySpoonsRemaining - spoonDebtAmount;
+    updateTimelinePreview();
+    updateDebtWarning();
+  });
+  
+  document.getElementById('quickSwapBtn').addEventListener('click', () => {
+    // Quick swap example: swap first task description with second
+    if(tasks.length > 1) {
+      const temp = tasks[0].description;
+      tasks[0].description = tasks[1].description;
+      tasks[1].description = temp;
+      updateTimelinePreview();
+    }
+  });
+  
+  document.getElementById('finalReviewBtn').addEventListener('click', () => {
+    // Reflect final spoons, carry forward debt logic here (simplified)
+    previousDaySpoonsRemaining = currentSpoonsRemaining;
+    alert(`Final spoons remaining: ${currentSpoonsRemaining}, spoon debt days: ${spoonDebtDays}`);
+  });
+  
+  function updateDebtWarning() {
+    const warningDiv = document.getElementById('spoonDebtWarning');
+    if(spoonDebtDays === 0) {
+      warningDiv.textContent = '';
+      warningDiv.className = '';
+      return;
+    } else if(spoonDebtDays < 3) {
+      warningDiv.textContent = `⚠️ Warning: Day ${spoonDebtDays} in Spoon Debt`;
+      warningDiv.className = 'warning alert-yellow';
+    } else if(spoonDebtDays < 5) {
+      warningDiv.textContent = `⚠️ Warning: Day ${spoonDebtDays} in Spoon Debt - Moderate Risk`;
+      warningDiv.className = 'warning alert-orange';
+    } else {
+      warningDiv.textContent = `⚠️ Warning: Day ${spoonDebtDays} in Spoon Debt - High Risk! Take care!`;
+      warningDiv.className = 'warning alert-red';
+    }
+  }
+  
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const exportText = document.getElementById('timelinePreview').textContent;
+    navigator.clipboard.writeText(exportText)
+      .then(() => alert('Timeline copied to clipboard for Academic Allies!'))
+      .catch(() => alert('Failed to copy — please copy manually.'));
+  });
+  
+  // Initialize
+  parseConfig();
+  updateTimelinePreview();
+</script>
+</body>
+</html>
