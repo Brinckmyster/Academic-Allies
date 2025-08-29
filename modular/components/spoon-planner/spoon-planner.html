@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpoonPal Protocol Timeline - Actually Working Version</title>
+    <title>SpoonPal - Complete Protocol Timeline</title>
     <style>
         body { 
             font-family: Arial, sans-serif; 
             margin: 20px; 
             background: #f5f5f5; 
+            line-height: 1.4;
         }
         .container { 
             max-width: 1200px; 
@@ -25,7 +26,7 @@
             color: #333; 
         }
         .debt-warning {
-            background: #ff6b6b;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
             color: white;
             padding: 15px;
             border-radius: 6px;
@@ -33,6 +34,12 @@
             font-weight: bold;
             text-align: center;
             display: none;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
         }
         .debt-warning.active { display: block; }
         .day-config {
@@ -40,6 +47,12 @@
             padding: 15px;
             border-radius: 6px;
             margin-bottom: 20px;
+        }
+        .day-config input, .day-config select {
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
         }
         .spoon-section { 
             background: #e8f4fd; 
@@ -113,51 +126,123 @@
         th { 
             background-color: #f8f9fa; 
             font-weight: bold; 
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         .editable {
             cursor: pointer;
             background: #f9f9f9;
+            transition: background 0.2s;
         }
         .editable:hover {
             background: #e9e9e9;
         }
-        .reference-section { 
-            background: #f8f9fa; 
-            padding: 15px; 
-            border-radius: 6px; 
-            margin-top: 20px; 
-            font-family: monospace; 
-            font-size: 0.85em; 
+        .task-row.out-of-order {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
         }
-        .nonope-log { 
-            background: #ffe6e6; 
-            padding: 15px; 
-            border-radius: 6px; 
-            margin-top: 15px; 
-            font-family: monospace; 
-            font-size: 0.85em; 
+        .task-row.completed {
+            background-color: #e6ffe6;
+            opacity: 0.8;
+        }
+        .task-row.overdue {
+            background-color: #ffe6e6;
         }
         button { 
-            padding: 10px 20px; 
-            margin: 5px; 
+            padding: 8px 16px; 
+            margin: 3px; 
             border: none; 
             border-radius: 4px; 
             cursor: pointer; 
             font-size: 0.9em; 
+            transition: background 0.2s;
         }
         .btn-primary { background: #007bff; color: white; }
+        .btn-primary:hover { background: #0056b3; }
         .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #1e7e34; }
         .btn-warning { background: #ffc107; color: black; }
+        .btn-warning:hover { background: #e0a800; }
         .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
         .btn-info { background: #17a2b8; color: white; }
+        .btn-info:hover { background: #138496; }
         .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #545b62; }
         .controls { margin-bottom: 20px; }
-        .controls-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+        .controls-row { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 5px; 
+            margin-bottom: 10px; 
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 6px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: black; }
+        .auto-save-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #4caf50;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .auto-save-indicator.show {
+            opacity: 1;
+        }
+        .protocol-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+        @media (max-width: 768px) {
+            .container { margin: 10px; padding: 15px; }
+            .controls-row { flex-direction: column; }
+            button { width: 100%; margin: 2px 0; }
+            .check-in-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div id="timestamp" class="timestamp"></div>
+        
+        <!-- Auto-save indicator -->
+        <div id="autoSaveIndicator" class="auto-save-indicator">Auto-saved</div>
         
         <!-- Spoon Debt Warning System -->
         <div id="debtWarning" class="debt-warning">
@@ -172,6 +257,9 @@
             </label>
             <label>Day End Time: 
                 <input type="time" id="dayEndTime" value="23:59" onchange="updateDayBoundaries()">
+            </label>
+            <label>Location (for weather): 
+                <input type="text" id="weatherLocation" value="Denver, CO" placeholder="City, State">
             </label>
         </div>
 
@@ -190,6 +278,16 @@
                 <div class="check-in-item">
                     <label>Sleep Hours:</label>
                     <input type="number" id="sleepHours" min="0" max="24" step="0.5" value="8" onchange="saveCheckIn()">
+                </div>
+                <div class="check-in-item">
+                    <label>Mood:</label>
+                    <select id="moodLevel" onchange="saveCheckIn()">
+                        <option value="excellent">Excellent</option>
+                        <option value="good">Good</option>
+                        <option value="okay" selected>Okay</option>
+                        <option value="poor">Poor</option>
+                        <option value="terrible">Terrible</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -219,11 +317,12 @@
             <div class="controls-row">
                 <button class="btn-primary" onclick="generateWeekdayTemplate()">Generate Weekday</button>
                 <button class="btn-success" onclick="generateSundayTemplate()">Generate Sunday</button>
-                <button class="btn-warning" onclick="autoRescheduleAllTasks()">Auto-Reschedule</button>
                 <button class="btn-info" onclick="addNewTask()">Add Task</button>
+                <button class="btn-warning" onclick="autoRescheduleOverdue()">Auto-Reschedule Overdue</button>
             </div>
             <div class="controls-row">
                 <button class="btn-secondary" onclick="exportData()">Export Data</button>
+                <button class="btn-secondary" onclick="importData()">Import Data</button>
                 <button class="btn-danger" onclick="resetDay()">Reset Day</button>
             </div>
         </div>
@@ -236,62 +335,116 @@
             <thead>
                 <tr>
                     <th>Time</th>
-                    <th>Lmj</th>
+                    <th>LMJ</th>
                     <th>Task (Priority)</th>
                     <th>🥄</th>
                     <th>Status</th>
-                    <th>AreaNotes</th>
+                    <th>Notes</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="timelineBody">
             </tbody>
         </table>
+    </div>
 
-        <div id="referenceSection" class="reference-section"></div>
-        <div id="nonopeLog" class="nonope-log"></div>
+    <!-- Task Edit Modal -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Edit Task</h2>
+            <form id="taskForm" onsubmit="event.preventDefault(); saveTask();">
+                <p>Time: <input type="text" id="modalTime" placeholder="2:30 PM" required></p>
+                <p>LMJ: 
+                    <select id="modalLmj" required>
+                        <option value="">Select LMJ</option>
+                        <option value="A">A - Morning meds</option>
+                        <option value="V">V - CPAP prep, wrist brace</option>
+                        <option value="B">B - Family scriptures, breakfast</option>
+                        <option value="G">G - Gosling time</option>
+                        <option value="N">N - News with Mom</option>
+                        <option value="ME">ME - Me time</option>
+                        <option value="H">H - Hamper/laundry</option>
+                        <option value="CC">CC - In bed</option>
+                        <option value="DD">DD - Breathe, recover</option>
+                        <option value="EE">EE - CPAP mask on</option>
+                        <option value="FF">FF - Wrist brace on</option>
+                        <option value="ZZ">ZZ - Device off, crash</option>
+                        <option value="BB">BB - Bathroom break</option>
+                        <option value="OTHER">OTHER - Custom task</option>
+                    </select>
+                </p>
+                <p>Emoji: <input type="text" id="modalEmoji" placeholder="💊" maxlength="5" required></p>
+                <p>Description: <input type="text" id="modalDescription" placeholder="Morning meds" required></p>
+                <p>Priority: 
+                    <select id="modalPriority">
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                        <option value="Urgent">Urgent</option>
+                    </select>
+                </p>
+                <p>Spoon Cost: <input type="number" id="modalSpoonCost" min="0" max="10" step="0.5" required></p>
+                <p>Fixed/Flexible: 
+                    <select id="modalFixed">
+                        <option value="false">Flexible ↕️</option>
+                        <option value="true">Fixed 🔒</option>
+                    </select>
+                </p>
+                <p>Notes: <input type="text" id="modalNotes" placeholder="Additional notes"></p>
+                <div style="margin-top: 15px;">
+                    <button type="submit" class="btn-success">Save Task</button>
+                    <button type="button" onclick="closeModal()" class="btn-secondary">Cancel</button>
+                    <button type="button" onclick="deleteCurrentTask()" class="btn-danger">Delete Task</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script>
-        // ===== PROTOCOL-LOCKED DATA FROM ATTACHED FILE =====
+        // ===== PROTOCOL-LOCKED DATA =====
         
         const LOCKED_LMJ_ORDER = [
-            { lmj: 'A', emoji: '💊', description: 'Morning meds', defaultSpoonCost: 2 },
-            { lmj: 'V', emoji: '🦾', description: 'CPAP prep, wrist brace', defaultSpoonCost: 1 },
-            { lmj: 'B', emoji: '🍽️', description: 'Family scriptures, breakfast', defaultSpoonCost: 2 },
-            { lmj: 'G', emoji: '🐥', description: 'Gosling time', defaultSpoonCost: 2 },
-            { lmj: 'N', emoji: '📰', description: 'News with Mom', defaultSpoonCost: 1 },
-            { lmj: 'ME', emoji: '🧘', description: 'Me time', defaultSpoonCost: 1 },
-            { lmj: 'H', emoji: '🧺', description: 'Hamper/laundry (change clothes, hamper, bathroom)', defaultSpoonCost: 1 },
-            { lmj: 'CC', emoji: '🛏️', description: 'In bed', defaultSpoonCost: 0 },
-            { lmj: 'DD', emoji: '💨', description: 'Breathe, recover', defaultSpoonCost: 0 },
-            { lmj: 'EE', emoji: '😷', description: 'CPAP mask on', defaultSpoonCost: 0 },
-            { lmj: 'FF', emoji: '🤚', description: 'Wrist brace on', defaultSpoonCost: 0 },
-            { lmj: 'ZZ', emoji: '📵', description: 'Device off, crash', defaultSpoonCost: 0 }
+            { lmj: 'A', emoji: '💊', description: 'Morning meds', defaultSpoonCost: 2, defaultFixed: true },
+            { lmj: 'V', emoji: '🦾', description: 'CPAP prep, wrist brace', defaultSpoonCost: 1, defaultFixed: true },
+            { lmj: 'B', emoji: '🍽️', description: 'Family scriptures, breakfast', defaultSpoonCost: 2, defaultFixed: false },
+            { lmj: 'G', emoji: '🐥', description: 'Gosling time', defaultSpoonCost: 2, defaultFixed: false },
+            { lmj: 'N', emoji: '📰', description: 'News with Mom', defaultSpoonCost: 1, defaultFixed: false },
+            { lmj: 'ME', emoji: '🧘', description: 'Me time', defaultSpoonCost: 1, defaultFixed: false },
+            { lmj: 'H', emoji: '🧺', description: 'Hamper/laundry (change clothes, hamper, bathroom)', defaultSpoonCost: 1, defaultFixed: false },
+            { lmj: 'CC', emoji: '🛏️', description: 'In bed', defaultSpoonCost: 0, defaultFixed: true },
+            { lmj: 'DD', emoji: '💨', description: 'Breathe, recover', defaultSpoonCost: 0, defaultFixed: true },
+            { lmj: 'EE', emoji: '😷', description: 'CPAP mask on', defaultSpoonCost: 0, defaultFixed: true },
+            { lmj: 'FF', emoji: '🤚', description: 'Wrist brace on', defaultSpoonCost: 0, defaultFixed: true },
+            { lmj: 'ZZ', emoji: '📵', description: 'Device off, crash', defaultSpoonCost: 0, defaultFixed: true }
         ];
 
         const STATUS_ICONS = {
             complete: '✅',
             incomplete: '⬜',
             partial: '⏳',
+            progress: '🛠️',
+            interrupted: '🚧', 
             skipped: '❌',  // NOT ⏭️ which is FORBIDDEN
             rescheduled: '🔄'
         };
 
-        const BB_EMOJIS = ['🚽', '🚻', '🚾', '🚽💨', '🚽🧻', '🧻🚽'];
-        const LEGEND = "Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon Lmj 🎯 Status ✅ Complete ⬜ Incomplete ⏳ Partial ❌ Skipped 🔄 Rescheduled";
+        const BB_EMOJIS = ['🚽', '🚻', '🚾', '🚽💨', '🚽🧻', '🧻🚽', '🚿', '🛁', '🚽🌊', '🚽💡'];
+        const LEGEND = "Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon LMJ 🎯 Status ✅ Complete ⬜ Incomplete ⏳ Partial 🛠️ Progress 🚧 Interrupted ❌ Skipped 🔄 Rescheduled";
 
         // ===== GLOBAL STATE =====
         
         let timelineData = [];
         let checkInData = {};
         let spoonHistory = [];
+        let selectedTaskIndex = null;
         let bbEmojiUsed = [];
         let learningData = {};
         let dayStartHour = 6;
         let dayEndHour = 23;
+        let weatherData = {};
 
-        // ===== FIXED TIME FORMATTING - ALWAYS 12-HOUR =====
+        // ===== TIME HANDLING - STRICT 12-HOUR FORMAT =====
         
         function formatTo12Hour(time24) {
             const [h, m] = time24.split(':').map(Number);
@@ -300,23 +453,20 @@
             return `${hour12}:${m.toString().padStart(2, '0')} ${period}`;
         }
 
-        function parseTo24Hour(timeStr) {
-            if (timeStr.includes('AM') || timeStr.includes('PM')) {
-                const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-                if (match) {
-                    let [, h, m, period] = match;
-                    h = parseInt(h);
-                    m = parseInt(m);
-                    if (period.toUpperCase() === 'PM' && h !== 12) h += 12;
-                    if (period.toUpperCase() === 'AM' && h === 12) h = 0;
-                    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                }
-            }
-            return timeStr; // Already 24-hour or fallback
+        function parseTo24Hour(time12) {
+            const match = time12.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            if (!match) return null;
+            let [, h, m, period] = match;
+            h = parseInt(h);
+            m = parseInt(m);
+            if (period.toUpperCase() === 'PM' && h !== 12) h += 12;
+            if (period.toUpperCase() === 'AM' && h === 12) h = 0;
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
         }
 
         function timeToMinutes(timeStr) {
             const time24 = parseTo24Hour(timeStr);
+            if (!time24) return 0;
             const [h, m] = time24.split(':').map(Number);
             return h * 60 + m;
         }
@@ -328,21 +478,25 @@
             return formatTo12Hour(time24);
         }
 
+        function getCurrentTime12Hour() {
+            const now = new Date();
+            const time24 = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            return formatTo12Hour(time24);
+        }
+
         // ===== INITIALIZATION =====
         
         function init() {
             loadAllData();
             updateTimestamp();
-            updateWeather();
+            fetchWeather();
             autoFillCheckIn();
             updateDebtWarning();
             updateLegend();
             calculateSpoons();
-            sortTimelineByTime();
+            validateAndSort();
             renderTimeline();
             updateLearningInsights();
-            updateReferenceSection();
-            updateNonopeLog();
             
             setInterval(updateTimestamp, 60000);
             setInterval(autoSave, 30000);
@@ -359,9 +513,11 @@
                 learningData,
                 dayStartHour,
                 dayEndHour,
+                weatherData,
                 lastSave: new Date().toISOString()
             };
             localStorage.setItem('spoonPalData', JSON.stringify(saveData));
+            showAutoSaveIndicator();
         }
 
         function loadAllData() {
@@ -376,18 +532,26 @@
                     learningData = data.learningData || {};
                     dayStartHour = data.dayStartHour || 6;
                     dayEndHour = data.dayEndHour || 23;
+                    weatherData = data.weatherData || {};
                 } catch (error) {
                     console.error('Error loading data:', error);
                 }
             }
             
-            // Update UI with loaded day boundaries
             document.getElementById('dayStartTime').value = String(dayStartHour).padStart(2, '0') + ':00';
             document.getElementById('dayEndTime').value = String(dayEndHour).padStart(2, '0') + ':59';
         }
 
         function autoSave() {
             saveAllData();
+        }
+
+        function showAutoSaveIndicator() {
+            const indicator = document.getElementById('autoSaveIndicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
         }
 
         // ===== DAY BOUNDARY MANAGEMENT =====
@@ -404,6 +568,45 @@
             saveAllData();
         }
 
+        // ===== WEATHER INTEGRATION WITH NWS API =====
+        
+        async function fetchWeather() {
+            const location = document.getElementById('weatherLocation').value || 'Denver, CO';
+            
+            try {
+                // Note: For full NWS integration, you'd need to:
+                // 1. Convert location to lat/lng using geocoding
+                // 2. Call NWS points API to get forecast URL
+                // 3. Fetch forecast data from returned URL
+                
+                // For now, using a realistic demo with clear labeling
+                const demoWeatherConditions = [
+                    { temp: 72, condition: 'Clear', impact: 0, description: `72°F Clear in ${location} - Ideal spoon conditions [DEMO DATA]` },
+                    { temp: 45, condition: 'Cold', impact: -2, description: `45°F Cold in ${location} - Reduces spoons by 2 [DEMO DATA]` },
+                    { temp: 88, condition: 'Hot', impact: -1, description: `88°F Hot in ${location} - Stay hydrated, -1 spoon [DEMO DATA]` },
+                    { temp: 65, condition: 'Cloudy', impact: -1, description: `65°F Cloudy in ${location} - Mild energy impact [DEMO DATA]` }
+                ];
+                
+                const weather = demoWeatherConditions[Math.floor(Math.random() * demoWeatherConditions.length)];
+                weatherData = weather;
+                document.getElementById('weatherInfo').textContent = weather.description;
+                
+                // Apply spoon impact
+                if (weather.impact !== 0) {
+                    adjustBaseline();
+                    calculateSpoons();
+                }
+                
+            } catch (error) {
+                document.getElementById('weatherInfo').textContent = 'Weather data unavailable - using defaults';
+            }
+        }
+
+        function refreshWeather() {
+            document.getElementById('weatherInfo').textContent = 'Updating weather...';
+            setTimeout(fetchWeather, 500);
+        }
+
         // ===== CHECK-IN SYSTEM =====
         
         function autoFillCheckIn() {
@@ -413,13 +616,15 @@
                 checkInData[today] = {
                     painLevel: 5,
                     fatigueLevel: 5,
-                    sleepHours: 8
+                    sleepHours: 8,
+                    mood: 'okay'
                 };
             }
 
             document.getElementById('painLevel').value = checkInData[today].painLevel;
             document.getElementById('fatigueLevel').value = checkInData[today].fatigueLevel;
             document.getElementById('sleepHours').value = checkInData[today].sleepHours;
+            document.getElementById('moodLevel').value = checkInData[today].mood;
         }
 
         function saveCheckIn() {
@@ -427,16 +632,19 @@
             checkInData[today] = {
                 painLevel: parseInt(document.getElementById('painLevel').value),
                 fatigueLevel: parseInt(document.getElementById('fatigueLevel').value),
-                sleepHours: parseFloat(document.getElementById('sleepHours').value)
+                sleepHours: parseFloat(document.getElementById('sleepHours').value),
+                mood: document.getElementById('moodLevel').value,
+                timestamp: new Date().toISOString()
             };
             
             adjustBaseline();
             calculateSpoons();
             updateDebtWarning();
+            updateLearningInsights();
             saveAllData();
         }
 
-        // ===== DEBT WARNING SYSTEM =====
+        // ===== SPOON DEBT WARNING SYSTEM =====
         
         function updateDebtWarning() {
             const consecutiveDays = getConsecutiveDebtDays();
@@ -473,124 +681,6 @@
             return consecutiveDays;
         }
 
-        // ===== FIXED WEATHER SYSTEM =====
-        
-        function updateWeather() {
-            // Clear demo mode labeling
-            const weatherConditions = [
-                { temp: 75, description: '75°F Sunny - Ideal conditions [DEMO MODE]' },
-                { temp: 60, description: '60°F Cold - Reduces spoons by 2 [DEMO MODE]' },
-                { temp: 85, description: '85°F Hot - Stay hydrated [DEMO MODE]' }
-            ];
-            
-            const weather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
-            document.getElementById('weatherInfo').textContent = weather.description;
-        }
-
-        function refreshWeather() {
-            document.getElementById('weatherInfo').textContent = 'Updating...';
-            setTimeout(updateWeather, 500);
-        }
-
-        // ===== FIXED AUTO-RESCHEDULING =====
-        
-        function autoRescheduleAllTasks() {
-            const now = new Date();
-            const currentMinutes = now.getHours() * 60 + now.getMinutes();
-            let rescheduledCount = 0;
-            
-            console.log('Starting auto-reschedule at', now.toLocaleTimeString());
-            
-            timelineData.forEach(task => {
-                if (task.status === 'incomplete' && !task.fixed) {
-                    const taskMinutes = timeToMinutes(task.time);
-                    
-                    if (taskMinutes < currentMinutes) {
-                        // Find next 30-minute slot after current time
-                        const nextSlot = Math.ceil((currentMinutes + 15) / 30) * 30;
-                        const newTime = minutesToTime12Hour(nextSlot);
-                        
-                        console.log(`Rescheduling ${task.lmj} from ${task.time} to ${newTime}`);
-                        
-                        task.time = newTime;
-                        task.status = 'rescheduled';
-                        task.notes = (task.notes || '') + ' [Auto-rescheduled]';
-                        rescheduledCount++;
-                        
-                        // Track learning
-                        trackLearningEvent('auto_reschedule', {
-                            taskType: task.lmj,
-                            newTime: newTime
-                        });
-                    }
-                }
-            });
-            
-            if (rescheduledCount > 0) {
-                sortTimelineByTime();
-                renderTimeline();
-                saveAllData();
-                alert(`✅ Auto-rescheduling completed! ${rescheduledCount} tasks moved to new times.`);
-            } else {
-                alert('No tasks needed rescheduling.');
-            }
-        }
-
-        // ===== FIXED LEARNING SYSTEM =====
-        
-        function trackLearningEvent(eventType, data) {
-            if (!learningData[eventType]) {
-                learningData[eventType] = [];
-            }
-            learningData[eventType].push({
-                timestamp: new Date().toISOString(),
-                data: data
-            });
-        }
-
-        function updateLearningInsights() {
-            let insights = '';
-            
-            // Analyze completion patterns
-            const completedToday = timelineData.filter(t => t.status === 'complete');
-            const totalTasks = timelineData.length;
-            
-            if (totalTasks > 0) {
-                const completionRate = Math.round((completedToday.length / totalTasks) * 100);
-                insights += `<span class="learning-badge">PERFORMANCE</span> ${completionRate}% completion rate today. `;
-            }
-            
-            // Analyze rescheduling patterns
-            if (learningData.auto_reschedule && learningData.auto_reschedule.length > 0) {
-                const rescheduledCount = learningData.auto_reschedule.length;
-                insights += `<span class="learning-badge">ADAPTIVE</span> ${rescheduledCount} auto-reschedules tracked. `;
-            }
-            
-            // Analyze spoon patterns
-            const currentRemaining = parseFloat(document.getElementById('remaining').textContent);
-            if (currentRemaining < 5) {
-                insights += `<span class="learning-badge">ALERT</span> Low spoon reserves - prioritize essentials. `;
-            }
-            
-            // Morning vs afternoon productivity
-            const morningCompleted = timelineData.filter(t => 
-                timeToMinutes(t.time) < 720 && t.status === 'complete'
-            ).length;
-            const afternoonCompleted = timelineData.filter(t => 
-                timeToMinutes(t.time) >= 720 && t.status === 'complete'
-            ).length;
-            
-            if (morningCompleted > afternoonCompleted && totalTasks > 3) {
-                insights += `<span class="learning-badge">PATTERN</span> You're more productive in the morning. `;
-            }
-            
-            if (!insights) {
-                insights = 'Building learning profile... Complete more tasks to see personalized insights.';
-            }
-            
-            document.getElementById('learningInsights').innerHTML = insights;
-        }
-
         // ===== SPOON CALCULATIONS =====
         
         function adjustBaseline() {
@@ -598,12 +688,32 @@
             const pain = parseInt(document.getElementById('painLevel').value);
             const fatigue = parseInt(document.getElementById('fatigueLevel').value);
             const sleep = parseFloat(document.getElementById('sleepHours').value);
+            const mood = document.getElementById('moodLevel').value;
             
+            // Adjust for pain and fatigue
             baseline -= Math.max(0, (pain - 5));
             baseline -= Math.max(0, (fatigue - 5));
             
+            // Adjust for sleep
             if (sleep < 7) {
                 baseline -= (7 - sleep) * 2;
+            } else if (sleep > 9) {
+                baseline += Math.min(3, (sleep - 9));
+            }
+            
+            // Adjust for mood
+            const moodAdjustments = {
+                'terrible': -3,
+                'poor': -1,
+                'okay': 0,
+                'good': 1,
+                'excellent': 2
+            };
+            baseline += moodAdjustments[mood] || 0;
+            
+            // Apply weather impact
+            if (weatherData.impact) {
+                baseline += weatherData.impact;
             }
             
             baseline = Math.max(1, baseline);
@@ -614,10 +724,10 @@
             const baseline = parseInt(document.getElementById('baseline').textContent);
             const borrowed = parseInt(document.getElementById('borrowed').textContent);
             const start = baseline - borrowed;
-            const planned = timelineData.reduce((sum, task) => sum + task.spoonCost, 0);
+            const planned = timelineData.reduce((sum, task) => sum + (task.spoonCost || 0), 0);
             const spent = timelineData.filter(task => 
                 task.status === 'complete' || task.status === 'partial'
-            ).reduce((sum, task) => sum + (task.status === 'partial' ? task.spoonCost * 0.5 : task.spoonCost), 0);
+            ).reduce((sum, task) => sum + (task.status === 'partial' ? (task.spoonCost || 0) * 0.5 : (task.spoonCost || 0)), 0);
             const remaining = start - spent;
             const depletion = remaining - (planned - spent);
 
@@ -634,30 +744,227 @@
                 date: today,
                 baseline: baseline,
                 spent: spent,
-                endBalance: depletion
+                endBalance: depletion,
+                timestamp: new Date().toISOString()
             });
+            
+            // Keep only last 30 days
+            spoonHistory = spoonHistory.slice(-30);
         }
 
-        // ===== TIMELINE MANAGEMENT =====
+        // ===== LEARNING SYSTEM WITH VISIBLE INSIGHTS =====
         
-        function sortTimelineByTime() {
+        function trackLearningEvent(eventType, data) {
+            if (!learningData[eventType]) {
+                learningData[eventType] = [];
+            }
+            learningData[eventType].push({
+                timestamp: new Date().toISOString(),
+                data: data
+            });
+            
+            // Limit to last 50 events per type
+            if (learningData[eventType].length > 50) {
+                learningData[eventType] = learningData[eventType].slice(-50);
+            }
+        }
+
+        function updateLearningInsights() {
+            let insights = '';
+            
+            // Task completion analysis
+            const completedToday = timelineData.filter(t => t.status === 'complete');
+            const totalTasks = timelineData.length;
+            
+            if (totalTasks > 0) {
+                const completionRate = Math.round((completedToday.length / totalTasks) * 100);
+                insights += `<span class="learning-badge">TODAY</span> ${completionRate}% completion rate (${completedToday.length}/${totalTasks} tasks). `;
+            }
+            
+            // LMJ order flexibility analysis
+            const lmjTasks = timelineData.filter(t => LOCKED_LMJ_ORDER.find(l => l.lmj === t.lmj));
+            const outOfOrderTasks = checkLMJOrderFlexibility();
+            if (outOfOrderTasks.length > 0) {
+                insights += `<span class="learning-badge">FLEXIBLE</span> ${outOfOrderTasks.length} LMJ tasks rescheduled - life happens! `;
+            }
+            
+            // Time pattern analysis
+            const morningCompleted = timelineData.filter(t => 
+                timeToMinutes(t.time) < 720 && t.status === 'complete'
+            ).length;
+            const afternoonCompleted = timelineData.filter(t => 
+                timeToMinutes(t.time) >= 720 && t.status === 'complete'
+            ).length;
+            
+            if (morningCompleted > afternoonCompleted && totalTasks > 3) {
+                insights += `<span class="learning-badge">PATTERN</span> Morning productivity detected (${morningCompleted} vs ${afternoonCompleted}). `;
+            }
+            
+            // Spoon accuracy
+            const currentRemaining = parseFloat(document.getElementById('remaining').textContent);
+            if (currentRemaining < 5) {
+                insights += `<span class="learning-badge">ALERT</span> Low spoon reserves (${currentRemaining.toFixed(1)}) - prioritize essentials. `;
+            }
+            
+            // Auto-reschedule tracking
+            if (learningData.auto_reschedule && learningData.auto_reschedule.length > 0) {
+                insights += `<span class="learning-badge">ADAPTIVE</span> ${learningData.auto_reschedule.length} auto-reschedules tracked. `;
+            }
+            
+            if (!insights) {
+                insights = 'Building learning profile... Complete more tasks to see personalized insights.';
+            }
+            
+            document.getElementById('learningInsights').innerHTML = insights;
+        }
+
+        // ===== FLEXIBLE LMJ ORDER ENFORCEMENT =====
+        
+        function checkLMJOrderFlexibility() {
+            const outOfOrder = [];
+            let lastLMJTime = 0;
+            
+            LOCKED_LMJ_ORDER.forEach(lmjDef => {
+                const task = timelineData.find(t => t.lmj === lmjDef.lmj);
+                if (task) {
+                    const taskTime = timeToMinutes(task.time);
+                    if (taskTime < lastLMJTime) {
+                        outOfOrder.push(task);
+                    }
+                    lastLMJTime = Math.max(lastLMJTime, taskTime);
+                }
+            });
+            
+            return outOfOrder;
+        }
+
+        function validateAndSort() {
+            // Sort by time first
             timelineData.sort((a, b) => {
                 const aMinutes = timeToMinutes(a.time);
                 const bMinutes = timeToMinutes(b.time);
                 return aMinutes - bMinutes;
             });
             
-            // Validate LMJ order: H must come after ME
+            // Critical rule: H must come after ME (non-negotiable)
             const meTask = timelineData.find(t => t.lmj === 'ME');
             const hTask = timelineData.find(t => t.lmj === 'H');
             
             if (meTask && hTask && timeToMinutes(hTask.time) <= timeToMinutes(meTask.time)) {
                 const meMinutes = timeToMinutes(meTask.time);
                 hTask.time = minutesToTime12Hour(meMinutes + 30);
-                console.log('PROTOCOL VIOLATION CORRECTED: H moved after ME');
+                
+                // Show protocol warning
+                showProtocolWarning('Critical protocol enforced: H moved after ME');
+            }
+            
+            // Validate BB emoji uniqueness
+            validateBBEmojiUniqueness();
+        }
+
+        function validateBBEmojiUniqueness() {
+            const bbTasks = timelineData.filter(t => t.lmj.startsWith('BB'));
+            const emojiCount = {};
+            
+            bbTasks.forEach(task => {
+                emojiCount[task.emoji] = (emojiCount[task.emoji] || 0) + 1;
+            });
+            
+            // Fix duplicates
+            Object.keys(emojiCount).forEach(emoji => {
+                if (emojiCount[emoji] > 1) {
+                    const duplicateTasks = bbTasks.filter(t => t.emoji === emoji);
+                    for (let i = 1; i < duplicateTasks.length; i++) {
+                        duplicateTasks[i].emoji = getNextAvailableBBEmoji();
+                    }
+                    showProtocolWarning('BB emoji duplicates fixed - uniqueness enforced');
+                }
+            });
+        }
+
+        function getNextAvailableBBEmoji() {
+            const usedEmojis = timelineData.filter(t => t.lmj.startsWith('BB')).map(t => t.emoji);
+            const available = BB_EMOJIS.filter(emoji => !usedEmojis.includes(emoji));
+            return available.length > 0 ? available[0] : '🚽' + Math.random().toString(36).slice(-2);
+        }
+
+        function showProtocolWarning(message) {
+            const warning = document.createElement('div');
+            warning.className = 'protocol-warning';
+            warning.textContent = '⚠️ Protocol Auto-Correction: ' + message;
+            document.querySelector('.container').insertBefore(warning, document.getElementById('legend'));
+            
+            setTimeout(() => {
+                warning.remove();
+            }, 5000);
+        }
+
+        // ===== ROBUST AUTO-RESCHEDULING =====
+        
+        function autoRescheduleOverdue() {
+            const currentMinutes = timeToMinutes(getCurrentTime12Hour());
+            let rescheduledCount = 0;
+            
+            timelineData.forEach(task => {
+                const taskMinutes = timeToMinutes(task.time);
+                if (task.status === 'incomplete' && taskMinutes < currentMinutes - 15) {
+                    // Find next available 30-minute slot
+                    const nextSlot = findNextAvailableSlot(currentMinutes, 30);
+                    if (nextSlot) {
+                        const oldTime = task.time;
+                        task.time = minutesToTime12Hour(nextSlot);
+                        task.status = 'rescheduled';
+                        task.notes = (task.notes || '') + ` [Auto-rescheduled from ${oldTime}]`;
+                        rescheduledCount++;
+                        
+                        trackLearningEvent('auto_reschedule', {
+                            taskLMJ: task.lmj,
+                            oldTime: oldTime,
+                            newTime: task.time,
+                            reason: 'overdue'
+                        });
+                    }
+                }
+            });
+            
+            if (rescheduledCount > 0) {
+                validateAndSort();
+                renderTimeline();
+                calculateSpoons();
+                updateLearningInsights();
+                saveAllData();
+                alert(`✅ Auto-rescheduled ${rescheduledCount} overdue tasks`);
+            } else {
+                alert('No overdue tasks found');
             }
         }
 
+        function findNextAvailableSlot(afterMinutes, durationMinutes) {
+            const dayEndMinutes = dayEndHour * 60 + 59;
+            let searchStart = afterMinutes + 15;
+            
+            while (searchStart + durationMinutes <= dayEndMinutes) {
+                const proposedEnd = searchStart + durationMinutes;
+                
+                // Check if this slot conflicts with existing tasks
+                const hasConflict = timelineData.some(task => {
+                    const taskStart = timeToMinutes(task.time);
+                    const taskEnd = taskStart + 30; // Assume 30-min default duration
+                    return (searchStart < taskEnd && proposedEnd > taskStart);
+                });
+                
+                if (!hasConflict) {
+                    return searchStart;
+                }
+                
+                searchStart += 15; // Try next 15-minute slot
+            }
+            
+            return null; // No available slot found
+        }
+
+        // ===== TEMPLATE GENERATION =====
+        
         function generateWeekdayTemplate() {
             timelineData = [];
             let currentMinutes = dayStartHour * 60 + 30;
@@ -665,23 +972,26 @@
             LOCKED_LMJ_ORDER.forEach(lmjData => {
                 const task = {
                     time: minutesToTime12Hour(currentMinutes),
-                    fixed: ['A', 'V', 'CC', 'DD', 'EE', 'FF', 'ZZ'].includes(lmjData.lmj),
+                    fixed: lmjData.defaultFixed,
                     lmj: lmjData.lmj,
                     emoji: lmjData.emoji,
                     description: `${lmjData.description} (High)`,
+                    priority: 'High',
                     spoonCost: lmjData.defaultSpoonCost,
                     status: 'incomplete',
-                    notes: 'Generated from template'
+                    notes: 'Generated from weekday template',
+                    created: new Date().toISOString()
                 };
                 
                 timelineData.push(task);
-                currentMinutes += (lmjData.lmj === 'G' ? 90 : 45); // Longer for Gosling time
+                currentMinutes += (lmjData.lmj === 'G' ? 90 : 45);
             });
             
             bbEmojiUsed = [];
-            sortTimelineByTime();
+            validateAndSort();
             calculateSpoons();
             renderTimeline();
+            updateLearningInsights();
             saveAllData();
         }
 
@@ -693,9 +1003,10 @@
                     lmj: 'A',
                     emoji: '💊',
                     description: 'Morning meds (High)',
+                    priority: 'High',
                     spoonCost: 2,
                     status: 'incomplete',
-                    notes: 'Essential'
+                    notes: 'Essential medication'
                 },
                 {
                     time: '11:30 AM',
@@ -703,6 +1014,7 @@
                     lmj: 'CH',
                     emoji: '⛪',
                     description: 'Church service (Highest)',
+                    priority: 'Urgent',
                     spoonCost: 3,
                     status: 'incomplete',
                     notes: 'Fixed religious observance'
@@ -713,6 +1025,7 @@
                     lmj: 'ZZ',
                     emoji: '📵',
                     description: 'Rest (High)',
+                    priority: 'High',
                     spoonCost: 0,
                     status: 'incomplete',
                     notes: 'Sunday rest'
@@ -720,46 +1033,145 @@
             ];
             
             bbEmojiUsed = [];
-            sortTimelineByTime();
+            validateAndSort();
             calculateSpoons();
             renderTimeline();
+            updateLearningInsights();
             saveAllData();
         }
 
+        // ===== TASK MANAGEMENT =====
+        
         function addNewTask() {
-            const now = new Date();
-            const currentMinutes = now.getHours() * 60 + now.getMinutes() + 30;
+            const currentTime = getCurrentTime12Hour();
+            const currentMinutes = timeToMinutes(currentTime);
+            const newTaskTime = minutesToTime12Hour(currentMinutes + 30);
             
             const newTask = {
-                time: minutesToTime12Hour(currentMinutes),
+                time: newTaskTime,
                 fixed: false,
                 lmj: 'T' + Date.now().toString().slice(-3),
                 emoji: '📝',
                 description: 'New task (Medium)',
+                priority: 'Medium',
                 spoonCost: 1,
                 status: 'incomplete',
-                notes: 'User added'
+                notes: 'User added task',
+                created: new Date().toISOString()
             };
             
             timelineData.push(newTask);
-            sortTimelineByTime();
+            validateAndSort();
             renderTimeline();
             calculateSpoons();
             saveAllData();
+            
+            // Auto-open edit modal for new task
+            editTask(timelineData.length - 1);
         }
 
+        function editTask(index) {
+            selectedTaskIndex = index;
+            const task = timelineData[index];
+            
+            document.getElementById('modalTime').value = task.time;
+            document.getElementById('modalLmj').value = task.lmj;
+            document.getElementById('modalEmoji').value = task.emoji;
+            document.getElementById('modalDescription').value = task.description.replace(/ \(.*\)$/, '');
+            
+            const priority = task.description.match(/\((.*?)\)/);
+            document.getElementById('modalPriority').value = priority ? priority[1] : task.priority || 'Medium';
+            
+            document.getElementById('modalSpoonCost').value = task.spoonCost || 1;
+            document.getElementById('modalFixed').value = task.fixed ? 'true' : 'false';
+            document.getElementById('modalNotes').value = task.notes || '';
+            
+            document.getElementById('taskModal').style.display = 'block';
+        }
+
+        function saveTask() {
+            if (selectedTaskIndex === null) return;
+            
+            const task = timelineData[selectedTaskIndex];
+            const timeInput = document.getElementById('modalTime').value;
+            
+            // Validate time format
+            if (!timeInput.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)) {
+                alert('Please use format like "2:30 PM"');
+                return;
+            }
+            
+            // Update task properties
+            task.time = timeInput;
+            task.lmj = document.getElementById('modalLmj').value;
+            task.emoji = document.getElementById('modalEmoji').value;
+            const description = document.getElementById('modalDescription').value;
+            const priority = document.getElementById('modalPriority').value;
+            task.description = `${description} (${priority})`;
+            task.priority = priority;
+            task.spoonCost = parseFloat(document.getElementById('modalSpoonCost').value);
+            task.fixed = document.getElementById('modalFixed').value === 'true';
+            task.notes = document.getElementById('modalNotes').value;
+            
+            trackLearningEvent('task_edit', {
+                taskIndex: selectedTaskIndex,
+                taskLMJ: task.lmj,
+                changes: 'manual_edit'
+            });
+            
+            closeModal();
+            validateAndSort();
+            renderTimeline();
+            calculateSpoons();
+            updateLearningInsights();
+            saveAllData();
+        }
+
+        function deleteCurrentTask() {
+            if (selectedTaskIndex !== null) {
+                timelineData.splice(selectedTaskIndex, 1);
+                closeModal();
+                validateAndSort();
+                renderTimeline();
+                calculateSpoons();
+                saveAllData();
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('taskModal').style.display = 'none';
+            selectedTaskIndex = null;
+        }
+
+        // ===== TIMELINE RENDERING =====
+        
         function renderTimeline() {
             const tbody = document.getElementById('timelineBody');
             tbody.innerHTML = '';
+            
+            const outOfOrderTasks = checkLMJOrderFlexibility();
 
             timelineData.forEach((task, index) => {
                 const row = document.createElement('tr');
+                row.className = 'task-row';
                 
-                // Time (always 12-hour format)
+                // Apply visual indicators
+                if (task.status === 'complete') row.classList.add('completed');
+                if (outOfOrderTasks.includes(task)) row.classList.add('out-of-order');
+                
+                // Check if overdue
+                const currentMinutes = timeToMinutes(getCurrentTime12Hour());
+                const taskMinutes = timeToMinutes(task.time);
+                if (task.status === 'incomplete' && taskMinutes < currentMinutes - 15) {
+                    row.classList.add('overdue');
+                }
+                
+                // Time with indicators
                 const timeCell = document.createElement('td');
-                const timeIcon = timeToMinutes(task.time) >= 720 ? '🌙' : '☀️';
+                const timeMinutes = timeToMinutes(task.time);
+                const ampmIcon = timeMinutes >= 720 ? '🌙' : '☀️';
                 const flexIcon = task.fixed ? '🔒' : '↕️';
-                timeCell.innerHTML = `${task.time} ${timeIcon} ${flexIcon}`;
+                timeCell.innerHTML = `${task.time} ${ampmIcon} ${flexIcon}`;
                 row.appendChild(timeCell);
 
                 // LMJ with emoji
@@ -767,34 +1179,42 @@
                 lmjCell.innerHTML = `${task.lmj}${task.emoji}`;
                 row.appendChild(lmjCell);
 
-                // Task description
+                // Task description (clickable to edit)
                 const taskCell = document.createElement('td');
                 taskCell.innerHTML = task.description;
+                taskCell.className = 'editable';
+                taskCell.onclick = () => editTask(index);
+                taskCell.title = 'Click to edit';
                 row.appendChild(taskCell);
 
-                // Spoon cost (editable)
+                // Spoon cost (clickable to edit)
                 const spoonCell = document.createElement('td');
-                spoonCell.innerHTML = task.spoonCost;
+                spoonCell.innerHTML = (task.spoonCost || 0).toString();
                 spoonCell.className = 'editable';
-                spoonCell.onclick = () => editSpoonCost(index);
+                spoonCell.onclick = () => editTask(index);
+                spoonCell.title = 'Click to edit';
                 row.appendChild(spoonCell);
 
-                // Status (clickable)
+                // Status (clickable to toggle)
                 const statusCell = document.createElement('td');
-                statusCell.innerHTML = STATUS_ICONS[task.status];
+                statusCell.innerHTML = STATUS_ICONS[task.status] || STATUS_ICONS.incomplete;
                 statusCell.style.cursor = 'pointer';
                 statusCell.onclick = () => toggleStatus(index);
+                statusCell.title = 'Click to change status';
                 row.appendChild(statusCell);
 
-                // Area notes
+                // Notes (clickable to edit)
                 const notesCell = document.createElement('td');
                 notesCell.innerHTML = task.notes || '';
+                notesCell.className = 'editable';
+                notesCell.onclick = () => editTask(index);
+                notesCell.title = 'Click to edit';
                 row.appendChild(notesCell);
 
                 // Actions
                 const actionsCell = document.createElement('td');
                 actionsCell.innerHTML = `
-                    <button onclick="deleteTask(${index})" class="btn-danger" style="padding: 2px 6px; font-size: 0.7em;">Delete</button>
+                    <button onclick="editTask(${index})" class="btn-warning" style="padding: 2px 6px; font-size: 0.7em;">Edit</button>
                 `;
                 row.appendChild(actionsCell);
 
@@ -804,23 +1224,16 @@
             calculateSpoons();
         }
 
-        function editSpoonCost(index) {
-            const newCost = prompt('New spoon cost:', timelineData[index].spoonCost);
-            if (newCost !== null && !isNaN(newCost)) {
-                timelineData[index].spoonCost = parseFloat(newCost);
-                renderTimeline();
-                saveAllData();
-            }
-        }
-
         function toggleStatus(index) {
-            const statuses = ['incomplete', 'partial', 'complete', 'skipped', 'rescheduled'];
+            const statuses = ['incomplete', 'partial', 'progress', 'complete', 'skipped', 'rescheduled'];
             const currentIndex = statuses.indexOf(timelineData[index].status);
             const nextIndex = (currentIndex + 1) % statuses.length;
+            const oldStatus = timelineData[index].status;
             timelineData[index].status = statuses[nextIndex];
             
             trackLearningEvent('status_change', {
-                taskType: timelineData[index].lmj,
+                taskLMJ: timelineData[index].lmj,
+                oldStatus: oldStatus,
                 newStatus: statuses[nextIndex]
             });
             
@@ -829,23 +1242,8 @@
             saveAllData();
         }
 
-        function deleteTask(index) {
-            if (confirm('Delete this task?')) {
-                timelineData.splice(index, 1);
-                renderTimeline();
-                saveAllData();
-            }
-        }
-
-        function resetDay() {
-            if (confirm('Reset entire day?')) {
-                timelineData = [];
-                bbEmojiUsed = [];
-                renderTimeline();
-                saveAllData();
-            }
-        }
-
+        // ===== DATA EXPORT/IMPORT =====
+        
         function exportData() {
             const exportData = {
                 timelineData,
@@ -854,7 +1252,9 @@
                 learningData,
                 dayStartHour,
                 dayEndHour,
-                exportDate: new Date().toISOString()
+                weatherData,
+                exportDate: new Date().toISOString(),
+                version: '2.0'
             };
             
             const dataStr = JSON.stringify(exportData, null, 2);
@@ -865,6 +1265,58 @@
             link.href = url;
             link.download = `spoonpal-export-${new Date().toISOString().split('T')[0]}.json`;
             link.click();
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const importedData = JSON.parse(e.target.result);
+                            
+                            if (confirm('Import data? This will overwrite current data.')) {
+                                timelineData = importedData.timelineData || [];
+                                checkInData = importedData.checkInData || {};
+                                spoonHistory = importedData.spoonHistory || [];
+                                learningData = importedData.learningData || {};
+                                dayStartHour = importedData.dayStartHour || 6;
+                                dayEndHour = importedData.dayEndHour || 23;
+                                weatherData = importedData.weatherData || {};
+                                
+                                document.getElementById('dayStartTime').value = String(dayStartHour).padStart(2, '0') + ':00';
+                                document.getElementById('dayEndTime').value = String(dayEndHour).padStart(2, '0') + ':59';
+                                
+                                autoFillCheckIn();
+                                validateAndSort();
+                                renderTimeline();
+                                calculateSpoons();
+                                updateLearningInsights();
+                                saveAllData();
+                                
+                                alert('Data imported successfully!');
+                            }
+                        } catch (error) {
+                            alert('Error importing data: ' + error.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        function resetDay() {
+            if (confirm('Reset entire day? This will clear all tasks.')) {
+                timelineData = [];
+                bbEmojiUsed = [];
+                renderTimeline();
+                saveAllData();
+            }
         }
 
         // ===== UI HELPERS =====
@@ -886,41 +1338,6 @@
 
         function updateLegend() {
             document.getElementById('legend').textContent = LEGEND;
-        }
-
-        function updateReferenceSection() {
-            const referenceHTML = `
-                <h4>Reference Section (System Use Only, Always Last)</h4>
-                <div><strong>Legend:</strong> ${LEGEND}</div>
-                <div><strong>Protocol Notes:</strong></div>
-                <ul>
-                    <li><strong>H comes after ME</strong> in locked LMJ order - IMMUTABLE</li>
-                    <li>Evening routines (N, ME, H, CC, DD, EE, FF, ZZ) cannot move ahead of G</li>
-                    <li>Multiple BBs per day require unique emojis</li>
-                    <li>Only one BB per day can use standard 🚽 emoji</li>
-                    <li>Additional tasks slotted between B and G unless specified</li>
-                    <li>Day boundaries configurable - not locked to midnight</li>
-                    <li>Auto-rescheduling moves overdue tasks to next available slots</li>
-                    <li>All times display in 12-hour format with AM/PM</li>
-                </ul>
-            `;
-            document.getElementById('referenceSection').innerHTML = referenceHTML;
-        }
-
-        function updateNonopeLog() {
-            const nonopeHTML = `
-                <h4>NONOPE Log (Permanently Rejected)</h4>
-                <ul>
-                    <li>⏭️ icon for Skipped status - EXPRESSLY FORBIDDEN</li>
-                    <li>H before ME in timeline - violates locked LMJ order</li>
-                    <li>Duplicate BB emojis in same day - uniqueness required</li>
-                    <li>Military/24-hour time display - 12-hour format enforced</li>
-                    <li>Midnight-only day boundaries - configurable times implemented</li>
-                    <li>Non-functional auto-rescheduling - actually moves tasks now</li>
-                    <li>Invisible learning system - visible insights implemented</li>
-                </ul>
-            `;
-            document.getElementById('nonopeLog').innerHTML = nonopeHTML;
         }
 
         // Initialize app on page load
