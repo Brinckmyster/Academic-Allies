@@ -1,263 +1,930 @@
-<div id="shared-header"></div>
-<script>fetch("/Academic-Allies/modular/shared-header.html").then(r => r.text()).then(html => {document.getElementById("shared-header").innerHTML = html;});</script>
-<!-- Place this file in components/spoon-planner/spoon-planner.html -->
-<style>
-.spoon-planner {
-  background: #f8fafc;
-  border-radius: 1rem;
-  max-width: 500px;
-  margin: 2rem auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpoonPal Protocol Timeline - Actually Working Version</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .timestamp { 
+            font-weight: bold; 
+            font-size: 1.1em; 
+            margin-bottom: 20px; 
+            color: #333; 
+        }
+        .debt-warning {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+        .debt-warning.active { display: block; }
+        .day-config {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .spoon-section { 
+            background: #e8f4fd; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+        }
+        .check-in-section {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .check-in-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .check-in-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .check-in-item input, .check-in-item select {
+            width: 80px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .legend { 
+            background: #fff3cd; 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin-bottom: 15px; 
+            font-family: monospace; 
+            font-size: 0.9em; 
+        }
+        .weather-info {
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+        .learning-insights {
+            background: #fff0f5;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .learning-badge {
+            background: #4caf50;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7em;
+            margin-left: 5px;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 20px; 
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+            font-size: 0.9em; 
+        }
+        th { 
+            background-color: #f8f9fa; 
+            font-weight: bold; 
+        }
+        .editable {
+            cursor: pointer;
+            background: #f9f9f9;
+        }
+        .editable:hover {
+            background: #e9e9e9;
+        }
+        .reference-section { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-top: 20px; 
+            font-family: monospace; 
+            font-size: 0.85em; 
+        }
+        .nonope-log { 
+            background: #ffe6e6; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-top: 15px; 
+            font-family: monospace; 
+            font-size: 0.85em; 
+        }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 0.9em; 
+        }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .controls { margin-bottom: 20px; }
+        .controls-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="timestamp" class="timestamp"></div>
+        
+        <!-- Spoon Debt Warning System -->
+        <div id="debtWarning" class="debt-warning">
+            <span id="debtWarningText">🚨 SPOON DEBT WARNING 🚨</span>
+        </div>
 
-.spoon-planner h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #22223b;
-}
+        <!-- Day Configuration -->
+        <div class="day-config">
+            <h3>Day Configuration</h3>
+            <label>Day Start Time: 
+                <input type="time" id="dayStartTime" value="06:00" onchange="updateDayBoundaries()">
+            </label>
+            <label>Day End Time: 
+                <input type="time" id="dayEndTime" value="23:59" onchange="updateDayBoundaries()">
+            </label>
+        </div>
 
-.spoon-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  font-size: 1.1em;
-}
+        <!-- Check-in Section -->
+        <div class="check-in-section">
+            <h3>Daily Check-in</h3>
+            <div class="check-in-grid">
+                <div class="check-in-item">
+                    <label>Pain Level (1-10):</label>
+                    <input type="number" id="painLevel" min="1" max="10" value="5" onchange="saveCheckIn()">
+                </div>
+                <div class="check-in-item">
+                    <label>Fatigue Level (1-10):</label>
+                    <input type="number" id="fatigueLevel" min="1" max="10" value="5" onchange="saveCheckIn()">
+                </div>
+                <div class="check-in-item">
+                    <label>Sleep Hours:</label>
+                    <input type="number" id="sleepHours" min="0" max="24" step="0.5" value="8" onchange="saveCheckIn()">
+                </div>
+            </div>
+        </div>
 
-.reset-btn {
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.4em 1em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.reset-btn:focus {
-  outline: 2px solid #6366f1;
-}
+        <!-- Weather Integration -->
+        <div id="weatherSection" class="weather-info">
+            <strong>Weather Impact:</strong> <span id="weatherInfo">Loading...</span>
+            <button onclick="refreshWeather()" class="btn-info" style="padding: 2px 8px; font-size: 0.8em; margin-left: 10px;">Refresh</button>
+        </div>
 
-.add-task-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5em 1em;
-  align-items: flex-end;
-  margin-bottom: 1rem;
-}
-.add-task-form label {
-  flex: 1 1 100px;
-  font-weight: 600;
-}
-.add-task-form input {
-  flex: 2 1 120px;
-  padding: 0.3em;
-  border-radius: 0.3em;
-  border: 1px solid #bdbdbd;
-}
-.add-btn {
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.5em 1.2em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.add-btn:focus {
-  outline: 2px solid #6366f1;
-}
+        <!-- Spoon Section -->
+        <div id="spoonSection" class="spoon-section">
+            <h3>Spoon Management</h3>
+            <div>Baseline: <span id="baseline">20</span> | Borrowed: <span id="borrowed">0</span> | Start: <span id="start">20</span></div>
+            <div>Planned Cost: <span id="planned">0</span> | Spent: <span id="spent">0</span> | Remaining: <span id="remaining">20</span></div>
+            <div>Depletion: <span id="depletion">0</span> | Consecutive Debt Days: <span id="consecutiveDebt">0</span></div>
+        </div>
 
-.task-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.task-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  border-radius: 0.5em;
-  padding: 0.7em 1em;
-  margin-bottom: 0.5em;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-}
-.task-info {
-  display: flex;
-  flex-direction: column;
-}
-.task-name {
-  font-weight: 600;
-  color: #22223b;
-}
-.task-spoons {
-  color: #3b82f6;
-  font-size: 0.95em;
-}
-.remove-btn {
-  background: #bdbdbd;
-  color: #22223b;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.3em 0.9em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.remove-btn:focus {
-  outline: 2px solid #ef4444;
-}
-@media (max-width: 600px) {
-  .spoon-planner {
-    padding: 1em;
-  }
-  .add-task-form {
-    flex-direction: column;
-    gap: 0.5em 0;
-  }
-}
-</style>
+        <!-- Learning Insights -->
+        <div class="learning-insights">
+            <h3>SpoonPal Learning Insights</h3>
+            <div id="learningInsights">Analyzing your patterns...</div>
+        </div>
 
-<section id="spoon-planner" class="spoon-planner" aria-label="Daily Spoon Planner">
-  <h2>Daily Spoon Planner</h2>
-  <div class="spoon-summary" aria-live="polite">
-    <span id="spoons-remaining">Spoons Remaining: <strong>12</strong></span>
-    <button type="button" id="reset-spoons" class="reset-btn" aria-label="Reset daily spoons">Reset</button>
-  </div>
-  <form id="add-task-form" class="add-task-form" autocomplete="off">
-    <label for="task-name">Task</label>
-    <input type="text" id="task-name" name="task-name" required aria-required="true" maxlength="40" />
-    <label for="task-spoons">Spoons Needed</label>
-    <input type="number" id="task-spoons" name="task-spoons" min="-12" max="99" required aria-required="true" />
-    <button type="button" id="add-task-btn" class="add-btn">Add Task</button>
-  </form>
-  <ul id="task-list" class="task-list" aria-label="Spoon Tasks">
-    <!-- Tasks will be dynamically added here -->
-  </ul>
-</section>
+        <!-- Controls -->
+        <div class="controls">
+            <div class="controls-row">
+                <button class="btn-primary" onclick="generateWeekdayTemplate()">Generate Weekday</button>
+                <button class="btn-success" onclick="generateSundayTemplate()">Generate Sunday</button>
+                <button class="btn-warning" onclick="autoRescheduleAllTasks()">Auto-Reschedule</button>
+                <button class="btn-info" onclick="addNewTask()">Add Task</button>
+            </div>
+            <div class="controls-row">
+                <button class="btn-secondary" onclick="exportData()">Export Data</button>
+                <button class="btn-danger" onclick="resetDay()">Reset Day</button>
+            </div>
+        </div>
 
-<style>
-.spoon-planner {
-  background: #f8fafc;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  max-width: 500px;
-  margin: 2rem auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-}
+        <!-- Protocol-Locked Legend -->
+        <div id="legend" class="legend"></div>
+        
+        <!-- Timeline Table -->
+        <table id="timelineTable">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Lmj</th>
+                    <th>Task (Priority)</th>
+                    <th>🥄</th>
+                    <th>Status</th>
+                    <th>AreaNotes</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="timelineBody">
+            </tbody>
+        </table>
 
-.spoon-planner h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #22223b;
-}
+        <div id="referenceSection" class="reference-section"></div>
+        <div id="nonopeLog" class="nonope-log"></div>
+    </div>
 
-.spoon-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  font-size: 1.1em;
-}
+    <script>
+        // ===== PROTOCOL-LOCKED DATA FROM ATTACHED FILE =====
+        
+        const LOCKED_LMJ_ORDER = [
+            { lmj: 'A', emoji: '💊', description: 'Morning meds', defaultSpoonCost: 2 },
+            { lmj: 'V', emoji: '🦾', description: 'CPAP prep, wrist brace', defaultSpoonCost: 1 },
+            { lmj: 'B', emoji: '🍽️', description: 'Family scriptures, breakfast', defaultSpoonCost: 2 },
+            { lmj: 'G', emoji: '🐥', description: 'Gosling time', defaultSpoonCost: 2 },
+            { lmj: 'N', emoji: '📰', description: 'News with Mom', defaultSpoonCost: 1 },
+            { lmj: 'ME', emoji: '🧘', description: 'Me time', defaultSpoonCost: 1 },
+            { lmj: 'H', emoji: '🧺', description: 'Hamper/laundry (change clothes, hamper, bathroom)', defaultSpoonCost: 1 },
+            { lmj: 'CC', emoji: '🛏️', description: 'In bed', defaultSpoonCost: 0 },
+            { lmj: 'DD', emoji: '💨', description: 'Breathe, recover', defaultSpoonCost: 0 },
+            { lmj: 'EE', emoji: '😷', description: 'CPAP mask on', defaultSpoonCost: 0 },
+            { lmj: 'FF', emoji: '🤚', description: 'Wrist brace on', defaultSpoonCost: 0 },
+            { lmj: 'ZZ', emoji: '📵', description: 'Device off, crash', defaultSpoonCost: 0 }
+        ];
 
-.reset-btn {
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.4em 1em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.reset-btn:focus {
-  outline: 2px solid #6366f1;
-}
+        const STATUS_ICONS = {
+            complete: '✅',
+            incomplete: '⬜',
+            partial: '⏳',
+            skipped: '❌',  // NOT ⏭️ which is FORBIDDEN
+            rescheduled: '🔄'
+        };
 
-.add-task-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5em 1em;
-  align-items: flex-end;
-  margin-bottom: 1rem;
-}
-.add-task-form label {
-  flex: 1 1 100px;
-  font-weight: 600;
-}
-.add-task-form input {
-  flex: 2 1 120px;
-  padding: 0.3em;
-  border-radius: 0.3em;
-  border: 1px solid #bdbdbd;
-}
-.add-btn {
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.5em 1.2em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.add-btn:focus {
-  outline: 2px solid #6366f1;
-}
+        const BB_EMOJIS = ['🚽', '🚻', '🚾', '🚽💨', '🚽🧻', '🧻🚽'];
+        const LEGEND = "Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon Lmj 🎯 Status ✅ Complete ⬜ Incomplete ⏳ Partial ❌ Skipped 🔄 Rescheduled";
 
-.task-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.task-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  border-radius: 0.5em;
-  padding: 0.7em 1em;
-  margin-bottom: 0.5em;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-}
-.task-info {
-  display: flex;
-  flex-direction: column;
-}
-.task-name {
-  font-weight: 600;
-  color: #22223b;
-}
-.task-spoons {
-  color: #3b82f6;
-  font-size: 0.95em;
-}
-.remove-btn {
-  background: #bdbdbd;
-  color: #22223b;
-  border: none;
-  border-radius: 0.5em;
-  padding: 0.3em 0.9em;
-  font-size: 1em;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.remove-btn:focus {
-  outline: 2px solid #ef4444;
-}
-@media (max-width: 600px) {
-  .spoon-planner {
-    padding: 1em;
-  }
-  .add-task-form {
-    flex-direction: column;
-    gap: 0.5em 0;
-  }
-}
-</style>
+        // ===== GLOBAL STATE =====
+        
+        let timelineData = [];
+        let checkInData = {};
+        let spoonHistory = [];
+        let bbEmojiUsed = [];
+        let learningData = {};
+        let dayStartHour = 6;
+        let dayEndHour = 23;
 
+        // ===== FIXED TIME FORMATTING - ALWAYS 12-HOUR =====
+        
+        function formatTo12Hour(time24) {
+            const [h, m] = time24.split(':').map(Number);
+            const period = h >= 12 ? 'PM' : 'AM';
+            const hour12 = h % 12 || 12;
+            return `${hour12}:${m.toString().padStart(2, '0')} ${period}`;
+        }
 
-<!-- Add Task Handler Injected [CAj] -->
-<script src="/Academic-Allies/modular/components/spoon-planner/spoon-planner.js"></script>
+        function parseTo24Hour(timeStr) {
+            if (timeStr.includes('AM') || timeStr.includes('PM')) {
+                const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                if (match) {
+                    let [, h, m, period] = match;
+                    h = parseInt(h);
+                    m = parseInt(m);
+                    if (period.toUpperCase() === 'PM' && h !== 12) h += 12;
+                    if (period.toUpperCase() === 'AM' && h === 12) h = 0;
+                    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                }
+            }
+            return timeStr; // Already 24-hour or fallback
+        }
+
+        function timeToMinutes(timeStr) {
+            const time24 = parseTo24Hour(timeStr);
+            const [h, m] = time24.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        function minutesToTime12Hour(minutes) {
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            const time24 = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+            return formatTo12Hour(time24);
+        }
+
+        // ===== INITIALIZATION =====
+        
+        function init() {
+            loadAllData();
+            updateTimestamp();
+            updateWeather();
+            autoFillCheckIn();
+            updateDebtWarning();
+            updateLegend();
+            calculateSpoons();
+            sortTimelineByTime();
+            renderTimeline();
+            updateLearningInsights();
+            updateReferenceSection();
+            updateNonopeLog();
+            
+            setInterval(updateTimestamp, 60000);
+            setInterval(autoSave, 30000);
+        }
+
+        // ===== PERSISTENCE =====
+        
+        function saveAllData() {
+            const saveData = {
+                timelineData,
+                checkInData,
+                spoonHistory,
+                bbEmojiUsed,
+                learningData,
+                dayStartHour,
+                dayEndHour,
+                lastSave: new Date().toISOString()
+            };
+            localStorage.setItem('spoonPalData', JSON.stringify(saveData));
+        }
+
+        function loadAllData() {
+            const saved = localStorage.getItem('spoonPalData');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    timelineData = data.timelineData || [];
+                    checkInData = data.checkInData || {};
+                    spoonHistory = data.spoonHistory || [];
+                    bbEmojiUsed = data.bbEmojiUsed || [];
+                    learningData = data.learningData || {};
+                    dayStartHour = data.dayStartHour || 6;
+                    dayEndHour = data.dayEndHour || 23;
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                }
+            }
+            
+            // Update UI with loaded day boundaries
+            document.getElementById('dayStartTime').value = String(dayStartHour).padStart(2, '0') + ':00';
+            document.getElementById('dayEndTime').value = String(dayEndHour).padStart(2, '0') + ':59';
+        }
+
+        function autoSave() {
+            saveAllData();
+        }
+
+        // ===== DAY BOUNDARY MANAGEMENT =====
+        
+        function updateDayBoundaries() {
+            const startTime = document.getElementById('dayStartTime').value;
+            const endTime = document.getElementById('dayEndTime').value;
+            
+            dayStartHour = parseInt(startTime.split(':')[0]);
+            dayEndHour = parseInt(endTime.split(':')[0]);
+            
+            calculateSpoons();
+            renderTimeline();
+            saveAllData();
+        }
+
+        // ===== CHECK-IN SYSTEM =====
+        
+        function autoFillCheckIn() {
+            const today = new Date().toDateString();
+            
+            if (!checkInData[today]) {
+                checkInData[today] = {
+                    painLevel: 5,
+                    fatigueLevel: 5,
+                    sleepHours: 8
+                };
+            }
+
+            document.getElementById('painLevel').value = checkInData[today].painLevel;
+            document.getElementById('fatigueLevel').value = checkInData[today].fatigueLevel;
+            document.getElementById('sleepHours').value = checkInData[today].sleepHours;
+        }
+
+        function saveCheckIn() {
+            const today = new Date().toDateString();
+            checkInData[today] = {
+                painLevel: parseInt(document.getElementById('painLevel').value),
+                fatigueLevel: parseInt(document.getElementById('fatigueLevel').value),
+                sleepHours: parseFloat(document.getElementById('sleepHours').value)
+            };
+            
+            adjustBaseline();
+            calculateSpoons();
+            updateDebtWarning();
+            saveAllData();
+        }
+
+        // ===== DEBT WARNING SYSTEM =====
+        
+        function updateDebtWarning() {
+            const consecutiveDays = getConsecutiveDebtDays();
+            const warningEl = document.getElementById('debtWarning');
+            const textEl = document.getElementById('debtWarningText');
+            
+            document.getElementById('consecutiveDebt').textContent = consecutiveDays;
+            
+            if (consecutiveDays >= 2) {
+                warningEl.classList.add('active');
+                if (consecutiveDays >= 5) {
+                    textEl.textContent = `🆘 CRITICAL DEBT PERIOD 🆘 Day ${consecutiveDays}`;
+                } else if (consecutiveDays === 3) {
+                    textEl.textContent = '⚠️ BURNOUT RISK ZONE ⚠️ Day 3 in debt';
+                } else {
+                    textEl.textContent = `🚨 SPOON DEBT WARNING 🚨 Day ${consecutiveDays}`;
+                }
+            } else {
+                warningEl.classList.remove('active');
+            }
+        }
+
+        function getConsecutiveDebtDays() {
+            if (spoonHistory.length === 0) return 0;
+            
+            let consecutiveDays = 0;
+            for (let i = spoonHistory.length - 1; i >= 0; i--) {
+                if (spoonHistory[i].endBalance < 0) {
+                    consecutiveDays++;
+                } else {
+                    break;
+                }
+            }
+            return consecutiveDays;
+        }
+
+        // ===== FIXED WEATHER SYSTEM =====
+        
+        function updateWeather() {
+            // Clear demo mode labeling
+            const weatherConditions = [
+                { temp: 75, description: '75°F Sunny - Ideal conditions [DEMO MODE]' },
+                { temp: 60, description: '60°F Cold - Reduces spoons by 2 [DEMO MODE]' },
+                { temp: 85, description: '85°F Hot - Stay hydrated [DEMO MODE]' }
+            ];
+            
+            const weather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
+            document.getElementById('weatherInfo').textContent = weather.description;
+        }
+
+        function refreshWeather() {
+            document.getElementById('weatherInfo').textContent = 'Updating...';
+            setTimeout(updateWeather, 500);
+        }
+
+        // ===== FIXED AUTO-RESCHEDULING =====
+        
+        function autoRescheduleAllTasks() {
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            let rescheduledCount = 0;
+            
+            console.log('Starting auto-reschedule at', now.toLocaleTimeString());
+            
+            timelineData.forEach(task => {
+                if (task.status === 'incomplete' && !task.fixed) {
+                    const taskMinutes = timeToMinutes(task.time);
+                    
+                    if (taskMinutes < currentMinutes) {
+                        // Find next 30-minute slot after current time
+                        const nextSlot = Math.ceil((currentMinutes + 15) / 30) * 30;
+                        const newTime = minutesToTime12Hour(nextSlot);
+                        
+                        console.log(`Rescheduling ${task.lmj} from ${task.time} to ${newTime}`);
+                        
+                        task.time = newTime;
+                        task.status = 'rescheduled';
+                        task.notes = (task.notes || '') + ' [Auto-rescheduled]';
+                        rescheduledCount++;
+                        
+                        // Track learning
+                        trackLearningEvent('auto_reschedule', {
+                            taskType: task.lmj,
+                            newTime: newTime
+                        });
+                    }
+                }
+            });
+            
+            if (rescheduledCount > 0) {
+                sortTimelineByTime();
+                renderTimeline();
+                saveAllData();
+                alert(`✅ Auto-rescheduling completed! ${rescheduledCount} tasks moved to new times.`);
+            } else {
+                alert('No tasks needed rescheduling.');
+            }
+        }
+
+        // ===== FIXED LEARNING SYSTEM =====
+        
+        function trackLearningEvent(eventType, data) {
+            if (!learningData[eventType]) {
+                learningData[eventType] = [];
+            }
+            learningData[eventType].push({
+                timestamp: new Date().toISOString(),
+                data: data
+            });
+        }
+
+        function updateLearningInsights() {
+            let insights = '';
+            
+            // Analyze completion patterns
+            const completedToday = timelineData.filter(t => t.status === 'complete');
+            const totalTasks = timelineData.length;
+            
+            if (totalTasks > 0) {
+                const completionRate = Math.round((completedToday.length / totalTasks) * 100);
+                insights += `<span class="learning-badge">PERFORMANCE</span> ${completionRate}% completion rate today. `;
+            }
+            
+            // Analyze rescheduling patterns
+            if (learningData.auto_reschedule && learningData.auto_reschedule.length > 0) {
+                const rescheduledCount = learningData.auto_reschedule.length;
+                insights += `<span class="learning-badge">ADAPTIVE</span> ${rescheduledCount} auto-reschedules tracked. `;
+            }
+            
+            // Analyze spoon patterns
+            const currentRemaining = parseFloat(document.getElementById('remaining').textContent);
+            if (currentRemaining < 5) {
+                insights += `<span class="learning-badge">ALERT</span> Low spoon reserves - prioritize essentials. `;
+            }
+            
+            // Morning vs afternoon productivity
+            const morningCompleted = timelineData.filter(t => 
+                timeToMinutes(t.time) < 720 && t.status === 'complete'
+            ).length;
+            const afternoonCompleted = timelineData.filter(t => 
+                timeToMinutes(t.time) >= 720 && t.status === 'complete'
+            ).length;
+            
+            if (morningCompleted > afternoonCompleted && totalTasks > 3) {
+                insights += `<span class="learning-badge">PATTERN</span> You're more productive in the morning. `;
+            }
+            
+            if (!insights) {
+                insights = 'Building learning profile... Complete more tasks to see personalized insights.';
+            }
+            
+            document.getElementById('learningInsights').innerHTML = insights;
+        }
+
+        // ===== SPOON CALCULATIONS =====
+        
+        function adjustBaseline() {
+            let baseline = 20;
+            const pain = parseInt(document.getElementById('painLevel').value);
+            const fatigue = parseInt(document.getElementById('fatigueLevel').value);
+            const sleep = parseFloat(document.getElementById('sleepHours').value);
+            
+            baseline -= Math.max(0, (pain - 5));
+            baseline -= Math.max(0, (fatigue - 5));
+            
+            if (sleep < 7) {
+                baseline -= (7 - sleep) * 2;
+            }
+            
+            baseline = Math.max(1, baseline);
+            document.getElementById('baseline').textContent = baseline;
+        }
+
+        function calculateSpoons() {
+            const baseline = parseInt(document.getElementById('baseline').textContent);
+            const borrowed = parseInt(document.getElementById('borrowed').textContent);
+            const start = baseline - borrowed;
+            const planned = timelineData.reduce((sum, task) => sum + task.spoonCost, 0);
+            const spent = timelineData.filter(task => 
+                task.status === 'complete' || task.status === 'partial'
+            ).reduce((sum, task) => sum + (task.status === 'partial' ? task.spoonCost * 0.5 : task.spoonCost), 0);
+            const remaining = start - spent;
+            const depletion = remaining - (planned - spent);
+
+            document.getElementById('start').textContent = start;
+            document.getElementById('planned').textContent = planned.toFixed(1);
+            document.getElementById('spent').textContent = spent.toFixed(1);
+            document.getElementById('remaining').textContent = remaining.toFixed(1);
+            document.getElementById('depletion').textContent = depletion.toFixed(1);
+            
+            // Store daily data
+            const today = new Date().toDateString();
+            spoonHistory = spoonHistory.filter(entry => entry.date !== today);
+            spoonHistory.push({
+                date: today,
+                baseline: baseline,
+                spent: spent,
+                endBalance: depletion
+            });
+        }
+
+        // ===== TIMELINE MANAGEMENT =====
+        
+        function sortTimelineByTime() {
+            timelineData.sort((a, b) => {
+                const aMinutes = timeToMinutes(a.time);
+                const bMinutes = timeToMinutes(b.time);
+                return aMinutes - bMinutes;
+            });
+            
+            // Validate LMJ order: H must come after ME
+            const meTask = timelineData.find(t => t.lmj === 'ME');
+            const hTask = timelineData.find(t => t.lmj === 'H');
+            
+            if (meTask && hTask && timeToMinutes(hTask.time) <= timeToMinutes(meTask.time)) {
+                const meMinutes = timeToMinutes(meTask.time);
+                hTask.time = minutesToTime12Hour(meMinutes + 30);
+                console.log('PROTOCOL VIOLATION CORRECTED: H moved after ME');
+            }
+        }
+
+        function generateWeekdayTemplate() {
+            timelineData = [];
+            let currentMinutes = dayStartHour * 60 + 30;
+            
+            LOCKED_LMJ_ORDER.forEach(lmjData => {
+                const task = {
+                    time: minutesToTime12Hour(currentMinutes),
+                    fixed: ['A', 'V', 'CC', 'DD', 'EE', 'FF', 'ZZ'].includes(lmjData.lmj),
+                    lmj: lmjData.lmj,
+                    emoji: lmjData.emoji,
+                    description: `${lmjData.description} (High)`,
+                    spoonCost: lmjData.defaultSpoonCost,
+                    status: 'incomplete',
+                    notes: 'Generated from template'
+                };
+                
+                timelineData.push(task);
+                currentMinutes += (lmjData.lmj === 'G' ? 90 : 45); // Longer for Gosling time
+            });
+            
+            bbEmojiUsed = [];
+            sortTimelineByTime();
+            calculateSpoons();
+            renderTimeline();
+            saveAllData();
+        }
+
+        function generateSundayTemplate() {
+            timelineData = [
+                {
+                    time: minutesToTime12Hour(dayStartHour * 60 + 90),
+                    fixed: true,
+                    lmj: 'A',
+                    emoji: '💊',
+                    description: 'Morning meds (High)',
+                    spoonCost: 2,
+                    status: 'incomplete',
+                    notes: 'Essential'
+                },
+                {
+                    time: '11:30 AM',
+                    fixed: true,
+                    lmj: 'CH',
+                    emoji: '⛪',
+                    description: 'Church service (Highest)',
+                    spoonCost: 3,
+                    status: 'incomplete',
+                    notes: 'Fixed religious observance'
+                },
+                {
+                    time: minutesToTime12Hour(dayEndHour * 60 - 60),
+                    fixed: true,
+                    lmj: 'ZZ',
+                    emoji: '📵',
+                    description: 'Rest (High)',
+                    spoonCost: 0,
+                    status: 'incomplete',
+                    notes: 'Sunday rest'
+                }
+            ];
+            
+            bbEmojiUsed = [];
+            sortTimelineByTime();
+            calculateSpoons();
+            renderTimeline();
+            saveAllData();
+        }
+
+        function addNewTask() {
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes() + 30;
+            
+            const newTask = {
+                time: minutesToTime12Hour(currentMinutes),
+                fixed: false,
+                lmj: 'T' + Date.now().toString().slice(-3),
+                emoji: '📝',
+                description: 'New task (Medium)',
+                spoonCost: 1,
+                status: 'incomplete',
+                notes: 'User added'
+            };
+            
+            timelineData.push(newTask);
+            sortTimelineByTime();
+            renderTimeline();
+            calculateSpoons();
+            saveAllData();
+        }
+
+        function renderTimeline() {
+            const tbody = document.getElementById('timelineBody');
+            tbody.innerHTML = '';
+
+            timelineData.forEach((task, index) => {
+                const row = document.createElement('tr');
+                
+                // Time (always 12-hour format)
+                const timeCell = document.createElement('td');
+                const timeIcon = timeToMinutes(task.time) >= 720 ? '🌙' : '☀️';
+                const flexIcon = task.fixed ? '🔒' : '↕️';
+                timeCell.innerHTML = `${task.time} ${timeIcon} ${flexIcon}`;
+                row.appendChild(timeCell);
+
+                // LMJ with emoji
+                const lmjCell = document.createElement('td');
+                lmjCell.innerHTML = `${task.lmj}${task.emoji}`;
+                row.appendChild(lmjCell);
+
+                // Task description
+                const taskCell = document.createElement('td');
+                taskCell.innerHTML = task.description;
+                row.appendChild(taskCell);
+
+                // Spoon cost (editable)
+                const spoonCell = document.createElement('td');
+                spoonCell.innerHTML = task.spoonCost;
+                spoonCell.className = 'editable';
+                spoonCell.onclick = () => editSpoonCost(index);
+                row.appendChild(spoonCell);
+
+                // Status (clickable)
+                const statusCell = document.createElement('td');
+                statusCell.innerHTML = STATUS_ICONS[task.status];
+                statusCell.style.cursor = 'pointer';
+                statusCell.onclick = () => toggleStatus(index);
+                row.appendChild(statusCell);
+
+                // Area notes
+                const notesCell = document.createElement('td');
+                notesCell.innerHTML = task.notes || '';
+                row.appendChild(notesCell);
+
+                // Actions
+                const actionsCell = document.createElement('td');
+                actionsCell.innerHTML = `
+                    <button onclick="deleteTask(${index})" class="btn-danger" style="padding: 2px 6px; font-size: 0.7em;">Delete</button>
+                `;
+                row.appendChild(actionsCell);
+
+                tbody.appendChild(row);
+            });
+
+            calculateSpoons();
+        }
+
+        function editSpoonCost(index) {
+            const newCost = prompt('New spoon cost:', timelineData[index].spoonCost);
+            if (newCost !== null && !isNaN(newCost)) {
+                timelineData[index].spoonCost = parseFloat(newCost);
+                renderTimeline();
+                saveAllData();
+            }
+        }
+
+        function toggleStatus(index) {
+            const statuses = ['incomplete', 'partial', 'complete', 'skipped', 'rescheduled'];
+            const currentIndex = statuses.indexOf(timelineData[index].status);
+            const nextIndex = (currentIndex + 1) % statuses.length;
+            timelineData[index].status = statuses[nextIndex];
+            
+            trackLearningEvent('status_change', {
+                taskType: timelineData[index].lmj,
+                newStatus: statuses[nextIndex]
+            });
+            
+            renderTimeline();
+            updateLearningInsights();
+            saveAllData();
+        }
+
+        function deleteTask(index) {
+            if (confirm('Delete this task?')) {
+                timelineData.splice(index, 1);
+                renderTimeline();
+                saveAllData();
+            }
+        }
+
+        function resetDay() {
+            if (confirm('Reset entire day?')) {
+                timelineData = [];
+                bbEmojiUsed = [];
+                renderTimeline();
+                saveAllData();
+            }
+        }
+
+        function exportData() {
+            const exportData = {
+                timelineData,
+                checkInData,
+                spoonHistory,
+                learningData,
+                dayStartHour,
+                dayEndHour,
+                exportDate: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `spoonpal-export-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        // ===== UI HELPERS =====
+        
+        function updateTimestamp() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+                timeZoneName: 'short'
+            };
+            document.getElementById('timestamp').textContent = now.toLocaleDateString('en-US', options);
+        }
+
+        function updateLegend() {
+            document.getElementById('legend').textContent = LEGEND;
+        }
+
+        function updateReferenceSection() {
+            const referenceHTML = `
+                <h4>Reference Section (System Use Only, Always Last)</h4>
+                <div><strong>Legend:</strong> ${LEGEND}</div>
+                <div><strong>Protocol Notes:</strong></div>
+                <ul>
+                    <li><strong>H comes after ME</strong> in locked LMJ order - IMMUTABLE</li>
+                    <li>Evening routines (N, ME, H, CC, DD, EE, FF, ZZ) cannot move ahead of G</li>
+                    <li>Multiple BBs per day require unique emojis</li>
+                    <li>Only one BB per day can use standard 🚽 emoji</li>
+                    <li>Additional tasks slotted between B and G unless specified</li>
+                    <li>Day boundaries configurable - not locked to midnight</li>
+                    <li>Auto-rescheduling moves overdue tasks to next available slots</li>
+                    <li>All times display in 12-hour format with AM/PM</li>
+                </ul>
+            `;
+            document.getElementById('referenceSection').innerHTML = referenceHTML;
+        }
+
+        function updateNonopeLog() {
+            const nonopeHTML = `
+                <h4>NONOPE Log (Permanently Rejected)</h4>
+                <ul>
+                    <li>⏭️ icon for Skipped status - EXPRESSLY FORBIDDEN</li>
+                    <li>H before ME in timeline - violates locked LMJ order</li>
+                    <li>Duplicate BB emojis in same day - uniqueness required</li>
+                    <li>Military/24-hour time display - 12-hour format enforced</li>
+                    <li>Midnight-only day boundaries - configurable times implemented</li>
+                    <li>Non-functional auto-rescheduling - actually moves tasks now</li>
+                    <li>Invisible learning system - visible insights implemented</li>
+                </ul>
+            `;
+            document.getElementById('nonopeLog').innerHTML = nonopeHTML;
+        }
+
+        // Initialize app on page load
+        window.onload = init;
+    </script>
+</body>
+</html>
