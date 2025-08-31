@@ -1,130 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SpoonPal Mini App</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 16px; background: #fafafa; color: #2a2a2a; }
-    .container { max-width: 960px; margin: auto; background: white; padding: 1em 2em; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    h1 { text-align: center; margin-bottom: 0.3em; }
-    #timestamp { text-align: center; font-weight: bold; margin-bottom: 1em; }
-    .spoon-section, .checkin-section, .weather-section, .debt-warning { margin-bottom: 20px; border-radius: 6px; padding: 12px 20px; }
-    .spoon-section { background: #def0ff; }
-    .checkin-section { background: #f0f7fd; display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 14px; }
-    .checkin-section label { display: flex; flex-direction: column; font-weight: 600; }
-    .checkin-section input, .checkin-section select { margin-top: 6px; padding: 7px 10px; font-size: 1rem; border-radius: 5px; border: 1px solid #ccc; }
-    .weather-section { background: #d0f8d0; display: flex; justify-content: space-between; align-items: center; font-size: 1rem; }
-    #debtWarning { background: linear-gradient(45deg,#f44336,#d32f2f); color: white; font-weight: 700; font-size: 1.15rem; text-align: center; display: none; animation: pulse 2.5s infinite; border-radius: 8px; padding: 14px 25px; }
-    @keyframes pulse { 0%,100% {opacity:1;} 50%{opacity:0.75;} }
-    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-    th, td { border: 1px solid #ccc; padding: 10px 12px; }
-    th { background: #eeeeee; position: sticky; top: 0; z-index: 10; }
-    td.editable:hover { background: #e7f0ff; cursor: pointer; }
-    tr.completed { background: #d0ffd0; opacity: 0.8; }
-    tr.out-of-order { border-left: 4px solid #ffb400; background: #fff8e1; }
-    tr.overdue { background: #ffcdd2; }
-    #legend { font-family: monospace; background: #fff4cc; padding: 14px 16px; border-radius: 6px; font-size: 0.9rem; white-space: nowrap; overflow-x: auto; margin-bottom: 24px; }
-    button { background: #1976d2; color: white; border: none; border-radius: 6px; padding: 10px 18px; cursor: pointer; font-size: 1rem; transition: background 0.3s ease; }
-    button:disabled { background: #a3c0f6; cursor: not-allowed; }
-    button:hover:not(:disabled) { background: #155a9c; }
-    #addTaskBtn { margin-top: 20px; display: block; width: 100%; max-width: 300px; margin-left: auto; margin-right: auto; }
-    /* Modal styles */
-    .modal { display: none; position: fixed; top:0; left:0; width: 100vw; height:100vh; background-color: rgba(0,0,0,0.4); z-index: 9999; overflow-y: auto; }
-    .modal-content { background: white; max-width: 520px; margin: 6% auto; padding: 20px 25px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.25); }
-    .modal-close { float: right; font-size: 30px; font-weight: 700; color: #666; cursor: pointer; }
-    .modal-close:hover { color: #000; }
-    .modal-content h2 { margin-top: 0; margin-bottom: 1em; }
-    .modal-content label { display: block; margin: 10px 0 4px 0; font-weight: 600; }
-    .modal-content input[type="text"], .modal-content input[type="number"], .modal-content select, .modal-content textarea {
-      width: 100%; padding: 8px; font-size: 1rem; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box;
-    }
-    .modal-content textarea { resize: vertical; }
-    .modal-actions {
-      display: flex; justify-content: space-between; margin-top: 18px;
-    }
-    .modal-actions button { width: 48%; }
-    /* Accessibility focus */
-    button:focus, input:focus, select:focus, textarea:focus { outline: 2px solid #1976d2; outline-offset: 2px; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SpoonPal Mini-App</title>
+<style>
+  /* Your styles here, optimized for accessibility and mobile */
+  body { font-family: Arial, sans-serif; margin: 1rem; background:#f7faff; color:#222; }
+  .container { max-width: 900px; margin:auto; background:#fff; padding:1rem 1.5rem; border-radius:8px; box-shadow:0 3px 10px rgba(0,0,0,0.1); }
+  h1 { text-align:center; margin-bottom:1.5rem; }
+  #timestamp { text-align:center; font-weight:bold; margin-bottom:1rem; }
+  .section { margin-bottom:1.5rem; }
+  .spoon-summary { background:#e9f1fa; padding:1rem; border-radius:6px; }
+  .spoon-summary span { display:inline-block; margin-right:1rem; font-weight:bold; }
+  .checkin-section, .weather-section { background:#f0f8ff; padding:1rem; border-radius:6px; }
+  .checkin-section label, .weather-section label { display:block; margin-bottom:0.5rem; }
+  .checkin-section input, .checkin-section select { width:100%; padding:0.5rem; margin-top:0.3rem; border-radius:5px; border:1px solid #ccc; font-size:1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { padding: 0.5rem 0.6rem; border: 1px solid #ccc; text-align:left; }
+  th { background:#e5f2ff; position: sticky; top: 0; z-index: 1; }
+  tr.completed { background:#d2f0d2; }
+  tr.overdue { background:#ffdddd; }
+  tr.out-of-order { border-left:5px solid #ffa500; background:#fff8e1; }
+  .legend { font-family: monospace; background:#ffe; color:#333; padding:0.5rem; font-size:0.85rem; border-radius:4px; margin-bottom:0.75rem; white-space: nowrap; overflow-x:auto; }
+  button { padding: 0.6rem 1.3rem; font-size: 1rem; border-radius: 6px; border:none; background:#4a90e2; color:#fff; cursor:pointer; margin-top:0.75rem; }
+  button:hover { background:#357ab8; }
+  button:disabled { background:#99c1e6; cursor: not-allowed; }
+  #addTaskBtn { display: block; margin: 1rem auto 0; max-width: 160px; }
+  .btn-danger { background:#d9534f; }
+  .btn-danger:hover { background:#b53939; }
+  /* Modal styles */
+  #taskModal { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background-color: rgba(0,0,0,0.5); z-index:99; }
+  #taskModal .modal-content { background:#fff; margin:5rem auto; max-width:450px; border-radius:8px; padding:1.5rem; position:relative; box-shadow:0 4px 20px rgba(0,0,0,0.3); }
+  #taskModal label { display:block; margin: 0.8rem 0 0.3rem; font-weight:600; }
+  #taskModal input[type=text], #taskModal input[type=number], #taskModal select, #taskModal textarea { width:100%; padding:0.6rem; border:1px solid #ccc; border-radius:5px; font-size:1rem; }
+  #taskModal textarea { resize: vertical; }
+  #taskModal .close-btn { position:absolute; top:10px; right:12px; font-size:1.5rem; font-weight:bold; cursor:pointer; border:none; background:none; }
+  #taskModal .actions { display:flex; justify-content:space-between; margin-top:1.4rem; }
+  #taskModal .actions button { width:48%; }
+
+</style>
 </head>
 <body>
-  <div class="container" role="main" aria-label="SpoonPal Mini App for chronic pain and spoon management">
-    <h1>SpoonPal Mini App</h1>
-    <div id="timestamp" aria-live="polite" aria-atomic="true"></div>
-    <div id="debtWarning" role="alert" aria-live="assertive"></div>
-    <div id="legend" aria-label="Protocol Legend"></div>
-    <section class="spoon-section" aria-label="Spoon Management Summary">
-      <div><strong>Baseline:</strong> <span id="baselineSpoons">--</span> &nbsp;|&nbsp;
-           <strong>Borrowed:</strong> <span id="borrowedSpoons">0</span> &nbsp;|&nbsp;
-           <strong>Start:</strong> <span id="startSpoons">--</span></div>
-      <div><strong>Planned:</strong> <span id="plannedSpoons">--</span> &nbsp;|&nbsp;
-           <strong>Spent:</strong> <span id="spentSpoons">--</span> &nbsp;|&nbsp;
-           <strong>Remaining:</strong> <span id="remainingSpoons">--</span></div>
-      <div><strong>Depletion:</strong> <span id="depletionSpoons">--</span> &nbsp;|&nbsp;
-           <strong>Consecutive Debt Days:</strong> <span id="consecutiveDebt">0</span></div>
-    </section>
-    <section class="checkin-section" aria-label="User Daily Check-in">
-      <label for="painLevel">Pain Level (1-10)
-        <input type="number" id="painLevel" min="1" max="10" value="5" aria-describedby="painDesc" />
-      </label>
-      <label for="fatigueLevel">Fatigue Level (1-10)
-        <input type="number" id="fatigueLevel" min="1" max="10" value="5" aria-describedby="fatigueDesc" />
-      </label>
-      <label for="sleepHours">Sleep Hours (0-24)
-        <input type="number" id="sleepHours" min="0" max="24" step="0.25" value="8" aria-describedby="sleepDesc" />
-      </label>
-      <label for="moodLevel">Mood
-        <select id="moodLevel" aria-describedby="moodDesc">
-          <option value="excellent">Excellent</option>
-          <option value="good">Good</option>
-          <option value="okay" selected>Okay</option>
-          <option value="poor">Poor</option>
-          <option value="terrible">Terrible</option>
-        </select>
-      </label>
-    </section>
-    <section class="weather-section" aria-label="Weather Information and Controls">
-      <span id="weatherInfo" aria-live="polite">Loading weather...</span>
-      <button id="refreshWeatherBtn" aria-label="Refresh weather data">Refresh</button>
-    </section>
-    <table id="timelineTable" aria-label="Daily Task Timeline" role="grid">
-      <thead>
-        <tr>
-          <th scope="col">Time</th>
-          <th scope="col">LMJ</th>
-          <th scope="col">Task Description (Priority)</th>
-          <th scope="col" title="Spoon Cost">🥄</th>
-          <th scope="col">Status</th>
-          <th scope="col">Area Notes</th>
-          <th scope="col">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="timelineBody"></tbody>
-    </table>
-    <button id="addTaskBtn" type="button">Add New Task</button>
+<div class="container" role="main">
+  <h1>SpoonPal Mini-App</h1>
+  <div id="timestamp" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="debtWarning" aria-live="assertive" role="alert" style="display:none; background:#e55; color:#fff; padding:0.75rem; border-radius:6px; font-weight:bold; margin-bottom:1rem;"></div>
+
+  <div class="section spoon-summary" aria-label="Spoon management summary">
+    <span id="baselineSpoons">Baseline: --</span>
+    <span id="borrowedSpoons">Borrowed: --</span>
+    <span id="startSpoons">Start: --</span> <br/>
+    <span id="plannedSpoons">Planned: --</span>
+    <span id="spentSpoons">Spent: --</span>
+    <span id="remainingSpoons">Remaining: --</span> <br/>
+    <span id="depletionSpoons">Depletion: --</span>
+    <span id="consecutiveDebt">Consecutive Debt Days: 0</span>
   </div>
 
-  <!-- Edit Task Modal -->
-  <div id="taskModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle" aria-describedby="taskModalDesc">
+  <div class="section checkin-section" aria-label="Daily check-in">
+    <label for="painLevel">Pain Level (1-10)
+      <input type="number" id="painLevel" min="1" max="10" value="5" />
+    </label>
+    <label for="fatigueLevel">Fatigue Level (1-10)
+      <input type="number" id="fatigueLevel" min="1" max="10" value="5" />
+    </label>
+    <label for="sleepHours">Sleep Hours (0-24)
+      <input type="number" id="sleepHours" min="0" max="24" step="0.25" value="8" />
+    </label>
+    <label for="moodLevel">Mood
+      <select id="moodLevel">
+        <option value="excellent">Excellent</option>
+        <option value="good">Good</option>
+        <option value="okay" selected>Okay</option>
+        <option value="poor">Poor</option>
+        <option value="terrible">Terrible</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="section weather-section" aria-label="Weather information">
+    <span id="weatherInfo">Loading weather...</span>
+    <button id="refreshWeatherBtn" aria-label="Refresh weather">Refresh</button>
+  </div>
+
+  <div id="legend" class="legend" aria-label="Protocol legend"></div>
+
+  <table id="timelineTable" aria-label="Task timeline" role="grid" aria-live="polite">
+    <thead>
+      <tr>
+        <th scope="col">Time</th>
+        <th scope="col">LMJ</th>
+        <th scope="col">Task (Priority)</th>
+        <th scope="col" title="Spoon Cost">🥄</th>
+        <th scope="col">Status</th>
+        <th scope="col">Notes</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="timelineBody"></tbody>
+  </table>
+
+  <button id="addTaskBtn" aria-label="Add new task">Add Task</button>
+
+  <div id="taskModal" class="modal" role="dialog" aria-labelledby="taskModalTitle" aria-describedby="taskModalDesc">
     <div class="modal-content">
-      <button class="modal-close" aria-label="Close" id="modalCloseBtn">&times;</button>
+      <button class="close-btn" id="modalCloseBtn" aria-label="Close dialog">&times;</button>
       <h2 id="taskModalTitle">Edit Task</h2>
       <form id="taskForm">
-        <label for="modalTime">Time (e.g. 9pm or 9:00 PM)
-          <input type="text" id="modalTime" name="modalTime" required autocomplete="off" />
+        <label for="modalTime">Time (e.g. 9am, 9:00 PM)
+          <input type="text" id="modalTime" required />
         </label>
         <label for="modalLmj">LMJ Code (auto-assigned)
-          <input type="text" id="modalLmj" name="modalLmj" readonly aria-readonly="true" />
+          <input type="text" id="modalLmj" readonly aria-readonly="true" />
         </label>
         <label for="modalEmoji">Emoji (auto-assigned)
-          <input type="text" id="modalEmoji" name="modalEmoji" readonly aria-readonly="true" />
+          <input type="text" id="modalEmoji" readonly aria-readonly="true" />
         </label>
-        <label for="modalDescription">Task Description
-          <input type="text" id="modalDescription" name="modalDescription" required />
+        <label for="modalDescription">Description
+          <input type="text" id="modalDescription" required />
         </label>
         <label for="modalPriority">Priority
-          <select id="modalPriority" name="modalPriority">
+          <select id="modalPriority">
             <option value="Urgent">Urgent</option>
             <option value="High" selected>High</option>
             <option value="Medium">Medium</option>
@@ -132,20 +130,22 @@
           </select>
         </label>
         <label for="modalSpoonCost">Spoon Cost
-          <input type="number" id="modalSpoonCost" name="modalSpoonCost" min="0" max="10" step="0.5" required />
+          <input type="number" id="modalSpoonCost" min="0" max="10" step="0.5" required />
         </label>
         <label for="modalFixed">Fixed or Flexible
-          <select id="modalFixed" name="modalFixed">
-            <option value="true">Fixed 🔒</option>
-            <option value="false" selected>Flexible ↕️</option>
+          <select id="modalFixed">
+            <option value="true">Fixed</option>
+            <option value="false" selected>Flexible</option>
           </select>
         </label>
-        <label for="modalNotes">Area Notes
-          <textarea id="modalNotes" name="modalNotes" rows="3" placeholder="Additional notes"></textarea>
+        <label for="modalNotes">Notes
+          <textarea id="modalNotes"></textarea>
         </label>
-        <div class="modal-actions">
-          <button type="submit" aria-label="Save task">Save</button>
-          <button type="button" id="deleteTaskBtn" style="background:#d32f2f;">Delete</button>
+        <div style="margin-top:1rem; display:flex; justify-content:space-between;">
+          <button type="submit" aria-label="Save changes">Save</button>
+          <button type="button" id="modalDeleteBtn" aria-label="Delete task" style="background:#d9534f; color:#fff;">
+            Delete
+          </button>
         </div>
       </form>
     </div>
@@ -155,386 +155,85 @@
 (() => {
   'use strict';
 
-  // Protocol locked LMJ order and metadata
-  const LOCKED_LMJ = [
-    {lmj: 'A', emoji: '💊', desc: 'Morning meds', spoonCost: 2, fixed: true},
-    {lmj: 'V', emoji: '🦾', desc: 'CPAP prep, wrist brace', spoonCost: 1, fixed: true},
-    {lmj: 'B', emoji: '🍽️', desc: 'Family scriptures, breakfast (AM only)', spoonCost: 2, fixed: false},
-    {lmj: 'G', emoji: '🐥', desc: 'Gosling time', spoonCost: 2, fixed: false},
-    {lmj: 'N', emoji: '📰', desc: 'News with Mom', spoonCost: 1, fixed: false},
-    {lmj: 'ME', emoji: '🧘', desc: 'Me time', spoonCost: 1, fixed: false},
-    {lmj: 'H', emoji: '🧺', desc: 'Hamper/laundry', spoonCost: 1, fixed: false},
-    {lmj: 'CC', emoji: '🛏️', desc: 'In bed', spoonCost: 0, fixed: true},
-    {lmj: 'DD', emoji: '💨', desc: 'Breathe, recover', spoonCost: 0, fixed: true},
-    {lmj: 'EE', emoji: '😷', desc: 'CPAP mask on', spoonCost: 0, fixed: true},
-    {lmj: 'FF', emoji: '🤚', desc: 'Wrist brace on', spoonCost: 0, fixed: true},
-    {lmj: 'ZZ', emoji: '📵', desc: 'Device off, crash', spoonCost: 0, fixed: true},
+  /* --- locked protocol data --- */
+  const LOCKED_LMJ_ORDER = [
+    { lmj:'A', emoji:'💊', description:'Morning meds', defaultSpoonCost:2, defaultFixed:true },
+    { lmj:'V', emoji:'🦾', description:'CPAP prep, wrist brace', defaultSpoonCost:1, defaultFixed:true },
+    { lmj:'B', emoji:'🍽️', description:'Family scriptures, breakfast', defaultSpoonCost:2, defaultFixed:false },
+    { lmj:'G', emoji:'🐥', description:'Gosling time', defaultSpoonCost:2, defaultFixed:false },
+    { lmj:'N', emoji:'📰', description:'News with Mom', defaultSpoonCost:1, defaultFixed:false },
+    { lmj:'ME', emoji:'🧘', description:'Me time', defaultSpoonCost:1, defaultFixed:false },
+    { lmj:'H', emoji:'🧺', description:'Hamper/laundry', defaultSpoonCost:1, defaultFixed:false },
+    { lmj:'CC', emoji:'🛏️', description:'In bed', defaultSpoonCost:0, defaultFixed:true },
+    { lmj:'DD', emoji:'💨', description:'Breathe, recover', defaultSpoonCost:0, defaultFixed:true },
+    { lmj:'EE', emoji:'😷', description:'CPAP mask', defaultSpoonCost:0, defaultFixed:true },
+    { lmj:'FF', emoji:'🤚', description:'Wrist brace', defaultSpoonCost:0, defaultFixed:true },
+    { lmj:'ZZ', emoji:'📵', description:'Device off, crash', defaultSpoonCost:0, defaultFixed:true }
   ];
-
-  // Status icons allowed in order
   const STATUS_ICONS = ['⬜', '⏳', '🛠️', '✅', '🚧', '❌', '🔄'];
-  const STATUS_KEYS = ['incomplete','partial','progress','complete','interrupted','skipped','rescheduled'];
+  const STATUS_KEYS = ['incomplete', 'partial', 'progress', 'complete', 'interrupted', 'skipped', 'rescheduled'];
 
-  // LMJ assignment order helpers
-  const LMJ_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const DOUBLE_LETTERS = [];
-  for(let i=0;i<LMJ_ALPHABET.length;i++){
-    for(let j=0;j<LMJ_ALPHABET.length;j++){
-      DOUBLE_LETTERS.push(LMJ_ALPHABET[i]+LMJ_ALPHABET[j]);
-    }
-  }
-
-  // Global state
+  /* --- variables and state --- */
   let timeline = [];
-  let checkIn = {pain:5,fatigue:5,sleepHours:8,mood:'okay'};
+  let checkIn = { pain:5, fatigue:5, sleepHours:8, mood:'okay' };
   let spoonHistory = [];
   let dayStartHour = 8;
-  let dayEndHour = 25; // 1am next day
-  let weather = {impact:0, description:'Loading weather...'};
+  let dayEndHour = 25;
+  let weather = { impact:0, description:'Loading weather...' };
   let debtDays = 0;
   let selectedTaskIdx = null;
-  let bbEmojiUsed = [];
 
-  // UTILITIES
+  window.addEventListener('load', () => {
+    loadData();
+    updateUI();
+    fetchWeather();
 
-  function pad(num){return num.toString().padStart(2,'0');}
-  function parseTime12(t){
-    const m = t.match(/(\d{1,2}):?(\d{2})?\s*(AM|PM)/i);
-    if(!m) return null;
-    let h=parseInt(m[1]), mins=parseInt(m[2]||'0');
-    if(m[3].toUpperCase()==='PM' && h!==12) h+=12;
-    if(m[3].toUpperCase()==='AM' && h===12) h=0;
-    return {h, mins};
-  }
-  function formatTime12(h,m){
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${h}:${pad(m)} ${ampm}`;
-  }
-  function timeToMinutes(t){
-    if(typeof t==='string'){
-      const o = parseTime12(t);
-      if(!o) return -1;
-      return o.h*60 + o.mins;
-    }
-    if(typeof t==='object' && 'h' in t && 'mins' in t){
-      return t.h*60 + t.mins;
-    }
-    return -1;
-  }
-  function minutesToTime12(m){
-    let h = Math.floor(m/60);
-    const mins = m%60;
-    return formatTime12(h, mins);
-  }
-  function getCurrentTimeMinutes(){
-    let now = new Date();
-    return now.getHours()*60 + now.getMinutes();
-  }
-
-  function uniqueLMJ(){
-    let used = new Set(timeline.map(t=>t.lmj));
-    for(let i=0;i<LMJ_ALPHABET.length;i++){
-      let c = LMJ_ALPHABET.charAt(i);
-      if(!used.has(c)) return c;
-    }
-    for(let i=0;i<DOUBLE_LETTERS.length;i++){
-      if(!used.has(DOUBLE_LETTERS[i])) return DOUBLE_LETTERS[i];
-    }
-    for(let i=0;i<LMJ_ALPHABET.length;i++){
-      for(let j=0;j<LMJ_ALPHABET.length;j++){
-        let code = LMJ_ALPHABET[i]+LMJ_ALPHABET[j]+LMJ_ALPHABET[j];
-        if(!used.has(code)) return code;
-      }
-    }
-    return 'XX';
-  }
-  function assignEmoji(lmj){
-    let locked = LOCKED_LMJ.find(l=>l.lmj === lmj);
-    if(locked) return locked.emoji;
-    // Generic puzzle piece for non-locked, can be improved
-    return '🧩';
-  }
-
-  // Date helpers
-  function getTodayStr(){
-    return new Date().toDateString();
-  }
-
-  // Spoon Math Calculation
-  function calculateSpoons(){
-    let baseline = 20;
-    baseline -= Math.max(0, checkIn.pain - 5);
-    baseline -= Math.max(0, checkIn.fatigue - 5);
-    if(checkIn.sleepHours < 7) baseline -= (7 - checkIn.sleepHours)*2;
-    else if(checkIn.sleepHours > 9) baseline += Math.min(3, checkIn.sleepHours - 9);
-    const moodAdj = {'terrible': -3,'poor': -1,'okay':0,'good':1,'excellent':2};
-    baseline += moodAdj[checkIn.mood] || 0;
-    baseline += weather.impact || 0;
-    baseline = Math.max(1, baseline);
-
-    let borrowed = 0; // implement borrowed tracking properly later
-
-    let planned = timeline.reduce((sum,t)=>sum+(t.spoonCost||0), 0);
-    let spent = timeline.reduce((sum,t)=>{
-      if(t.status === 'complete') return sum + (t.spoonCost||0);
-      if(t.status === 'partial') return sum + ((t.spoonCost||0)/2);
-      return sum;
-    }, 0);
-
-    let start = baseline - borrowed;
-    let remaining = start - spent;
-    let depletion = remaining - (planned - spent);
-
-    document.getElementById('baselineSpoons').textContent = baseline;
-    document.getElementById('borrowedSpoons').textContent = borrowed;
-    document.getElementById('startSpoons').textContent = start;
-    document.getElementById('plannedSpoons').textContent = planned.toFixed(1);
-    document.getElementById('spentSpoons').textContent = spent.toFixed(1);
-    document.getElementById('remainingSpoons').textContent = remaining.toFixed(1);
-    document.getElementById('depletionSpoons').textContent = depletion.toFixed(1);
-
-    // Track consecutive debt days
-    let today = getTodayStr();
-    spoonHistory = spoonHistory.filter(s => s.date !== today);
-    spoonHistory.push({
-      date: today,
-      baseline: baseline,
-      spent: spent,
-      endBalance: depletion,
-      timestamp: new Date().toISOString(),
+    document.getElementById('addTaskBtn').onclick = addTask;
+    document.getElementById('refreshWeatherBtn').onclick = fetchWeather;
+    document.getElementById('modalCloseBtn').onclick = closeModal;
+    document.getElementById('modalDeleteBtn').onclick = deleteTask;
+    document.getElementById('taskForm').onsubmit = saveTask;
+    ['painLevel','fatigueLevel','sleepHours','moodLevel'].forEach(id => {
+      document.getElementById(id).addEventListener('change', saveCheckIn);
     });
 
-    let count = 0;
-    for(let i=spoonHistory.length-1; i>= 0; i--){
-      if(spoonHistory[i].endBalance < 0) count++;
-      else break;
-    }
-    debtDays = count;
-    const warningEL = document.getElementById('debtWarning');
-    if(debtDays >= 2){
-      let txt = '';
-      if(debtDays >= 5) txt = `🆘 CRITICAL DEBT PERIOD 🆘 Day ${debtDays}`;
-      else if(debtDays === 3) txt = `⚠️ BURNOUT RISK ZONE ⚠️ Day 3`;
-      else txt = `🚨 SPOON DEBT WARNING 🚨 Day ${debtDays}`;
-      warningEL.textContent = txt;
-      warningEL.style.display = 'block';
-    } else {
-      warningEL.style.display = 'none';
-    }
+    updateTimestamp();
+    setInterval(updateTimestamp, 60000);
+  });
+
+  function updateTimestamp(){
+    const now = new Date();
+    document.getElementById('timestamp').textContent = now.toLocaleString(undefined, { dateStyle:'long', timeStyle:'short' });
   }
 
-  // Render Legend
-  function renderLegend(){
-    const fixed = 'Fixed 🔒';
-    const flexible = 'Flexible ↕️';
-    const urgent = 'Urgent 🔥';
-    const am = 'AM ☀️';
-    const pm = 'PM 🌙';
-    const spoon = '🥄 Spoon';
-    const l = 'LMJ';
-    const status = 'Status ✅ ⬜ ⏳ 🛠️ 🚧 ❌ 🔄';
-    const legendText = `${fixed} ${flexible} ${urgent} ${am} ${pm} ${spoon} ${l} ${status}`;
-    document.getElementById('legend').textContent = legendText;
-  }
-
-  // Sorting & protocol order enforcement, including time corrections
-  function validateAndSortTimeline(){
-    // Sort tasks by time with day boundaries
-    timeline.sort((a,b)=>{
-      let aMin = timeToMinutes(a.time);
-      let bMin = timeToMinutes(b.time);
-      if(aMin < dayStartHour*60) aMin += 1440;
-      if(bMin < dayStartHour*60) bMin += 1440;
-      return aMin-bMin;
-    });
-    // Protocol: H after ME enforcement
-    let me = timeline.find(t => t.lmj === 'ME');
-    let h = timeline.find(t => t.lmj === 'H');
-    if(me && h){
-      if(timeToMinutes(h.time) <= timeToMinutes(me.time)){
-        let meMin = timeToMinutes(me.time);
-        h.time = minutesToTime12(meMin + 30);
-      }
-    }
-  }
-
-  // Render Timeline Table
-  function renderTimeline(){
-    const tbody = document.getElementById('timelineBody');
-    tbody.innerHTML = '';
-    validateAndSortTimeline();
-    timeline.forEach((task, idx) => {
-      const tr = document.createElement('tr');
-      if(task.status === 'complete') tr.classList.add('completed');
-      if(task.status === 'incomplete' && timeToMinutes(task.time) < getCurrentTimeMinutes() - 15) tr.classList.add('overdue');
-      // Time column with AM/PM icon and fixed/flexible/urgent icons
-      const timeCol = document.createElement('td');
-      const tMin = timeToMinutes(task.time);
-      const ampmIcon = tMin >= 720 ? '🌙' : '☀️';
-      const schedIcon = task.fixed ? '🔒' : '↕️';
-      timeCol.textContent = `${task.time} ${ampmIcon} ${schedIcon}`;
-      tr.appendChild(timeCol);
-      // LMJ column
-      const lmjCol = document.createElement('td');
-      lmjCol.textContent = `${task.lmj}${task.emoji}`;
-      tr.appendChild(lmjCol);
-      // Task Description column editable
-      const descCol = document.createElement('td');
-      descCol.textContent = `${task.description} (${task.priority})`;
-      descCol.className = 'editable';
-      descCol.addEventListener('click', () => openEditTaskModal(idx));
-      tr.appendChild(descCol);
-      // Spoon cost column editable
-      const spoonCol = document.createElement('td');
-      spoonCol.textContent = task.spoonCost.toFixed(1);
-      spoonCol.className = 'editable';
-      spoonCol.addEventListener('click', () => openEditTaskModal(idx));
-      tr.appendChild(spoonCol);
-      // Status icon column tappable
-      const statusCol = document.createElement('td');
-      statusCol.textContent = STATUS_ICONS[STATUS_KEYS.indexOf(task.status)] || '⬜';
-      statusCol.title = `Click to toggle status (current: ${task.status})`;
-      statusCol.className = 'status-cell';
-      statusCol.addEventListener('click', () => toggleStatus(idx));
-      tr.appendChild(statusCol);
-      // Notes column editable
-      const notesCol = document.createElement('td');
-      notesCol.textContent = task.notes || '';
-      notesCol.className = 'editable';
-      notesCol.addEventListener('click', () => openEditTaskModal(idx));
-      tr.appendChild(notesCol);
-      // Actions column: Edit and Delete buttons
-      const actionsCol = document.createElement('td');
-      const editBtn = document.createElement('button');
-      editBtn.textContent = 'Edit';
-      editBtn.addEventListener('click', e => { e.stopPropagation(); openEditTaskModal(idx); });
-      actionsCol.appendChild(editBtn);
-      const delBtn = document.createElement('button');
-      delBtn.textContent = 'Delete';
-      delBtn.style.backgroundColor = '#d32f2f';
-      delBtn.addEventListener('click', e => { e.stopPropagation(); deleteTask(idx); });
-      actionsCol.appendChild(delBtn);
-      tr.appendChild(actionsCol);
-      tbody.appendChild(tr);
-    });
-  }
-
-  // Open Edit Task Modal
-  function openEditTaskModal(index){
-    selectedTaskIdx = index;
-    const task = timeline[index];
-    document.getElementById('modalTime').value = task.time;
-    document.getElementById('modalLmj').value = task.lmj;
-    document.getElementById('modalEmoji').value = task.emoji;
-    document.getElementById('modalDescription').value = task.description;
-    document.getElementById('modalPriority').value = task.priority;
-    document.getElementById('modalSpoonCost').value = task.spoonCost;
-    document.getElementById('modalFixed').value = task.fixed ? 'true' : 'false';
-    document.getElementById('modalNotes').value = task.notes || '';
-    showModal();
-  }
-  // Save Task from Modal
-  function saveTask(e){
-    e.preventDefault();
-    if(selectedTaskIdx === null) return;
-    const timeStr = document.getElementById('modalTime').value.trim();
-    if(!parseTime12(timeStr)){
-      alert('Invalid time format. Use formats like "9am", "9:00 PM"');
-      return;
-    }
-    const task = timeline[selectedTaskIdx];
-    task.time = timeStr;
-    // LMJ and emoji cannot be changed manually
-    task.description = document.getElementById('modalDescription').value.trim() || 'No description';
-    task.priority = document.getElementById('modalPriority').value;
-    task.spoonCost = parseFloat(document.getElementById('modalSpoonCost').value) || 0;
-    task.fixed = document.getElementById('modalFixed').value==='true';
-    task.notes = document.getElementById('modalNotes').value.trim();
-    saveAndRender();
-    closeModal();
-  }
-
-  // Delete task
-  function deleteTask(idx){
-    if(!confirm('Delete this task?')) return;
-    timeline.splice(idx, 1);
-    if(selectedTaskIdx === idx) closeModal();
-    saveAndRender();
-  }
-  // Toggle Status
-  function toggleStatus(idx){
-    if(idx < 0 || idx >= timeline.length) return;
-    let current = timeline[idx].status;
-    let ix = STATUS_KEYS.indexOf(current);
-    ix = (ix + 1) % STATUS_KEYS.length;
-    timeline[idx].status = STATUS_KEYS[ix];
-    saveAndRender();
-  }
-
-  // Add New Task
-  function addTask(){
-    let lmj = uniqueLMJ();
-    let emoji = assignEmoji(lmj);
-    let defaultTime = minutesToTime12(dayStartHour * 60); // start of day
-    timeline.push({
-      time: defaultTime,
-      lmj: lmj,
-      emoji: emoji,
-      description: '',
-      priority: 'Medium',
-      spoonCost: 1,
-      fixed: false,
-      status: 'incomplete',
-      notes: '',
-      createdAt: new Date().toISOString()
-    });
-    saveAndRender();
-    openEditTaskModal(timeline.length - 1);
-  }
-
-  // Save Data and Refresh UI
-  function saveAndRender(){
-    calculateSpoons();
-    renderTimeline();
-    renderLegend();
-    saveData();
-    updateCheckInUI();
-  }
-
-  // Save all to localStorage
-  function saveData(){
-    const data = {
-      timeline,
-      checkIn,
-      spoonHistory,
-      dayStartHour,
-      dayEndHour,
-      weather,
-      debtDays
-    };
-    localStorage.setItem('spoonPalData', JSON.stringify(data));
-  }
-  // Load all data from localStorage
   function loadData(){
-    const data = localStorage.getItem('spoonPalData');
-    if(data){
+    const stored = localStorage.getItem('spoonPalData');
+    if(stored){
       try{
-        const obj = JSON.parse(data);
-        timeline = obj.timeline || [];
-        checkIn = obj.checkIn || checkIn;
-        spoonHistory = obj.spoonHistory || [];
-        dayStartHour = obj.dayStartHour || 8;
-        dayEndHour = obj.dayEndHour || 25;
-        weather = obj.weather || {impact:0,description:'Loading weather...'};
-        debtDays = obj.debtDays || 0;
-      }catch(e){
-        console.error('Load data error:', e);
-      }
+        const d = JSON.parse(stored);
+        timeline = d.timeline || [];
+        checkIn = d.checkIn || checkIn;
+        spoonHistory = d.spoonHistory || [];
+        dayStartHour = d.dayStartHour || 8;
+        dayEndHour = d.dayEndHour || 25;
+        weather = d.weather || weather;
+        debtDays = d.debtDays || 0;
+      }catch(e){ console.warn('Invalid saved data'); }
     }
   }
+  function saveData(){
+    const d = { timeline, checkIn, spoonHistory, dayStartHour, dayEndHour, weather, debtDays };
+    localStorage.setItem('spoonPalData', JSON.stringify(d));
+  }
 
-  // Check-in UI sync
+  function updateUI(){
+    updateCheckInUI();
+    calculateSpoons();
+    renderLegend();
+    renderTimeline();
+    updateDebtWarning();
+  }
+
   function updateCheckInUI(){
     document.getElementById('painLevel').value = checkIn.pain;
     document.getElementById('fatigueLevel').value = checkIn.fatigue;
@@ -546,51 +245,267 @@
     checkIn.fatigue = parseInt(document.getElementById('fatigueLevel').value) || 5;
     checkIn.sleepHours = parseFloat(document.getElementById('sleepHours').value) || 8;
     checkIn.mood = document.getElementById('moodLevel').value;
-    saveAndRender();
+    updateUI();
+    saveData();
   }
 
-  // Fetch weather placeholder
-  function fetchWeather(){
-    // Simulate async call for demo purposes
-    const conds = [
-      {impact: 0, description: '72°F Clear - no effects'},
-      {impact: -2, description: '45°F Cold - reduces spoons by 2'},
-      {impact: -1, description: '88°F Hot - reduces spoons by 1'},
-      {impact: -1, description: '65°F Cloudy - mild spoon impact'}
-    ];
-    weather = conds[Math.floor(Math.random()*conds.length)];
-    document.getElementById('weatherInfo').textContent = `Weather: ${weather.description}`;
-    saveAndRender();
+  function calculateSpoons(){
+    let baseline = 20;
+    baseline -= Math.max(0, checkIn.pain - 5);
+    baseline -= Math.max(0, checkIn.fatigue - 5);
+    if(checkIn.sleepHours < 7) baseline -= (7 - checkIn.sleepHours) * 2;
+    else if(checkIn.sleepHours > 9) baseline += Math.min(3, checkIn.sleepHours - 9);
+    const moodAdj = {terrible:-3, poor:-1, okay:0, good:1, excellent:2};
+    baseline += moodAdj[checkIn.mood] || 0;
+    baseline += weather.impact || 0;
+    baseline = Math.max(1, baseline);
+
+    let borrowed = 0; // Placeholder for borrowed spoons tracking
+
+    let planned = timeline.reduce((sum,t) => sum + (t.spoonCost || 0), 0);
+    let spent = timeline.reduce((sum,t) => {
+      if(t.status === 'complete') return sum + (t.spoonCost || 0);
+      if(t.status === 'partial') return sum + ((t.spoonCost || 0)/2);
+      return sum;
+    }, 0);
+
+    let startSpoons = baseline - borrowed;
+    let remaining = startSpoons - spent;
+    let depletion = remaining - (planned - spent);
+
+    document.getElementById('baselineSpoons').textContent = baseline;
+    document.getElementById('borrowedSpoons').textContent = borrowed;
+    document.getElementById('startSpoons').textContent = startSpoons;
+    document.getElementById('plannedSpoons').textContent = planned.toFixed(1);
+    document.getElementById('spentSpoons').textContent = spent.toFixed(1);
+    document.getElementById('remainingSpoons').textContent = remaining.toFixed(1);
+    document.getElementById('depletionSpoons').textContent = depletion.toFixed(1);
+
+    // Update debt history
+    const today = new Date().toDateString();
+    spoonHistory = spoonHistory.filter(x => x.date !== today);
+    spoonHistory.push({ date: today, baseline, spent, depletion, timestamp: new Date().toISOString() });
+    debtDays = 0;
+    for(let i=spoonHistory.length - 1; i >= 0; i--){
+      if(spoonHistory[i].depletion < 0) debtDays++;
+      else break;
+    }
   }
 
-  // Modal open/close handlers
-  function showModal(){
+  function updateDebtWarning(){
+    const warningEl = document.getElementById('debtWarning');
+    if(debtDays >= 2){
+      let txt = '';
+      if(debtDays >= 5) txt = `🛑 CRITICAL DEBT PERIOD (Day ${debtDays})`;
+      else if(debtDays >=3) txt = `⚠️ BURNOUT RISK (Day ${debtDays})`;
+      else txt = `⚠️ SPOON DEBT WARNING (Day ${debtDays})`;
+      warningEl.textContent = txt;
+      warningEl.style.display = 'block';
+    } else {
+      warningEl.style.display = 'none';
+    }
+  }
+
+  function renderLegend(){
+    const legend = 'Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon LMJ 🎯 Status ✅ ⬜ ⏳ 🛠️ 🚧 ❌ 🔄';
+    document.getElementById('legend').textContent = legend;
+  }
+
+  function renderTimeline(){
+    const tbody = document.getElementById('timelineBody');
+    tbody.innerHTML = '';
+    timeline.sort((a,b) => {
+      let aM = timeToMinutes(a.time);
+      let bM = timeToMinutes(b.time);
+      if (aM < dayStartHour * 60) aM += 1440;
+      if (bM < dayStartHour * 60) bM += 1440;
+      return aM - bM;
+    });
+
+    // Enforce H after ME
+    const idxME = timeline.findIndex(t => t.lmj === 'ME');
+    const idxH = timeline.findIndex(t => t.lmj === 'H');
+    if(idxME !== -1 && idxH !== -1){
+      if(timeToMinutes(timeline[idxH].time) <= timeToMinutes(timeline[idxME].time)){
+        const newTimeM = timeToMinutes(timeline[idxME].time) + 30;
+        timeline[idxH].time = minutesToTime12(newTimeM);
+      }
+    }
+
+    timeline.forEach((task, i) => {
+      const tr = document.createElement('tr');
+      if(task.status === 'complete') tr.classList.add('completed');
+      const nowMins = (new Date()).getHours() * 60 + (new Date()).getMinutes();
+      const taskMins = timeToMinutes(task.time) < dayStartHour * 60 ? timeToMinutes(task.time) + 1440 : timeToMinutes(task.time);
+      if(task.status === 'incomplete' && taskMins < nowMins - 15) tr.classList.add('overdue');
+
+      // Time Column - with AM/PM Sunrise/Moon icons and Fixed/Flexible icon
+      const timeTd = document.createElement('td');
+      const ampmIcon = timeToMinutes(task.time) >= 720 ? '🌙' : '☀️';
+      const fixedIcon = task.fixed ? '🔒' : '↕️';
+      timeTd.textContent = `${task.time} ${ampmIcon} ${fixedIcon}`;
+      tr.appendChild(timeTd);
+
+      // LMJ Column
+      const lmjTd = document.createElement('td');
+      lmjTd.textContent = `${task.lmj}${task.emoji}`;
+      tr.appendChild(lmjTd);
+
+      // Task Description Column (editable)
+      const descTd = document.createElement('td');
+      descTd.textContent = `${task.description} (${task.priority})`;
+      descTd.classList.add('editable');
+      descTd.onclick = () => openEditModal(i);
+      tr.appendChild(descTd);
+
+      // Spoon Cost Column (editable)
+      const spoonTd = document.createElement('td');
+      spoonTd.textContent = task.spoonCost.toFixed(1);
+      spoonTd.classList.add('editable');
+      spoonTd.onclick = () => openEditModal(i);
+      tr.appendChild(spoonTd);
+
+      // Status Column (icon only, clickable to cycle)
+      const statusTd = document.createElement('td');
+      const statusIx = STATUS_KEYS.indexOf(task.status);
+      statusTd.textContent = STATUS_ICONS[statusIx] || STATUS_ICONS[0];
+      statusTd.title = `Status: ${task.status}. Click to toggle.`;
+      statusTd.style.cursor = 'pointer';
+      statusTd.onclick = () => {
+        let ix = (STATUS_KEYS.indexOf(task.status) + 1) % STATUS_KEYS.length;
+        task.status = STATUS_KEYS[ix];
+        saveData();
+        renderTimeline();
+        calculateSpoons();
+      };
+      tr.appendChild(statusTd);
+
+      // Notes Column (editable)
+      const notesTd = document.createElement('td');
+      notesTd.textContent = task.notes || '';
+      notesTd.classList.add('editable');
+      notesTd.onclick = () => openEditModal(i);
+      tr.appendChild(notesTd);
+
+      // Actions Column (edit/delete buttons)
+      const actionTd = document.createElement('td');
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = (e) => { e.stopPropagation(); openEditModal(i); };
+      actionTd.appendChild(editBtn);
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.style.backgroundColor = '#d9534f';
+      delBtn.onclick = (e) => { e.stopPropagation(); deleteTask(i);}
+      actionTd.appendChild(delBtn);
+      tr.appendChild(actionTd);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function openEditModal(i){
+    selectedTaskIdx = i;
+    const task = timeline[i];
+    document.getElementById('modalTime').value = task.time;
+    document.getElementById('modalLmj').value = task.lmj;
+    document.getElementById('modalEmoji').value = task.emoji;
+    document.getElementById('modalDescription').value = task.description;
+    document.getElementById('modalPriority').value = task.priority;
+    document.getElementById('modalSpoonCost').value = task.spoonCost;
+    document.getElementById('modalFixed').value = task.fixed ? 'true' : 'false';
+    document.getElementById('modalNotes').value = task.notes || '';
     document.getElementById('taskModal').style.display = 'block';
     document.body.classList.add('modal-open');
   }
   function closeModal(){
     document.getElementById('taskModal').style.display = 'none';
-    selectedTaskIdx = null;
     document.body.classList.remove('modal-open');
+    selectedTaskIdx = null;
+  }
+  document.getElementById('modalCloseBtn').onclick = closeModal;
+
+  function saveTask(e){
+    e.preventDefault();
+    if(selectedTaskIdx === null) return;
+    const timeVal = document.getElementById('modalTime').value.trim();
+    if(!/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i.test(timeVal)){
+      alert('Invalid time format. Use formats like "9am" or "9:00 PM".');
+      return;
+    }
+    const task = timeline[selectedTaskIdx];
+    task.time = timeVal;
+    // LMJ and emoji cannot be changed
+    task.description = document.getElementById('modalDescription').value.trim() || 'No description';
+    task.priority = document.getElementById('modalPriority').value;
+    task.spoonCost = parseFloat(document.getElementById('modalSpoonCost').value) || 0;
+    task.fixed = document.getElementById('modalFixed').value === 'true';
+    task.notes = document.getElementById('modalNotes').value.trim();
+    saveData();
+    updateUI();
+    closeModal();
   }
 
-  // Event listeners some after DOM ready
-  window.addEventListener('load', () => {
-    loadData();
-    updateCheckInUI();
-    fetchWeather();
-    renderLegend();
-    calculateSpoons();
-    renderTimeline();
+  function deleteTask(){
+    if(selectedTaskIdx === null) return;
+    if(confirm('Delete the task?')){
+      timeline.splice(selectedTaskIdx,1);
+      saveData();
+      updateUI();
+      closeModal();
+    }
+  }
 
-    document.getElementById('addTaskBtn').addEventListener('click', addTask);
-    document.getElementById('refreshWeatherBtn').addEventListener('click', fetchWeather);
-    document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
-    document.getElementById('taskForm').addEventListener('submit', saveTask);
-    ['painLevel','fatigueLevel','sleepHours','moodLevel'].forEach(id =>
-      document.getElementById(id).addEventListener('change', saveCheckIn)
-    );
-  });
+  function addTask(){
+    const nextLMJ = getNextAvailableLMJ();
+    const emoji = getEmojiForLMJ(nextLMJ);
+    const newTaskTime = minutesToTime12(dayStartHour * 60);
+    timeline.push({
+      time: newTaskTime,
+      lmj: nextLMJ,
+      emoji: emoji,
+      description: '',
+      priority: 'Medium',
+      spoonCost: 1,
+      fixed: false,
+      status: 'incomplete',
+      notes: '',
+      created: new Date().toISOString()
+    });
+    saveData();
+    updateUI();
+    openEditModal(timeline.length - 1);
+  }
+
+  function getNextAvailableLMJ(){
+    const used = new Set(timeline.map(t => t.lmj));
+    for(let lmj of LOCKED_LMJ_ORDER.map(t => t.lmj)){
+      if(!used.has(lmj)) return lmj;
+    }
+    // Then add single letters A-Z except used
+    for(let i=0; i<26; i++){
+      let c = String.fromCharCode(65 + i);
+      if(!used.has(c)) return c;
+    }
+    // Then double letter combinations
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for(let i=0; i<letters.length; i++){
+      for(let j=0; j<letters.length; j++){
+        let c = letters[i]+letters[j];
+        if(!used.has(c)) return c;
+      }
+    }
+    // Else fallback
+    return 'XX';
+  }
+
+  function getEmojiForLMJ(lmj){
+    const locked = LOCKED_LMJ_ORDER.find(t => t.lmj === lmj);
+    if(locked) return locked.emoji;
+    // generic fallback emoji for user-added tasks
+    return '🧩';
+  }
+
 })();
 </script>
 </body>
