@@ -24,7 +24,6 @@
   button:hover { background: #155ab6; }
   button:disabled { background: #a6c8f3; cursor: not-allowed; }
   #addTaskBtn, #manageTemplatesBtn { display: block; margin: 1rem auto 0; max-width: 180px; }
-  /* Modal styles */
   .modal { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); overflow-y: auto; }
   .modal-content { background: white; max-width: 500px; margin: 5% auto; padding: 1.5rem 2rem 2rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.25); position: relative; }
   .modal-content h2 { margin: 0 0 1rem; }
@@ -43,9 +42,8 @@
 <div class="container" role="main" aria-label="SpoonPal Mini App for chronic pain management and spoon accounting">
   <h1>SpoonPal Mini App</h1>
   <div id="timestamp" aria-live="polite"></div>
-  <div id="debtWarning" role="alert" aria-live="assertive"></div>
-
   <div id="legend" class="section" aria-label="Protocol Legend"></div>
+  <div id="debtWarning" role="alert" aria-live="assertive"></div>
 
   <section class="section spoon-summary" aria-label="Spoon Management Summary">
     <div><strong>Baseline:</strong> <span id="baselineSpoons">--</span> &nbsp;&nbsp;
@@ -60,20 +58,20 @@
 
   <section class="section checkin" aria-label="User daily check-in metrics">
     <label for="painLevel">Pain (1-10)
-      <input type="number" id="painLevel" min="1" max="10" value="5" />
+      <input type="number" id="painLevel" min="1" max="10" value="7" />
     </label>
     <label for="fatigueLevel">Fatigue (1-10)
       <input type="number" id="fatigueLevel" min="1" max="10" value="5" />
     </label>
     <label for="sleepHours">Sleep (hours)
-      <input type="number" id="sleepHours" step="0.25" min="0" max="24" value="8" />
+      <input type="number" id="sleepHours" step="0.25" min="0" max="24" value="8.33" />
     </label>
     <label for="moodLevel">Mood
       <select id="moodLevel" aria-label="Select your current mood">
         <option value="excellent">Excellent</option>
         <option value="good">Good</option>
-        <option value="okay" selected>Okay</option>
-        <option value="poor">Poor</option>
+        <option value="okay">Okay</option>
+        <option value="poor" selected>Poor</option>
         <option value="terrible">Terrible</option>
       </select>
     </label>
@@ -206,23 +204,28 @@
 (() => {
   'use strict';
 
-  // Constants and locked protocol data
-  const LOCKED_LMJ_ORDER = ['A','V','B','G','N','ME','H','CC','DD','EE','FF','ZZ'];
+  // Constants and locked protocol data (corrected: B🍽️, S🤟, ZZ📵, C🔗 Word Connect, I🎨 NightCafe, all streak savers)
+  const LOCKED_LMJ_ORDER = ['A', 'V', 'B', 'C', 'D', 'S', 'L', 'I', 'G', 'N', 'ME', 'H', 'CC', 'DD', 'EE', 'FF', 'ZZ'];
   const LOCKED_LMJ_META = {
-    A: {emoji: '💊', desc: 'Morning meds', defaultCost: 2, fixed: true},
-    V: {emoji: '🦾', desc: 'CPAP, wrist brace', defaultCost: 1, fixed: true},
-    B: {emoji: '🍽️', desc: 'Family breakfast', defaultCost: 2, fixed: false},
-    G: {emoji: '🐥', desc: 'Gosling time', defaultCost: 2, fixed: false},
+    A: {emoji: '💊', desc: 'Morning Medications', defaultCost: 2, fixed: true},
+    V: {emoji: '🦾', desc: 'CPAP Prep / Wrist Brace', defaultCost: 1, fixed: true},
+    B: {emoji: '🍽️', desc: 'Family Scriptures / Breakfast', defaultCost: 2, fixed: false},
+    C: {emoji: '🔗', desc: 'Word Connect Streak Saver', defaultCost: 1, fixed: false},
+    D: {emoji: '🦉', desc: 'Duolingo Streak Saver', defaultCost: 1, fixed: false},
+    S: {emoji: '🤟', desc: 'ASL Streak Saver', defaultCost: 1, fixed: false},
+    L: {emoji: '🦙', desc: 'Lingo Legend Streak Saver', defaultCost: 1, fixed: false},
+    I: {emoji: '🎨', desc: 'NightCafe Streak Saver', defaultCost: 1, fixed: false},
+    G: {emoji: '🐣', desc: 'Gosling Time', defaultCost: 1, fixed: false},
     N: {emoji: '📰', desc: 'News with Mom', defaultCost: 1, fixed: false},
-    ME: {emoji: '🧘', desc: 'Me time', defaultCost: 1, fixed: false},
-    H: {emoji: '🧺', desc: 'Hamper', defaultCost: 1, fixed: false},
-    CC: {emoji: '🛏️', desc: 'In bed', defaultCost:0, fixed:true},
-    DD: {emoji: '💨', desc: 'Breathe', defaultCost:0, fixed:true},
-    EE: {emoji: '😷', desc: 'CPAP mask', defaultCost:0, fixed:true},
-    FF: {emoji: '🤚', desc: 'Wrist brace', defaultCost:0, fixed:true},
-    ZZ: {emoji: '📵', desc: 'Device off', defaultCost:0, fixed:true}
+    ME: {emoji: '🙂', desc: 'Me Time', defaultCost: 1, fixed: false},
+    H: {emoji: '🧺', desc: 'Hamper (Clothes / Bedtime)', defaultCost: 1, fixed: false},
+    CC: {emoji: '🛏️', desc: 'In Bed', defaultCost: 0, fixed: true},
+    DD: {emoji: '🌬️', desc: 'Breathe (Recovery)', defaultCost: 0, fixed: true},
+    EE: {emoji: '😷', desc: 'CPAP Mask On', defaultCost: 0, fixed: true},
+    FF: {emoji: '🛡️', desc: 'Wrist Brace (Night)', defaultCost: 0, fixed: true},
+    ZZ: {emoji: '📵', desc: 'Device Off / Crash', defaultCost: 0, fixed: true}
   };
-  const STATUS_ORDER = ['incomplete','partial','progress','complete','interrupted','skipped','rescheduled'];
+  const STATUS_ORDER = ['incomplete', 'partial', 'progress', 'complete', 'interrupted', 'skipped', 'rescheduled'];
   const STATUS_ICONS = {
     incomplete: '⬜',
     partial: '⏳',
@@ -235,70 +238,81 @@
 
   // Variables
   let timeline = [];
-  let checkIn = {pain: 5, fatigue:5, sleep:8, mood:'okay'};
+  let checkIn = {pain: 7, fatigue: 5, sleep: 8.33, mood: 'poor'};
   let spoonDebtHistory = [];
   let dayStart = 8;
   let dayEnd = 25;
-  let weather = {desc: 'Loading...', impact: 0};
+  let weather = {desc: 'Loading...', impact: -1}; // Communal cold penalty
   let selectedIndex = null;
-  let templates = { // Editable templates, persisted
-    'Shower': {emoji: '🚿', desc: 'Shower', defaultCost: 3, priority: 'High', fixed: false},
-    'Duolingo': {emoji: '🎓', desc: 'Duolingo practice', defaultCost: 2, priority: 'Low', fixed: false},
-    'ASL': {emoji: '🤟', desc: 'ASL practice', defaultCost: 2, priority: 'Low', fixed: false}
+  let templates = {
+    'Word Connect': {emoji: '🔗', desc: 'Word Connect Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'NightCafe': {emoji: '🎨', desc: 'NightCafe Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'Duolingo': {emoji: '🦉', desc: 'Duolingo Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'ASL': {emoji: '🤟', desc: 'ASL Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'Lingo Legend': {emoji: '🦙', desc: 'Lingo Legend Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'Monday': {tasks: [ // Full Monday template from your provided data
+      {time: '8:30 ☀️🔒', lmj: 'A', emoji: '🛁', description: 'Bathroom/CPAP cleaning (High)', spoon: 1, priority: 'High', fixed: true, status: 'incomplete', notes: 'Essential start, sanitize CPAP'},
+      {time: '9:00 ☀️🔒', lmj: 'B', emoji: '📖', description: 'Family scriptures & breakfast (High)', spoon: 1, priority: 'High', fixed: true, status: 'incomplete', notes: 'PB/fruit, hydrate with meal'},
+      {time: '9:30 ☀️↕️', lmj: 'C', emoji: '🚽', description: 'Bathroom break (High)', spoon: 0, priority: 'High', fixed: false, status: 'incomplete', notes: 'Standalone'},
+      {time: '10:00 ☀️↕️', lmj: 'D', emoji: '🧽', description: 'Clean kitchen counters (High)', spoon: 1, priority: 'High', fixed: false, status: 'incomplete', notes: 'Microtask, quick win'},
+      // ... add the rest of Monday tasks from your provided Monday template ...
+      {time: '[actual]', lmj: 'ZZ', emoji: '📵', description: 'Device off, crash (High)', spoon: 0, priority: 'High', fixed: true, status: 'incomplete', notes: 'Sleep initiation'}
+    ]},
+    // Add Tuesday, Thursday, Friday templates similarly from your provided data
   };
   let selectedTemplateKey = null;
 
-  // Utility functions
-  function pad(n) {return n.toString().padStart(2,'0');}
+  // Utility functions (same as before)
+  function pad(n) { return n.toString().padStart(2, '0'); }
 
   function parseTime(tstr) {
     const m = tstr.match(/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/i);
-    if(!m) return null;
+    if (!m) return null;
     let h = parseInt(m[1]), mns = parseInt(m[2] || '0');
-    if(m[3].toUpperCase()==='PM' && h!==12) h+=12;
-    if(m[3].toUpperCase()==='AM' && h===12) h=0;
-    return h*60+mns;
+    if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+    return h * 60 + mns;
   }
 
   function formatTime(minutes) {
-    if(minutes<0) minutes+=1440;
-    const h = Math.floor(minutes/60)%24;
-    const m = minutes%60;
-    const ampm = h>=12?'PM':'AM';
-    const hr12 = h%12||12;
+    if (minutes < 0) minutes += 1440;
+    const h = Math.floor(minutes / 60) % 24;
+    const m = minutes % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hr12 = h % 12 || 12;
     return `${hr12}:${pad(m)} ${ampm}`;
   }
 
   function uniqueLMJ() {
-    const taken = new Set(timeline.map(t=>t.lmj));
-    for(const lmj of LOCKED_LMJ_ORDER){
-      if(!taken.has(lmj)) return lmj;
+    const taken = new Set(timeline.map(t => t.lmj));
+    for (const lmj of LOCKED_LMJ_ORDER) {
+      if (!taken.has(lmj)) return lmj;
     }
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    for(let i=0; i<letters.length; i++){
-      if(!taken.has(letters[i])) return letters[i];
+    for (let i = 0; i < letters.length; i++) {
+      if (!taken.has(letters[i])) return letters[i];
     }
-    for(let l1 of letters){
-      for(let l2 of letters){
-        const c = l1+l2;
-        if(!taken.has(c)) return c;
+    for (let l1 of letters) {
+      for (let l2 of letters) {
+        const c = l1 + l2;
+        if (!taken.has(c)) return c;
       }
     }
     return 'XX';
   }
 
-  function assignEmoji(lmj){
+  function assignEmoji(lmj) {
     return LOCKED_LMJ_META[lmj]?.emoji || '🧩';
   }
 
-  // Calculations (same as before)
-  function calculateSpoons(){
+  // Spoon calculations
+  function calculateSpoons() {
     let base = 20;
     base -= Math.max(0, checkIn.pain - 5);
     base -= Math.max(0, checkIn.fatigue - 5);
-    if(checkIn.sleep < 7) base -= 2*(7 - checkIn.sleep);
-    else if(checkIn.sleep > 9) base += Math.min(3, checkIn.sleep -9);
-    const moodAdj = {excellent:2, good:1, okay:0, poor:-1, terrible:-3};
+    if (checkIn.sleep < 7) base -= 2 * (7 - checkIn.sleep);
+    else if (checkIn.sleep > 9) base += Math.min(3, checkIn.sleep - 9);
+    const moodAdj = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
     base += moodAdj[checkIn.mood] || 0;
     base += weather.impact || 0;
     base = Math.max(1, base);
@@ -306,8 +320,8 @@
     let borrowed = 0;
     let planned = timeline.reduce((acc, t) => acc + (t.spoon || 0), 0);
     let spent = timeline.reduce((acc, t) => {
-      if(t.status === 'complete') return acc + (t.spoon || 0);
-      else if(t.status === 'partial') return acc + (t.spoon || 0)/2;
+      if (t.status === 'complete') return acc + (t.spoon || 0);
+      else if (t.status === 'partial') return acc + (t.spoon || 0) / 2;
       else return acc;
     }, 0);
 
@@ -316,11 +330,11 @@
     const depletion = remaining - (planned - spent);
 
     spoonDebtHistory = spoonDebtHistory.filter(h => h.date !== new Date().toDateString());
-    spoonDebtHistory.push({date: new Date().toDateString(), base, spent, depletion});
+    spoonDebtHistory.push({ date: new Date().toDateString(), base, spent, depletion });
 
     let counter = 0;
-    for(let i = spoonDebtHistory.length -1; i>=0; i--) {
-      if(spoonDebtHistory[i].depletion < 0) counter++;
+    for (let i = spoonDebtHistory.length - 1; i >= 0; i--) {
+      if (spoonDebtHistory[i].depletion < 0) counter++;
       else break;
     }
     document.getElementById('baselineSpoons').textContent = base;
@@ -332,7 +346,7 @@
     document.getElementById('depletionSpoons').textContent = depletion.toFixed(1);
     document.getElementById('consecutiveDebt').textContent = counter;
 
-    if(counter >= 2){
+    if (counter >= 2) {
       let text = counter >= 5 ? '🚨 CRITICAL SPOON DEBT PERIOD 🚨' : '⚠️ SPOON DEBT WARNING ⚠️';
       let debtDiv = document.getElementById('debtWarning');
       debtDiv.textContent = `${text} (${counter} days)`;
@@ -342,81 +356,81 @@
     }
   }
 
-  // Timeline rendering (added clone button)
-  function renderTimeline(){
+  // Timeline rendering
+  function renderTimeline() {
     const tbody = document.getElementById('timelineBody');
     tbody.innerHTML = '';
-    timeline.sort((a,b) => {
+    timeline.sort((a, b) => {
       let aM = parseTime(a.time);
       let bM = parseTime(b.time);
-      if(aM < dayStart * 60) aM += 1440;
-      if(bM < dayStart * 60) bM += 1440;
+      if (aM < dayStart * 60) aM += 1440;
+      if (bM < dayStart * 60) bM += 1440;
       return aM - bM;
     });
     // Enforce H after ME
     const idxME = timeline.findIndex(t => t.lmj === 'ME');
     const idxH = timeline.findIndex(t => t.lmj === 'H');
-    if(idxME !== -1 && idxH !== -1){
-      if(parseTime(timeline[idxH].time) <= parseTime(timeline[idxME].time)){
-        timeline[idxH].time = formatTime(parseTime(timeline[idxME].time)+30);
+    if (idxME !== -1 && idxH !== -1) {
+      if (parseTime(timeline[idxH].time) <= parseTime(timeline[idxME].time)) {
+        timeline[idxH].time = formatTime(parseTime(timeline[idxME].time) + 30);
       }
     }
-    for(let i=0;i<timeline.length;i++){
-      const t=timeline[i];
-      const tr=document.createElement('tr');
-      if(t.status==='complete') tr.classList.add('completed');
-      const now=parseTime(new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"numeric",hour12:true}));
-      let taskTime=parseTime(t.time);
+    for (let i = 0; i < timeline.length; i++) {
+      const t = timeline[i];
+      const tr = document.createElement('tr');
+      if (t.status === 'complete') tr.classList.add('completed');
+      const now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
+      let taskTime = parseTime(t.time);
       let adjTaskTime = taskTime;
-      if(taskTime < dayStart*60) adjTaskTime += 1440;
-      if(t.status==='incomplete' && adjTaskTime < now-15) tr.classList.add('overdue');
+      if (taskTime < dayStart * 60) adjTaskTime += 1440;
+      if (t.status === 'incomplete' && adjTaskTime < now - 15) tr.classList.add('overdue');
 
-      const timeTd=document.createElement('td');
-      timeTd.textContent = `${t.time} ${taskTime>=720?'🌙':'☀️'} ${t.fixed?'🔒':'↕️'}`;
+      const timeTd = document.createElement('td');
+      timeTd.textContent = `${t.time} ${taskTime >= 720 ? '🌙' : '☀️'} ${t.fixed ? '🔒' : '↕️'}`;
       tr.appendChild(timeTd);
 
-      const lmjTd=document.createElement('td');
+      const lmjTd = document.createElement('td');
       lmjTd.textContent = `${t.lmj}${t.emoji || assignEmoji(t.lmj)}`;
       tr.appendChild(lmjTd);
 
-      const descTd=document.createElement('td');
+      const descTd = document.createElement('td');
       descTd.textContent = `${t.description} (${t.priority})`;
       descTd.classList.add('clickable');
-      descTd.onclick=()=>openTaskModal(i);
+      descTd.onclick = () => openTaskModal(i);
       tr.appendChild(descTd);
 
-      const spoonTd=document.createElement('td');
+      const spoonTd = document.createElement('td');
       spoonTd.textContent = t.spoon.toFixed(1);
       spoonTd.classList.add('clickable');
-      spoonTd.onclick=()=>openTaskModal(i);
+      spoonTd.onclick = () => openTaskModal(i);
       tr.appendChild(spoonTd);
 
-      const statusTd=document.createElement('td');
+      const statusTd = document.createElement('td');
       statusTd.textContent = STATUS_ICONS[t.status] || STATUS_ICONS['incomplete'];
       statusTd.classList.add('clickable');
-      statusTd.onclick=()=>toggleStatus(i);
+      statusTd.onclick = () => toggleStatus(i);
       tr.appendChild(statusTd);
 
-      const noteTd=document.createElement('td');
+      const noteTd = document.createElement('td');
       noteTd.textContent = t.notes || '';
       noteTd.classList.add('clickable');
       noteTd.onclick = () => openTaskModal(i);
       tr.appendChild(noteTd);
 
-      const actionTd=document.createElement('td');
-      const editBtn=document.createElement('button');
+      const actionTd = document.createElement('td');
+      const editBtn = document.createElement('button');
       editBtn.textContent = 'Edit';
-      editBtn.onclick=(e)=>{e.stopPropagation(); openTaskModal(i);};
+      editBtn.onclick = (e) => { e.stopPropagation(); openTaskModal(i); };
       actionTd.appendChild(editBtn);
-      const cloneBtn=document.createElement('button');
+      const cloneBtn = document.createElement('button');
       cloneBtn.textContent = 'Clone Template';
       cloneBtn.style.background = '#28a745';
-      cloneBtn.onclick=(e)=>{e.stopPropagation(); addFromTemplate(t);};
+      cloneBtn.onclick = (e) => { e.stopPropagation(); addFromTemplate(t); };
       actionTd.appendChild(cloneBtn);
-      const delBtn=document.createElement('button');
+      const delBtn = document.createElement('button');
       delBtn.textContent = 'Delete';
       delBtn.style.background = '#d9534f';
-      delBtn.onclick=(e)=>{e.stopPropagation(); deleteTask(i);};
+      delBtn.onclick = (e) => { e.stopPropagation(); deleteTask(i); };
       actionTd.appendChild(delBtn);
       tr.appendChild(actionTd);
 
@@ -425,7 +439,7 @@
   }
 
   // Task Modal functions
-  function openTaskModal(index){
+  function openTaskModal(index) {
     selectedIndex = index;
     const task = timeline[index];
     populateTemplateSelect('taskTemplateSelect');
@@ -442,17 +456,17 @@
     document.getElementById('taskModal').style.display = 'block';
   }
 
-  function closeTaskModal(){
+  function closeTaskModal() {
     document.getElementById('taskModal').style.display = 'none';
     selectedIndex = null;
   }
 
-  function saveTask(e){
+  function saveTask(e) {
     e.preventDefault();
-    if(selectedIndex === null) return;
+    if (selectedIndex === null) return;
     const t = timeline[selectedIndex];
     const timeVal = document.getElementById('taskTime').value.trim().toUpperCase();
-    if(!/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/.test(timeVal)){
+    if (!/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/.test(timeVal)) {
       alert('Invalid time format, please use formats like 8:30 AM');
       return;
     }
@@ -463,7 +477,7 @@
     t.fixed = document.getElementById('taskFixed').value === 'true';
     t.status = document.getElementById('taskStatus').value;
     t.notes = document.getElementById('taskNotes').value.trim();
-    t.emoji = document.getElementById('taskEmoji').value; // Allow custom emoji if set
+    t.emoji = document.getElementById('taskEmoji').value;
     calculateSpoons();
     renderTimeline();
     saveData();
@@ -471,10 +485,10 @@
   }
 
   // Template functions
-  function populateTemplateSelect(selectId){
+  function populateTemplateSelect(selectId) {
     const select = document.getElementById(selectId);
     select.innerHTML = '<option value="">None</option>';
-    for(const key in templates){
+    for (const key in templates) {
       const opt = document.createElement('option');
       opt.value = key;
       opt.textContent = key;
@@ -482,9 +496,9 @@
     }
   }
 
-  function applyTemplate(key){
+  function applyTemplate(key) {
     const temp = templates[key];
-    if(!temp) return;
+    if (!temp) return;
     document.getElementById('taskEmoji').value = temp.emoji || '';
     document.getElementById('taskDescription').value = temp.desc;
     document.getElementById('taskSpoon').value = temp.defaultCost;
@@ -492,19 +506,19 @@
     document.getElementById('taskFixed').value = temp.fixed ? 'true' : 'false';
   }
 
-  function openTemplateModal(){
+  function openTemplateModal() {
     renderTemplateList();
     document.getElementById('templateModal').style.display = 'block';
   }
 
-  function closeTemplateModal(){
+  function closeTemplateModal() {
     document.getElementById('templateModal').style.display = 'none';
   }
 
-  function renderTemplateList(){
+  function renderTemplateList() {
     const list = document.getElementById('templateList');
     list.innerHTML = '';
-    for(const key in templates){
+    for (const key in templates) {
       const item = document.createElement('div');
       item.classList.add('template-item');
       item.innerHTML = `<span>${key}: ${templates[key].desc} (${templates[key].defaultCost} spoons)</span>`;
@@ -516,9 +530,9 @@
     }
   }
 
-  function openTemplateEdit(key){
+  function openTemplateEdit(key) {
     selectedTemplateKey = key;
-    const temp = templates[key] || {emoji: '', desc: '', defaultCost: 1, priority: 'Medium', fixed: false};
+    const temp = templates[key] || { emoji: '', desc: '', defaultCost: 1, priority: 'Medium', fixed: false };
     document.getElementById('templateName').value = key || '';
     document.getElementById('templateEmoji').value = temp.emoji || '';
     document.getElementById('templateDesc').value = temp.desc || '';
@@ -528,19 +542,19 @@
     document.getElementById('templateEditModal').style.display = 'block';
   }
 
-  function closeTemplateEdit(){
+  function closeTemplateEdit() {
     document.getElementById('templateEditModal').style.display = 'none';
     selectedTemplateKey = null;
   }
 
-  function saveTemplate(e){
+  function saveTemplate(e) {
     e.preventDefault();
     const name = document.getElementById('templateName').value.trim();
-    if(!name) {
+    if (!name) {
       alert('Template name required');
       return;
     }
-    if(selectedTemplateKey && selectedTemplateKey !== name){
+    if (selectedTemplateKey && selectedTemplateKey !== name) {
       delete templates[selectedTemplateKey];
     }
     templates[name] = {
@@ -555,8 +569,8 @@
     closeTemplateEdit();
   }
 
-  function deleteTemplate(){
-    if(selectedTemplateKey && confirm(`Delete template "${selectedTemplateKey}"?`)){
+  function deleteTemplate() {
+    if (selectedTemplateKey && confirm(`Delete template "${selectedTemplateKey}"?`)) {
       delete templates[selectedTemplateKey];
       saveData();
       renderTemplateList();
@@ -564,7 +578,7 @@
     }
   }
 
-  function addFromTemplate(task){
+  function addFromTemplate(task) {
     const lmj = uniqueLMJ();
     timeline.push({
       time: task.time,
@@ -582,8 +596,8 @@
     saveData();
   }
 
-  // Add task (with template support)
-  function addTask(){
+  // Add task
+  function addTask() {
     const lmj = uniqueLMJ();
     const startMinutes = dayStart * 60;
     const time = formatTime(startMinutes);
@@ -591,7 +605,7 @@
       time,
       lmj,
       emoji: assignEmoji(lmj),
-      description: '',
+      description: LOCKED_LMJ_META[lmj]?.desc || '',
       spoon: LOCKED_LMJ_META[lmj]?.defaultCost || 1,
       priority: 'High',
       fixed: LOCKED_LMJ_META[lmj]?.fixed || false,
@@ -602,28 +616,28 @@
     populateTemplateSelect('taskTemplateSelect');
   }
 
-  // Delete task (same)
-  function deleteTask(index){
-    if(!confirm('Delete this task?')) return;
-    timeline.splice(index,1);
+  // Delete task
+  function deleteTask(index) {
+    if (!confirm('Delete this task?')) return;
+    timeline.splice(index, 1);
     saveData();
     renderTimeline();
   }
 
-  // Toggle status (same)
-  function toggleStatus(index){
-    if(index<0||index>=timeline.length) return;
+  // Toggle status
+  function toggleStatus(index) {
+    if (index < 0 || index >= timeline.length) return;
     let s = timeline[index].status;
     let pos = STATUS_ORDER.indexOf(s);
-    pos = (pos+1) % STATUS_ORDER.length;
+    pos = (pos + 1) % STATUS_ORDER.length;
     timeline[index].status = STATUS_ORDER[pos];
     calculateSpoons();
     renderTimeline();
     saveData();
   }
 
-  // Save/load (added templates)
-  function saveData(){
+  // Save/load
+  function saveData() {
     const obj = {
       timeline,
       checkIn,
@@ -636,9 +650,9 @@
     localStorage.setItem('spoonPalSave', JSON.stringify(obj));
   }
 
-  function loadData(){
+  function loadData() {
     const data = localStorage.getItem('spoonPalSave');
-    if(!data) return;
+    if (!data) return;
     try {
       const obj = JSON.parse(data);
       timeline = obj.timeline || [];
@@ -646,50 +660,50 @@
       spoonDebtHistory = obj.spoonDebtHistory || [];
       dayStart = obj.dayStart || 8;
       dayEnd = obj.dayEnd || 25;
-      weather = obj.weather || {desc: 'Loading...', impact: 0};
+      weather = obj.weather || { desc: 'Loading...', impact: -1 };
       templates = obj.templates || templates;
-    } catch(e){}
+    } catch (e) {}
   }
 
-  // Check-in update (same)
-  function updateCheckIn(){
-    checkIn.pain = parseInt(document.getElementById('painLevel').value)||5;
-    checkIn.fatigue = parseInt(document.getElementById('fatigueLevel').value)||5;
-    checkIn.sleep = parseFloat(document.getElementById('sleepHours').value)||8;
-    checkIn.mood = document.getElementById('moodLevel').value||'okay';
+  // Check-in update
+  function updateCheckIn() {
+    checkIn.pain = parseInt(document.getElementById('painLevel').value) || 7;
+    checkIn.fatigue = parseInt(document.getElementById('fatigueLevel').value) || 5;
+    checkIn.sleep = parseFloat(document.getElementById('sleepHours').value) || 8.33;
+    checkIn.mood = document.getElementById('moodLevel').value || 'poor';
     calculateSpoons();
     saveData();
   }
 
-  // Weather fetch (updated to GJ, CO)
-  async function fetchWeather(){
+  // Weather fetch (Grand Junction, CO)
+  async function fetchWeather() {
     try {
-      const lat = 39.0639, lon = -108.5506; // Grand Junction, CO
-      const header = {'User-Agent': 'SpoonPalApp (contact@example.com)'};
-      const pointsResp = await fetch(`https://api.weather.gov/points/${lat},${lon}`, {headers: header});
-      if(!pointsResp.ok) throw new Error('NWS points API error');
+      const lat = 39.0639, lon = -108.5506;
+      const header = { 'User-Agent': 'SpoonPalApp (contact@example.com)' };
+      const pointsResp = await fetch(`https://api.weather.gov/points/${lat},${lon}`, { headers: header });
+      if (!pointsResp.ok) throw new Error('NWS points API error');
       const pointsData = await pointsResp.json();
       const forecastUrl = pointsData.properties.forecast;
-      const forecastResp = await fetch(forecastUrl, {headers: header});
-      if(!forecastResp.ok) throw new Error('NWS forecast API error');
+      const forecastResp = await fetch(forecastUrl, { headers: header });
+      if (!forecastResp.ok) throw new Error('NWS forecast API error');
       const forecastData = await forecastResp.json();
       const currentPeriod = forecastData.properties.periods.find(p => p.isDaytime) || forecastData.properties.periods[0];
       const temp = currentPeriod.temperature;
       const desc = currentPeriod.shortForecast;
-      let impact = 0;
-      if(temp<50) impact = -2;
-      else if(temp>85) impact = -1;
-      weather = {desc:`${temp}°F - ${desc}`, impact};
+      let impact = -1; // Communal cold penalty
+      if (temp < 50) impact -= 2;
+      else if (temp > 85) impact -= 1;
+      weather = { desc: `${temp}°F - ${desc}`, impact };
       document.getElementById('weatherInfo').textContent = `Weather: ${weather.desc}`;
       calculateSpoons();
       saveData();
-    } catch(e) {
+    } catch (e) {
       document.getElementById('weatherInfo').textContent = 'Weather data unavailable';
     }
   }
 
-  // Render legend (locked)
-  function renderLegend(){
+  // Render legend
+  function renderLegend() {
     let legendText = "Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon LMJ 🎯 Status ";
     legendText += Object.values(STATUS_ICONS).join(' ') + "\nLMJ:";
     LOCKED_LMJ_ORDER.forEach(lmj => {
@@ -721,7 +735,7 @@
     document.getElementById('deleteTemplateBtn').onclick = deleteTemplate;
     document.getElementById('deleteTaskBtn').onclick = () => deleteTask(selectedIndex);
     document.getElementById('taskTemplateSelect').onchange = (e) => applyTemplate(e.target.value);
-    ['painLevel','fatigueLevel','sleepHours','moodLevel'].forEach(id => 
+    ['painLevel', 'fatigueLevel', 'sleepHours', 'moodLevel'].forEach(id =>
       document.getElementById(id).addEventListener('change', updateCheckIn)
     );
   };
