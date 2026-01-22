@@ -25,7 +25,16 @@ function dragElement(elmnt) {
     document.onmousemove = null;
   }
 }
-window.onload = function() {
-  var statusCircle = document.getElementById("status-circle");
-  if (statusCircle) dragElement(statusCircle);
-};
+
+// Use addEventListener instead of window.onload to avoid conflicts
+if (window.addEventListener) {
+  window.addEventListener('load', function() {
+    var statusCircle = document.getElementById("status-circle");
+    if (statusCircle) dragElement(statusCircle);
+  });
+} else if (window.attachEvent) {
+  window.attachEvent('onload', function() {
+    var statusCircle = document.getElementById("status-circle");
+    if (statusCircle) dragElement(statusCircle);
+  });
+}
