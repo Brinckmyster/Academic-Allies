@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Allies - Sign In</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        #googleSignInBtn {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        #googleSignInBtn:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        #googleSignInBtn img {
+            width: 20px;
+            height: 20px;
+        }
+        .user-info {
+            display: none;
+            margin-top: 20px;
+        }
+        .user-info.show {
+            display: block;
+        }
+        #signOutBtn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>Academic Allies</h1>
+        <p>Sign in to access your dashboard</p>
+        
+        <button id="googleSignInBtn">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+            Sign in with Google
+        </button>
+
+        <div id="userInfo" class="user-info">
+            <h2>Welcome!</h2>
+            <p id="userName"></p>
+            <p id="userEmail"></p>
+            <button id="signOutBtn">Sign Out</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDk9mwSZgk9I65RpYlus7by9mB8tN_oskE",
+            authDomain: "academic-allies-464901.firebaseapp.com",
+            projectId: "academic-allies-464901",
+            storageBucket: "academic-allies-464901.firebasestorage.app",
+            messagingSenderId: "93996985456",
+            appId: "1:93996985456:web:c697df7623bbceeb1d18b5"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        // Get elements
+        const signInBtn = document.getElementById('googleSignInBtn');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const userInfo = document.getElementById('userInfo');
+        const userName = document.getElementById('userName');
+        const userEmail = document.getElementById('userEmail');
+
+        // Sign in with Google
+        signInBtn.addEventListener('click', async () => {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                console.log('User signed in:', result.user);
+            } catch (error) {
+                console.error('Error signing in:', error);
+                alert('Error signing in: ' + error.message);
+            }
+        });
+
+        // Sign out
+        signOutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                console.log('User signed out');
+            } catch (error) {
+                console.error('Error signing out:', error);
+            }
+        });
+
+        // Listen for auth state changes
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in
+                signInBtn.style.display = 'none';
+                userInfo.classList.add('show');
+                userName.textContent = user.displayName;
+                userEmail.textContent = user.email;
+                
+                // Redirect to main app after 2 seconds
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 2000);
+            } else {
+                // User is signed out
+                signInBtn.style.display = 'inline-flex';
+                userInfo.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
