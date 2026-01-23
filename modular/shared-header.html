@@ -36,12 +36,12 @@ Your disability accommodations and support network">Your disability accommodatio
   <div aria-live="polite" id="status-circle-container" role="status" title="Authentication Status"></div>
 
   <!-- Google Identity Services -->
-  <script async defer src="https://accounts.google.com/gsi/client"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSignIn()"></script>
 
   <!-- Google Sign-In JavaScript -->
   <script>
-    // Check for existing session on page load
-    window.onload = function() {
+    // This function will be called when Google Identity Services loads
+    function initGoogleSignIn() {
       // Check if user is already signed in
       const savedUser = sessionStorage.getItem('academicAlliesUser');
       if (savedUser) {
@@ -68,8 +68,11 @@ Your disability accommodations and support network">Your disability accommodatio
       );
 
       // Set up sign out button
-      document.getElementById('signOutButton').addEventListener('click', signOut);
-    };
+      const signOutBtn = document.getElementById('signOutButton');
+      if (signOutBtn) {
+        signOutBtn.addEventListener('click', signOut);
+      }
+    }
 
     function handleCredentialResponse(response) {
       console.log('User signed in successfully');
@@ -102,18 +105,25 @@ Your disability accommodations and support network">Your disability accommodatio
 
     function updateUIForSignedInUser(userData) {
       // Hide sign-in button
-      document.getElementById('googleSignInContainer').style.display = 'none';
+      const signInContainer = document.getElementById('googleSignInContainer');
+      if (signInContainer) signInContainer.style.display = 'none';
       
       // Show user info and sign out button
-      document.getElementById('userInfoDisplay').style.display = 'block';
-      document.getElementById('userNameDisplay').textContent = 'Welcome, ' + userData.name;
-      document.getElementById('signOutButton').style.display = 'inline-block';
+      const userInfoDisplay = document.getElementById('userInfoDisplay');
+      const userNameDisplay = document.getElementById('userNameDisplay');
+      const signOutButton = document.getElementById('signOutButton');
+      
+      if (userInfoDisplay) userInfoDisplay.style.display = 'block';
+      if (userNameDisplay) userNameDisplay.textContent = 'Welcome, ' + userData.name;
+      if (signOutButton) signOutButton.style.display = 'inline-block';
       
       // Update status circle
       const statusCircle = document.getElementById('status-circle');
-      statusCircle.classList.add('signed-in');
-      statusCircle.setAttribute('aria-label', 'Status: Signed in as ' + userData.name);
-      statusCircle.title = 'Signed in as ' + userData.name;
+      if (statusCircle) {
+        statusCircle.classList.add('signed-in');
+        statusCircle.setAttribute('aria-label', 'Status: Signed in as ' + userData.name);
+        statusCircle.title = 'Signed in as ' + userData.name;
+      }
     }
 
     function signOut() {
@@ -121,17 +131,28 @@ Your disability accommodations and support network">Your disability accommodatio
       sessionStorage.removeItem('academicAlliesUser');
       
       // Reset UI
-      document.getElementById('googleSignInContainer').style.display = 'block';
-      document.getElementById('userInfoDisplay').style.display = 'none';
-      document.getElementById('signOutButton').style.display = 'none';
+      const signInContainer = document.getElementById('googleSignInContainer');
+      const userInfoDisplay = document.getElementById('userInfoDisplay');
+      const signOutButton = document.getElementById('signOutButton');
+      
+      if (signInContainer) signInContainer.style.display = 'block';
+      if (userInfoDisplay) userInfoDisplay.style.display = 'none';
+      if (signOutButton) signOutButton.style.display = 'none';
       
       // Reset status circle
       const statusCircle = document.getElementById('status-circle');
-      statusCircle.classList.remove('signed-in');
-      statusCircle.setAttribute('aria-label', 'Status: Not signed in');
-      statusCircle.title = 'Click to toggle status, drag to reorder';
+      if (statusCircle) {
+        statusCircle.classList.remove('signed-in');
+        statusCircle.setAttribute('aria-label', 'Status: Not signed in');
+        statusCircle.title = 'Click to toggle status, drag to reorder';
+      }
       
       console.log('User signed out');
+    }
+
+    // If Google library is already loaded (for dynamically inserted headers), initialize now
+    if (typeof google !== 'undefined' && google.accounts) {
+      initGoogleSignIn();
     }
   </script>
 <script src="/Academic-Allies/modular/js/draggable.js"></script>
