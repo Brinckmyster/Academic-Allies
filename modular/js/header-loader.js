@@ -1,4 +1,4 @@
-// header-loader.js - Loads the shared header into all pages
+// header-loader.js - Loads the shared header into all pages and executes scripts
 (function() {
   // Calculate the correct path to shared-header.html based on current page location
   const currentPath = window.location.pathname;
@@ -23,8 +23,33 @@
         // Insert at beginning of body if no placeholder
         document.body.insertAdjacentHTML('afterbegin', html);
       }
+      
+      // Execute scripts that were in the loaded HTML
+      executeScripts(placeholder || document.body);
     })
     .catch(error => {
       console.error('Failed to load shared header:', error);
     });
+  
+  function executeScripts(container) {
+    // Find all script tags in the loaded content
+    const scripts = container.querySelectorAll('script');
+    
+    scripts.forEach(oldScript => {
+      const newScript = document.createElement('script');
+      
+      // Copy attributes
+      Array.from(oldScript.attributes).forEach(attr => {
+        newScript.setAttribute(attr.name, attr.value);
+      });
+      
+      // Copy inline script content
+      if (oldScript.textContent) {
+        newScript.textContent = oldScript.textContent;
+      }
+      
+      // Replace the old script with the new one to trigger execution
+      oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
+  }
 })();
