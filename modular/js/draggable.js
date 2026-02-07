@@ -26,15 +26,14 @@ function dragElement(elmnt) {
   }
 }
 
-// Use addEventListener instead of window.onload to avoid conflicts
-if (window.addEventListener) {
-  window.addEventListener('load', function() {
-    var statusCircle = document.getElementById("status-circle");
-    if (statusCircle) dragElement(statusCircle);
-  });
-} else if (window.attachEvent) {
-  window.attachEvent('onload', function() {
-    var statusCircle = document.getElementById("status-circle");
-    if (statusCircle) dragElement(statusCircle);
-  });
+function initDrag() {
+  var statusCircle = document.getElementById("status-circle");
+  if (statusCircle) dragElement(statusCircle);
+  else setTimeout(initDrag, 100);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDrag);
+} else {
+  initDrag();
 }
