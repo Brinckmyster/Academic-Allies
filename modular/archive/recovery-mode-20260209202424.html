@@ -643,15 +643,10 @@
 
         function loadNewFlower() {
             currentFlower = flowers[Math.floor(Math.random() * flowers.length)];
-            // Randomly decide: test common name or botanical name
-            const testBotanical = Math.random() < 0.5;
-            const correctAnswer = testBotanical ? currentFlower.botanical : currentFlower.name;
             // Generate 4 options: correct answer + 3 random wrong answers
-            const allNames = testBotanical ? 
-                flowers.map(f => f.botanical).filter(n => n !== currentFlower.botanical) : 
-                flowers.map(f => f.name).filter(n => n !== currentFlower.name);
+            const allNames = flowers.map(f => f.name).filter(n => n !== currentFlower.name);
             const wrongAnswers = allNames.sort(() => Math.random() - 0.5).slice(0, 3);
-            const options = [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5);
+            const options = [currentFlower.name, ...wrongAnswers].sort(() => Math.random() - 0.5);
             document.getElementById('flower-image').src = currentFlower.image; document.getElementById('flower-image').onerror = function() { this.src = 'https://source.unsplash.com/400x300/?flower'; };
             
             const optionsContainer = document.getElementById('quiz-options');
@@ -662,18 +657,18 @@
                 const btn = document.createElement('button');
                 btn.className = 'quiz-btn';
                 btn.textContent = option;
-                btn.onclick = () => checkAnswer(option, btn, correctAnswer);
+                btn.onclick = () => checkAnswer(option, btn);
                 optionsContainer.appendChild(btn);
             });
             
             document.getElementById('quiz-result').classList.add('hidden');
         }
 
-        function checkAnswer(selected, button, correctAnswer) {
+        function checkAnswer(selected, button) {
             const allButtons = document.querySelectorAll('.quiz-btn');
             allButtons.forEach(btn => btn.disabled = true);
             
-            if (selected === correctAnswer) {
+            if (selected === currentFlower.name) {
                 button.classList.add('correct');
                 flowerCount++;
                 localStorage.setItem('flowerCount', flowerCount);
