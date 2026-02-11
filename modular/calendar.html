@@ -1,43 +1,141 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<link rel="icon" href="favicon.ico">
-<link rel="icon" href="favicon.ico">
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Academic Allies – Calendar</title>
-  <link href="./css/style.css" rel="stylesheet" />
-<script src="/Academic-Allies/modular/js/draggable.js"></script>
-</head>
-<body>
-<!--#include virtual="//Academic-Allies/modular/shared-header.html" -->
-  <!-- Header will be injected here -->
-  <div id="site-header"></div>
-  <!-- Google integration container -->
-  <div class="g_id_signin"></div>
+<header class="site-header" role="banner">
+  <div class="header-content">
+    <a aria-label="Home" class="home-link" href="/Academic-Allies/" title="Go Home">
+    <img alt="Home" class="home-icon" src="/Academic-Allies/modular/icons/home.png" width="48" height="48" title="Academic Allies Home"/>
+    </a>
+      <span class="tagline" title="Academic Allies
+Your disability accommodations and support network">Your disability accommodations and support network</span>
+    <nav aria-label="Main navigation">
+      <ul class="nav-list">
+        <li><a href="/Academic-Allies/modular/components/calendar/calendar.html" title="Calendar">Calendar</a></li>
+        <li><a href="/Academic-Allies/modular/emergency.html" title="Emergency Contact">Emergency Contact</a></li>
+        <li><a href="/Academic-Allies/modular/checkin.html" title="Daily Check-In">Daily Check-In</a></li>
+        <li><a href="/Academic-Allies/modular/icon-gallery.html" title="Icon Gallery">Icon Gallery</a></li>
+        <li><a href="/Academic-Allies/modular/static/sitemap.html" title="Site Map">Site Map</a></li>
+      </ul>
+    </nav>
 
-  <main id="calendar-page">
-    <h2>Calendar</h2>
-    <div id="calendar-component-container"></div>
-    <script type="module">
-      import { renderCalendar } from './components/meal-planner/js/meal-planner.js';
-      renderCalendar(document.getElementById('calendar-component-container'), window.firebaseAuth);
-    </script>
-  </main>
+    <div class="header-controls">
+      <!-- User Info Display (hidden until signed in) -->
+      <div id="userInfoDisplay" style="display: none; margin-right: 10px;">
+        <span id="userNameDisplay"></span>
+      </div>
 
-  <!-- Fail-safe header loader (ensures all scripts run after insertion)-->
+      <!-- Google Sign-In Container -->
+      <div id="googleSignInContainer"></div>
+
+      <!-- Sign Out Button (hidden until signed in) -->
+      <button id="signOutButton" style="display: none;">Sign Out</button>
+
+      <!-- JS-Draggable Status Circle -->
+      <div aria-label="Status: Not signed in" id="status-circle" tabindex="0" title="Click to toggle status, drag to reorder"></div>
+    </div>
+  </div>
+
+  <!-- Status Circle Container -->
+  <div aria-live="polite" id="status-circle-container" role="status" title="Authentication Status"></div>
+
+  <!-- Google Identity Services -->
+  <script async defer src="https://accounts.google.com/gsi/client"></script>
+
+  <!-- Google Sign-In JavaScript -->
   <script>
-    fetch('/Academic-Allies/modular/shared-header.html')
-      .then(response => response.text())
-      .then(html => {
-        const container = document.getElementById('site-header');
-        container.innerHTML = html;
-        // Execute any scripts found in the loaded header
-        const scripts = container.querySelectorAll('script');
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr =>
-            newScript.setAttribute(attr.name, attr.value)
+    // Check for existing session on page load
+    window.onload = function() {
+      // Check if user is already signed in
+      const savedUser = sessionStorage.getItem('academicAlliesUser');
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        updateUIForSignedInUser(userData);
+      }
+
+      // Initialize Google Sign-In
+      google.accounts.id.initialize({
+        client_id: '93996985456-ffj2euk9i4q41v88njuhpusk73mdb31j.apps.googleusercontent.com',
+        callback: handleCredentialResponse
+      });
+
+      google.accounts.id.renderButton(
+        document.getElementById('googleSignInContainer'),
+        {
+          theme: 'outline',
+          size: 'medium',
+          type: 'standard',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          text: 'signin_with'
+        }
+      );
+
+      // Set up sign out button
+      document.getElementById('signOutButton').addEventListener('click', signOut);
+    };
+
+    function handleCredentialResponse(response) {
+      console.log('User signed in successfully');
+      
+      // Decode the JWT token to get user info
+      const base64Url = response.credential.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      
+      const userData = JSON.parse(jsonPayload);
+      console.log('User data:', userData);
+
+      // Store user info in session
+      sessionStorage.setItem('academicAlliesUser', JSON.stringify({
+        name: userData.name,
+        email: userData.email,
+        picture: userData.picture,
+        sub: userData.sub
+      }));
+
+      // Update UI
+      updateUIForSignedInUser({
+        name: userData.name,
+        email: userData.email,
+        picture: userData.picture
+      });
+    }
+
+    function updateUIForSignedInUser(userData) {
+      // Hide sign-in button
+      document.getElementById('googleSignInContainer').style.display = 'none';
+      
+      // Show user info and sign out button
+      document.getElementById('userInfoDisplay').style.display = 'block';
+      document.getElementById('userNameDisplay').textContent = 'Welcome, ' + userData.name;
+      document.getElementById('signOutButton').style.display = 'inline-block';
+      
+      // Update status circle
+      const statusCircle = document.getElementById('status-circle');
+      statusCircle.classList.add('signed-in');
+      statusCircle.setAttribute('aria-label', 'Status: Signed in as ' + userData.name);
+      statusCircle.title = 'Signed in as ' + userData.name;
+    }
+
+    function signOut() {
+      // Clear session storage
+      sessionStorage.removeItem('academicAlliesUser');
+      
+      // Reset UI
+      document.getElementById('googleSignInContainer').style.display = 'block';
+      document.getElementById('userInfoDisplay').style.display = 'none';
+      document.getElementById('signOutButton').style.display = 'none';
+      
+      // Reset status circle
+      const statusCircle = document.getElementById('status-circle');
+      statusCircle.classList.remove('signed-in');
+      statusCircle.setAttribute('aria-label', 'Status: Not signed in');
+      statusCircle.title = 'Click to toggle status, drag to reorder';
+      
+      console.log('User signed out');
+    }
+  </script>
+<script src="/Academic-Allies/modular/js/draggable.js"></script>
+</header>
           );
           newScript.textContent = oldScript.textContent;
           oldScript.replaceWith(newScript);
