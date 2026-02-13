@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mary's Meal Planner - Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .meal-controls { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+    .meal-controls button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 6px; border: none; }
+    .meal-controls button.primary { background: #4CAF50; color: white; }
+    .meal-controls button.secondary { background: #2196F3; color: white; }
+    .meal-controls button.danger { background: #f44336; color: white; }
+    .meal-entry { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .meal-entry input, .meal-entry textarea { width: 100%; padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #ccc; }
+    .meal-list { margin-top: 20px; }
+    .meal-item { background: white; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #4CAF50; }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+  <script src="time-utils.js"></script>
+  <script src="suggestions.js"></script>
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html')
+      .then(response => response.text())
+      .then(html => {
+        const container = document.getElementById('site-header');
+        container.innerHTML = html;
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+        const dragScript = document.createElement('script');
+        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
+        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(dragScript);
+      });
+  </script>
+
+  <h1>Mary's Meal Planner</h1>
+  <p>Gastroparesis-safe meals. Refined wheat OK. Solids at 10:30am/1:30pm/4:30pm, liquids only after 5pm.</p>
+
+  <!-- Upload Base Plan -->
+  <div class="meal-controls">
+    <input type="file" id="fileUpload" accept=".json,.csv,.pdf">
+    <button class="secondary" onclick="loadBasePlan()">Load Base Plan</button>
+    <button class="secondary" onclick="suggestMeal()">Suggest Meals</button>
+    <button class="danger" onclick="resetPlan()">Reset</button>
+    <button class="secondary" onclick="showBasePlan()">Show/Edit Base Plan Template</button>
+  </div>
+
+  <!-- Manual Entry -->
+  <div class="meal-entry">
+    <h3>Add Meal</h3>
+    <input type="text" id="mealName" placeholder="Meal name">
+    <input type="time" id="mealTime">
+    <textarea id="mealNotes" placeholder="Notes (optional)" rows="3"></textarea>
+    <button class="primary" onclick="addMeal()">Add Meal</button>
+  </div>
+
+  <!-- Today's Plan -->
+  <div>
+    <h3>Meals Planned Today: <span id="mealCount">0</span></h3>
+    <div id="mealList" class="meal-list"></div>
+  </div>
+
+  <script>
+    // Meal planner functionality will go here
+    let todaysMeals = JSON.parse(localStorage.getItem('maryMealPlan') || '[]');
+    
+    function displayMeals() {
+      const list = document.getElementById('mealList');
+      const count = document.getElementById('mealCount');
+      count.textContent = todaysMeals.length;
+      list.innerHTML = todaysMeals.map(meal => `
+        <div class="meal-item">
+          <strong>${meal.name}</strong><br>
+          Time: ${to12Hour(meal.time)}<br>
+          ${meal.notes ? 'Notes: ' + meal.notes : ''}
+        </div>
+      `).join('');
+    }
+
+    function addMeal() {
+      const name = document.getElementById('mealName').value;
+      const time = document.getElementById('mealTime').value;
+      const notes = document.getElementById('mealNotes').value;
+      if(!name || !time) {
+        alert('Please enter meal name and time');
+        return;
+      }
+      todaysMeals.push({name, time, notes});
+      localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
+      document.getElementById('mealName').value = '';
+      document.getElementById('mealTime').value = '';
+      document.getElementById('mealNotes').value = '';
+      displayMeals();
+    }
+
+    function resetPlan() {
+      if(confirm('Clear all meals for today?')) {
+        todaysMeals = [];
+        localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
+        displayMeals();
+      }
+    }
+
+    function suggestMeal() {
+      fetch('base-meal-plan-mary.json')
+        .then(r => r.json())
+        .then(plan => {
+          // Get meals for current time slot
+          const now = new Date();
+          const hour = now.getHours();
+          let timeSlot = '10:30am';
+          if(hour >= 13 && hour < 16) timeSlot = '1:30pm';
+          else if(hour >= 16 && hour < 17) timeSlot = '4:30pm';
+          else if(hour >= 17) timeSlot = 'After 5pm (Liquids Only)';
+          
+          const meals = plan[timeSlot] || [];
+          if(meals.length === 0) {
+            alert('No suggestions for this time');
+            return;
+          }
+          const random = meals[Math.floor(Math.random() * meals.length)];
+          alert('Suggested: ' + random);
+        });
+    }
+
+    function loadBasePlan() {
+      const file = document.getElementById('fileUpload').files[0];
+      if(!file) {
+        alert('Please select a file');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const plan = JSON.parse(e.target.result);
+          localStorage.setItem('maryBasePlan', JSON.stringify(plan));
+          alert('Base plan loaded!');
+        } catch(err) {
+          alert('Error loading file');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function showBasePlan() {
+      fetch('base-meal-plan-mary.json')
+        .then(r => r.json())
+        .then(plan => {
+          alert('Base Plan:\n\n' + JSON.stringify(plan, null, 2));
+        });
+    }
+
+    // Load existing meals on page load
+    displayMeals();
+
+    // Auto-load base plan if none exists
+    fetch('base-meal-plan-mary.json')
+      .then(r => r.json())
+      .then(plan => {
+        if(!localStorage.getItem('maryBasePlan')) {
+          localStorage.setItem('maryBasePlan', JSON.stringify(plan));
+        }
+      });
+  </script>
+</body>
+</html>
