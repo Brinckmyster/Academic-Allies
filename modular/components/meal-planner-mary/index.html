@@ -113,6 +113,7 @@
       fetch('base-meal-plan-mary.json')
         .then(r => r.json())
         .then(plan => {
+          // Get meals for current time slot
           const now = new Date();
           const hour = now.getHours();
           let timeSlot = '10:30am';
@@ -125,46 +126,9 @@
             alert('No suggestions for this time');
             return;
           }
-          
-          // Get 3 random unique suggestions
-          const shuffled = [...meals].sort(() => 0.5 - Math.random());
-          const suggestions = shuffled.slice(0, Math.min(3, meals.length));
-          
-          // Display suggestions with Add to Plan buttons
-          const html = suggestions.map((meal, i) => `
-            <div style="margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 6px;">
-              <strong>${i+1}. ${meal}</strong><br>
-              <button class="primary" style="margin-top: 5px;" onclick="addSuggestionToPlan('${meal}')">
-                Add to Plan
-              </button>
-            </div>
-          `).join('');
-          
-          const container = document.createElement('div');
-          container.innerHTML = `<h3>Suggested meals for ${timeSlot}:</h3>${html}`;
-          container.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; max-width: 500px;';
-          
-          const overlay = document.createElement('div');
-          overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;';
-          overlay.onclick = () => { document.body.removeChild(overlay); document.body.removeChild(container); };
-          
-          document.body.appendChild(overlay);
-          document.body.appendChild(container);
+          const random = meals[Math.floor(Math.random() * meals.length)];
+          alert('Suggested: ' + random);
         });
-    }
-    
-    function addSuggestionToPlan(mealName) {
-      const now = new Date();
-      const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-      todaysMeals.push({name: mealName, time: time, notes: 'Auto-suggested'});
-      localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
-      displayMeals();
-      // Close the modal
-      const overlay = document.querySelector('div[style*="rgba(0,0,0,0.5)"]');
-      const modal = document.querySelector('div[style*="z-index: 1000"]');
-      if(overlay) document.body.removeChild(overlay);
-      if(modal) document.body.removeChild(modal);
-      alert('Added to plan!');
     }
 
     function loadBasePlan() {
