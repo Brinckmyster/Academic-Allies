@@ -20,25 +20,15 @@
 </head>
 <body>
   <script type="module">
-    // Wait for Firebase auth to fully initialize
-    function checkAccess() {
-      if (window.currentUser) {
-        const allowed = ["Student", "Family", "Admin"];
-        if (!allowed.includes(window.currentUser.role)) {
-          alert("Access denied. Your role: " + window.currentUser.role);
-          window.location.href = "/Academic-Allies/";
-        }
-      } else if (window.currentUser === null) {
-        // Auth loaded but no user
-        alert("Please sign in to access this page");
-        window.location.href = "/Academic-Allies/";
+    // Wait for auth to load, then check permission
+    setTimeout(() => {
+      if (!window.checkPermission) {
+        console.log("Auth not loaded yet, waiting...");
+        setTimeout(() => checkPermission(["Student", "Family", "Admin"]), 1000);
       } else {
-        // Auth still loading, wait
-        setTimeout(checkAccess, 200);
+        checkPermission(["Student", "Family", "Admin"]);
       }
-    }
-    // Start checking after delay
-    setTimeout(checkAccess, 1000);
+    }, 500);
   </script>
   <div id="site-header"></div>
   <script src="time-utils.js"></script>
