@@ -2,11 +2,12 @@ function suggestMeal() {
   fetch('base-meal-plan-mary.json')
     .then(r => r.json())
     .then(plan => {
-      // Ask which meal time
-      const timeSlots = Object.keys(plan).filter(k => k !== 'NOTES');
-      const choice = prompt("Which meal?\n" + timeSlots.map((t,i) => `${i+1}. ${t}`).join("\n"));
-      const index = parseInt(choice) - 1;
-      const timeSlot = timeSlots[index] || timeSlots[0];
+      const now = new Date();
+      const hour = now.getHours();
+      let timeSlot = '10:30am';
+      if(hour >= 13 && hour < 16) timeSlot = '1:30pm';
+      else if(hour >= 16 && hour < 17) timeSlot = '4:30pm';
+      else if(hour >= 17) timeSlot = 'After 5pm (Liquids Only)';
       
       const meals = plan[timeSlot] || [];
       if(meals.length === 0) {
@@ -14,8 +15,11 @@ function suggestMeal() {
         return;
       }
       
+      // Get 3 random unique suggestions
       const shuffled = [...meals].sort(() => 0.5 - Math.random());
       const suggestions = shuffled.slice(0, Math.min(3, meals.length));
+      
+      // Display modal with 3 suggestions
       showSuggestionsModal(suggestions, timeSlot);
     });
 }
