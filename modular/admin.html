@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - User Management</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    body { font-family: Arial; max-width: 1200px; margin: 0 auto; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background: #4CAF50; color: white; }
+    select { padding: 8px; border-radius: 4px; }
+    button { padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+  <script src="/Academic-Allies/modular/shared-header.html"></script>
+  
+  <h1>User Management</h1>
+  
+  <table id="userTable">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Current Role</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="userList">
+      <tr><td colspan="3">Loading users...</td></tr>
+    </tbody>
+  </table>
+  
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyDk9mwSZgk9I65RpYlus7by9mB8tN_oskE",
+      authDomain: "academic-allies-464901.firebaseapp.com",
+      projectId: "academic-allies-464901",
+      storageBucket: "academic-allies-464901.firebasestorage.app",
+      messagingSenderId: "93996985456",
+      appId: "1:93996985456:web:c697df7623bbceeb1d18b5"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    
+    async function loadUsers() {
+      const snapshot = await getDocs(collection(db, 'users'));
+      const tbody = document.getElementById('userList');
+      tbody.innerHTML = '';
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const row = tbody.insertRow();
+        row.innerHTML = \`
+          <td>\${data.email}</td>
+          <td>\${data.role}</td>
+          <td>
+            <select id="role-\${doc.id}">
+              <option value="Student" \${data.role === 'Student' ? 'selected' : ''}>Student</option>
+              <option value="Family" \${data.role === 'Family' ? 'selected' : ''}>Family</option>
+              <option value="Support" \${data.role === 'Support' ? 'selected' : ''}>Support</option>
+              <option value="Admin" \${data.role === 'Admin' ? 'selected' : ''}>Admin</option>
+              <option value="Nearby Help" \${data.role === 'Nearby Help' ? 'selected' : ''}>Nearby Help</option>
+            </select>
+            <button onclick="updateRole('\${doc.id}')">Update</button>
+          </td>
+        \`;
+      });
+    }
+    
+    window.updateRole = async function(docId) {
+      const newRole = document.getElementById('role-' + docId).value;
+      await updateDoc(doc(db, 'users', docId), { role: newRole });
+      alert('Role updated!');
+      loadUsers();
+    }
+    
+    loadUsers();
+  </script>
+</body>
+</html>
