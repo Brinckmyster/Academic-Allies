@@ -31,7 +31,7 @@ window.handleGoogleSignIn = async function() {
       window.location.reload();
       return;
     }
-    const userDoc = snapshot.docs[0];
+    const userDoc = snapshot.docs[0](collection(db, 'users'));
     if (!userDoc.exists()) {
       await setDoc(collection(db, 'users'), {
         email: user.email,
@@ -57,7 +57,7 @@ onAuthStateChanged(auth, async (user) => {
       window.location.reload();
       return;
     }
-    const userDoc = snapshot.docs[0];
+    const userDoc = snapshot.docs[0](collection(db, 'users'));
     const userData = userDoc.data();
     
     window.currentUser = {
