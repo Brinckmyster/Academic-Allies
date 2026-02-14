@@ -24,16 +24,9 @@ window.handleGoogleSignIn = async function() {
     console.log('Signed in:', user.email);
     
     // Check if user has a role, if not create default
-    const q = query(collection(db, 'users'), where('email', '==', user.email));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      await addDoc(collection(db, 'users'), { email: user.email, role: 'pending', createdAt: new Date() });
-      window.location.reload();
-      return;
-    }
-    const userDoc = snapshot.docs[0](collection(db, 'users'));
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
     if (!userDoc.exists()) {
-      await setDoc(collection(db, 'users'), {
+      await setDoc(doc(db, 'users', user.uid), {
         email: user.email,
         role: 'pending', // Default role until admin assigns
         createdAt: new Date()
@@ -50,14 +43,7 @@ window.handleGoogleSignIn = async function() {
 // Check user authentication and role
 onAuthStateChanged(auth, async (user) => {
   if (user) {
-    const q = query(collection(db, 'users'), where('email', '==', user.email));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      await addDoc(collection(db, 'users'), { email: user.email, role: 'pending', createdAt: new Date() });
-      window.location.reload();
-      return;
-    }
-    const userDoc = snapshot.docs[0](collection(db, 'users'));
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
     const userData = userDoc.data();
     
     window.currentUser = {
