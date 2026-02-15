@@ -39,9 +39,8 @@
   
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, getDocs, doc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
+    import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    
     const firebaseConfig = {
       apiKey: "AIzaSyDk9mwSZgk9I65RpYlus7by9mB8tN_oskE",
       authDomain: "academic-allies-464901.firebaseapp.com",
@@ -50,42 +49,9 @@
       messagingSenderId: "93996985456",
       appId: "1:93996985456:web:c697df7623bbceeb1d18b5"
     };
-
+    
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
-
-    // ADMIN PROTECTION: Check user role before allowing access
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        alert('You must be signed in to access this page.');
-        window.location.href = '/Academic-Allies/';
-        return;
-      }
-
-      // Check user's role
-      const q = query(collection(db, 'users'), where('email', '==', user.email));
-      const snapshot = await getDocs(q);
-
-      if (snapshot.empty) {
-        alert('Access denied: No user record found.');
-        window.location.href = '/Academic-Allies/';
-        return;
-      }
-
-      const userDoc = snapshot.docs[0];
-      const userData = userDoc.data();
-      const userRole = userData?.role || 'pending';
-
-      if (userRole !== 'Admin') {
-        alert(`Access denied: Admin role required. Your role: ${userRole}`);
-        window.location.href = '/Academic-Allies/';
-        return;
-      }
-
-      // User is admin, load the page
-      loadUsers();
-    });
     
     async function loadUsers() {
       const snapshot = await getDocs(collection(db, 'users'));
@@ -118,8 +84,8 @@
       alert('Role updated!');
       loadUsers();
     }
-
-    // loadUsers() is now called after auth check passes in onAuthStateChanged
+    
+    loadUsers();
   </script>
 </body>
 </html>
