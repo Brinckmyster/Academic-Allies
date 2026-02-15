@@ -88,28 +88,39 @@
     });
     
     async function loadUsers() {
-      const snapshot = await getDocs(collection(db, 'users'));
-      const tbody = document.getElementById('userList');
-      tbody.innerHTML = '';
-      
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const row = tbody.insertRow();
-        row.innerHTML = \`
-          <td>\${data.email}</td>
-          <td>\${data.role}</td>
-          <td>
-            <select id="role-\${doc.id}">
-              <option value="Student" \${data.role === 'Student' ? 'selected' : ''}>Student</option>
-              <option value="Family" \${data.role === 'Family' ? 'selected' : ''}>Family</option>
-              <option value="Support" \${data.role === 'Support' ? 'selected' : ''}>Support</option>
-              <option value="Admin" \${data.role === 'Admin' ? 'selected' : ''}>Admin</option>
-              <option value="Nearby Help" \${data.role === 'Nearby Help' ? 'selected' : ''}>Nearby Help</option>
-            </select>
-            <button onclick="updateRole('\${doc.id}')">Update</button>
-          </td>
-        \`;
-      });
+      try {
+        const snapshot = await getDocs(collection(db, 'users'));
+        const tbody = document.getElementById('userList');
+        tbody.innerHTML = '';
+
+        if (snapshot.empty) {
+          tbody.innerHTML = '<tr><td colspan="3" style="color: #ff9800; text-align: center;">No users found in database. Sign in with Google to create first user.</td></tr>';
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const row = tbody.insertRow();
+          row.innerHTML = \`
+            <td>\${data.email}</td>
+            <td>\${data.role}</td>
+            <td>
+              <select id="role-\${doc.id}">
+                <option value="Student" \${data.role === 'Student' ? 'selected' : ''}>Student</option>
+                <option value="Family" \${data.role === 'Family' ? 'selected' : ''}>Family</option>
+                <option value="Support" \${data.role === 'Support' ? 'selected' : ''}>Support</option>
+                <option value="Admin" \${data.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                <option value="Nearby Help" \${data.role === 'Nearby Help' ? 'selected' : ''}>Nearby Help</option>
+              </select>
+              <button onclick="updateRole('\${doc.id}')">Update</button>
+            </td>
+          \`;
+        });
+      } catch (error) {
+        console.error('Error loading users:', error);
+        const tbody = document.getElementById('userList');
+        tbody.innerHTML = '<tr><td colspan="3" style="color: #f44336;">Error loading users: ' + error.message + '</td></tr>';
+      }
     }
     
     window.updateRole = async function(docId) {
