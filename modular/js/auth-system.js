@@ -50,27 +50,36 @@ window.handleGoogleSignIn = async function() {
 
 // Check user authentication and role
 onAuthStateChanged(auth, async (user) => {
+  console.log('[auth-system.js] onAuthStateChanged fired. User:', user?.email || 'null');
+
   if (user) {
+    console.log('[auth-system.js] User is signed in, fetching role from Firestore...');
     const q = query(collection(db, 'users'), where('email', '==', user.email));
     const snapshot = await getDocs(q);
+
     if (snapshot.empty) {
+      console.log('[auth-system.js] No user record found, creating pending user...');
       await addDoc(collection(db, 'users'), { email: user.email, role: 'pending', createdAt: new Date() });
       window.location.reload();
       return;
     }
+
     const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
-    
+
     window.currentUser = {
       uid: user.uid,
       email: user.email,
       role: userData?.role || 'pending',
       displayName: user.displayName
     };
-    
+
+    console.log('[auth-system.js] window.currentUser set:', window.currentUser);
+
     // Update UI
     updateAuthUI(user, userData?.role);
   } else {
+    console.log('[auth-system.js] No user signed in, setting currentUser to null');
     window.currentUser = null;
     updateAuthUI(null);
   }
