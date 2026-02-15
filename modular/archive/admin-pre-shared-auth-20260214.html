@@ -18,19 +18,9 @@
   <script>
     fetch("/Academic-Allies/modular/shared-header.html")
       .then(r => r.text())
-      .then(html => {
-        const container = document.getElementById("site-header");
-        container.innerHTML = html;
-        // Re-execute scripts in the header
-        const scripts = container.querySelectorAll('script');
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-          newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
-        });
-      });
+      .then(html => document.getElementById("site-header").innerHTML = html);
   </script>
+  <!-- Header loaded below -->
   
   <h1>User Management</h1>
   
@@ -49,7 +39,8 @@
   
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDk9mwSZgk9I65RpYlus7by9mB8tN_oskE",
@@ -61,34 +52,40 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // ADMIN PROTECTION: Wait for shared auth system to load, then check permission
-    function waitForAuth() {
-      const checkAuth = setInterval(() => {
-        if (window.currentUser !== undefined) {
-          clearInterval(checkAuth);
+    // ADMIN PROTECTION: Check user role before allowing access
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert('You must be signed in to access this page.');
+        window.location.href = '/Academic-Allies/';
+        return;
+      }
 
-          // Check permission using shared auth system
-          if (!window.currentUser) {
-            alert('You must be signed in to access this page.');
-            window.location.href = '/Academic-Allies/';
-            return;
-          }
+      // Check user's role
+      const q = query(collection(db, 'users'), where('email', '==', user.email));
+      const snapshot = await getDocs(q);
 
-          if (window.currentUser.role !== 'Admin') {
-            alert(`Access denied: Admin role required. Your role: ${window.currentUser.role}`);
-            window.location.href = '/Academic-Allies/';
-            return;
-          }
+      if (snapshot.empty) {
+        alert('Access denied: No user record found.');
+        window.location.href = '/Academic-Allies/';
+        return;
+      }
 
-          // User is admin, load the page
-          loadUsers();
-        }
-      }, 100);
-    }
+      const userDoc = snapshot.docs[0];
+      const userData = userDoc.data();
+      const userRole = userData?.role || 'pending';
 
-    waitForAuth();
+      if (userRole !== 'Admin') {
+        alert(`Access denied: Admin role required. Your role: ${userRole}`);
+        window.location.href = '/Academic-Allies/';
+        return;
+      }
+
+      // User is admin, load the page
+      loadUsers();
+    });
     
     async function loadUsers() {
       try {
