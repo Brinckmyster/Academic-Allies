@@ -65,17 +65,18 @@
 
     // ADMIN PROTECTION: Wait for shared auth system to load, then check permission
     function waitForAuth() {
+      let attempts = 0;
+      const maxAttempts = 50; // Wait up to 5 seconds
+
       const checkAuth = setInterval(() => {
-        if (window.currentUser !== undefined) {
+        attempts++;
+
+        // Wait for currentUser to be set to an actual user object (not just defined, but populated)
+        if (window.currentUser && window.currentUser.email) {
           clearInterval(checkAuth);
+          console.log('Auth loaded! User:', window.currentUser.email, 'Role:', window.currentUser.role);
 
-          // Check permission using shared auth system
-          if (!window.currentUser) {
-            alert('You must be signed in to access this page.');
-            window.location.href = '/Academic-Allies/';
-            return;
-          }
-
+          // Check if user has Admin role
           if (window.currentUser.role !== 'Admin') {
             alert(`Access denied: Admin role required. Your role: ${window.currentUser.role}`);
             window.location.href = '/Academic-Allies/';
@@ -84,11 +85,17 @@
 
           // User is admin, load the page
           loadUsers();
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkAuth);
+          console.error('Auth timeout. currentUser:', window.currentUser);
+          alert('You must be signed in to access this page. Please sign in and try again.');
+          window.location.href = '/Academic-Allies/';
         }
       }, 100);
     }
 
-    waitForAuth();
+    // Wait a moment for shared-header scripts to execute
+    setTimeout(waitForAuth, 1000);
     
     async function loadUsers() {
       try {
