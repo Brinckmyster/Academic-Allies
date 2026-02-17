@@ -472,8 +472,25 @@
     <p style="margin-bottom: 10px;">Keep your skills fresh while you rest 💚</p>
     <p style="font-size: 16pt; color: #666; margin-bottom: 15px;">Top 20 essential varieties - starting with Roses & Tulips!</p>
     
-    <!-- Result message above flower image per Mary -->
     <div id="quiz-result-text" style="text-align: center; font-size: 18pt; margin: 10px 0 15px 0; font-weight: 600;"></div>
+    
+    <div id="flower-quiz-content">
+        <img id="flower-image" class="flower-image" src="" alt="Flower to identify">
+        <div id="flower-hint" style="text-align: center; color: #6CA0A3; font-weight: 600; margin: 15px 0; font-size: 14pt; display: none;"></div>
+        <div class="quiz-buttons" id="quiz-options"></div>
+    </div>
+    
+    <div id="quiz-result" class="hidden achievement"></div>
+    <button class="btn" onclick="loadNewFlower()" id="next-flower-btn" style="margin-top:5px;">🌸 Next Flower</button>
+    <button class="btn" onclick="reportWrongCategory()" style="background:#ff9500; margin-top:5px; display:none;" id="report-btn">⚠️ Report Wrong Category</button>
+    <button class="btn" onclick="viewReports()" style="background:#999; margin-top:10px;">📋 View Reports (<span id="report-count">0</span>)</button>
+    <div class="progress-bar">
+        <div class="progress-fill" id="quiz-progress" style="width: 0%"></div>
+    </div>
+    <p style="text-align: center; margin-top: 10px; color: #666;">
+        Flowers identified today: <span id="flower-count">0</span>
+    </p>
+</div>
     
     <div id="flower-quiz-content">
         <img id="flower-image" class="flower-image" src="" alt="Flower to identify">
@@ -866,30 +883,30 @@
 function checkAnswer(selected, button, correctAnswer) {
     const allButtons = document.querySelectorAll('.quiz-btn');
     allButtons.forEach(btn => btn.disabled = true);
-
+    
     const correctMessages = [
-        `✨ Perfect! That's \${currentFlower.name}! Your class skills are sharp! ✨`,
-        `🌸 Yes! \${currentFlower.name} — your arranging eye is spot on today! 🌸`,
-        `🎉 Nailed it! That's \${currentFlower.name}. You're getting so good at this! 🎉`,
-        `💚 Spot on! \${currentFlower.name} — your flower knowledge is blooming beautifully! 💚`,
-        `🌟 Wonderful! That's exactly \${currentFlower.name}. Keep shining! 🌟`
+        `✨ Perfect! That's ${currentFlower.name}! Your class skills are sharp! ✨`,
+        `🌸 Yes! ${currentFlower.name} — your arranging eye is spot on today! 🌸`,
+        `🎉 Nailed it! That's ${currentFlower.name}. You're getting so good at this! 🎉`,
+        `💚 Spot on! ${currentFlower.name} — your flower knowledge is blooming beautifully! 💚`,
+        `🌟 Wonderful! That's exactly ${currentFlower.name}. Keep shining! 🌟`
     ];
-
+    
     const incorrectMessages = [
-        `That's okay! It's \${currentFlower.name}. You're studying and that's what matters! 💜`,
-        `Close one! It's \${currentFlower.name} — you're learning fast and that's wonderful! 🌷`,
-        `No worries at all! That's \${currentFlower.name}. Every try helps your skills grow! 😊`,
-        `You're doing beautifully anyway! It's \${currentFlower.name} — keep going at your own pace. 💚`,
-        `All good! That's \${currentFlower.name}. Your effort is what shines through every time. ✨`
+        `That's okay! It's ${currentFlower.name}. You're studying and that's what matters! 💜`,
+        `Close one! It's ${currentFlower.name} — you're learning fast and that's wonderful! 🌷`,
+        `No worries at all! That's ${currentFlower.name}. Every try helps your skills grow! 😊`,
+        `You're doing beautifully anyway! It's ${currentFlower.name} — keep going at your own pace. 💚`,
+        `All good! That's ${currentFlower.name}. Your effort is what shines through every time. ✨`
     ];
-
+    
     if (selected === correctAnswer) {
         button.classList.add('correct');
         flowerCount++;
         localStorage.setItem('flowerCount', flowerCount);
         document.getElementById('flower-count').textContent = flowerCount;
         document.getElementById('quiz-progress').style.width = Math.min(flowerCount * 5, 100) + '%';
-
+        
         const result = document.getElementById('quiz-result');
         result.textContent = correctMessages[Math.floor(Math.random() * correctMessages.length)];
         result.classList.remove('hidden');
@@ -901,8 +918,14 @@ function checkAnswer(selected, button, correctAnswer) {
         result.textContent = incorrectMessages[Math.floor(Math.random() * incorrectMessages.length)];
         result.classList.remove('hidden');
     }
-
+    
     setTimeout(() => {
+        allButtons.forEach(btn => {
+            btn.disabled = false;
+            btn.classList.remove('correct', 'incorrect');
+        });
+    }, 2000);
+}
         allButtons.forEach(btn => {
             btn.disabled = false;
             btn.classList.remove('correct', 'incorrect');
