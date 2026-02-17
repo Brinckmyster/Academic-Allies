@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recovery Mode - Mary's Safe Space</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        body {
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            font-size: 18pt;
+            line-height: 1.5;
+            letter-spacing: 0.035em;
+            background: #FAFAF9;
+            color: #333333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .recovery-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 22pt;
+            margin-bottom: 10px;
+            color: #6CA0A3;
+        }
+        .header p {
+            font-size: 18pt;
+            opacity: 0.9;
+        }
+        .spoon-counter {
+            background: #6CA0A3;
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 20pt;
+            font-weight: 600;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #6CA0A3;
+            margin-bottom: 15px;
+            font-size: 20pt;
+        }
+        .btn {
+            background: #6CA0A3;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18pt;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            min-height: 19mm;
+            min-width: 19mm;
+            transition: opacity 0.2s;
+            font-weight: 600;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .btn:focus {
+            outline: 3px solid #6CA0A3;
+            outline-offset: 2px;
+        }
+        .btn-emergency {
+            background: #f5576c;
+            font-size: 20pt;
+            padding: 20px;
+        }
+        .flower-image {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 15px;
+            margin: 15px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .quiz-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .quiz-btn {
+            background: #f0f4ff;
+            color: #6CA0A3;
+            border: 2px solid #6CA0A3;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16pt;
+            min-height: 19mm;
+        }
+        .quiz-btn:hover {
+            background: #6CA0A3;
+            color: white;
+        }
+        .quiz-btn.correct {
+            background: #4caf50;
+            color: white;
+            border-color: #4caf50;
+        }
+        .quiz-btn.incorrect {
+            background: #f44336;
+            color: white;
+            border-color: #f44336;
+        }
+        .hidden {
+            display: none;
+        }
+        .progress-bar {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 8px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: #6CA0A3;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .achievement {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            padding: 12px;
+            border-radius: 12px;
+            margin: 10px 0;
+            color: #2d3436;
+            text-align: center;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html')
+      .then(response => response.text())
+      .then(html => {
+        const container = document.getElementById('site-header');
+        container.innerHTML = html;
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+        const dragScript = document.createElement('script');
+        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
+        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(dragScript);
+      });
+  </script>
+    <div class="recovery-container">
+        <div class="header">
+            <h1>🌸 Recovery Mode 🌸</h1>
+            <p>You're safe here, Mary. Take it one step at a time.</p>
+        </div>
+        <!-- Spoon Counter - Always Visible -->
+        <div class="spoon-counter">
+            🥄 Spoons Remaining: <span id="spoons-remaining">10</span> / 10
+        </div>
+        <!-- Emergency Support -->
+        <div class="card">
+            <button class="btn btn-emergency" onclick="window.location.href='https://brinckmyster.github.io/Aestas/Academic%20Allies/Modular/components/emergency.html'">
+                🆘 I Need Help Now
+            </button>
+        </div>
+        <!-- Energy Check-In -->
+        <div class="card">
+            <h2>💚 How Exhausted Are You?</h2>
+            <p style="margin-bottom: 15px; font-size: 16pt;">Pick the one that feels right:</p>
+            <div class="energy-scale" id="energy-scale">
+                <div class="energy-option" data-level="10" onclick="selectEnergy(10)">
+                    <span class="energy-emoji">😁</span>
+                    <span class="energy-label">Fully Charged</span>
+                </div>
+                <div class="energy-option" data-level="9" onclick="selectEnergy(9)">
+                    <span class="energy-emoji">😊</span>
+                    <span class="energy-label">Energized</span>
+                </div>
+                <div class="energy-option" data-level="8" onclick="selectEnergy(8)">
+                    <span class="energy-emoji">🙂</span>
+                    <span class="energy-label">Pretty Good</span>
+                </div>
+                <div class="energy-option" data-level="7" onclick="selectEnergy(7)">
+                    <span class="energy-emoji">🙂</span>
+                    <span class="energy-label">Doing Okay</span>
+                </div>
+                <div class="energy-option" data-level="6" onclick="selectEnergy(6)">
+                    <span class="energy-emoji">😐</span>
+                    <span class="energy-label">Neutral</span>
+                </div>
+                <div class="energy-option" data-level="5" onclick="selectEnergy(5)">
+                    <span class="energy-emoji">😕</span>
+                    <span class="energy-label">Starting to Tire</span>
+                </div>
+                <div class="energy-option" data-level="4" onclick="selectEnergy(4)">
+                    <span class="energy-emoji">😟</span>
+                    <span class="energy-label">Pretty Tired</span>
+                </div>
+                <div class="energy-option" data-level="3" onclick="selectEnergy(3)">
+                    <span class="energy-emoji">😫</span>
+                    <span class="energy-label">Very Exhausted</span>
+                </div>
+                <div class="energy-option" data-level="2" onclick="selectEnergy(2)">
+                    <span class="energy-emoji">😩</span>
+                    <span class="energy-label">Almost Empty</span>
+                </div>
+                <div class="energy-option" data-level="1" onclick="selectEnergy(1)">
+                    <span class="energy-emoji">☠️</span>
+                    <span class="energy-label">Completely Depleted</span>
+                </div>
+            </div>
+        </div>
+        <!-- Minimalist To-Do List -->
+        <div class="card">
+            <h2>✅ Today's Tasks</h2>
+            <div id="todo-list">
+                <div class="todo-item">
+                    <input type="checkbox" class="todo-checkbox" onchange="completeTask(0, this.checked)">
+                    <span class="todo-text">Check in with myself</span>
+                    <span class="todo-spoons">1🥄</span>
+                </div>
+            </div>
+            <button class="btn" onclick="window.location.href='/Academic-Allies/modular/components/spoon-planner/spoon-planner.html'">📋 Plan My Spoons</button>
+        </div>
+        <!-- Gentle Breathing Exercise -->
+        <div class="card">
+            <h2>🫁 Breathe With Me</h2>
+            <p style="text-align: center; margin-bottom: 15px;">Follow the circle. Breathe in as it grows, out as it shrinks.</p>
+            <div class="breathing-circle"></div>
+            <p style="text-align: center; font-size: 16pt; color: #666;">4 seconds in, 4 seconds out</p>
+        </div>
+        <!-- Simple Meal Suggestions -->
+        <div class="card">
+            <h2>🍽️ Easy Meal Ideas (Mary-Safe)</h2>
+            <div class="gentle-reminder">
+                Remember: Solids before 5pm, liquids only after 5pm
+            </div>
+           
+            <div id="meal-suggestions">
+                <div class="meal-suggestion">
+                    <strong>10:30am - Breakfast</strong>
+                    Smooth yogurt (lactose-free) with a little applesauce
+                </div>
+                <div class="meal-suggestion">
+                    <strong>1:30pm - Lunch</strong>
+                    Mashed potatoes (smooth) with soft turkey slices
+                </div>
+                <div class="meal-suggestion">
+                    <strong>4:30pm - Dinner</strong>
+                    Plain white rice with soft-cooked carrots
+                </div>
+                <div class="meal-suggestion">
+                    <strong>After 5pm - Liquids Only</strong>
+                    Water, warm water with honey, or clear broth
+                </div>
+            </div>
+           
+            <button class="btn" onclick="generateNewMeals()">
+                🔄 Show Different Options
+            </button>
+        </div>
+        <!-- Flower Identification Quiz -->
+        <div class="card flower-quiz">
+            <h2>🌺 Flower Arranging Class Practice</h2>
+            <p style="margin-bottom: 10px;">Keep your skills fresh while you rest 💚</p>
+            <p style="font-size: 16pt; color: #666; margin-bottom: 15px;">Top 20 essential varieties - starting with Roses & Tulips!</p>
+           
+            <!-- Result message above flower image per Mary -->
+            <div id="quiz-result-text" style="text-align: center; font-size: 18pt; margin: 10px 0 15px 0; font-weight: 600;"></div>
+           
+            <div id="flower-quiz-content">
+                <img id="flower-image" class="flower-image" src="" alt="Flower to identify">
+                <div id="flower-hint" style="text-align: center; color: #6CA0A3; font-weight: 600; margin: 15px 0; font-size: 14pt; display: none;"></div>
+                <div class="quiz-buttons" id="quiz-options"></div>
+            </div>
+           
+            <div id="quiz-result" class="hidden achievement"></div>
+            <button class="btn" onclick="loadNewFlower()" id="next-flower-btn" style="margin-top:5px;">🌸 Next Flower</button>
+            <button class="btn" onclick="reportWrongCategory()" style="background:#ff9500; margin-top:5px; display:none;" id="report-btn">⚠️ Report Wrong Category</button>
+            <button class="btn" onclick="viewReports()" style="background:#999; margin-top:10px;">📋 View Reports (<span id="report-count">0</span>)</button>
+            <div class="progress-bar">
+                <div class="progress-fill" id="quiz-progress" style="width: 0%"></div>
+            </div>
+            <p style="text-align: center; margin-top: 10px; color: #666;">
+                Flowers identified today: <span id="flower-count">0</span>
+            </p>
+        </div>
+        <!-- Tiny Self-Care Wins -->
+        <div class="card">
+            <h2>💧 Tiny Self-Care Wins</h2>
+            <p style="margin-bottom: 15px; color: #666;">Pick just ONE if you can. Or none - that's okay too.</p>
+           
+            <button class="btn" onclick="markActivity('drink')">
+                💧 Drink some water
+            </button>
+            <button class="btn" onclick="markActivity('stretch')">
+                🧘 Gentle 2-minute stretch
+            </button>
+            <button class="btn" onclick="markActivity('sunlight')">
+                ☀️ Sit by a window for 5 min
+            </button>
+            <button class="btn" onclick="markActivity('music')">
+                🎵 Listen to one favorite song
+            </button>
+           
+            <div id="activity-achievements" class="hidden"></div>
+        </div>
+        <!-- Optional Scripture Comfort -->
+        <div class="card">
+            <h2>📖 A Word of Comfort</h2>
+            <div id="scripture-verse" style="padding: 20px; background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); border-radius: 15px; text-align: center; font-size: 18pt; line-height: 1.8; color: #2d3436; font-style: italic;">
+            </div>
+            <button class="btn" onclick="showNewScripture()">
+                ✨ Show Another Scripture
+            </button>
+        </div>
+        <!-- Support Messages -->
+        <div class="card">
+            <h2>💜 You Matter</h2>
+            <div id="support-message" style="padding: 15px; background: #f0f4ff; border-radius: 12px; text-align: center; font-size: 18pt; line-height: 1.6;">
+            </div>
+            <button class="btn" onclick="showNewMessage()">
+                💌 Show Me Another
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Spoon Management
+        let dailySpoons = 10;
+        let remainingSpoons = 10;
+        let tasks = [
+            { text: 'Check in with myself', spoons: 1, completed: false }
+        ];
+        function updateSpoonCounter() {
+            document.getElementById('spoons-remaining').textContent = remainingSpoons;
+           
+            if (remainingSpoons <= dailySpoons * 0.25 && remainingSpoons > 0) {
+                alert('⚠️ Spoon Alert: You\'re running low on energy. Time to rest!');
+            }
+        }
+        function completeTask(index, checked) {
+            tasks[index].completed = checked;
+            if (checked) {
+                remainingSpoons -= tasks[index].spoons;
+            } else {
+                remainingSpoons += tasks[index].spoons;
+            }
+            updateSpoonCounter();
+        }
+        function selectEnergy(level) {
+            document.querySelectorAll('.energy-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            document.querySelector(`[data-level="${level}"]`).classList.add('selected');
+           
+            dailySpoons = level;
+            remainingSpoons = level;
+            updateSpoonCounter();
+           
+            localStorage.setItem('energyLevel', level);
+        }
+        function showSpoonPlanner() {
+            alert('Spoon Planner coming soon! This will let you plan your entire day with spoon costs.');
+        }
+        // Flower Quiz
+        let flowers = [];
+       
+        fetch("../icons/flowers/flowers.json")
+          .then(r => r.json())
+          .then(data => {
+            flowers = data.flowers;
+            console.log("Loaded " + flowers.length + " flowers");
+            loadNewFlower();
+          })
+          .catch(err => console.error("Failed to load flowers:", err));
+        let currentFlower = null;
+        let flowerCount = parseInt(localStorage.getItem('flowerCount') || '0');
+        document.getElementById('flower-count').textContent = flowerCount;
+        // Comforting scriptures
+        const comfortingScriptures = [
+            { text: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.", reference: "Matthew 11:28" },
+            { text: "Peace I leave with you, my peace I give unto you: not as the world giveth, give I unto you. Let not your heart be troubled, neither let it be afraid.", reference: "John 14:27" },
+            { text: "Cast thy burden upon the Lord, and he shall sustain thee.", reference: "Psalm 55:22" },
+            { text: "The Lord is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit.", reference: "Psalm 34:18" },
+            { text: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee.", reference: "Isaiah 41:10" }
+        ];
+        function showNewScripture() {
+            const scripture = comfortingScriptures[Math.floor(Math.random() * comfortingScriptures.length)];
+            document.getElementById('scripture-verse').innerHTML = `
+                "${scripture.text}"
+                <div style="margin-top: 15px; font-size: 16pt; font-style: normal; font-weight: 600;">
+                    — ${scripture.reference}
+                </div>
+            `;
+        }
+        // Support messages
+        const supportMessages = [
+            "You're doing better than you think. This moment doesn't define you.",
+            "Rest is not weakness. Rest is medicine.",
+            "Your body knows what it needs. Listen to it gently.",
+            "One breath at a time. One moment at a time. You're here, and that's enough.",
+            "You are loved exactly as you are, right now, in this moment.",
+            "Small steps are still steps forward. Be proud of showing up.",
+            "Heavenly Father knows your heart. He sees your efforts.",
+            "You are a daughter of God. Your worth is infinite."
+        ];
+        // Mary-safe meal options
+        const mealOptions = {
+            breakfast: [
+                "Smooth yogurt (lactose-free) with a little applesauce",
+                "Soft white toast with lactose-free butter",
+                "Cream of wheat (thin) with banana slices",
+                "Plain oatmeal (very thin) with mashed banana"
+            ],
+            lunch: [
+                "Mashed potatoes (smooth) with soft turkey slices",
+                "White rice with soft-cooked green beans",
+                "Plain pasta with olive oil and soft chicken",
+                "Turkey & cheese sandwich (white bread, soft)"
+            ],
+            dinner: [
+                "Plain white rice with soft-cooked carrots",
+                "Mashed potatoes with gravy and soft turkey",
+                "Soft pasta with lactose-free butter",
+                "White rice with soft squash"
+            ],
+            liquids: [
+                "Water with a slice of peeled apple",
+                "Warm water with honey",
+                "Clear broth (chicken or vegetable)",
+                "Lactose-free milk",
+                "Hot chocolate (lactose-free)"
+            ]
+        };
+        let reportedFlowers = JSON.parse(localStorage.getItem('reportedFlowers') || '[]');
+        function viewReports() {
+            if (reportedFlowers.length === 0) {
+                alert("No flowers reported yet!");
+                return;
+            }
+            const reportList = reportedFlowers.map(name => {
+                const flower = flowers.find(f => f.name === name);
+                return flower ? `• ${flower.name} - Quiz ${flower.quiz}` : `• ${name}`;
+            }).join("\n");
+            const message = `Reported Flowers (${reportedFlowers.length}):\n\n${reportList}\n\nCopy this list and send to Claude for corrections!`;
+            alert(message);
+        }
+        function reportWrongCategory() {
+            if (!reportedFlowers.includes(currentFlower.name)) {
+                reportedFlowers.push(currentFlower.name);
+                localStorage.setItem('reportedFlowers', JSON.stringify(reportedFlowers));
+                document.getElementById('report-count').textContent = reportedFlowers.length;
+                alert(`✅ Reported: ${currentFlower.name} - Quiz ${currentFlower.quiz}\n\nTotal reports: ${reportedFlowers.length}`);
+            } else {
+                alert(`Already reported: ${currentFlower.name}`);
+            }
+        }
+        function loadNewFlower() {
+            if (!flowers || flowers.length === 0) return;
+            currentFlower = flowers[Math.floor(Math.random() * flowers.length)];
+            const correctAnswer = currentFlower.name;
+            const allNames = flowers.map(f => f.name).filter(n => n !== currentFlower.name);
+            const wrongAnswers = allNames.sort(() => Math.random() - 0.5).slice(0, 3);
+            const options = [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5);
+            const randomImage = currentFlower.images[Math.floor(Math.random() * currentFlower.images.length)];
+            document.getElementById('flower-image').src = randomImage;
+            const hintDiv = document.getElementById('flower-hint');
+            if (currentFlower.description) {
+                hintDiv.textContent = currentFlower.description;
+                hintDiv.style.display = 'block';
+            } else {
+                hintDiv.style.display = 'none';
+            }
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+           
+            options.forEach(option => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-btn';
+                btn.textContent = option;
+                btn.onclick = () => checkAnswer(option, btn, correctAnswer);
+                optionsContainer.appendChild(btn);
+            });
+           
+            document.getElementById('quiz-result').classList.add('hidden');
+            document.getElementById('report-btn').style.display = 'block';
+        }
+        function checkAnswer(selected, button, correctAnswer) {
+            const allButtons = document.querySelectorAll('.quiz-btn');
+            allButtons.forEach(btn => btn.disabled = true);
+           
+            const correctMessages = [
+                `✨ Perfect! That's ${currentFlower.name}! Your class skills are sharp! ✨`,
+                `🌸 Yes! ${currentFlower.name} — your arranging eye is spot on today! 🌸`,
+                `🎉 Nailed it! That's ${currentFlower.name}. You're getting so good at this! 🎉`,
+                `💚 Spot on! ${currentFlower.name} — your flower knowledge is blooming beautifully! 💚`,
+                `🌟 Wonderful! That's exactly ${currentFlower.name}. Keep shining! 🌟`
+            ];
+            const incorrectMessages = [
+                `That's okay! It's ${currentFlower.name}. You're studying and that's what matters! 💜`,
+                `Close one! It's ${currentFlower.name} — you're learning fast and that's wonderful! 🌷`,
+                `No worries at all! That's ${currentFlower.name}. Every try helps your skills grow! 😊`,
+                `You're doing beautifully anyway! It's ${currentFlower.name} — keep going at your own pace. 💚`,
+                `All good! That's ${currentFlower.name}. Your effort is what shines through every time. ✨`
+            ];
+           
+            if (selected === correctAnswer) {
+                button.classList.add('correct');
+                flowerCount++;
+                localStorage.setItem('flowerCount', flowerCount);
+                document.getElementById('flower-count').textContent = flowerCount;
+                document.getElementById('quiz-progress').style.width = Math.min(flowerCount * 5, 100) + '%';
+               
+                const result = document.getElementById('quiz-result');
+                result.textContent = correctMessages[Math.floor(Math.random() * correctMessages.length)];
+                result.classList.remove('hidden');
+            } else {
+                button.classList.add('incorrect');
+                const correctBtn = Array.from(allButtons).find(btn => btn.textContent === correctAnswer);
+                if (correctBtn) correctBtn.classList.add('correct');
+                const result = document.getElementById('quiz-result');
+                result.textContent = incorrectMessages[Math.floor(Math.random() * incorrectMessages.length)];
+                result.classList.remove('hidden');
+            }
+           
+            setTimeout(() => {
+                allButtons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('correct', 'incorrect');
+                });
+            }, 2000);
+        }
+        function generateNewMeals() {
+            const suggestions = document.getElementById('meal-suggestions');
+            const breakfast = mealOptions.breakfast[Math.floor(Math.random() * mealOptions.breakfast.length)];
+            const lunch = mealOptions.lunch[Math.floor(Math.random() * mealOptions.lunch.length)];
+            const dinner = mealOptions.dinner[Math.floor(Math.random() * mealOptions.dinner.length)];
+            const liquid = mealOptions.liquids[Math.floor(Math.random() * mealOptions.liquids.length)];
+           
+            suggestions.innerHTML = `
+                <div class="meal-suggestion">
+                    <strong>10:30am - Breakfast</strong>
+                    ${breakfast}
+                </div>
+                <div class="meal-suggestion">
+                    <strong>1:30pm - Lunch</strong>
+                    ${lunch}
+                </div>
+                <div class="meal-suggestion">
+                    <strong>4:30pm - Dinner</strong>
+                    ${dinner}
+                </div>
+                <div class="meal-suggestion">
+                    <strong>After 5pm - Liquids Only</strong>
+                    ${liquid}
+                </div>
+            `;
+        }
+        function markActivity(activity) {
+            const achievements = document.getElementById('activity-achievements');
+            achievements.classList.remove('hidden');
+           
+            const icons = {
+                drink: '💧',
+                stretch: '🧘',
+                sunlight: '☀️',
+                music: '🎵'
+            };
+           
+            const messages = {
+                drink: "Wonderful! You're taking care of yourself!",
+                stretch: "Great job! Your body thanks you!",
+                sunlight: "Beautiful! Vitamin D is so important!",
+                music: "Perfect! Music heals the soul!"
+            };
+           
+            achievements.innerHTML = `
+                <div class="achievement">
+                    ${icons[activity]} ${messages[activity]}
+                </div>
+            `;
+           
+            remainingSpoons = Math.min(remainingSpoons + 1, dailySpoons);
+            updateSpoonCounter();
+           
+            setTimeout(() => achievements.classList.add('hidden'), 4000);
+        }
+        function showNewMessage() {
+            const message = supportMessages[Math.floor(Math.random() * supportMessages.length)];
+            document.getElementById('support-message').textContent = message;
+        }
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNewFlower();
+            document.getElementById('report-count').textContent = reportedFlowers.length;
+            showNewMessage();
+            showNewScripture();
+            const savedEnergy = localStorage.getItem('energyLevel');
+            if (savedEnergy) {
+                document.getElementById('energy-slider').value = savedEnergy;
+                updateEnergyLabel(savedEnergy);
+            }
+        });
+    </script>
+</body>
+</html>
