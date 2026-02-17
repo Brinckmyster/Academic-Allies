@@ -753,31 +753,52 @@
             document.getElementById('report-btn').style.display = 'block';
         }
 
-        function checkAnswer(selected, button, correctAnswer) {
-            const allButtons = document.querySelectorAll('.quiz-btn');
-            allButtons.forEach(btn => btn.disabled = true);
-            
-            if (selected === correctAnswer) {
-                button.classList.add('correct');
-                flowerCount++;
-                localStorage.setItem('flowerCount', flowerCount);
-                document.getElementById('flower-count').textContent = flowerCount;
-                document.getElementById('quiz-progress').style.width = Math.min(flowerCount * 5, 100) + '%';
-                
-                const result = document.getElementById('quiz-result');
-                result.textContent = `✨ Perfect! That's ${currentFlower.name}! Your class skills are sharp! ✨`;
-                result.classList.remove('hidden');
-            } else {
-                button.classList.add('incorrect');
-                const correctBtn = Array.from(allButtons).find(btn => btn.textContent === correctAnswer);
-                if (correctBtn) correctBtn.classList.add('correct');
-
-                const result = document.getElementById('quiz-result');
-                result.textContent = `That's okay! It's ${currentFlower.name}. You're studying and that's what matters! 💜`;
-                result.classList.remove('hidden');
-            }
-            
-            setTimeout(() => {
+function checkAnswer(selected, button, correctAnswer) {
+    const allButtons = document.querySelectorAll('.quiz-btn');
+    allButtons.forEach(btn => btn.disabled = true);
+    
+    const correctMessages = [
+        `✨ Perfect! That's ${currentFlower.name}! Your class skills are sharp! ✨`,
+        `🌸 Yes! ${currentFlower.name} — your arranging eye is spot on today! 🌸`,
+        `🎉 Nailed it! That's ${currentFlower.name}. You're getting so good at this! 🎉`,
+        `💚 Spot on! ${currentFlower.name} — your flower knowledge is blooming beautifully! 💚`,
+        `🌟 Wonderful! That's exactly ${currentFlower.name}. Keep shining! 🌟`
+    ];
+    
+    const incorrectMessages = [
+        `That's okay! It's ${currentFlower.name}. You're studying and that's what matters! 💜`,
+        `Close one! It's ${currentFlower.name} — you're learning fast and that's wonderful! 🌷`,
+        `No worries at all! That's ${currentFlower.name}. Every try helps your skills grow! 😊`,
+        `You're doing beautifully anyway! It's ${currentFlower.name} — keep going at your own pace. 💚`,
+        `All good! That's ${currentFlower.name}. Your effort is what shines through every time. ✨`
+    ];
+    
+    if (selected === correctAnswer) {
+        button.classList.add('correct');
+        flowerCount++;
+        localStorage.setItem('flowerCount', flowerCount);
+        document.getElementById('flower-count').textContent = flowerCount;
+        document.getElementById('quiz-progress').style.width = Math.min(flowerCount * 5, 100) + '%';
+        
+        const result = document.getElementById('quiz-result');
+        result.textContent = correctMessages[Math.floor(Math.random() * correctMessages.length)];
+        result.classList.remove('hidden');
+    } else {
+        button.classList.add('incorrect');
+        const correctBtn = Array.from(allButtons).find(btn => btn.textContent === correctAnswer);
+        if (correctBtn) correctBtn.classList.add('correct');
+        const result = document.getElementById('quiz-result');
+        result.textContent = incorrectMessages[Math.floor(Math.random() * incorrectMessages.length)];
+        result.classList.remove('hidden');
+    }
+    
+    setTimeout(() => {
+        allButtons.forEach(btn => {
+            btn.disabled = false;
+            btn.classList.remove('correct', 'incorrect');
+        });
+    }, 2000);
+}
                 allButtons.forEach(btn => {
                     btn.disabled = false;
                     btn.classList.remove('correct', 'incorrect');
