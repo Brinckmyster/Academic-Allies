@@ -118,6 +118,22 @@
       text-align: center;
       margin-top: 8px;
     }
+    .yn-btn {
+      flex: 1;
+      padding: 12px 8px;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      font-size: 13pt;
+      cursor: pointer;
+      background: #f0f4f5;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .yn-btn:hover { background: #e0eced; border-color: #6CA0A3; }
+    .yn-btn.selected { background: #e8f2f3; border-color: #6CA0A3; }
+    .yn-btn.urgent-btn { background: #fff0f0; border-color: #ffcccc; }
+    .yn-btn.urgent-btn.selected { background: #f8d7da; border-color: #dc3545; }
+    .yn-btn.skip-btn { flex: 0 0 auto; background: #f8f8f8; color: #999; font-size: 11pt; }
   </style>
 </head>
 <body>
@@ -128,7 +144,7 @@
     <p class="date-display" id="todayDate"></p>
 
     <div class="card">
-      <h2>How are you feeling? 💭</h2>
+      <h2>Overall feeling right now 💭</h2>
       <div class="mood-grid">
         <button class="mood-btn" onclick="selectMood(this, 'Great')" aria-label="Great">😄<span class="mood-label">Great</span></button>
         <button class="mood-btn" onclick="selectMood(this, 'Good')" aria-label="Good">🙂<span class="mood-label">Good</span></button>
@@ -143,61 +159,120 @@
       <h2>Energy &amp; Pain 🔋</h2>
       <div class="slider-wrap">
         <label>
-          <span>Energy Level</span>
+          <span>Energy (spoons) right now</span>
           <span id="energyVal">5</span>
         </label>
         <input type="range" min="1" max="10" value="5" id="energySlider"
                oninput="document.getElementById('energyVal').textContent = this.value" />
         <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
-          <span>Empty 😓</span><span>Full ⚡</span>
+          <span>Running on empty 😓</span><span>Full tank ⚡</span>
         </div>
       </div>
       <div class="slider-wrap" style="margin-top:18px;">
         <label>
-          <span>Pain Level</span>
+          <span>Pain / discomfort level</span>
           <span id="painVal">0</span>
         </label>
         <input type="range" min="0" max="10" value="0" id="painSlider"
                oninput="document.getElementById('painVal').textContent = this.value" />
         <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
-          <span>None 😌</span><span>Severe 🔥</span>
+          <span>None 😌</span><span>Really bad 🔥</span>
+        </div>
+      </div>
+      <div class="slider-wrap" style="margin-top:18px;">
+        <label>
+          <span>Brain fog level</span>
+          <span id="fogVal">0</span>
+        </label>
+        <input type="range" min="0" max="10" value="0" id="fogSlider"
+               oninput="document.getElementById('fogVal').textContent = this.value" />
+        <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
+          <span>Clear 🧠</span><span>Total fog 🌫️</span>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h2>Anything to note? 📝</h2>
-      <textarea id="checkinNotes" placeholder="What's on your mind? It's okay to just say how you're doing…"></textarea>
+      <h2>Have you…? ✅</h2>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="ateToday" style="width:22px;height:22px;accent-color:#6CA0A3;"> Eaten something today</label>
+        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="drankWater" style="width:22px;height:22px;accent-color:#6CA0A3;"> Had water or fluids</label>
+        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="tookMeds" style="width:22px;height:22px;accent-color:#6CA0A3;"> Taken any needed meds</label>
+        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="sleptOk" style="width:22px;height:22px;accent-color:#6CA0A3;"> Got at least 6 hours of sleep last night</label>
+      </div>
     </div>
 
-    <button class="save-btn" onclick="saveCheckin()">Save Today's Check-In ✓</button>
-    <p class="saved-msg" id="savedMsg">✅ Saved! You're doing great.</p>
-    <p class="prev-checkin" id="prevCheckin"></p>
+    <div class="card">
+      <h2>Support connection 💬</h2>
+      <p style="font-size:13pt;color:#666;margin-bottom:14px;">Did you talk to, text, or reach out to anyone on your support team today? (Bruise, Mom, a counselor, anyone.)</p>
+      <div style="display:flex;gap:14px;">
+        <button class="yn-btn" id="supportYes" onclick="selectYN('support','yes')">✅ Yes</button>
+        <button class="yn-btn" id="supportNo" onclick="selectYN('support','no')">❌ Not yet</button>
+        <button class="yn-btn skip-btn" onclick="selectYN('support','skip')">⏭️ Skip</button>
+      </div>
+      <p id="supportFlag" style="display:none;margin-top:10px;font-size:12pt;padding:8px 12px;border-radius:8px;background:#fff3cd;color:#856404;">🟡 That's okay — just flagging so your team knows to check in with you.</p>
+    </div>
+
+    <div class="card">
+      <h2>Safety check 🛡️</h2>
+      <p style="font-size:13pt;color:#666;margin-bottom:14px;">Are you experiencing anything that feels like an emergency — physically, mentally, or emotionally?</p>
+      <div style="display:flex;gap:14px;">
+        <button class="yn-btn" id="safeYes" onclick="selectYN('safe','no')">✅ I'm okay</button>
+        <button class="yn-btn urgent-btn" id="safeNo" onclick="selectYN('safe','yes')">🚨 I need help</button>
+        <button class="yn-btn skip-btn" onclick="selectYN('safe','skip')">⏭️ Skip</button>
+      </div>
+      <p id="safeFlag" style="display:none;margin-top:10px;font-size:12pt;padding:8px 12px;border-radius:8px;background:#f8d7da;color:#721c24;">🔴 Please reach out right away — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or call/text Bruise.</p>
+    </div>
+
+    <div class="card">
+      <h2>What's going on? 📝</h2>
+      <textarea id="checkinNotes" placeholder="Anything — how class went, what hurts, what you need, what's on your mind… (totally optional)"></textarea>
+    </div>
+
+    <button class="save-btn" onclick="saveCheckin()">Save Check-In ✓</button>
+
+    <div id="savedMsg" style="display:none;text-align:center;padding:16px;border-radius:16px;margin-top:12px;"></div>
+
+    <div id="todayLog" style="margin-top:24px;"></div>
   </div>
 
   <script>
     var selectedMood = '';
+    var supportAnswer = '';
+    var safeAnswer = '';
+    var now = new Date();
+    var dateKey = now.toISOString().split('T')[0]; // YYYY-MM-DD
 
     // Show today's date
-    var now = new Date();
     document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
 
-    // Load yesterday's saved check-in as a reminder
-    var dateKey = now.toISOString().split('T')[0];
-    var saved = localStorage.getItem('checkin_' + dateKey);
-    if (saved) {
-      var data = JSON.parse(saved);
-      if (data.mood) { selectedMood = data.mood; }
-      if (data.energy) { document.getElementById('energySlider').value = data.energy; document.getElementById('energyVal').textContent = data.energy; }
-      if (data.pain !== undefined) { document.getElementById('painSlider').value = data.pain; document.getElementById('painVal').textContent = data.pain; }
-      if (data.notes) { document.getElementById('checkinNotes').value = data.notes; }
-      document.querySelectorAll('.mood-btn').forEach(function(btn) {
-        if (btn.getAttribute('aria-label') === selectedMood) btn.classList.add('selected');
-      });
-      document.getElementById('prevCheckin').textContent = 'Last saved today at ' + new Date(data.savedAt).toLocaleTimeString();
+    // Load today's log (array of check-ins)
+    function getTodayLog() {
+      var raw = localStorage.getItem('checkins_' + dateKey);
+      return raw ? JSON.parse(raw) : [];
     }
+
+    function renderLog() {
+      var log = getTodayLog();
+      var container = document.getElementById('todayLog');
+      if (log.length === 0) { container.innerHTML = ''; return; }
+      var html = '<div style="color:#6CA0A3;font-weight:600;font-size:13pt;margin-bottom:10px;">Today\'s check-ins (' + log.length + ')</div>';
+      log.slice().reverse().forEach(function(entry, i) {
+        var t = new Date(entry.savedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        var flagDot = entry.flag === 'red' ? '🔴' : entry.flag === 'yellow' ? '🟡' : '🟢';
+        html += '<div style="background:#f0f4f5;border-radius:12px;padding:12px 16px;margin-bottom:8px;font-size:12pt;">';
+        html += flagDot + ' <strong>' + t + '</strong> — ' + (entry.mood || '—');
+        html += ' | Energy: ' + entry.energy + ' | Pain: ' + entry.pain;
+        if (entry.fog && entry.fog > 0) html += ' | Fog: ' + entry.fog;
+        if (entry.notes) html += '<br><span style="color:#555;">' + entry.notes + '</span>';
+        html += '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    renderLog();
 
     function selectMood(btn, mood) {
       selectedMood = mood;
@@ -205,19 +280,97 @@
       btn.classList.add('selected');
     }
 
+    function selectYN(group, answer) {
+      if (group === 'support') {
+        supportAnswer = answer;
+        document.querySelectorAll('#supportYes, #supportNo').forEach(function(b) { b.classList.remove('selected'); });
+        if (answer === 'no') {
+          document.getElementById('supportNo').classList.add('selected');
+          document.getElementById('supportFlag').style.display = 'block';
+        } else if (answer === 'yes') {
+          document.getElementById('supportYes').classList.add('selected');
+          document.getElementById('supportFlag').style.display = 'none';
+        } else {
+          document.getElementById('supportFlag').style.display = 'none';
+        }
+      }
+      if (group === 'safe') {
+        safeAnswer = answer;
+        document.querySelectorAll('#safeYes, #safeNo').forEach(function(b) { b.classList.remove('selected'); });
+        if (answer === 'yes') { // "I need help"
+          document.getElementById('safeNo').classList.add('selected');
+          document.getElementById('safeFlag').style.display = 'block';
+        } else if (answer === 'no') { // "I'm okay"
+          document.getElementById('safeYes').classList.add('selected');
+          document.getElementById('safeFlag').style.display = 'none';
+        } else {
+          document.getElementById('safeFlag').style.display = 'none';
+        }
+      }
+    }
+
+    function getFlag(entry) {
+      if (entry.emergency === 'yes') return 'red';
+      if (entry.supportContact === 'no') return 'yellow';
+      return 'green';
+    }
+
     function saveCheckin() {
-      var data = {
+      var flag = safeAnswer === 'yes' ? 'red' : (supportAnswer === 'no' ? 'yellow' : 'green');
+      var entry = {
         mood: selectedMood,
         energy: document.getElementById('energySlider').value,
         pain: document.getElementById('painSlider').value,
+        fog: document.getElementById('fogSlider').value,
+        ate: document.getElementById('ateToday').checked,
+        water: document.getElementById('drankWater').checked,
+        meds: document.getElementById('tookMeds').checked,
+        slept: document.getElementById('sleptOk').checked,
+        supportContact: supportAnswer,
+        emergency: safeAnswer,
+        flag: flag,
         notes: document.getElementById('checkinNotes').value,
         savedAt: new Date().toISOString()
       };
-      localStorage.setItem('checkin_' + dateKey, JSON.stringify(data));
+
+      // Append to today's log (allows multiple per day)
+      var log = getTodayLog();
+      log.push(entry);
+      localStorage.setItem('checkins_' + dateKey, JSON.stringify(log));
+
+      // Show reassurance message based on flag
       var msg = document.getElementById('savedMsg');
+      if (flag === 'red') {
+        msg.style.background = '#f8d7da';
+        msg.style.color = '#721c24';
+        msg.innerHTML = '🔴 Check-in saved. Please reach out — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or contact Bruise now.';
+      } else if (flag === 'yellow') {
+        msg.style.background = '#fff3cd';
+        msg.style.color = '#856404';
+        msg.innerHTML = '🟡 Check-in saved. Your team has been notified to check in with you.';
+      } else {
+        msg.style.background = '#e8f2f3';
+        msg.style.color = '#2d6a6d';
+        msg.innerHTML = '✔ Check-in saved.';
+      }
       msg.style.display = 'block';
-      document.getElementById('prevCheckin').textContent = 'Saved at ' + new Date().toLocaleTimeString();
-      setTimeout(function() { msg.style.display = 'none'; }, 3000);
+      if (flag !== 'red') setTimeout(function() { msg.style.display = 'none'; }, 5000);
+
+      // Reset form for next check-in
+      selectedMood = ''; supportAnswer = ''; safeAnswer = '';
+      document.querySelectorAll('.mood-btn, .yn-btn').forEach(function(b) { b.classList.remove('selected'); });
+      document.getElementById('energySlider').value = 5; document.getElementById('energyVal').textContent = 5;
+      document.getElementById('painSlider').value = 0; document.getElementById('painVal').textContent = 0;
+      document.getElementById('fogSlider').value = 0; document.getElementById('fogVal').textContent = 0;
+      document.getElementById('ateToday').checked = false;
+      document.getElementById('drankWater').checked = false;
+      document.getElementById('tookMeds').checked = false;
+      document.getElementById('sleptOk').checked = false;
+      document.getElementById('checkinNotes').value = '';
+      document.getElementById('supportFlag').style.display = 'none';
+      document.getElementById('safeFlag').style.display = 'none';
+
+      renderLog();
     }
   </script>
 
