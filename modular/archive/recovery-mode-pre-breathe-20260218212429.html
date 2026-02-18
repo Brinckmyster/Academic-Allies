@@ -157,51 +157,6 @@
             text-align: center;
             font-weight: 600;
         }
-
-        /* ── Breathing Circle ──────────────────────────────── */
-        .breathing-wrap {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 18px;
-            padding: 10px 0 6px;
-        }
-        .breathing-circle {
-            width: 110px;
-            height: 110px;
-            border-radius: 50%;
-            background: radial-gradient(circle at 38% 38%, #c5e8ea 0%, #6CA0A3 65%);
-            box-shadow: 0 0 0 12px rgba(108, 160, 163, 0.18);
-            animation: breathe-cycle 8s ease-in-out infinite;
-            /* aria: described by breathing-label below */
-        }
-        @keyframes breathe-cycle {
-            0%   { transform: scale(0.72); box-shadow: 0 0 0  4px rgba(108,160,163,0.25); }
-            50%  { transform: scale(1.22); box-shadow: 0 0 0 28px rgba(108,160,163,0.0);  }
-            100% { transform: scale(0.72); box-shadow: 0 0 0  4px rgba(108,160,163,0.25); }
-        }
-        .breathing-phase {
-            font-size: 18pt;
-            color: #6CA0A3;
-            font-weight: 700;
-            min-height: 34px;
-            text-align: center;
-            letter-spacing: 0.02em;
-            transition: opacity 0.6s ease;
-        }
-        .breathing-timer {
-            font-size: 13pt;
-            color: #999;
-            text-align: center;
-            min-height: 24px;
-        }
-        /* Reduced-motion fallback: no animation, show text only */
-        @media (prefers-reduced-motion: reduce) {
-            .breathing-circle {
-                animation: none;
-                transform: scale(1);
-            }
-        }
     </style>
 </head>
 <body>
@@ -302,20 +257,9 @@
         <!-- Gentle Breathing Exercise -->
         <div class="card">
             <h2>🫁 Breathe With Me</h2>
-            <p style="text-align: center; margin-bottom: 10px; color: #666; font-size: 16pt;">
-                Follow the circle — it grows as you breathe in, shrinks as you breathe out.
-            </p>
-            <div class="breathing-wrap">
-                <div class="breathing-circle"
-                     role="img"
-                     aria-label="Breathing guide circle — expands for 4 seconds (inhale), contracts for 4 seconds (exhale)">
-                </div>
-                <div class="breathing-phase" id="breathing-phase" aria-live="polite">Breathe in…</div>
-                <div class="breathing-timer" id="breathing-timer" aria-live="off">4</div>
-            </div>
-            <p style="text-align: center; font-size: 14pt; color: #aaa; margin-top: 10px;">
-                4 seconds in &nbsp;·&nbsp; 4 seconds out
-            </p>
+            <p style="text-align: center; margin-bottom: 15px;">Follow the circle. Breathe in as it grows, out as it shrinks.</p>
+            <div class="breathing-circle"></div>
+            <p style="text-align: center; font-size: 16pt; color: #666;">4 seconds in, 4 seconds out</p>
         </div>
         <!-- Simple Meal Suggestions -->
         <div class="card">
@@ -689,56 +633,16 @@
             const message = supportMessages[Math.floor(Math.random() * supportMessages.length)];
             document.getElementById('support-message').textContent = message;
         }
-        // ── Breathing circle controller ─────────────────────
-        function startBreathing() {
-            var phaseEl  = document.getElementById('breathing-phase');
-            var timerEl  = document.getElementById('breathing-timer');
-            if (!phaseEl || !timerEl) return;
-
-            // Respect prefers-reduced-motion: show text only, no countdown
-            var reducedMotion = window.matchMedia &&
-                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            if (reducedMotion) {
-                phaseEl.textContent = 'Breathe in… then out. Take your time.';
-                timerEl.textContent = '';
-                return;
-            }
-
-            var INHALE = 4000;   // ms
-            var EXHALE = 4000;   // ms
-            var CYCLE  = INHALE + EXHALE;  // 8000ms
-            var startTime = Date.now();
-
-            function tick() {
-                var elapsed  = (Date.now() - startTime) % CYCLE;
-                var isInhale = elapsed < INHALE;
-                var remaining;
-
-                if (isInhale) {
-                    phaseEl.textContent = 'Breathe in…';
-                    remaining = Math.ceil((INHALE - elapsed) / 1000);
-                } else {
-                    phaseEl.textContent = 'Breathe out…';
-                    remaining = Math.ceil((CYCLE - elapsed) / 1000);
-                }
-                timerEl.textContent = remaining > 0 ? remaining : '';
-            }
-
-            tick();
-            setInterval(tick, 250);
-        }
-
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
             loadNewFlower();
             document.getElementById('report-count').textContent = reportedFlowers.length;
             showNewMessage();
             showNewScripture();
-            startBreathing();
-            var savedEnergy = localStorage.getItem('energyLevel');
+            const savedEnergy = localStorage.getItem('energyLevel');
             if (savedEnergy) {
-                var el = document.querySelector('[data-level="' + savedEnergy + '"]');
-                if (el) el.classList.add('selected');
+                document.getElementById('energy-slider').value = savedEnergy;
+                updateEnergyLabel(savedEnergy);
             }
         });
     </script>
