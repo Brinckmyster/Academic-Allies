@@ -351,7 +351,7 @@
         <div class="card flower-quiz">
             <h2>🌺 Flower Arranging Class Practice</h2>
             <p style="margin-bottom: 10px;">Keep your skills fresh while you rest 💚</p>
-            <p style="font-size: 16pt; color: #666; margin-bottom: 15px;">Top 20 essential varieties - starting with Roses & Tulips!</p>
+            <p style="font-size: 16pt; color: #666; margin-bottom: 15px;">All varieties — every flower gets equal time! 🌸</p>
            
             <!-- PICTURE FIRST -->
             <img id="flower-image" class="flower-image" src="" alt="Flower to identify">
@@ -450,14 +450,35 @@
         function showSpoonPlanner() {
             alert('Spoon Planner coming soon! This will let you plan your entire day with spoon costs.');
         }
-        // Flower Quiz
+        // Flower Quiz — shuffle-deck so every flower appears equally before repeating
         let flowers = [];
-       
+        let flowerDeck = [];   // current shuffled deck (depleted as flowers are shown)
+
+        function shuffleDeck(arr) {
+            // Fisher-Yates shuffle into a fresh deck
+            var a = arr.slice();
+            for (var i = a.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+            }
+            return a;
+        }
+
+        function nextFromDeck() {
+            if (flowerDeck.length === 0) {
+                // All flowers seen — reshuffle entire set
+                flowerDeck = shuffleDeck(flowers);
+                console.log('[FlowerQuiz] Deck exhausted — reshuffled ' + flowerDeck.length + ' flowers');
+            }
+            return flowerDeck.pop();
+        }
+
         fetch("../icons/flowers/flowers.json")
           .then(r => r.json())
           .then(data => {
             flowers = data.flowers;
-            console.log("Loaded " + flowers.length + " flowers");
+            flowerDeck = shuffleDeck(flowers);
+            console.log("Loaded " + flowers.length + " flowers into shuffle deck");
             loadNewFlower();
           })
           .catch(err => console.error("Failed to load flowers:", err));
@@ -557,7 +578,7 @@
                 btn.disabled = false;
             });
             
-            currentFlower = flowers[Math.floor(Math.random() * flowers.length)];
+            currentFlower = nextFromDeck();
             const correctAnswer = currentFlower.name;
             const allNames = flowers.map(f => f.name).filter(n => n !== currentFlower.name);
             const wrongAnswers = allNames.sort(() => Math.random() - 0.5).slice(0, 3);
@@ -730,7 +751,7 @@
 
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
-            loadNewFlower();
+            // loadNewFlower() is called by the fetch callback once flowers.json loads
             document.getElementById('report-count').textContent = reportedFlowers.length;
             showNewMessage();
             showNewScripture();
