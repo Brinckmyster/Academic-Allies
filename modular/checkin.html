@@ -4,98 +4,245 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Academic Allies – Daily Check-In</title>
-  <link rel="icon" href="/favicon.ico">
-  <link href="./css/style.css" rel="stylesheet" />
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    body {
+      font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+      font-size: 17pt;
+      line-height: 1.5;
+      background: #FAFAF9;
+      color: #333333;
+      min-height: 100vh;
+      padding: 20px;
+      margin: 0;
+    }
+    .checkin-container {
+      max-width: 620px;
+      margin: 0 auto;
+    }
+    .page-title {
+      text-align: center;
+      color: #6CA0A3;
+      font-size: 22pt;
+      margin-bottom: 8px;
+    }
+    .date-display {
+      text-align: center;
+      color: #888;
+      font-size: 13pt;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h2 {
+      color: #6CA0A3;
+      font-size: 16pt;
+      margin-bottom: 16px;
+    }
+    .mood-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .mood-btn {
+      background: #f0f4f5;
+      border: 3px solid transparent;
+      border-radius: 14px;
+      padding: 14px 8px;
+      font-size: 28pt;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .mood-btn:hover { background: #e0eced; }
+    .mood-btn.selected { border-color: #6CA0A3; background: #e8f2f3; }
+    .mood-label {
+      display: block;
+      font-size: 10pt;
+      color: #555;
+      margin-top: 4px;
+    }
+    .slider-wrap { margin: 8px 0; }
+    .slider-wrap label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13pt;
+      margin-bottom: 6px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: #6CA0A3;
+      height: 8px;
+    }
+    textarea {
+      width: 100%;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: inherit;
+      font-size: 14pt;
+      resize: vertical;
+      min-height: 90px;
+      box-sizing: border-box;
+    }
+    textarea:focus { border-color: #6CA0A3; outline: none; }
+    .save-btn {
+      background: #6CA0A3;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 14px 40px;
+      font-size: 16pt;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+      min-height: 19mm;
+    }
+    .save-btn:hover { background: #5a8c8f; }
+    .save-btn:active { transform: scale(0.98); }
+    .saved-msg {
+      display: none;
+      text-align: center;
+      color: #4CAF50;
+      font-size: 14pt;
+      padding: 10px;
+    }
+    .prev-checkin {
+      color: #888;
+      font-size: 12pt;
+      text-align: center;
+      margin-top: 8px;
+    }
+  </style>
 </head>
 <body>
-  <!-- Header injected here -->
   <div id="site-header"></div>
 
-  <main id="checkin-page">
-    <h2>Daily Check-In</h2>
-    <div id="checkin-component-container">
-      <!-- Loading state -->
-      <p style="text-align: center; color: #666; margin-top: 2rem;">Loading check-in…</p>
+  <div class="checkin-container">
+    <h1 class="page-title">📋 Daily Check-In</h1>
+    <p class="date-display" id="todayDate"></p>
+
+    <div class="card">
+      <h2>How are you feeling? 💭</h2>
+      <div class="mood-grid">
+        <button class="mood-btn" onclick="selectMood(this, 'Great')" aria-label="Great">😄<span class="mood-label">Great</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Good')" aria-label="Good">🙂<span class="mood-label">Good</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Okay')" aria-label="Okay">😐<span class="mood-label">Okay</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Tired')" aria-label="Tired">😴<span class="mood-label">Tired</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Anxious')" aria-label="Anxious">😰<span class="mood-label">Anxious</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Struggling')" aria-label="Struggling">😔<span class="mood-label">Struggling</span></button>
+      </div>
     </div>
-  </main>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    // Replace with YOUR real Firebase config from Firebase Console
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
-    window.firebaseAuth = auth; // expose for spoon-planner.js
-
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log("[auth] Signed in as:", user.email);
-        // If you want to hide/show UI based on registration, do it here
-      } else {
-        console.log("[auth] No user signed in");
-        document.getElementById('checkin-component-container').innerHTML = `
-          <div style="text-align: center; padding: 2rem;">
-            <h3>Please sign in</h3>
-            <p>You need to be logged in to access the daily check-in.</p>
-          </div>
-        `;
-      }
-    });
-  </script>
-
-  <!-- Check-in render (will fail gracefully if spoon-planner.js missing) -->
-  <script type="module">
-    try {
-      const { renderCheckIn } = await import('./components/spoon-planner/js/spoon-planner.js');
-      renderCheckIn(document.getElementById('checkin-component-container'), window.firebaseAuth);
-    } catch (err) {
-      console.error("Failed to load spoon-planner:", err);
-      document.getElementById('checkin-component-container').innerHTML = `
-        <div style="text-align: center; padding: 2rem; color: #d32f2f;">
-          <h3>Check-in failed to load</h3>
-          <p>Something went wrong loading the check-in tool. Please refresh or contact support.</p>
+    <div class="card">
+      <h2>Energy &amp; Pain 🔋</h2>
+      <div class="slider-wrap">
+        <label>
+          <span>Energy Level</span>
+          <span id="energyVal">5</span>
+        </label>
+        <input type="range" min="1" max="10" value="5" id="energySlider"
+               oninput="document.getElementById('energyVal').textContent = this.value" />
+        <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
+          <span>Empty 😓</span><span>Full ⚡</span>
         </div>
-      `;
+      </div>
+      <div class="slider-wrap" style="margin-top:18px;">
+        <label>
+          <span>Pain Level</span>
+          <span id="painVal">0</span>
+        </label>
+        <input type="range" min="0" max="10" value="0" id="painSlider"
+               oninput="document.getElementById('painVal').textContent = this.value" />
+        <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
+          <span>None 😌</span><span>Severe 🔥</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Anything to note? 📝</h2>
+      <textarea id="checkinNotes" placeholder="What's on your mind? It's okay to just say how you're doing…"></textarea>
+    </div>
+
+    <button class="save-btn" onclick="saveCheckin()">Save Today's Check-In ✓</button>
+    <p class="saved-msg" id="savedMsg">✅ Saved! You're doing great.</p>
+    <p class="prev-checkin" id="prevCheckin"></p>
+  </div>
+
+  <script>
+    var selectedMood = '';
+
+    // Show today's date
+    var now = new Date();
+    document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    // Load yesterday's saved check-in as a reminder
+    var dateKey = now.toISOString().split('T')[0];
+    var saved = localStorage.getItem('checkin_' + dateKey);
+    if (saved) {
+      var data = JSON.parse(saved);
+      if (data.mood) { selectedMood = data.mood; }
+      if (data.energy) { document.getElementById('energySlider').value = data.energy; document.getElementById('energyVal').textContent = data.energy; }
+      if (data.pain !== undefined) { document.getElementById('painSlider').value = data.pain; document.getElementById('painVal').textContent = data.pain; }
+      if (data.notes) { document.getElementById('checkinNotes').value = data.notes; }
+      document.querySelectorAll('.mood-btn').forEach(function(btn) {
+        if (btn.getAttribute('aria-label') === selectedMood) btn.classList.add('selected');
+      });
+      document.getElementById('prevCheckin').textContent = 'Last saved today at ' + new Date(data.savedAt).toLocaleTimeString();
+    }
+
+    function selectMood(btn, mood) {
+      selectedMood = mood;
+      document.querySelectorAll('.mood-btn').forEach(function(b) { b.classList.remove('selected'); });
+      btn.classList.add('selected');
+    }
+
+    function saveCheckin() {
+      var data = {
+        mood: selectedMood,
+        energy: document.getElementById('energySlider').value,
+        pain: document.getElementById('painSlider').value,
+        notes: document.getElementById('checkinNotes').value,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem('checkin_' + dateKey, JSON.stringify(data));
+      var msg = document.getElementById('savedMsg');
+      msg.style.display = 'block';
+      document.getElementById('prevCheckin').textContent = 'Saved at ' + new Date().toLocaleTimeString();
+      setTimeout(function() { msg.style.display = 'none'; }, 3000);
     }
   </script>
 
   <!-- Header loader -->
   <script>
     fetch('/Academic-Allies/modular/shared-header.html')
-      .then(response => {
-        if (!response.ok) throw new Error('Header not found');
-        return response.text();
-      })
-      .then(html => {
-        const container = document.getElementById('site-header');
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
         container.innerHTML = html;
-
-        const scripts = container.querySelectorAll('script');
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(function(attr) {
+            newScript.setAttribute(attr.name, attr.value);
+          });
           newScript.textContent = oldScript.textContent;
           oldScript.replaceWith(newScript);
         });
-
-        const dragScript = document.createElement('script');
+        var dragScript = document.createElement('script');
         dragScript.src = '/Academic-Allies/modular/js/draggable.js';
-        dragScript.onload = () => { if (typeof initDrag === 'function') initDrag(); };
+        dragScript.onload = function() { if (typeof initDrag === 'function') initDrag(); };
         document.body.appendChild(dragScript);
       })
-      .catch(err => console.error('Header load error:', err));
+      .catch(function(err) { console.error('Header load error:', err); });
   </script>
 </body>
 </html>
