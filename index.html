@@ -8,26 +8,24 @@
 </head>
 <body>
 
-<div id="site-header-placeholder"></div>
+<div id="site-header"></div>
 <script>
   fetch("/Academic-Allies/modular/shared-header.html")
-    .then(function(r) { return r.text(); })
-    .then(function(h) {
-      var tmp = document.createElement("div");
-      tmp.innerHTML = h;
-      var header = tmp.querySelector("header") || tmp.firstElementChild;
-      document.getElementById("site-header-placeholder").replaceWith(header);
-      tmp.querySelectorAll("style").forEach(function(s) {
-        var ns = document.createElement("style");
-        ns.textContent = s.textContent;
-        document.head.appendChild(ns);
+    .then(response => response.text())
+    .then(html => {
+      const container = document.getElementById("site-header");
+      container.innerHTML = html;
+      const scripts = container.querySelectorAll("script");
+      scripts.forEach(oldScript => {
+        const newScript = document.createElement("script");
+        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        newScript.textContent = oldScript.textContent;
+        oldScript.replaceWith(newScript);
       });
-      tmp.querySelectorAll("script").forEach(function(s) {
-        var ns = document.createElement("script");
-        if (s.src) { ns.src = s.src; ns.async = s.async; ns.defer = s.defer; }
-        else { ns.textContent = s.textContent; }
-        document.body.appendChild(ns);
-      });
+      const dragScript = document.createElement("script");
+      dragScript.src = "/Academic-Allies/modular/js/draggable.js";
+      dragScript.onload = () => { if(typeof initDrag === "function") initDrag(); };
+      document.body.appendChild(dragScript);
     });
 </script>
 
