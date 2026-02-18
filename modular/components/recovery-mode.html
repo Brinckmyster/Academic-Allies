@@ -297,12 +297,15 @@
             <p style="margin-bottom: 10px;">Keep your skills fresh while you rest 💚</p>
             <p style="font-size: 16pt; color: #666; margin-bottom: 15px;">Top 20 essential varieties - starting with Roses & Tulips!</p>
            
-            <!-- Result message above flower image per Mary -->
+            <!-- PICTURE FIRST -->
             <img id="flower-image" class="flower-image" src="" alt="Flower to identify">
             <div id="flower-hint" style="text-align: center; color: #6CA0A3; font-weight: 600; margin: 15px 0; font-size: 14pt; display: none;"></div>
-            <div id="quiz-result-text" style="text-align: center; font-size: 18pt; margin: 10px 0 15px 0; font-weight: 600;"></div>
+            
+            <!-- RESULT MESSAGE - appears above buttons after answer -->
+            <div id="quiz-result" class="hidden" style="background: #f0f4ff; padding: 15px; border-radius: 12px; margin: 15px 0; text-align: center; font-weight: 600; font-size: 18pt; border: 2px solid #6CA0A3;"></div>
+            
+            <!-- BUTTONS - stay visible -->
             <div class="quiz-buttons" id="quiz-options"></div>
-            <div id="quiz-result" class="hidden achievement"></div>
             <button class="btn" onclick="loadNewFlower()" id="next-flower-btn" style="margin-top:5px;">🌸 Next Flower</button>
             <button class="btn" onclick="reportWrongCategory()" style="background:#ff9500; margin-top:5px; display:none;" id="report-btn">⚠️ Report Wrong Category</button>
             <button class="btn" onclick="viewReports()" style="background:#999; margin-top:10px;">📋 View Reports (<span id="report-count">0</span>)</button>
@@ -486,6 +489,15 @@
         }
         function loadNewFlower() {
             if (!flowers || flowers.length === 0) return;
+            
+            // Clear previous result and button states
+            document.getElementById('quiz-result').classList.add('hidden');
+            const allButtons = document.querySelectorAll('.quiz-btn');
+            allButtons.forEach(btn => {
+                btn.classList.remove('correct', 'incorrect');
+                btn.disabled = false;
+            });
+            
             currentFlower = flowers[Math.floor(Math.random() * flowers.length)];
             const correctAnswer = currentFlower.name;
             const allNames = flowers.map(f => f.name).filter(n => n !== currentFlower.name);
@@ -511,7 +523,6 @@
                 optionsContainer.appendChild(btn);
             });
            
-            document.getElementById('quiz-result').classList.add('hidden');
             document.getElementById('report-btn').style.display = 'block';
         }
         function checkAnswer(selected, button, correctAnswer) {
@@ -551,13 +562,14 @@
                 result.textContent = incorrectMessages[Math.floor(Math.random() * incorrectMessages.length)];
                 result.classList.remove('hidden');
             }
-           
+            
+            // Don't clear the result - it stays visible until Next Flower is clicked
+            // Re-enable buttons after a short delay so user can click Next Flower
             setTimeout(() => {
                 allButtons.forEach(btn => {
                     btn.disabled = false;
-                    btn.classList.remove('correct', 'incorrect');
                 });
-            }, 2000);
+            }, 1000);
         }
         function generateNewMeals() {
             const suggestions = document.getElementById('meal-suggestions');
