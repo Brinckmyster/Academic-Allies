@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Academic Allies – Daily Check-In</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    body {
+      font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+      font-size: 17pt;
+      line-height: 1.5;
+      background: #FAFAF9;
+      color: #333333;
+      min-height: 100vh;
+      padding: 20px;
+      margin: 0;
+    }
+    .checkin-container {
+      max-width: 620px;
+      margin: 0 auto;
+    }
+    .page-title {
+      text-align: center;
+      color: #6CA0A3;
+      font-size: 22pt;
+      margin-bottom: 8px;
+    }
+    .date-display {
+      text-align: center;
+      color: #888;
+      font-size: 13pt;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h2 {
+      color: #6CA0A3;
+      font-size: 16pt;
+      margin-bottom: 16px;
+    }
+    .mood-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .mood-btn {
+      background: #f0f4f5;
+      border: 3px solid transparent;
+      border-radius: 14px;
+      padding: 14px 8px;
+      font-size: 28pt;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .mood-btn:hover { background: #e0eced; }
+    .mood-btn.selected { border-color: #6CA0A3; background: #e8f2f3; }
+    .mood-label {
+      display: block;
+      font-size: 10pt;
+      color: #555;
+      margin-top: 4px;
+    }
+    .slider-wrap { margin: 8px 0; }
+    .slider-wrap label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13pt;
+      margin-bottom: 6px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: #6CA0A3;
+      height: 8px;
+    }
+    textarea {
+      width: 100%;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: inherit;
+      font-size: 14pt;
+      resize: vertical;
+      min-height: 90px;
+      box-sizing: border-box;
+    }
+    textarea:focus { border-color: #6CA0A3; outline: none; }
+    .save-btn {
+      background: #6CA0A3;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 14px 40px;
+      font-size: 16pt;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+      min-height: 19mm;
+    }
+    .save-btn:hover { background: #5a8c8f; }
+    .save-btn:active { transform: scale(0.98); }
+    .saved-msg {
+      display: none;
+      text-align: center;
+      color: #4CAF50;
+      font-size: 14pt;
+      padding: 10px;
+    }
+    .prev-checkin {
+      color: #888;
+      font-size: 12pt;
+      text-align: center;
+      margin-top: 8px;
+    }
+    .yn-btn {
+      flex: 1;
+      padding: 12px 8px;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      font-size: 13pt;
+      cursor: pointer;
+      background: #f0f4f5;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .yn-btn:hover { background: #e0eced; border-color: #6CA0A3; }
+    .yn-btn.selected { background: #e8f2f3; border-color: #6CA0A3; }
+    .yn-btn.urgent-btn { background: #fff0f0; border-color: #ffcccc; }
+    .yn-btn.urgent-btn.selected { background: #f8d7da; border-color: #dc3545; }
+    .yn-btn.skip-btn { flex: 0 0 auto; background: #f8f8f8; color: #999; font-size: 11pt; }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="checkin-container">
+    <h1 class="page-title">📋 Daily Check-In</h1>
+    <p class="date-display" id="todayDate"></p>
+
+    <div class="card">
+      <h2>Overall feeling right now 💭</h2>
+      <div class="mood-grid">
+        <button class="mood-btn" onclick="selectMood(this, 'Great')" aria-label="Great">😄<span class="mood-label">Great</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Good')" aria-label="Good">🙂<span class="mood-label">Good</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Okay')" aria-label="Okay">😐<span class="mood-label">Okay</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Tired')" aria-label="Tired">😴<span class="mood-label">Tired</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Anxious')" aria-label="Anxious">😰<span class="mood-label">Anxious</span></button>
+        <button class="mood-btn" onclick="selectMood(this, 'Struggling')" aria-label="Struggling">😔<span class="mood-label">Struggling</span></button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Energy &amp; Pain 🔋</h2>
+      <div class="slider-wrap">
+        <label>
+          <span>Energy (spoons) right now</span>
+          <span id="energyVal">5</span>
+        </label>
+        <input type="range" min="1" max="10" value="5" id="energySlider"
+               oninput="document.getElementById('energyVal').textContent = this.value" />
+        <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
+          <span>Running on empty 😓</span><span>Full tank ⚡</span>
+        </div>
+      </div>
+      <div class="slider-wrap" style="margin-top:18px;">
+        <label>
+          <span>Pain / discomfort level</span>
+          <span id="painVal">0</span>
+        </label>
+        <input type="range" min="0" max="10" value="0" id="painSlider"
+               oninput="document.getElementById('painVal').textContent = this.value" />
+        <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
+          <span>None 😌</span><span>Really bad 🔥</span>
+        </div>
+      </div>
+      <div class="slider-wrap" style="margin-top:18px;">
+        <label>
+          <span>Brain fog level</span>
+          <span id="fogVal">0</span>
+        </label>
+        <input type="range" min="0" max="10" value="0" id="fogSlider"
+               oninput="document.getElementById('fogVal').textContent = this.value" />
+        <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
+          <span>Clear 🧠</span><span>Total fog 🌫️</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Have you…? ✅</h2>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="ateToday" style="width:22px;height:22px;accent-color:#6CA0A3;"> Eaten something today</label>
+        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="drankWater" style="width:22px;height:22px;accent-color:#6CA0A3;"> Had water or fluids</label>
+        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="tookMeds" style="width:22px;height:22px;accent-color:#6CA0A3;"> Taken any needed meds</label>
+        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="sleptOk" style="width:22px;height:22px;accent-color:#6CA0A3;"> Got at least 6 hours of sleep last night</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Support connection 💬</h2>
+      <p style="font-size:13pt;color:#666;margin-bottom:14px;">Did you talk to, text, or reach out to anyone on your support team today? (Bruise, Mom, a counselor, anyone.)</p>
+      <div style="display:flex;gap:14px;">
+        <button class="yn-btn" id="supportYes" onclick="selectYN('support','yes')">✅ Yes</button>
+        <button class="yn-btn" id="supportNo" onclick="selectYN('support','no')">❌ Not yet</button>
+        <button class="yn-btn skip-btn" onclick="selectYN('support','skip')">⏭️ Skip</button>
+      </div>
+      <p id="supportFlag" style="display:none;margin-top:10px;font-size:12pt;padding:8px 12px;border-radius:8px;background:#fff3cd;color:#856404;">🟡 That's okay — just flagging so your team knows to check in with you.</p>
+    </div>
+
+    <div class="card">
+      <h2>Safety check 🛡️</h2>
+      <p style="font-size:13pt;color:#666;margin-bottom:14px;">Are you experiencing anything that feels like an emergency — physically, mentally, or emotionally?</p>
+      <div style="display:flex;gap:14px;">
+        <button class="yn-btn" id="safeYes" onclick="selectYN('safe','no')">✅ I'm okay</button>
+        <button class="yn-btn urgent-btn" id="safeNo" onclick="selectYN('safe','yes')">🚨 I need help</button>
+        <button class="yn-btn skip-btn" onclick="selectYN('safe','skip')">⏭️ Skip</button>
+      </div>
+      <p id="safeFlag" style="display:none;margin-top:10px;font-size:12pt;padding:8px 12px;border-radius:8px;background:#f8d7da;color:#721c24;">🔴 Please reach out right away — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or call/text Bruise.</p>
+    </div>
+
+    <div class="card">
+      <h2>What's going on? 📝</h2>
+      <textarea id="checkinNotes" placeholder="Anything — how class went, what hurts, what you need, what's on your mind… (totally optional)"></textarea>
+    </div>
+
+    <button class="save-btn" onclick="saveCheckin()">Save Check-In ✓</button>
+
+    <div id="savedMsg" style="display:none;text-align:center;padding:16px;border-radius:16px;margin-top:12px;"></div>
+
+    <div id="todayLog" style="margin-top:24px;"></div>
+  </div>
+
+  <script>
+    var selectedMood = '';
+    var supportAnswer = '';
+    var safeAnswer = '';
+    var now = new Date();
+    var dateKey = now.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Show today's date
+    document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    // Load today's log (array of check-ins)
+    function getTodayLog() {
+      var raw = localStorage.getItem('checkins_' + dateKey);
+      return raw ? JSON.parse(raw) : [];
+    }
+
+    function renderLog() {
+      var log = getTodayLog();
+      var container = document.getElementById('todayLog');
+      if (log.length === 0) { container.innerHTML = ''; return; }
+      var html = '<div style="color:#6CA0A3;font-weight:600;font-size:13pt;margin-bottom:10px;">Today\'s check-ins (' + log.length + ')</div>';
+      log.slice().reverse().forEach(function(entry, i) {
+        var t = new Date(entry.savedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        var flagDot = entry.flag === 'red' ? '🔴' : entry.flag === 'yellow' ? '🟡' : '🟢';
+        html += '<div style="background:#f0f4f5;border-radius:12px;padding:12px 16px;margin-bottom:8px;font-size:12pt;">';
+        html += flagDot + ' <strong>' + t + '</strong> — ' + (entry.mood || '—');
+        html += ' | Energy: ' + entry.energy + ' | Pain: ' + entry.pain;
+        if (entry.fog && entry.fog > 0) html += ' | Fog: ' + entry.fog;
+        if (entry.notes) html += '<br><span style="color:#555;">' + entry.notes + '</span>';
+        html += '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    renderLog();
+
+    function selectMood(btn, mood) {
+      selectedMood = mood;
+      document.querySelectorAll('.mood-btn').forEach(function(b) { b.classList.remove('selected'); });
+      btn.classList.add('selected');
+    }
+
+    function selectYN(group, answer) {
+      if (group === 'support') {
+        supportAnswer = answer;
+        document.querySelectorAll('#supportYes, #supportNo').forEach(function(b) { b.classList.remove('selected'); });
+        if (answer === 'no') {
+          document.getElementById('supportNo').classList.add('selected');
+          document.getElementById('supportFlag').style.display = 'block';
+        } else if (answer === 'yes') {
+          document.getElementById('supportYes').classList.add('selected');
+          document.getElementById('supportFlag').style.display = 'none';
+        } else {
+          document.getElementById('supportFlag').style.display = 'none';
+        }
+      }
+      if (group === 'safe') {
+        safeAnswer = answer;
+        document.querySelectorAll('#safeYes, #safeNo').forEach(function(b) { b.classList.remove('selected'); });
+        if (answer === 'yes') { // "I need help"
+          document.getElementById('safeNo').classList.add('selected');
+          document.getElementById('safeFlag').style.display = 'block';
+        } else if (answer === 'no') { // "I'm okay"
+          document.getElementById('safeYes').classList.add('selected');
+          document.getElementById('safeFlag').style.display = 'none';
+        } else {
+          document.getElementById('safeFlag').style.display = 'none';
+        }
+      }
+    }
+
+    function getFlag(entry) {
+      if (entry.emergency === 'yes') return 'red';
+      if (entry.supportContact === 'no') return 'yellow';
+      return 'green';
+    }
+
+    function saveCheckin() {
+      var flag = safeAnswer === 'yes' ? 'red' : (supportAnswer === 'no' ? 'yellow' : 'green');
+      var entry = {
+        mood: selectedMood,
+        energy: document.getElementById('energySlider').value,
+        pain: document.getElementById('painSlider').value,
+        fog: document.getElementById('fogSlider').value,
+        ate: document.getElementById('ateToday').checked,
+        water: document.getElementById('drankWater').checked,
+        meds: document.getElementById('tookMeds').checked,
+        slept: document.getElementById('sleptOk').checked,
+        supportContact: supportAnswer,
+        emergency: safeAnswer,
+        flag: flag,
+        notes: document.getElementById('checkinNotes').value,
+        savedAt: new Date().toISOString()
+      };
+
+      // Append to today's log (allows multiple per day)
+      var log = getTodayLog();
+      log.push(entry);
+      localStorage.setItem('checkins_' + dateKey, JSON.stringify(log));
+
+      // Show reassurance message based on flag
+      var msg = document.getElementById('savedMsg');
+      if (flag === 'red') {
+        msg.style.background = '#f8d7da';
+        msg.style.color = '#721c24';
+        msg.innerHTML = '🔴 Check-in saved. Please reach out — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or contact Bruise now.';
+      } else if (flag === 'yellow') {
+        msg.style.background = '#fff3cd';
+        msg.style.color = '#856404';
+        msg.innerHTML = '🟡 Check-in saved. Your team has been notified to check in with you.';
+      } else {
+        msg.style.background = '#e8f2f3';
+        msg.style.color = '#2d6a6d';
+        msg.innerHTML = '✔ Check-in saved.';
+      }
+      msg.style.display = 'block';
+      if (flag !== 'red') setTimeout(function() { msg.style.display = 'none'; }, 5000);
+
+      // Reset form for next check-in
+      selectedMood = ''; supportAnswer = ''; safeAnswer = '';
+      document.querySelectorAll('.mood-btn, .yn-btn').forEach(function(b) { b.classList.remove('selected'); });
+      document.getElementById('energySlider').value = 5; document.getElementById('energyVal').textContent = 5;
+      document.getElementById('painSlider').value = 0; document.getElementById('painVal').textContent = 0;
+      document.getElementById('fogSlider').value = 0; document.getElementById('fogVal').textContent = 0;
+      document.getElementById('ateToday').checked = false;
+      document.getElementById('drankWater').checked = false;
+      document.getElementById('tookMeds').checked = false;
+      document.getElementById('sleptOk').checked = false;
+      document.getElementById('checkinNotes').value = '';
+      document.getElementById('supportFlag').style.display = 'none';
+      document.getElementById('safeFlag').style.display = 'none';
+
+      renderLog();
+    }
+  </script>
+
+  <!-- Header loader -->
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(function(attr) {
+            newScript.setAttribute(attr.name, attr.value);
+          });
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+        var dragScript = document.createElement('script');
+        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
+        dragScript.onload = function() { if (typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(dragScript);
+      })
+      .catch(function(err) { console.error('Header load error:', err); });
+  </script>
+</body>
+</html>

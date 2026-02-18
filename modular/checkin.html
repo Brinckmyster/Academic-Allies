@@ -8,132 +8,136 @@
   <style>
     body {
       font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
-      font-size: 17pt;
-      line-height: 1.5;
+      font-size: 16pt;
+      line-height: 1.6;
       background: #FAFAF9;
-      color: #333333;
+      color: #333;
       min-height: 100vh;
       padding: 20px;
       margin: 0;
     }
-    .checkin-container {
-      max-width: 620px;
-      margin: 0 auto;
-    }
-    .page-title {
-      text-align: center;
-      color: #6CA0A3;
-      font-size: 22pt;
-      margin-bottom: 8px;
-    }
-    .date-display {
-      text-align: center;
-      color: #888;
-      font-size: 13pt;
-      margin-bottom: 28px;
-    }
+    .checkin-container { max-width: 640px; margin: 0 auto; }
+    .page-title { text-align: center; color: #6CA0A3; font-size: 22pt; margin-bottom: 6px; }
+    .date-display { text-align: center; color: #888; font-size: 13pt; margin-bottom: 28px; }
+
     .card {
       background: white;
-      border-radius: 20px;
-      padding: 24px;
-      margin-bottom: 20px;
+      border-radius: 18px;
+      padding: 22px 24px;
+      margin-bottom: 18px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-    .card h2 {
-      color: #6CA0A3;
-      font-size: 16pt;
-      margin-bottom: 16px;
-    }
-    .mood-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-    .mood-btn {
-      background: #f0f4f5;
-      border: 3px solid transparent;
-      border-radius: 14px;
-      padding: 14px 8px;
-      font-size: 28pt;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s;
-    }
-    .mood-btn:hover { background: #e0eced; }
-    .mood-btn.selected { border-color: #6CA0A3; background: #e8f2f3; }
-    .mood-label {
-      display: block;
-      font-size: 10pt;
-      color: #555;
-      margin-top: 4px;
-    }
-    .slider-wrap { margin: 8px 0; }
-    .slider-wrap label {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13pt;
-      margin-bottom: 6px;
-    }
-    input[type="range"] {
-      width: 100%;
-      accent-color: #6CA0A3;
-      height: 8px;
-    }
-    textarea {
-      width: 100%;
-      border: 2px solid #e0e0e0;
-      border-radius: 10px;
-      padding: 12px;
-      font-family: inherit;
-      font-size: 14pt;
-      resize: vertical;
-      min-height: 90px;
-      box-sizing: border-box;
-    }
-    textarea:focus { border-color: #6CA0A3; outline: none; }
-    .save-btn {
-      background: #6CA0A3;
-      color: white;
-      border: none;
-      border-radius: 25px;
-      padding: 14px 40px;
-      font-size: 16pt;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 8px;
-      min-height: 19mm;
-    }
-    .save-btn:hover { background: #5a8c8f; }
-    .save-btn:active { transform: scale(0.98); }
-    .saved-msg {
-      display: none;
-      text-align: center;
-      color: #4CAF50;
-      font-size: 14pt;
-      padding: 10px;
-    }
-    .prev-checkin {
-      color: #888;
+    .card h2 { color: #6CA0A3; font-size: 15pt; margin: 0 0 10px 0; }
+
+    .reassurance {
+      background: #f0f7f8;
+      border-left: 4px solid #6CA0A3;
+      border-radius: 0 10px 10px 0;
+      padding: 10px 14px;
       font-size: 12pt;
-      text-align: center;
-      margin-top: 8px;
+      color: #555;
+      margin-bottom: 14px;
+      line-height: 1.5;
     }
+
+    /* Yes / No / Skip buttons */
+    .yn-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .yn-btn {
       flex: 1;
-      padding: 12px 8px;
+      min-width: 80px;
+      padding: 12px 10px;
       border: 2px solid #ddd;
       border-radius: 12px;
       font-size: 13pt;
       cursor: pointer;
       background: #f0f4f5;
-      transition: all 0.2s;
       font-family: inherit;
+      transition: all 0.18s;
+      text-align: center;
     }
     .yn-btn:hover { background: #e0eced; border-color: #6CA0A3; }
-    .yn-btn.selected { background: #e8f2f3; border-color: #6CA0A3; }
-    .yn-btn.urgent-btn { background: #fff0f0; border-color: #ffcccc; }
-    .yn-btn.urgent-btn.selected { background: #f8d7da; border-color: #dc3545; }
-    .yn-btn.skip-btn { flex: 0 0 auto; background: #f8f8f8; color: #999; font-size: 11pt; }
+    .yn-btn.selected-yes  { background: #d4edda; border-color: #28a745; color: #155724; }
+    .yn-btn.selected-no   { background: #fff3cd; border-color: #ffc107; color: #856404; }
+    .yn-btn.selected-red  { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+    .yn-btn.skip          { flex: 0 0 auto; background: #f8f8f8; color: #aaa; font-size: 11pt; border-color: #eee; }
+    .yn-btn.skip:hover    { color: #777; border-color: #ccc; }
+
+    /* Expandable checklist (for symptom question) */
+    .symptom-list {
+      display: none;
+      margin-top: 14px;
+      padding: 14px;
+      background: #f8f8f8;
+      border-radius: 12px;
+    }
+    .symptom-list.open { display: block; }
+    .symptom-list label {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13pt; margin-bottom: 10px; cursor: pointer;
+    }
+    .symptom-list input[type="checkbox"] {
+      width: 20px; height: 20px; accent-color: #6CA0A3; flex-shrink: 0;
+    }
+
+    /* Mood grid */
+    .mood-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    .mood-btn {
+      background: #f0f4f5; border: 2px solid transparent;
+      border-radius: 12px; padding: 12px 6px; font-size: 24pt;
+      cursor: pointer; text-align: center; transition: all 0.18s;
+      font-family: inherit;
+    }
+    .mood-btn:hover { background: #e0eced; }
+    .mood-btn.selected { border-color: #6CA0A3; background: #e8f2f3; }
+    .mood-label { display: block; font-size: 9pt; color: #555; margin-top: 3px; }
+
+    /* "Have you…" checkboxes */
+    .hyu-list { display: flex; flex-direction: column; gap: 12px; }
+    .hyu-list label {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 14pt; cursor: pointer;
+    }
+    .hyu-list input[type="checkbox"] {
+      width: 22px; height: 22px; accent-color: #6CA0A3; flex-shrink: 0;
+    }
+
+    textarea {
+      width: 100%; border: 2px solid #e0e0e0; border-radius: 10px;
+      padding: 12px; font-family: inherit; font-size: 13pt;
+      resize: vertical; min-height: 80px; box-sizing: border-box;
+    }
+    textarea:focus { border-color: #6CA0A3; outline: none; }
+
+    /* Inline flag note (shows when No selected) */
+    .flag-note {
+      display: none; margin-top: 12px; font-size: 12pt;
+      padding: 10px 14px; border-radius: 10px;
+    }
+    .flag-note.yellow { background: #fff3cd; color: #856404; }
+    .flag-note.red    { background: #f8d7da; color: #721c24; }
+
+    .save-btn {
+      background: #6CA0A3; color: white; border: none;
+      border-radius: 25px; padding: 14px 40px; font-size: 16pt;
+      cursor: pointer; width: 100%; margin-top: 6px;
+      min-height: 19mm; font-family: inherit;
+    }
+    .save-btn:hover { background: #5a8c8f; }
+    .save-btn:active { transform: scale(0.98); }
+
+    #savedMsg {
+      display: none; text-align: center; padding: 14px 18px;
+      border-radius: 14px; margin-top: 14px; font-size: 13pt;
+    }
+
+    /* Today's log */
+    .log-title { color: #6CA0A3; font-weight: 600; font-size: 12pt; margin-bottom: 10px; }
+    .log-entry {
+      background: #f0f4f5; border-radius: 12px;
+      padding: 10px 14px; margin-bottom: 8px; font-size: 11pt;
+    }
   </style>
 </head>
 <body>
@@ -143,112 +147,198 @@
     <h1 class="page-title">📋 Daily Check-In</h1>
     <p class="date-display" id="todayDate"></p>
 
+    <!-- MOOD (supplemental, not in core spec) -->
     <div class="card">
-      <h2>Overall feeling right now 💭</h2>
+      <h2>How are you feeling right now? 💭</h2>
+      <div class="reassurance">This is just for your own tracking — no flags, no alerts. Skip it if you want.</div>
       <div class="mood-grid">
-        <button class="mood-btn" onclick="selectMood(this, 'Great')" aria-label="Great">😄<span class="mood-label">Great</span></button>
-        <button class="mood-btn" onclick="selectMood(this, 'Good')" aria-label="Good">🙂<span class="mood-label">Good</span></button>
-        <button class="mood-btn" onclick="selectMood(this, 'Okay')" aria-label="Okay">😐<span class="mood-label">Okay</span></button>
-        <button class="mood-btn" onclick="selectMood(this, 'Tired')" aria-label="Tired">😴<span class="mood-label">Tired</span></button>
-        <button class="mood-btn" onclick="selectMood(this, 'Anxious')" aria-label="Anxious">😰<span class="mood-label">Anxious</span></button>
-        <button class="mood-btn" onclick="selectMood(this, 'Struggling')" aria-label="Struggling">😔<span class="mood-label">Struggling</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Great')"     aria-label="Great">😄<span class="mood-label">Great</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Good')"      aria-label="Good">🙂<span class="mood-label">Good</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Okay')"      aria-label="Okay">😐<span class="mood-label">Okay</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Tired')"     aria-label="Tired">😴<span class="mood-label">Tired</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Anxious')"   aria-label="Anxious">😰<span class="mood-label">Anxious</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Struggling')" aria-label="Struggling">😔<span class="mood-label">Struggling</span></button>
       </div>
     </div>
 
+    <!-- QUESTION A: Symptoms -->
     <div class="card">
-      <h2>Energy &amp; Pain 🔋</h2>
-      <div class="slider-wrap">
-        <label>
-          <span>Energy (spoons) right now</span>
-          <span id="energyVal">5</span>
-        </label>
-        <input type="range" min="1" max="10" value="5" id="energySlider"
-               oninput="document.getElementById('energyVal').textContent = this.value" />
-        <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
-          <span>Running on empty 😓</span><span>Full tank ⚡</span>
-        </div>
+      <h2>A. Pain, fatigue, or brain fog today?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If we notice signs of a bad brain day in the background, we'll note that for you. No action needed unless you want to add details.</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="symptomsNo"   onclick="selectQ('symptoms','no')">✅ No</button>
+        <button class="yn-btn" id="symptomsYes"  onclick="selectQ('symptoms','yes')">😔 Yes</button>
+        <button class="yn-btn skip"              onclick="selectQ('symptoms','skip')">⏭ Skip</button>
       </div>
-      <div class="slider-wrap" style="margin-top:18px;">
-        <label>
-          <span>Pain / discomfort level</span>
-          <span id="painVal">0</span>
-        </label>
-        <input type="range" min="0" max="10" value="0" id="painSlider"
-               oninput="document.getElementById('painVal').textContent = this.value" />
-        <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
-          <span>None 😌</span><span>Really bad 🔥</span>
-        </div>
-      </div>
-      <div class="slider-wrap" style="margin-top:18px;">
-        <label>
-          <span>Brain fog level</span>
-          <span id="fogVal">0</span>
-        </label>
-        <input type="range" min="0" max="10" value="0" id="fogSlider"
-               oninput="document.getElementById('fogVal').textContent = this.value" />
-        <div style="display:flex;justify-content:space-between;font-size:11pt;color:#888;margin-top:2px;">
-          <span>Clear 🧠</span><span>Total fog 🌫️</span>
-        </div>
+      <div class="symptom-list" id="symptomChecklist">
+        <strong style="font-size:12pt;color:#555;display:block;margin-bottom:10px;">Which ones? (check all that apply)</strong>
+        <label><input type="checkbox" value="Headache"> Headache</label>
+        <label><input type="checkbox" value="Muscle pain"> Muscle pain</label>
+        <label><input type="checkbox" value="Joint pain"> Joint pain</label>
+        <label><input type="checkbox" value="Severe tiredness/fatigue"> Severe tiredness / fatigue</label>
+        <label><input type="checkbox" value="Trouble thinking/brain fog"> Trouble thinking / brain fog</label>
+        <label><input type="checkbox" value="Dizziness"> Dizziness</label>
+        <label><input type="checkbox" value="Nausea"> Nausea</label>
+        <label><input type="checkbox" value="Other"> Other</label>
       </div>
     </div>
 
+    <!-- QUESTION B: Sleep -->
     <div class="card">
-      <h2>Have you…? ✅</h2>
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="ateToday" style="width:22px;height:22px;accent-color:#6CA0A3;"> Eaten something today</label>
-        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="drankWater" style="width:22px;height:22px;accent-color:#6CA0A3;"> Had water or fluids</label>
-        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="tookMeds" style="width:22px;height:22px;accent-color:#6CA0A3;"> Taken any needed meds</label>
-        <label style="display:flex;align-items:center;gap:12px;font-size:15pt;"><input type="checkbox" id="sleptOk" style="width:22px;height:22px;accent-color:#6CA0A3;"> Got at least 6 hours of sleep last night</label>
+      <h2>B. At least 6 hours of sleep last night?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If you use a phone-based sleep app, this can be auto-logged eventually. No action needed unless you want to record it.</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="sleepYes" onclick="selectQ('sleep','yes')">✅ Yes</button>
+        <button class="yn-btn" id="sleepNo"  onclick="selectQ('sleep','no')">❌ No</button>
+        <button class="yn-btn skip"          onclick="selectQ('sleep','skip')">⏭ Skip</button>
       </div>
     </div>
 
+    <!-- HAVE YOU…? (supplemental basics) -->
     <div class="card">
-      <h2>Support connection 💬</h2>
-      <p style="font-size:13pt;color:#666;margin-bottom:14px;">Did you talk to, text, or reach out to anyone on your support team today? (Bruise, Mom, a counselor, anyone.)</p>
-      <div style="display:flex;gap:14px;">
-        <button class="yn-btn" id="supportYes" onclick="selectYN('support','yes')">✅ Yes</button>
-        <button class="yn-btn" id="supportNo" onclick="selectYN('support','no')">❌ Not yet</button>
-        <button class="yn-btn skip-btn" onclick="selectYN('support','skip')">⏭️ Skip</button>
+      <h2>Quick basics ✅</h2>
+      <div class="reassurance">No flags — just helpful to track for yourself and your team.</div>
+      <div class="hyu-list">
+        <label><input type="checkbox" id="ateToday">   Eaten something today</label>
+        <label><input type="checkbox" id="drankWater"> Had water or fluids</label>
+        <label><input type="checkbox" id="tookMeds">   Taken any needed meds</label>
       </div>
-      <p id="supportFlag" style="display:none;margin-top:10px;font-size:12pt;padding:8px 12px;border-radius:8px;background:#fff3cd;color:#856404;">🟡 That's okay — just flagging so your team knows to check in with you.</p>
     </div>
 
+    <!-- QUESTION C: Support connection -->
     <div class="card">
-      <h2>Safety check 🛡️</h2>
-      <p style="font-size:13pt;color:#666;margin-bottom:14px;">Are you experiencing anything that feels like an emergency — physically, mentally, or emotionally?</p>
-      <div style="display:flex;gap:14px;">
-        <button class="yn-btn" id="safeYes" onclick="selectYN('safe','no')">✅ I'm okay</button>
-        <button class="yn-btn urgent-btn" id="safeNo" onclick="selectYN('safe','yes')">🚨 I need help</button>
-        <button class="yn-btn skip-btn" onclick="selectYN('safe','skip')">⏭️ Skip</button>
+      <h2>C. Talked to someone on your support team today?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If you skip, we'll just note that. No action needed unless you want to add details. (Bruise, Mom, a counselor, anyone counts.)</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="supportYes" onclick="selectQ('support','yes')">✅ Yes</button>
+        <button class="yn-btn" id="supportNo"  onclick="selectQ('support','no')">❌ Not yet</button>
+        <button class="yn-btn skip"            onclick="selectQ('support','skip')">⏭ Skip</button>
       </div>
-      <p id="safeFlag" style="display:none;margin-top:10px;font-size:12pt;padding:8px 12px;border-radius:8px;background:#f8d7da;color:#721c24;">🔴 Please reach out right away — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or call/text Bruise.</p>
+      <div class="flag-note yellow" id="supportFlagNote">🟡 Noted — your team will know to check in with you.</div>
     </div>
 
+    <!-- QUESTION D: Planner review -->
     <div class="card">
-      <h2>What's going on? 📝</h2>
-      <textarea id="checkinNotes" placeholder="Anything — how class went, what hurts, what you need, what's on your mind… (totally optional)"></textarea>
+      <h2>D. Reviewed your calendar or planner today?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If you skip, we'll just note that. No action needed unless you want to add details.</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="plannerYes" onclick="selectQ('planner','yes')">✅ Yes</button>
+        <button class="yn-btn" id="plannerNo"  onclick="selectQ('planner','no')">❌ Not today</button>
+        <button class="yn-btn skip"            onclick="selectQ('planner','skip')">⏭ Skip</button>
+      </div>
+    </div>
+
+    <!-- QUESTION E: Emergency protocols -->
+    <div class="card">
+      <h2>E. Did you need emergency support today?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If you skip, we'll just note that. No action needed unless you want to record it.</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="emergencyNo"  onclick="selectQ('emergency','no')">✅ No</button>
+        <button class="yn-btn" id="emergencyYes" onclick="selectQ('emergency','yes')">🚨 Yes</button>
+        <button class="yn-btn skip"              onclick="selectQ('emergency','skip')">⏭ Skip</button>
+      </div>
+      <div class="flag-note red" id="emergencyFlagNote">🔴 Recorded. Please reach out right now — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or contact Bruise directly.</div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="card">
+      <h2>Anything else to note? 📝</h2>
+      <div class="reassurance">Completely optional. Anything — how class went, what hurts, what you need, what's on your mind.</div>
+      <textarea id="checkinNotes" placeholder="Type here, or leave it blank…"></textarea>
     </div>
 
     <button class="save-btn" onclick="saveCheckin()">Save Check-In ✓</button>
-
-    <div id="savedMsg" style="display:none;text-align:center;padding:16px;border-radius:16px;margin-top:12px;"></div>
-
-    <div id="todayLog" style="margin-top:24px;"></div>
+    <div id="savedMsg"></div>
+    <div id="todayLog" style="margin-top:28px;"></div>
   </div>
 
   <script>
+    // ── State ──────────────────────────────────────────────
     var selectedMood = '';
-    var supportAnswer = '';
-    var safeAnswer = '';
+    var answers = { symptoms: '', sleep: '', support: '', planner: '', emergency: '' };
     var now = new Date();
-    var dateKey = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    var dateKey = now.toISOString().split('T')[0];
 
-    // Show today's date
+    // Show date
     document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
 
-    // Load today's log (array of check-ins)
+    // ── Mood ───────────────────────────────────────────────
+    function selectMood(btn, mood) {
+      selectedMood = mood;
+      document.querySelectorAll('.mood-btn').forEach(function(b) { b.classList.remove('selected'); });
+      btn.classList.add('selected');
+    }
+
+    // ── Yes/No/Skip questions ──────────────────────────────
+    var questionIds = {
+      symptoms: ['symptomsNo', 'symptomsYes'],
+      sleep:    ['sleepYes',   'sleepNo'],
+      support:  ['supportYes', 'supportNo'],
+      planner:  ['plannerYes', 'plannerNo'],
+      emergency:['emergencyNo','emergencyYes']
+    };
+
+    function selectQ(group, answer) {
+      answers[group] = answer;
+
+      // Clear button styles for this group
+      questionIds[group].forEach(function(id) {
+        var btn = document.getElementById(id);
+        if (btn) btn.className = 'yn-btn';
+      });
+
+      // Style the selected button
+      if (answer === 'yes') {
+        var yesId = questionIds[group][0]; // first = Yes (or No for symptoms/emergency which are reversed)
+        // symptoms: No=first, Yes=second; sleep: Yes=first, No=second
+        // support: Yes=first, No=second; planner: Yes=first, No=second; emergency: No=first, Yes=second
+        var btnMap = {
+          symptoms:  { yes: 'symptomsYes',  no: 'symptomsNo'  },
+          sleep:     { yes: 'sleepYes',      no: 'sleepNo'     },
+          support:   { yes: 'supportYes',    no: 'supportNo'   },
+          planner:   { yes: 'plannerYes',    no: 'plannerNo'   },
+          emergency: { yes: 'emergencyYes',  no: 'emergencyNo' }
+        };
+        var yesBtn = document.getElementById(btnMap[group].yes);
+        var noBtn  = document.getElementById(btnMap[group].no);
+        if (answer === 'yes' && yesBtn) yesBtn.className = (group === 'emergency') ? 'yn-btn selected-red' : 'yn-btn selected-yes';
+        if (answer === 'no'  && noBtn)  noBtn.className  = (group === 'support' && answer === 'no') ? 'yn-btn selected-no' : 'yn-btn selected-no';
+      } else if (answer === 'no') {
+        var btnMap2 = {
+          symptoms:  'symptomsNo',
+          sleep:     'sleepNo',
+          support:   'supportNo',
+          planner:   'plannerNo',
+          emergency: 'emergencyNo'
+        };
+        var btn2 = document.getElementById(btnMap2[group]);
+        if (btn2) btn2.className = 'yn-btn selected-no';
+      }
+
+      // Symptom checklist toggle
+      if (group === 'symptoms') {
+        var cl = document.getElementById('symptomChecklist');
+        cl.className = answer === 'yes' ? 'symptom-list open' : 'symptom-list';
+      }
+
+      // Support flag note
+      if (group === 'support') {
+        document.getElementById('supportFlagNote').style.display = (answer === 'no') ? 'block' : 'none';
+      }
+
+      // Emergency flag note
+      if (group === 'emergency') {
+        document.getElementById('emergencyFlagNote').style.display = (answer === 'yes') ? 'block' : 'none';
+        var eYes = document.getElementById('emergencyYes');
+        var eNo  = document.getElementById('emergencyNo');
+        if (answer === 'yes') { if(eYes) eYes.className = 'yn-btn selected-red'; }
+        else if (answer === 'no') { if(eNo) eNo.className = 'yn-btn selected-yes'; }
+      }
+    }
+
+    // ── Log ────────────────────────────────────────────────
     function getTodayLog() {
       var raw = localStorage.getItem('checkins_' + dateKey);
       return raw ? JSON.parse(raw) : [];
@@ -258,15 +348,15 @@
       var log = getTodayLog();
       var container = document.getElementById('todayLog');
       if (log.length === 0) { container.innerHTML = ''; return; }
-      var html = '<div style="color:#6CA0A3;font-weight:600;font-size:13pt;margin-bottom:10px;">Today\'s check-ins (' + log.length + ')</div>';
-      log.slice().reverse().forEach(function(entry, i) {
-        var t = new Date(entry.savedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-        var flagDot = entry.flag === 'red' ? '🔴' : entry.flag === 'yellow' ? '🟡' : '🟢';
-        html += '<div style="background:#f0f4f5;border-radius:12px;padding:12px 16px;margin-bottom:8px;font-size:12pt;">';
-        html += flagDot + ' <strong>' + t + '</strong> — ' + (entry.mood || '—');
-        html += ' | Energy: ' + entry.energy + ' | Pain: ' + entry.pain;
-        if (entry.fog && entry.fog > 0) html += ' | Fog: ' + entry.fog;
-        if (entry.notes) html += '<br><span style="color:#555;">' + entry.notes + '</span>';
+      var html = '<div class="log-title">Today\'s check-ins (' + log.length + ')</div>';
+      log.slice().reverse().forEach(function(e) {
+        var t   = new Date(e.savedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        var dot = e.flag === 'red' ? '🔴' : e.flag === 'yellow' ? '🟡' : '🟢';
+        html += '<div class="log-entry">' + dot + ' <strong>' + t + '</strong>';
+        if (e.mood) html += ' — ' + e.mood;
+        if (e.symptoms === 'yes' && e.symptomList && e.symptomList.length)
+          html += '<br>Symptoms: ' + e.symptomList.join(', ');
+        if (e.notes) html += '<br><span style="color:#555;">' + e.notes + '</span>';
         html += '</div>';
       });
       container.innerHTML = html;
@@ -274,101 +364,69 @@
 
     renderLog();
 
-    function selectMood(btn, mood) {
-      selectedMood = mood;
-      document.querySelectorAll('.mood-btn').forEach(function(b) { b.classList.remove('selected'); });
-      btn.classList.add('selected');
-    }
-
-    function selectYN(group, answer) {
-      if (group === 'support') {
-        supportAnswer = answer;
-        document.querySelectorAll('#supportYes, #supportNo').forEach(function(b) { b.classList.remove('selected'); });
-        if (answer === 'no') {
-          document.getElementById('supportNo').classList.add('selected');
-          document.getElementById('supportFlag').style.display = 'block';
-        } else if (answer === 'yes') {
-          document.getElementById('supportYes').classList.add('selected');
-          document.getElementById('supportFlag').style.display = 'none';
-        } else {
-          document.getElementById('supportFlag').style.display = 'none';
-        }
-      }
-      if (group === 'safe') {
-        safeAnswer = answer;
-        document.querySelectorAll('#safeYes, #safeNo').forEach(function(b) { b.classList.remove('selected'); });
-        if (answer === 'yes') { // "I need help"
-          document.getElementById('safeNo').classList.add('selected');
-          document.getElementById('safeFlag').style.display = 'block';
-        } else if (answer === 'no') { // "I'm okay"
-          document.getElementById('safeYes').classList.add('selected');
-          document.getElementById('safeFlag').style.display = 'none';
-        } else {
-          document.getElementById('safeFlag').style.display = 'none';
-        }
-      }
-    }
-
-    function getFlag(entry) {
-      if (entry.emergency === 'yes') return 'red';
-      if (entry.supportContact === 'no') return 'yellow';
-      return 'green';
-    }
-
+    // ── Save ───────────────────────────────────────────────
     function saveCheckin() {
-      var flag = safeAnswer === 'yes' ? 'red' : (supportAnswer === 'no' ? 'yellow' : 'green');
+      // Determine overall flag
+      var flag = 'green';
+      if (answers.emergency === 'yes') flag = 'red';
+      else if (answers.support === 'no') flag = 'yellow';
+
+      // Collect symptom checklist
+      var symptomList = [];
+      if (answers.symptoms === 'yes') {
+        document.querySelectorAll('#symptomChecklist input[type="checkbox"]:checked').forEach(function(cb) {
+          symptomList.push(cb.value);
+        });
+      }
+
       var entry = {
-        mood: selectedMood,
-        energy: document.getElementById('energySlider').value,
-        pain: document.getElementById('painSlider').value,
-        fog: document.getElementById('fogSlider').value,
-        ate: document.getElementById('ateToday').checked,
-        water: document.getElementById('drankWater').checked,
-        meds: document.getElementById('tookMeds').checked,
-        slept: document.getElementById('sleptOk').checked,
-        supportContact: supportAnswer,
-        emergency: safeAnswer,
-        flag: flag,
-        notes: document.getElementById('checkinNotes').value,
-        savedAt: new Date().toISOString()
+        mood:        selectedMood,
+        symptoms:    answers.symptoms,
+        symptomList: symptomList,
+        sleep:       answers.sleep,
+        ate:         document.getElementById('ateToday').checked,
+        water:       document.getElementById('drankWater').checked,
+        meds:        document.getElementById('tookMeds').checked,
+        support:     answers.support,
+        planner:     answers.planner,
+        emergency:   answers.emergency,
+        flag:        flag,
+        notes:       document.getElementById('checkinNotes').value,
+        savedAt:     new Date().toISOString()
       };
 
-      // Append to today's log (allows multiple per day)
       var log = getTodayLog();
       log.push(entry);
       localStorage.setItem('checkins_' + dateKey, JSON.stringify(log));
 
-      // Show reassurance message based on flag
+      // Show save message
       var msg = document.getElementById('savedMsg');
       if (flag === 'red') {
-        msg.style.background = '#f8d7da';
-        msg.style.color = '#721c24';
+        msg.style.cssText = 'display:block;background:#f8d7da;color:#721c24;padding:14px;border-radius:14px;margin-top:14px;font-size:13pt;';
         msg.innerHTML = '🔴 Check-in saved. Please reach out — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or contact Bruise now.';
       } else if (flag === 'yellow') {
-        msg.style.background = '#fff3cd';
-        msg.style.color = '#856404';
+        msg.style.cssText = 'display:block;background:#fff3cd;color:#856404;padding:14px;border-radius:14px;margin-top:14px;font-size:13pt;';
         msg.innerHTML = '🟡 Check-in saved. Your team has been notified to check in with you.';
+        setTimeout(function() { msg.style.display = 'none'; }, 6000);
       } else {
-        msg.style.background = '#e8f2f3';
-        msg.style.color = '#2d6a6d';
-        msg.innerHTML = '✔ Check-in saved.';
+        msg.style.cssText = 'display:block;background:#e8f2f3;color:#2d6a6d;padding:14px;border-radius:14px;margin-top:14px;font-size:13pt;';
+        msg.textContent = '✔ Check-in saved.';
+        setTimeout(function() { msg.style.display = 'none'; }, 4000);
       }
-      msg.style.display = 'block';
-      if (flag !== 'red') setTimeout(function() { msg.style.display = 'none'; }, 5000);
 
-      // Reset form for next check-in
-      selectedMood = ''; supportAnswer = ''; safeAnswer = '';
-      document.querySelectorAll('.mood-btn, .yn-btn').forEach(function(b) { b.classList.remove('selected'); });
-      document.getElementById('energySlider').value = 5; document.getElementById('energyVal').textContent = 5;
-      document.getElementById('painSlider').value = 0; document.getElementById('painVal').textContent = 0;
-      document.getElementById('fogSlider').value = 0; document.getElementById('fogVal').textContent = 0;
+      // Reset form
+      selectedMood = '';
+      answers = { symptoms: '', sleep: '', support: '', planner: '', emergency: '' };
+      document.querySelectorAll('.mood-btn').forEach(function(b) { b.classList.remove('selected'); });
+      document.querySelectorAll('.yn-btn').forEach(function(b) { b.className = b.classList.contains('skip') ? 'yn-btn skip' : 'yn-btn'; });
+      document.getElementById('symptomChecklist').className = 'symptom-list';
+      document.querySelectorAll('#symptomChecklist input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+      document.getElementById('supportFlagNote').style.display = 'none';
+      document.getElementById('emergencyFlagNote').style.display = 'none';
       document.getElementById('ateToday').checked = false;
       document.getElementById('drankWater').checked = false;
       document.getElementById('tookMeds').checked = false;
-      document.getElementById('sleptOk').checked = false;
       document.getElementById('checkinNotes').value = '';
-      document.getElementById('supportFlag').style.display = 'none';
-      document.getElementById('safeFlag').style.display = 'none';
 
       renderLog();
     }
@@ -377,25 +435,22 @@
   <!-- Header loader -->
   <script>
     fetch('/Academic-Allies/modular/shared-header.html')
-      .then(function(response) { return response.text(); })
+      .then(function(r) { return r.text(); })
       .then(function(html) {
-        var container = document.getElementById('site-header');
-        container.innerHTML = html;
-        var scripts = container.querySelectorAll('script');
-        scripts.forEach(function(oldScript) {
-          var newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(function(attr) {
-            newScript.setAttribute(attr.name, attr.value);
-          });
-          newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.replaceWith(s);
         });
-        var dragScript = document.createElement('script');
-        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
-        dragScript.onload = function() { if (typeof initDrag === 'function') initDrag(); };
-        document.body.appendChild(dragScript);
+        var d = document.createElement('script');
+        d.src = '/Academic-Allies/modular/js/draggable.js';
+        d.onload = function() { if (typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(d);
       })
-      .catch(function(err) { console.error('Header load error:', err); });
+      .catch(function(e) { console.error('Header error:', e); });
   </script>
 </body>
 </html>
