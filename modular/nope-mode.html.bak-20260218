@@ -258,23 +258,6 @@
 </head>
 <body>
 
-  <!-- ── Auth Gate — covers everything until signed in ─────── -->
-  <div id="auth-gate" style="display:flex;position:fixed;inset:0;background:#0f1117;z-index:900;align-items:center;justify-content:center;padding:20px;">
-    <div style="text-align:center;max-width:320px;">
-      <div style="font-size:36pt;margin-bottom:12px;">🔐</div>
-      <h1 style="font-size:20pt;color:#fff;margin-bottom:10px;font-family:inherit;">Academic Allies</h1>
-      <p style="color:#7a8aaa;font-size:13pt;margin-bottom:28px;line-height:1.5;">
-        Sign in so your team knows when you need a Nope Day.
-      </p>
-      <button onclick="AA.signInWithGoogle()"
-              style="background:#fff;color:#222;border:none;border-radius:12px;padding:14px 24px;font-size:13pt;cursor:pointer;display:flex;align-items:center;gap:10px;margin:0 auto;font-family:inherit;font-weight:600;">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20" alt="Google">
-        Sign in with Google
-      </button>
-      <p style="margin-top:16px;font-size:11pt;color:#3a3a5a;">You'll stay signed in on this device.</p>
-    </div>
-  </div>
-
   <!-- ── Confirm overlay (before entering nope) ─────────── -->
   <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmText">
     <div class="confirm-box">
@@ -393,13 +376,6 @@
     </div>
   </div>
 
-  <!-- Firebase compat CDN -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <!-- Academic Allies Firebase layer -->
-  <script src="/Academic-Allies/modular/aa-firebase.js"></script>
-
   <script>
     // ── Section links ──────────────────────────────────────
     var SECTIONS = {
@@ -420,48 +396,10 @@
       { text: "Cast thy burden upon the Lord, and he shall sustain thee.", ref: "Psalm 55:22" }
     ];
 
-    // ── Firebase-backed state ──────────────────────────────
-    var currentMode     = null;   // 'nope' | 'semi-nope' | null
-    var semiVisible     = {};
-    var nopeActivatedAt = null;   // Date object
-    var currentUid      = null;
-    var _nopeUnsub      = null;   // unsubscribe fn for onSnapshot
-
-    // ── Auth gate ──────────────────────────────────────────
-    function showAuthGate(visible) {
-      var gate = document.getElementById('auth-gate');
-      if (gate) gate.style.display = visible ? 'flex' : 'none';
-    }
-
-    // ── Boot: listen for sign-in ───────────────────────────
-    AA.auth.onAuthStateChanged(function (user) {
-      if (user) {
-        currentUid = user.uid;
-        showAuthGate(false);
-        subscribeToNope();
-      } else {
-        currentUid = null;
-        showAuthGate(true);
-        if (_nopeUnsub) { _nopeUnsub(); _nopeUnsub = null; }
-      }
-    });
-
-    // Real-time Firestore listener — drives all routing
-    function subscribeToNope() {
-      if (_nopeUnsub) _nopeUnsub();
-      _nopeUnsub = AA.watchNope(currentUid, function (data) {
-        if (data && data.mode) {
-          currentMode     = data.mode;
-          semiVisible     = data.semi_nope_visible || {};
-          nopeActivatedAt = data.activatedAt ? data.activatedAt.toDate() : null;
-        } else {
-          currentMode     = null;
-          semiVisible     = {};
-          nopeActivatedAt = null;
-        }
-        route();
-      });
-    }
+    // ── State ──────────────────────────────────────────────
+    var currentMode = localStorage.getItem('nope_mode') || null; // 'nope' | 'semi-nope' | null
+    var semiVisible = {};
+    try { semiVisible = JSON.parse(localStorage.getItem('semi_nope_visible') || '{}'); } catch(e) {}
 
     // ── Routing ────────────────────────────────────────────
     function route() {
@@ -473,6 +411,7 @@
         restoreCheckboxes();
         renderLinks();
       } else {
+        // Came directly without mode — show confirm
         document.getElementById('confirmOverlay').classList.add('open');
       }
     }
@@ -491,23 +430,20 @@
 
     function activateNope() {
       document.getElementById('confirmOverlay').classList.remove('open');
-      nopeActivatedAt = new Date();
-      currentMode     = 'nope';
+      var now = new Date().toISOString();
+      localStorage.setItem('nope_mode',  'nope');
+      localStorage.setItem('nope_date',  now);
+      logNope('nope_day_set', now);
+      currentMode = 'nope';
       showScreen('nope-screen');
       updateTimestamp();
-      if (currentUid) {
-        AA.setNopeMode(currentUid, 'nope', {}, AA.Timestamp.fromDate(nopeActivatedAt));
-        AA.addNopeLog(currentUid, 'nope_day_set');
-      }
     }
 
     // ── Nope → Semi-Nope ───────────────────────────────────
     function goSemiNope() {
       currentMode = 'semi-nope';
-      if (currentUid) {
-        AA.setNopeMode(currentUid, 'semi-nope', semiVisible);
-        AA.addNopeLog(currentUid, 'semi_nope_started');
-      }
+      localStorage.setItem('nope_mode', 'semi-nope');
+      logNope('semi_nope_started', new Date().toISOString());
       showScreen('semi-nope-screen');
       restoreCheckboxes();
       renderLinks();
@@ -516,20 +452,18 @@
     // ── Semi-Nope → Nope ───────────────────────────────────
     function goBackToNope() {
       currentMode = 'nope';
-      if (currentUid) {
-        AA.setNopeMode(currentUid, 'nope', semiVisible);
-        AA.addNopeLog(currentUid, 'returned_to_nope');
-      }
+      localStorage.setItem('nope_mode', 'nope');
+      logNope('returned_to_nope', new Date().toISOString());
       showScreen('nope-screen');
       updateTimestamp();
     }
 
     // ── Cancel everything ──────────────────────────────────
     function cancelNope() {
-      if (currentUid) {
-        AA.addNopeLog(currentUid, 'nope_canceled');
-        AA.clearNope(currentUid);
-      }
+      var wasMode = currentMode;
+      logNope('nope_canceled', new Date().toISOString());
+      localStorage.removeItem('nope_mode');
+      localStorage.removeItem('semi_nope_visible');
       currentMode = null;
       window.location.href = '/Academic-Allies/';
     }
@@ -537,9 +471,7 @@
     // ── Semi-nope section toggle ───────────────────────────
     function toggleSection(key, checked) {
       semiVisible[key] = checked;
-      if (currentUid) {
-        AA.setNopeMode(currentUid, 'semi-nope', semiVisible);
-      }
+      localStorage.setItem('semi_nope_visible', JSON.stringify(semiVisible));
       var item = document.getElementById('item-' + key);
       if (item) item.classList.toggle('active', checked);
 
@@ -556,6 +488,7 @@
           }
         }
       }
+
       renderLinks();
     }
 
@@ -567,6 +500,7 @@
           var item = document.getElementById('item-' + key);
           if (item) item.classList.toggle('active', semiVisible[key]);
         }
+        // Restore comfort inline
         if (key === 'comfort' && semiVisible[key]) {
           var el = document.getElementById('section-comfort');
           if (el) {
@@ -595,16 +529,28 @@
       });
     }
 
+    // ── Logging ────────────────────────────────────────────
+    function logNope(event, timestamp) {
+      try {
+        var log = JSON.parse(localStorage.getItem('nope_day_log') || '[]');
+        log.push({ event: event, timestamp: timestamp, flag: 'red' });
+        localStorage.setItem('nope_day_log', JSON.stringify(log));
+      } catch(e) {}
+    }
+
     // ── Timestamp display ──────────────────────────────────
     function updateTimestamp() {
       var el = document.getElementById('nope-timestamp');
       if (!el) return;
-      if (nopeActivatedAt) {
-        el.textContent = 'Set at ' + nopeActivatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      var ts = localStorage.getItem('nope_date');
+      if (ts) {
+        var d = new Date(ts);
+        el.textContent = 'Set at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }
     }
 
-    // Route() is now called by the Firestore snapshot — no manual init call needed.
+    // ── Init ───────────────────────────────────────────────
+    route();
   </script>
 </body>
 </html>

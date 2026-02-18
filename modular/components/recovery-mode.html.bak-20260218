@@ -412,12 +412,6 @@
         </div>
     </div>
 
-    <!-- Firebase compat CDN — silent background sync -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="/Academic-Allies/modular/aa-firebase.js"></script>
-
     <script>
         // Spoon Management
         let dailySpoons = 10;
@@ -452,10 +446,6 @@
             updateSpoonCounter();
            
             localStorage.setItem('energyLevel', level);
-            // Firebase sync (silent, non-blocking)
-            if (window.AA && AA.auth && AA.auth.currentUser) {
-                AA.patchFlowerQuiz(AA.auth.currentUser.uid, { energyLevel: level });
-            }
         }
         function showSpoonPlanner() {
             alert('Spoon Planner coming soon! This will let you plan your entire day with spoon costs.');
@@ -572,10 +562,6 @@
                 reportedFlowers.push(currentFlower.name);
                 localStorage.setItem('reportedFlowers', JSON.stringify(reportedFlowers));
                 document.getElementById('report-count').textContent = reportedFlowers.length;
-                // Firebase sync (silent, non-blocking)
-                if (window.AA && AA.auth && AA.auth.currentUser) {
-                    AA.patchFlowerQuiz(AA.auth.currentUser.uid, { reportedFlowers: reportedFlowers });
-                }
                 alert(`✅ Reported: ${currentFlower.name} - Quiz ${currentFlower.quiz}\n\nTotal reports: ${reportedFlowers.length}`);
             } else {
                 alert(`Already reported: ${currentFlower.name}`);
@@ -643,13 +629,6 @@
                 flowerCount++;
                 localStorage.setItem('flowerCount', flowerCount);
                 document.getElementById('flower-count').textContent = flowerCount;
-                // Firebase sync — debounced so rapid answers don't hammer the DB
-                clearTimeout(window._fcTimer);
-                window._fcTimer = setTimeout(function() {
-                    if (window.AA && AA.auth && AA.auth.currentUser) {
-                        AA.patchFlowerQuiz(AA.auth.currentUser.uid, { flowerCount: flowerCount });
-                    }
-                }, 3000);
                 document.getElementById('quiz-progress').style.width = Math.min(flowerCount * 5, 100) + '%';
                
                 const result = document.getElementById('quiz-result');
@@ -781,51 +760,6 @@
             if (savedEnergy) {
                 var el = document.querySelector('[data-level="' + savedEnergy + '"]');
                 if (el) el.classList.add('selected');
-            }
-
-            // ── Firebase background sync (non-blocking) ──────────
-            // Recovery mode works fully without sign-in (localStorage).
-            // When signed in, Firebase loads the latest data and keeps
-            // it in sync across all of Mary's devices.
-            if (window.AA && AA.auth) {
-                AA.auth.onAuthStateChanged(function(user) {
-                    if (!user) return; // not signed in — just use localStorage, no problem
-                    AA.getFlowerQuiz(user.uid).then(function(doc) {
-                        if (!doc.exists) return; // first time — nothing to load yet
-                        var data = doc.data();
-
-                        // Load flowerCount from Firebase if it's higher than local
-                        // (takes the max so progress is never lost)
-                        if (typeof data.flowerCount === 'number' && data.flowerCount > flowerCount) {
-                            flowerCount = data.flowerCount;
-                            localStorage.setItem('flowerCount', flowerCount);
-                            var countEl = document.getElementById('flower-count');
-                            if (countEl) countEl.textContent = flowerCount;
-                            var progressEl = document.getElementById('quiz-progress');
-                            if (progressEl) progressEl.style.width = Math.min(flowerCount * 5, 100) + '%';
-                        }
-
-                        // Merge reportedFlowers (union of local + cloud)
-                        if (Array.isArray(data.reportedFlowers) && data.reportedFlowers.length > 0) {
-                            data.reportedFlowers.forEach(function(name) {
-                                if (!reportedFlowers.includes(name)) reportedFlowers.push(name);
-                            });
-                            localStorage.setItem('reportedFlowers', JSON.stringify(reportedFlowers));
-                            var reportCountEl = document.getElementById('report-count');
-                            if (reportCountEl) reportCountEl.textContent = reportedFlowers.length;
-                        }
-
-                        // Restore energyLevel from Firebase if not already set locally
-                        if (data.energyLevel && !localStorage.getItem('energyLevel')) {
-                            var energyEls = document.querySelectorAll('.energy-option');
-                            energyEls.forEach(function(opt) { opt.classList.remove('selected'); });
-                            var energyEl = document.querySelector('[data-level="' + data.energyLevel + '"]');
-                            if (energyEl) energyEl.classList.add('selected');
-                        }
-                    }).catch(function(err) {
-                        console.warn('[AA] FlowerQuiz load error (non-critical):', err);
-                    });
-                });
             }
         });
     </script>
