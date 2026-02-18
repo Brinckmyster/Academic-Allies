@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, signInWithCredential, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -16,35 +16,16 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Handle Google Sign-In
-window.handleGoogleSignIn = async function() {
-  const provider = new GoogleAuthProvider();
+// Handle Google Sign-In using an existing ID token (no popup needed)
+window.handleGoogleCredential = async function(idToken) {
   try {
-    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credential(idToken);
+    const result = await signInWithCredential(auth, credential);
     const user = result.user;
-    console.log('Signed in:', user.email);
-    
-    // Check if user has a role, if not create default
-    const q = query(collection(db, 'users'), where('email', '==', user.email));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      await addDoc(collection(db, 'users'), { email: user.email, role: 'pending', createdAt: new Date() });
-      window.location.reload();
-      return;
-    }
-    const userDoc = snapshot.docs[0];
-    if (!userDoc.exists()) {
-      await setDoc(collection(db, 'users'), {
-        email: user.email,
-        role: 'pending', // Default role until admin assigns
-        createdAt: new Date()
-      });
-    }
-    
-    window.location.reload();
+    console.log('[auth-system.js] signInWithCredential succeeded:', user.email);
+    // onAuthStateChanged will fire and set window.currentUser automatically
   } catch (error) {
-    console.error('Sign-in error:', error);
-    alert('Sign-in failed: ' + error.message);
+    console.error('[auth-system.js] signInWithCredential error:', error);
   }
 }
 
