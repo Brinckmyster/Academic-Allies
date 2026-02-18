@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nope Day — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+      min-height: 100vh;
+      background: #0f1117;
+      color: #e8e8e8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* ── Shared ─────────────────────────────────────────── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      text-align: center;
+      gap: 32px;
+    }
+    .screen.active { display: flex; }
+
+    /* ── Nope Screen ─────────────────────────────────────── */
+    #nope-screen { gap: 28px; }
+
+    .nope-day-text {
+      font-size: 52pt;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    .nope-sub {
+      font-size: 16pt;
+      color: #8a8a9a;
+      line-height: 1.6;
+      max-width: 340px;
+    }
+    .nope-notify-box {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 16px 22px;
+      font-size: 12pt;
+      color: #9090aa;
+      line-height: 1.7;
+      max-width: 380px;
+      width: 100%;
+      text-align: left;
+    }
+    .nope-notify-box strong { color: #b0b0c8; display: block; margin-bottom: 6px; }
+    .notify-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
+      font-size: 12pt;
+    }
+    .notify-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #dc3545; flex-shrink: 0;
+    }
+
+    /* Nope screen controls: semi-nope top-left area, cancel bottom-center */
+    .nope-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+    }
+    .btn-cancel-nope {
+      background: #2d6a6d;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 16px 44px;
+      font-size: 15pt;
+      font-family: inherit;
+      cursor: pointer;
+      min-height: 19mm;
+      transition: background 0.2s;
+      width: 100%;
+      max-width: 320px;
+    }
+    .btn-cancel-nope:hover { background: #3a8285; }
+
+    .btn-semi-nope {
+      background: transparent;
+      color: #6a6a8a;
+      border: 1px solid #3a3a5a;
+      border-radius: 50px;
+      padding: 10px 28px;
+      font-size: 11pt;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-semi-nope:hover { color: #9a9abc; border-color: #6a6a8a; }
+
+    /* ── Semi-Nope Screen ────────────────────────────────── */
+    #semi-nope-screen {
+      background: #16192a;
+      min-height: 100vh;
+      padding: 40px 20px;
+      justify-content: flex-start;
+      gap: 24px;
+    }
+
+    .semi-heading {
+      font-size: 26pt;
+      font-weight: 700;
+      color: #c8d8e8;
+    }
+    .semi-sub {
+      font-size: 13pt;
+      color: #7a8aaa;
+      line-height: 1.6;
+      max-width: 340px;
+    }
+
+    .checklist-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 20px 24px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .checklist-card h3 {
+      font-size: 12pt;
+      color: #7a8aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] {
+      width: 22px; height: 22px;
+      accent-color: #6CA0A3;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .check-label {
+      font-size: 14pt;
+      color: #c0c8d8;
+      user-select: none;
+    }
+    .check-item.active .check-label { color: #ffffff; }
+
+    /* Semi-nope controls: "Go Back to Nope" top-left style, "Cancel Nope" bottom */
+    .semi-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      max-width: 420px;
+      margin-top: 8px;
+    }
+    .btn-go-back {
+      background: rgba(220, 53, 69, 0.15);
+      color: #e88a94;
+      border: 1px solid rgba(220, 53, 69, 0.35);
+      border-radius: 50px;
+      padding: 12px 32px;
+      font-size: 12pt;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      align-self: flex-start;
+    }
+    .btn-go-back:hover { background: rgba(220,53,69,0.25); color: #f0a0aa; }
+
+    .btn-cancel-semi {
+      background: #2d6a6d;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 16px 44px;
+      font-size: 15pt;
+      font-family: inherit;
+      cursor: pointer;
+      min-height: 19mm;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    .btn-cancel-semi:hover { background: #3a8285; }
+
+    /* ── Confirm overlay ─────────────────────────────────── */
+    .confirm-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .confirm-overlay.open { display: flex; }
+    .confirm-box {
+      background: #1e2133;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 22px;
+      padding: 32px 28px;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+    }
+    .confirm-box p {
+      font-size: 15pt;
+      color: #d0d0e8;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .confirm-btns { display: flex; gap: 12px; }
+    .confirm-yes {
+      flex: 1; padding: 14px;
+      background: #dc3545; color: #fff;
+      border: none; border-radius: 14px;
+      font-size: 14pt; font-family: inherit; cursor: pointer;
+    }
+    .confirm-yes:hover { background: #c82333; }
+    .confirm-no {
+      flex: 1; padding: 14px;
+      background: rgba(255,255,255,0.08); color: #aaa;
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 14px;
+      font-size: 14pt; font-family: inherit; cursor: pointer;
+    }
+    .confirm-no:hover { background: rgba(255,255,255,0.14); }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Confirm overlay (before entering nope) ─────────── -->
+  <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmText">
+    <div class="confirm-box">
+      <p id="confirmText">Set a Nope Day?<br>
+        <span style="font-size:12pt;color:#7a8aaa;">Your team will be notified. You can cancel any time.</span>
+      </p>
+      <div class="confirm-btns">
+        <button class="confirm-yes" onclick="activateNope()">Yes — Nope Day</button>
+        <button class="confirm-no"  onclick="closeConfirm()">Not yet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── NOPE SCREEN ────────────────────────────────────── -->
+  <div id="nope-screen" class="screen" role="main" aria-label="Nope Day screen">
+
+    <div>
+      <div class="nope-day-text">Nope Day.</div>
+      <p class="nope-sub" style="margin-top:14px;">
+        You don't have to exist today.<br>That's okay.
+      </p>
+    </div>
+
+    <div class="nope-notify-box" aria-live="polite">
+      <strong>🔴 Your team has been notified.</strong>
+      <div class="notify-name"><span class="notify-dot"></span>Admin (Bruise)</div>
+      <div class="notify-name"><span class="notify-dot"></span>Mom</div>
+      <div class="notify-name"><span class="notify-dot"></span>In-person physical care</div>
+      <div class="notify-name"><span class="notify-dot"></span>On the ground troops</div>
+      <p style="margin-top:10px;font-size:11pt;color:#6a6a8a;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;">
+        They know: no texting, email, or knocking today.
+      </p>
+    </div>
+
+    <div class="nope-controls">
+      <button class="btn-cancel-nope" onclick="cancelNope()" aria-label="Cancel Nope Day and return to app">
+        Cancel Nope Day
+      </button>
+      <button class="btn-semi-nope" onclick="goSemiNope()" aria-label="Enter semi-nope mode — come back slowly">
+        semi-nope (come back slowly)
+      </button>
+    </div>
+
+    <p style="font-size:10pt;color:#3a3a5a;margin-top:8px;" id="nope-timestamp"></p>
+  </div>
+
+  <!-- ── SEMI-NOPE SCREEN ───────────────────────────────── -->
+  <div id="semi-nope-screen" class="screen" role="main" aria-label="Semi-nope day screen">
+
+    <div>
+      <div class="semi-heading">Coming back slowly…</div>
+      <p class="semi-sub" style="margin-top:10px;">
+        Check what you're ready to see. No pressure.<br>
+        Nothing is required.
+      </p>
+    </div>
+
+    <div class="checklist-card">
+      <h3>What do you want to bring back?</h3>
+
+      <label class="check-item" id="item-checkin">
+        <input type="checkbox" onchange="toggleSection('checkin', this.checked)"
+               aria-label="Show Daily Check-In">
+        <span class="check-label">📋 Daily Check-In</span>
+      </label>
+      <label class="check-item" id="item-meals">
+        <input type="checkbox" onchange="toggleSection('meals', this.checked)"
+               aria-label="Show Meal Plan">
+        <span class="check-label">🍽️ My Meal Plan</span>
+      </label>
+      <label class="check-item" id="item-spoons">
+        <input type="checkbox" onchange="toggleSection('spoons', this.checked)"
+               aria-label="Show Spoon Planner">
+        <span class="check-label">🥄 Spoon Planner</span>
+      </label>
+      <label class="check-item" id="item-calendar">
+        <input type="checkbox" onchange="toggleSection('calendar', this.checked)"
+               aria-label="Show Calendar">
+        <span class="check-label">📅 My Calendar</span>
+      </label>
+      <label class="check-item" id="item-messages">
+        <input type="checkbox" onchange="toggleSection('messages', this.checked)"
+               aria-label="Show Messages">
+        <span class="check-label">💬 Messages</span>
+      </label>
+      <label class="check-item" id="item-emergency">
+        <input type="checkbox" onchange="toggleSection('emergency', this.checked)"
+               aria-label="Show Emergency Contacts">
+        <span class="check-label">🆘 Emergency Contacts</span>
+      </label>
+      <label class="check-item" id="item-comfort">
+        <input type="checkbox" onchange="toggleSection('comfort', this.checked)"
+               aria-label="Show A Word of Comfort">
+        <span class="check-label">📖 A Word of Comfort</span>
+      </label>
+    </div>
+
+    <!-- Inline comfort section (appears when checked) -->
+    <div id="section-comfort"
+         style="display:none;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px 24px;max-width:420px;width:100%;font-size:14pt;color:#c8d8d0;font-style:italic;line-height:1.8;"
+         aria-live="polite">
+    </div>
+
+    <!-- Visible links for checked sections -->
+    <div id="semi-links" style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:420px;">
+      <!-- links injected by JS -->
+    </div>
+
+    <div class="semi-controls">
+      <button class="btn-go-back" onclick="goBackToNope()" aria-label="Return to full nope day">
+        ← Go back to nope
+      </button>
+      <button class="btn-cancel-semi" onclick="cancelNope()" aria-label="Cancel nope day and return to app">
+        Cancel Nope Day
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ── Section links ──────────────────────────────────────
+    var SECTIONS = {
+      checkin:   { label: '📋 Daily Check-In',     url: '/Academic-Allies/modular/checkin.html' },
+      meals:     { label: '🍽️ My Meal Plan',        url: '/Academic-Allies/modular/components/meal-planner-mary/meal-planner.html' },
+      spoons:    { label: '🥄 Spoon Planner',       url: '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html' },
+      calendar:  { label: '📅 My Calendar',         url: '/Academic-Allies/modular/components/calendar/calendar.html' },
+      messages:  { label: '💬 Messages',            url: '/Academic-Allies/modular/messages.html' },
+      emergency: { label: '🆘 Emergency Contacts',  url: '/Academic-Allies/modular/emergency.html' },
+      comfort:   { label: '📖 A Word of Comfort',   url: null } // inline
+    };
+
+    var comfortVerses = [
+      { text: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.", ref: "Matthew 11:28" },
+      { text: "Peace I leave with you, my peace I give unto you. Let not your heart be troubled, neither let it be afraid.", ref: "John 14:27" },
+      { text: "The Lord is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit.", ref: "Psalm 34:18" },
+      { text: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee.", ref: "Isaiah 41:10" },
+      { text: "Cast thy burden upon the Lord, and he shall sustain thee.", ref: "Psalm 55:22" }
+    ];
+
+    // ── State ──────────────────────────────────────────────
+    var currentMode = localStorage.getItem('nope_mode') || null; // 'nope' | 'semi-nope' | null
+    var semiVisible = {};
+    try { semiVisible = JSON.parse(localStorage.getItem('semi_nope_visible') || '{}'); } catch(e) {}
+
+    // ── Routing ────────────────────────────────────────────
+    function route() {
+      if (currentMode === 'nope') {
+        showScreen('nope-screen');
+        updateTimestamp();
+      } else if (currentMode === 'semi-nope') {
+        showScreen('semi-nope-screen');
+        restoreCheckboxes();
+        renderLinks();
+      } else {
+        // Came directly without mode — show confirm
+        document.getElementById('confirmOverlay').classList.add('open');
+      }
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+      var el = document.getElementById(id);
+      if (el) el.classList.add('active');
+    }
+
+    // ── Confirm & activate ─────────────────────────────────
+    function closeConfirm() {
+      document.getElementById('confirmOverlay').classList.remove('open');
+      window.location.href = '/Academic-Allies/';
+    }
+
+    function activateNope() {
+      document.getElementById('confirmOverlay').classList.remove('open');
+      var now = new Date().toISOString();
+      localStorage.setItem('nope_mode',  'nope');
+      localStorage.setItem('nope_date',  now);
+      logNope('nope_day_set', now);
+      currentMode = 'nope';
+      showScreen('nope-screen');
+      updateTimestamp();
+    }
+
+    // ── Nope → Semi-Nope ───────────────────────────────────
+    function goSemiNope() {
+      currentMode = 'semi-nope';
+      localStorage.setItem('nope_mode', 'semi-nope');
+      logNope('semi_nope_started', new Date().toISOString());
+      showScreen('semi-nope-screen');
+      restoreCheckboxes();
+      renderLinks();
+    }
+
+    // ── Semi-Nope → Nope ───────────────────────────────────
+    function goBackToNope() {
+      currentMode = 'nope';
+      localStorage.setItem('nope_mode', 'nope');
+      logNope('returned_to_nope', new Date().toISOString());
+      showScreen('nope-screen');
+      updateTimestamp();
+    }
+
+    // ── Cancel everything ──────────────────────────────────
+    function cancelNope() {
+      var wasMode = currentMode;
+      logNope('nope_canceled', new Date().toISOString());
+      localStorage.removeItem('nope_mode');
+      localStorage.removeItem('semi_nope_visible');
+      currentMode = null;
+      window.location.href = '/Academic-Allies/';
+    }
+
+    // ── Semi-nope section toggle ───────────────────────────
+    function toggleSection(key, checked) {
+      semiVisible[key] = checked;
+      localStorage.setItem('semi_nope_visible', JSON.stringify(semiVisible));
+      var item = document.getElementById('item-' + key);
+      if (item) item.classList.toggle('active', checked);
+
+      // Inline comfort section
+      if (key === 'comfort') {
+        var el = document.getElementById('section-comfort');
+        if (el) {
+          if (checked) {
+            var v = comfortVerses[Math.floor(Math.random() * comfortVerses.length)];
+            el.innerHTML = '"' + v.text + '"<div style="margin-top:12px;font-style:normal;font-size:12pt;color:#6a8a80;">— ' + v.ref + '</div>';
+            el.style.display = 'block';
+          } else {
+            el.style.display = 'none';
+          }
+        }
+      }
+
+      renderLinks();
+    }
+
+    function restoreCheckboxes() {
+      Object.keys(semiVisible).forEach(function(key) {
+        var checkbox = document.querySelector('#item-' + key + ' input[type="checkbox"]');
+        if (checkbox) {
+          checkbox.checked = semiVisible[key];
+          var item = document.getElementById('item-' + key);
+          if (item) item.classList.toggle('active', semiVisible[key]);
+        }
+        // Restore comfort inline
+        if (key === 'comfort' && semiVisible[key]) {
+          var el = document.getElementById('section-comfort');
+          if (el) {
+            var v = comfortVerses[Math.floor(Math.random() * comfortVerses.length)];
+            el.innerHTML = '"' + v.text + '"<div style="margin-top:12px;font-style:normal;font-size:12pt;color:#6a8a80;">— ' + v.ref + '</div>';
+            el.style.display = 'block';
+          }
+        }
+      });
+    }
+
+    function renderLinks() {
+      var container = document.getElementById('semi-links');
+      container.innerHTML = '';
+      Object.keys(SECTIONS).forEach(function(key) {
+        var sec = SECTIONS[key];
+        if (semiVisible[key] && sec.url) {
+          var a = document.createElement('a');
+          a.href = sec.url;
+          a.textContent = sec.label;
+          a.style.cssText = 'display:block;background:rgba(108,160,163,0.18);color:#a8d4d6;border:1px solid rgba(108,160,163,0.35);border-radius:14px;padding:14px 20px;font-size:14pt;text-decoration:none;text-align:center;transition:background 0.2s;';
+          a.onmouseenter = function() { this.style.background = 'rgba(108,160,163,0.3)'; };
+          a.onmouseleave = function() { this.style.background = 'rgba(108,160,163,0.18)'; };
+          container.appendChild(a);
+        }
+      });
+    }
+
+    // ── Logging ────────────────────────────────────────────
+    function logNope(event, timestamp) {
+      try {
+        var log = JSON.parse(localStorage.getItem('nope_day_log') || '[]');
+        log.push({ event: event, timestamp: timestamp, flag: 'red' });
+        localStorage.setItem('nope_day_log', JSON.stringify(log));
+      } catch(e) {}
+    }
+
+    // ── Timestamp display ──────────────────────────────────
+    function updateTimestamp() {
+      var el = document.getElementById('nope-timestamp');
+      if (!el) return;
+      var ts = localStorage.getItem('nope_date');
+      if (ts) {
+        var d = new Date(ts);
+        el.textContent = 'Set at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    }
+
+    // ── Init ───────────────────────────────────────────────
+    route();
+  </script>
+</body>
+</html>
