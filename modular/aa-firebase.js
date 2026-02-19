@@ -79,13 +79,19 @@
 
   /* Create user profile on first sign-in.
      Checks /pendingUsers/{email} so pre-registered users (like Amanda)
-     get the correct role automatically on their very first Google sign-in. */
+     get the correct role automatically on their very first Google sign-in.
+     Updated 2026-02-19 by Claude — fixed: non-admin new users got a
+     permission-denied error reading pendingUsers, which silently prevented
+     createUserDoc from ever being called. Now we catch that error per-step
+     and fall through to the default role. */
   auth.onAuthStateChanged(function (user) {
     if (!user) return;
     db.collection('users').doc(user.uid).get().then(function (doc) {
       if (doc.exists) return; // already registered, nothing to do
 
-      // Check if admin pre-registered this email
+      // Attempt to read a pending pre-registration for this email.
+      // Non-admin users will get PERMISSION_DENIED here (by design) —
+      // we catch it and fall through to creating with the default role.
       return db.collection('pendingUsers').doc(user.email).get()
         .then(function (pending) {
           var role;
@@ -94,11 +100,19 @@
             console.log('[AA] Found pending registration for', user.email, '→ role:', role);
             // Clean up the pending entry now that they've signed in
             return db.collection('pendingUsers').doc(user.email).delete()
+              .catch(function () { /* delete might also be denied — ok, ignore */ })
               .then(function () { return createUserDoc(user, role); });
           } else {
             role = ADMIN_EMAILS.indexOf(user.email) !== -1 ? 'admin' : 'student';
             return createUserDoc(user, role);
           }
+        })
+        .catch(function (err) {
+          // Permission denied reading pendingUsers (non-admin first-time sign-in).
+          // Fall through: create the user doc with default role.
+          console.log('[AA] pendingUsers check skipped (' + err.code + ') — using default role.');
+          var role = ADMIN_EMAILS.indexOf(user.email) !== -1 ? 'admin' : 'student';
+          return createUserDoc(user, role);
         });
     }).catch(function (err) {
       console.error('[AA] User profile create error:', err);
@@ -235,6 +249,30 @@
       .then(function (snap) {
         return snap.docs.map(function (d) { return { uid: d.id, data: d.data() }; });
       });
+  };
+
+  /* Get all admin-role users (so students can always message platform admins) */
+  window.AA.getAllAdmins = function () {
+    return db.collection('users')
+      .where('role', '==', 'admin')
+      .get()
+      .then(function (snap) {
+        return snap.docs.map(function (d) { return { uid: d.id, data: d.data() }; });
+      });
+  };
+
+  /* Get a student's meal plan base plan from Firestore */
+  window.AA.getMealBasePlan = function (uid) {
+    return db.collection('mealPlans').doc(uid).get()
+      .then(function (doc) { return doc.exists ? doc.data() : null; });
+  };
+
+  /* Save / merge a student's meal plan base plan */
+  window.AA.saveMealBasePlan = function (uid, plan) {
+    return db.collection('mealPlans').doc(uid).set(
+      Object.assign({}, plan, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() }),
+      { merge: true }
+    );
   };
 
   console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);
