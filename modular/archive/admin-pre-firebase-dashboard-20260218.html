@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - User Management</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <!-- Load auth system directly -->
+  <script type="module" src="/Academic-Allies/modular/js/auth-system.js"></script>
+  <style>
+    body { font-family: Arial; max-width: 1200px; margin: 0 auto; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background: #4CAF50; color: white; }
+    select { padding: 8px; border-radius: 4px; }
+    button { padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+  <script>
+    fetch("/Academic-Allies/modular/shared-header.html")
+      .then(r => r.text())
+      .then(html => {
+        const container = document.getElementById("site-header");
+        container.innerHTML = html;
+        // Re-execute scripts in the header
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+      });
+  </script>
+  
+  <h1>User Management</h1>
+  
+  <table id="userTable">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Current Role</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="userList">
+      <tr><td colspan="3">Loading users...</td></tr>
+    </tbody>
+  </table>
+  
+  <script type="module">
+    import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDk9mwSZgk9I65RpYlus7by9mB8tN_oskE",
+      authDomain: "academic-allies-464901.firebaseapp.com",
+      projectId: "academic-allies-464901",
+      storageBucket: "academic-allies-464901.firebasestorage.app",
+      messagingSenderId: "93996985456",
+      appId: "1:93996985456:web:c697df7623bbceeb1d18b5"
+    };
+
+    // Use existing Firebase app if already initialized (by auth-system.js)
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    const db = getFirestore(app);
+
+    // ADMIN PROTECTION: Wait for shared auth system to load, then check permission
+    function waitForAuth() {
+      let attempts = 0;
+      const maxAttempts = 300; // Wait up to 30 seconds for Google Sign-In to complete
+
+      const checkAuth = setInterval(() => {
+        attempts++;
+
+        // Wait for currentUser to be set to an actual user object (not just defined, but populated)
+        if (window.currentUser && window.currentUser.email) {
+          clearInterval(checkAuth);
+          console.log('Auth loaded! User:', window.currentUser.email, 'Role:', window.currentUser.role);
+
+          // Check if user has Admin role
+          if (window.currentUser.role !== 'Admin') {
+            alert(`Access denied: Admin role required. Your role: ${window.currentUser.role}`);
+            window.location.href = '/Academic-Allies/';
+            return;
+          }
+
+          // User is admin, load the page
+          loadUsers();
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkAuth);
+          console.error('Auth timeout. currentUser:', window.currentUser);
+          alert('You must be signed in to access this page. Please sign in and try again.');
+          window.location.href = '/Academic-Allies/';
+        }
+      }, 100);
+    }
+
+    // Wait a moment for auth-system.js to initialize
+    setTimeout(waitForAuth, 500);
+    
+    async function loadUsers() {
+      try {
+        const snapshot = await getDocs(collection(db, 'users'));
+        const tbody = document.getElementById('userList');
+        tbody.innerHTML = '';
+
+        if (snapshot.empty) {
+          tbody.innerHTML = '<tr><td colspan="3" style="color: #ff9800; text-align: center;">No users found in database. Sign in with Google to create first user.</td></tr>';
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const row = tbody.insertRow();
+          row.innerHTML = `
+            <td>${data.email}</td>
+            <td>${data.role}</td>
+            <td>
+              <select id="role-${doc.id}">
+                <option value="Student" ${data.role === 'Student' ? 'selected' : ''}>Student</option>
+                <option value="Family" ${data.role === 'Family' ? 'selected' : ''}>Family</option>
+                <option value="BYU-I Staff" ${data.role === 'BYU-I Staff' ? 'selected' : ''}>BYU-I Staff</option>
+                <option value="Support" ${data.role === 'Support' ? 'selected' : ''}>Support</option>
+                <option value="Nearby Help" ${data.role === 'Nearby Help' ? 'selected' : ''}>Nearby Help</option>
+                ${data.role === 'Admin' ? '<option value="Admin" selected>Admin (set by student)</option>' : ''}
+              </select>
+              <button onclick="updateRole('${doc.id}')">Update</button>
+            </td>
+          `;
+        });
+      } catch (error) {
+        console.error('Error loading users:', error);
+        const tbody = document.getElementById('userList');
+        tbody.innerHTML = '<tr><td colspan="3" style="color: #f44336;">Error loading users: ' + error.message + '</td></tr>';
+      }
+    }
+    
+    window.updateRole = async function(docId) {
+      const newRole = document.getElementById('role-' + docId).value;
+      await updateDoc(doc(db, 'users', docId), { role: newRole });
+      alert('Role updated!');
+      loadUsers();
+    }
+
+    // loadUsers() is now called after auth check passes in onAuthStateChanged
+  </script>
+</body>
+</html>
