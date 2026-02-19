@@ -94,7 +94,7 @@
 
     <!-- Platform admin: pick which student's network to manage -->
     <div id="student-picker-wrap">
-      <label for="student-picker">⚙️ Editing network on behalf of:</label>
+      <label for="student-picker">⚙️ Admin view — managing network for:</label>
       <select id="student-picker" onchange="switchStudent(this.value)">
         <option value="">— select a student —</option>
       </select>
@@ -154,10 +154,9 @@
     var isPlatformAdmin    = false;
     var isMirrorMode       = false;   // true for support/family/nearby-help roles
 
-    /* Non-student, non-admin roles get mirror (read-only) view.
-       Student = sudo (owns their network).
-       Admin = can edit on behalf of a student, but student can always override. */
-    var MIRROR_ROLES = ['support', 'family', 'nearby-help'];
+    /* Everyone except student gets mirror (read-only) view.
+       Student is sudo — they own their own network. */
+    var MIRROR_ROLES = ['admin', 'support', 'family', 'nearby-help'];
 
     /* ── Wait for AA to be ready, then boot ──────────────── */
     function waitForAA(cb, tries) {
@@ -186,12 +185,11 @@
             loadNetwork(user.uid, data.displayName || user.displayName || 'You');
 
           } else if (isPlatformAdmin) {
-            /* Platform admin = can edit any student's network on their behalf.
-               Student always has override power — they can change it back. */
-            isMirrorMode = false;
+            /* Platform admin = mirror, but with a student picker to choose whose network to view */
+            isMirrorMode = true;
             document.getElementById('student-picker-wrap').style.display = 'block';
             loadStudentPicker().then(applyUrlParam);
-            activateAdminEditBanner(data.displayName || user.displayName || 'You');
+            activateMirrorBanner('admin', data.displayName || user.displayName || 'You');
             document.getElementById('loading-msg').style.display = 'none';
 
           } else if (MIRROR_ROLES.indexOf(data.role) !== -1) {
@@ -211,22 +209,7 @@
       'nearby-help': 'Nearby Help'
     };
 
-    /* Admin edit mode banner — admin can edit on behalf of student */
-    function activateAdminEditBanner(name) {
-      var banner = document.getElementById('mirror-banner');
-      banner.style.background = 'linear-gradient(135deg, #fff7e6 0%, #fffbf0 100%)';
-      banner.style.borderColor = '#fbbf24';
-      banner.style.display = 'block';
-      document.getElementById('mirror-title').style.color = '#b45309';
-      document.getElementById('mirror-desc').style.color  = '#92400e';
-      document.getElementById('mirror-title').textContent =
-        '⚙️ Admin Edit Mode — ' + esc(name);
-      document.getElementById('mirror-desc').textContent =
-        'You can add, remove, or change roles on behalf of a student. ' +
-        'The student always has override power and can change their network back.';
-    }
-
-    /* Just show the mirror banner (read-only, for support/family/nearby-help) */
+    /* Just show the banner (used by admin who has their own picker) */
     function activateMirrorBanner(role, name) {
       var label = MIRROR_LABELS[role] || role;
       document.querySelector('.page-wrap').classList.add('mirror-mode');
