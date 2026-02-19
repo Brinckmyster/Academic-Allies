@@ -23,6 +23,9 @@
   <script src="time-utils.js"></script>
   <script src="suggestions.js"></script>
   <script src="edit-modal.js"></script>
+  <script type="module" src="firebase-photo-upload.js"></script>
+  <script src="edit-modal.js"></script>
+  <script type="module" src="firebase-photo-upload.js"></script>
   <script>
     fetch('/Academic-Allies/modular/shared-header.html')
       .then(response => response.text())
@@ -72,85 +75,63 @@
   </div>
 
   <script>
-    // Updated 2026-02-18 by Claude — fixed missing braces throughout,
-    // removed undefined photoFile ref, removed duplicate script tags,
-    // added removeMeal() per-item button.
-
-    // ── Data init ─────────────────────────────────────────────
+    // Meal planner functionality will go here
+    // Clear corrupted data
+    if(localStorage.getItem('maryMealPlan') && !Array.isArray(JSON.parse(localStorage.getItem('maryMealPlan') || '[]'))) {
+      localStorage.removeItem('maryMealPlan');
+    }
     let todaysMeals = [];
     try {
       const stored = localStorage.getItem('maryMealPlan');
-      if (stored) {
+      if(stored) {
         const parsed = JSON.parse(stored);
         todaysMeals = Array.isArray(parsed) ? parsed : [];
-      }
     } catch(e) {
       console.error('Error loading meals:', e);
       localStorage.removeItem('maryMealPlan');
     }
-
-    // ── Display ───────────────────────────────────────────────
+    
     function displayMeals() {
-      const list  = document.getElementById('mealList');
+      const list = document.getElementById('mealList');
       const count = document.getElementById('mealCount');
       count.textContent = todaysMeals.length;
-      list.innerHTML = todaysMeals.map((meal, i) => `
+      list.innerHTML = todaysMeals.map(meal => `
         <div class="meal-item">
-          <strong>${meal.name || '(unnamed)'}</strong>
-          ${meal.time ? '<br>Time: ' + to12Hour(meal.time) : ''}
-          ${meal.notes ? '<br>Notes: ' + meal.notes : ''}
-          <button onclick="removeMeal(${i})"
-                  style="float:right;background:#f44336;color:#fff;border:none;
-                         border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;">
-            Remove
-          </button>
+          <strong>${meal.name}</strong><br>
+          Time: ${to12Hour(meal.time)}<br>
+          ${meal.notes ? 'Notes: ' + meal.notes : ''}
         </div>
       `).join('');
     }
 
-    // ── Add meal ──────────────────────────────────────────────
     function addMeal() {
-      const name  = document.getElementById('mealName').value.trim();
-      const time  = document.getElementById('mealTime').value;
-      const notes = document.getElementById('mealNotes').value.trim();
-
-      if (!name && !time) {
-        alert('Please enter at least a meal name or time.');
+      const name = document.getElementById('mealName').value;
+      const time = document.getElementById('mealTime').value;
+      const notes = document.getElementById('mealNotes').value;
+      if(!name && !time && !photoFile) {
+        alert('Please enter a meal name, time, or photo');
         return;
-      }
-
-      todaysMeals.push({ name: name || '(unnamed)', time, notes });
+      todaysMeals.push({name, time, notes});
       localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
-
-      document.getElementById('mealName').value  = '';
-      document.getElementById('mealTime').value  = '';
+      document.getElementById('mealName').value = '';
+      document.getElementById('mealTime').value = '';
       document.getElementById('mealNotes').value = '';
       displayMeals();
     }
 
-    // ── Remove individual meal ────────────────────────────────
-    function removeMeal(index) {
-      todaysMeals.splice(index, 1);
-      localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
-      displayMeals();
-    }
-
-    // ── Reset all ─────────────────────────────────────────────
     function resetPlan() {
-      if (confirm('Clear all meals for today?')) {
+      if(confirm('Clear all meals for today?')) {
         todaysMeals = [];
         localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
         displayMeals();
-      }
     }
 
-    // ── Load base plan from uploaded file ─────────────────────
+
     function loadBasePlan() {
       const file = document.getElementById('fileUpload').files[0];
-      if (!file) {
-        alert('Please select a JSON file first.');
+      if(!file) {
+        alert('Please select a file');
         return;
-      }
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
@@ -158,24 +139,24 @@
           localStorage.setItem('maryBasePlan', JSON.stringify(plan));
           alert('Base plan loaded!');
         } catch(err) {
-          alert('Error loading file — make sure it is valid JSON.');
+          alert('Error loading file');
         }
       };
       reader.readAsText(file);
     }
 
-    // ── Init ──────────────────────────────────────────────────
+
+    // Load existing meals on page load
     displayMeals();
 
-    // Cache the bundled base plan JSON if not already stored
+    // Auto-load base plan if none exists
     fetch('base-meal-plan-mary.json')
       .then(r => r.json())
       .then(plan => {
-        if (!localStorage.getItem('maryBasePlan')) {
+        if(!localStorage.getItem('maryBasePlan')) {
           localStorage.setItem('maryBasePlan', JSON.stringify(plan));
         }
-      })
-      .catch(() => {}); // silent — base plan is optional
+      });
   </script>
 </body>
 </html>
