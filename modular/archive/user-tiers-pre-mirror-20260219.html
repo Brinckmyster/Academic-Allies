@@ -58,21 +58,6 @@
     #add-status.ok  { color: #10b981; }
     #add-status.err { color: #c0392b; }
 
-    /* Mirror mode banner */
-    #mirror-banner {
-      display: none;
-      background: linear-gradient(135deg, #e8eeff 0%, #f0f4ff 100%);
-      border: 2px solid #a5b4fc;
-      border-radius: 12px;
-      padding: 16px 20px;
-      margin-bottom: 24px;
-    }
-    #mirror-banner .mirror-icon { font-size: 2rem; float: left; margin-right: 14px; line-height: 1; }
-    #mirror-banner h2 { margin: 0 0 4px; font-size: 1.1rem; color: #4338ca; }
-    #mirror-banner p  { margin: 0; font-size: 0.88rem; color: #6366f1; }
-    .mirror-mode h1   { color: #6366f1; }
-    .mirror-mode .sub { color: #818cf8; }
-
     /* State messages */
     #loading-msg, #signin-msg { text-align: center; padding: 40px; color: #aaa; font-size: 1rem; }
   </style>
@@ -81,16 +66,8 @@
   <div id="site-header"></div>
 
   <div class="page-wrap">
-    <h1 id="page-title">👥 My Support Network</h1>
-    <p class="sub" id="page-sub">You're the boss — assign who can see your info and how much they can help.</p>
-
-    <!-- Mirror mode banner (non-student roles) -->
-    <div id="mirror-banner">
-      <span class="mirror-icon">🪞</span>
-      <h2 id="mirror-title">You're in Mirror View</h2>
-      <p id="mirror-desc">You have read-only access to the networks you're part of. The student controls their own network.</p>
-      <div style="clear:both;"></div>
-    </div>
+    <h1>👥 My Support Network</h1>
+    <p class="sub">You're the boss — assign who can see your info and how much they can help.</p>
 
     <!-- Platform admin: pick which student's network to manage -->
     <div id="student-picker-wrap">
@@ -152,10 +129,6 @@
     var currentStudentUid  = null;
     var currentStudentName = null;
     var isPlatformAdmin    = false;
-    var isMirrorMode       = false;   // true for support/family/nearby-help roles
-
-    /* Tiers that get mirror (read-only) view — not boss controls */
-    var MIRROR_ROLES = ['support', 'family', 'nearby-help'];
 
     /* ── Wait for AA to be ready, then boot ──────────────── */
     function waitForAA(cb, tries) {
@@ -180,75 +153,15 @@
           isPlatformAdmin = (data.role === 'admin');
 
           if (isPlatformAdmin) {
-            /* Platform admin sees a student picker first */
+            /* Admin sees a student picker first */
             document.getElementById('student-picker-wrap').style.display = 'block';
             loadStudentPicker().then(applyUrlParam);
             document.getElementById('loading-msg').style.display = 'none';
-
-          } else if (MIRROR_ROLES.indexOf(data.role) !== -1) {
-            /* Support / Family / Nearby Help → mirror mode */
-            isMirrorMode = true;
-            activateMirrorMode(data.role, data.displayName || user.displayName || 'You');
-
           } else {
-            /* Student sees their own network with full boss controls */
+            /* Student sees their own network */
             loadNetwork(user.uid, data.displayName || user.displayName || 'You');
           }
         });
-      });
-    }
-
-    /* ── Mirror mode: for support/family/nearby-help roles ── */
-    var MIRROR_LABELS = {
-      'support':     'Support Member',
-      'family':      'Family Member',
-      'nearby-help': 'Nearby Help'
-    };
-
-    function activateMirrorMode(role, name) {
-      var label = MIRROR_LABELS[role] || role;
-
-      /* Restyle the page title */
-      document.querySelector('.page-wrap').classList.add('mirror-mode');
-      document.getElementById('page-title').textContent = '🪞 Network Mirror';
-      document.getElementById('page-sub').textContent   = 'Read-only view — the student controls their own network.';
-
-      /* Show mirror banner */
-      var banner = document.getElementById('mirror-banner');
-      banner.style.display = 'block';
-      document.getElementById('mirror-title').textContent =
-        'You\'re signed in as ' + esc(name) + ' (' + label + ')';
-      document.getElementById('mirror-desc').textContent =
-        'You can see the networks you\'re part of, but only the student can add, remove, or change roles. ' +
-        'Contact your student to update your access.';
-
-      /* Try to find which student(s) this person is in the network of */
-      document.getElementById('loading-msg').textContent = 'Finding your network connections…';
-
-      AA.db.collection('users').get().then(function(snap) {
-        var uid    = AA.auth.currentUser.uid;
-        var found  = [];
-        snap.forEach(function(doc) {
-          var d = doc.data();
-          if (d.supportNetwork && d.supportNetwork[uid]) {
-            found.push({ uid: doc.id, data: d, tier: d.supportNetwork[uid] });
-          }
-        });
-
-        if (found.length === 0) {
-          document.getElementById('loading-msg').textContent =
-            'You\'re not currently part of any student\'s support network. ' +
-            'Ask your student to add you at this page.';
-          return;
-        }
-
-        /* Show each student's network in read-only mode */
-        document.getElementById('loading-msg').style.display = 'none';
-        found.forEach(function(s) {
-          loadNetwork(s.uid, s.data.displayName || s.data.email);
-        });
-      }).catch(function(err) {
-        showError('Could not load network connections: ' + err.message);
       });
     }
 
@@ -340,17 +253,6 @@
           return '<option value="' + t + '"' + (t === m.tier ? ' selected' : '') + '>' + TIERS[t].label + '</option>';
         }).join('');
 
-        /* Mirror mode: no edit controls */
-        var actionsHtml = isMirrorMode
-          ? '<div class="card-actions"><span style="font-size:12px;color:#818cf8;">read-only</span></div>'
-          : '<div class="card-actions">' +
-              '<select class="tier-select-sm" id="tier-' + m.uid + '" onchange="updateBadge(\'' + m.uid + '\', this.value)">' +
-                tierOpts +
-              '</select>' +
-              '<button class="btn-save" onclick="saveTier(\'' + m.uid + '\')">Save</button>' +
-              '<button class="btn-remove" onclick="removeMember(\'' + m.uid + '\', \'' + esc(name) + '\')">Remove</button>' +
-            '</div>';
-
         card.innerHTML =
           '<span class="tier-badge ' + tierInfo.badge + '">' + tierInfo.label + '</span>' +
           '<div class="card-info">' +
@@ -358,17 +260,20 @@
             '<div class="card-email">' + esc(email) + '</div>' +
             '<div class="card-desc">' + tierInfo.desc + '</div>' +
           '</div>' +
-          actionsHtml;
+          '<div class="card-actions">' +
+            '<select class="tier-select-sm" id="tier-' + m.uid + '" onchange="updateBadge(\'' + m.uid + '\', this.value)">' +
+              tierOpts +
+            '</select>' +
+            '<button class="btn-save" onclick="saveTier(\'' + m.uid + '\')">Save</button>' +
+            '<button class="btn-remove" onclick="removeMember(\'' + m.uid + '\', \'' + esc(name) + '\')">Remove</button>' +
+          '</div>';
 
         list.appendChild(card);
       });
 
       document.getElementById('loading-msg').style.display  = 'none';
       list.style.display                                      = 'flex';
-      /* Only show Add panel if the viewer is the student (boss controls) */
-      if (!isMirrorMode) {
-        document.getElementById('add-panel').style.display = 'block';
-      }
+      document.getElementById('add-panel').style.display     = 'block';
     }
 
     /* Update the badge color live when tier dropdown changes */
