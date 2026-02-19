@@ -69,11 +69,10 @@
   /* ── Internal: write user profile doc ──────────────────── */
   function createUserDoc(user, role) {
     return db.collection('users').doc(user.uid).set({
-      displayName:    user.displayName || user.email,
-      email:          user.email,
-      role:           role,
-      supportNetwork: {},   // map of uid → tier; student controls this
-      createdAt:      firebase.firestore.FieldValue.serverTimestamp()
+      displayName: user.displayName || user.email,
+      email:       user.email,
+      role:        role,
+      createdAt:   firebase.firestore.FieldValue.serverTimestamp()
     });
   }
 
@@ -184,57 +183,6 @@
   /* Cancel a pending invitation */
   window.AA.cancelPendingUser = function (email) {
     return db.collection('pendingUsers').doc(email).delete();
-  };
-
-  /* ── Support Network helpers ────────────────────────────────
-     The support network lives on the STUDENT's own user doc as:
-       supportNetwork: { [memberUid]: 'admin' | 'family' | 'support' | 'nearby-help' }
-     The student is always the owner — they control who is in it.
-  ────────────────────────────────────────────────────────── */
-
-  /* Get the full user doc for a student (includes supportNetwork map) */
-  window.AA.getUserDoc = function (uid) {
-    return db.collection('users').doc(uid).get();
-  };
-
-  /* Add or update a member in a student's support network.
-     studentUid  = the student who owns the network
-     memberUid   = the person being added
-     tier        = 'admin' | 'family' | 'support' | 'nearby-help'  */
-  window.AA.setNetworkMember = function (studentUid, memberUid, tier) {
-    var update = {};
-    update['supportNetwork.' + memberUid] = tier;
-    return db.collection('users').doc(studentUid).update(update);
-  };
-
-  /* Remove someone from a student's support network */
-  window.AA.removeNetworkMember = function (studentUid, memberUid) {
-    var update = {};
-    update['supportNetwork.' + memberUid] = firebase.firestore.FieldValue.delete();
-    return db.collection('users').doc(studentUid).update(update);
-  };
-
-  /* Look up a user by email address — returns first match or null */
-  window.AA.lookupUserByEmail = function (email) {
-    return db.collection('users')
-      .where('email', '==', email.trim().toLowerCase())
-      .limit(1)
-      .get()
-      .then(function (snap) {
-        if (snap.empty) return null;
-        var doc = snap.docs[0];
-        return { uid: doc.id, data: doc.data() };
-      });
-  };
-
-  /* Get all student-role users (for admin network management picker) */
-  window.AA.getAllStudents = function () {
-    return db.collection('users')
-      .where('role', '==', 'student')
-      .get()
-      .then(function (snap) {
-        return snap.docs.map(function (d) { return { uid: d.id, data: d.data() }; });
-      });
   };
 
   console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);
