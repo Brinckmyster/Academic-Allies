@@ -387,29 +387,6 @@
           <tr><td colspan="5" class="loading">Loading…</td></tr>
         </tbody>
       </table>
-
-      <!-- ── Invite New User ──────────────────────────────── -->
-      <div style="margin-top:28px;padding:20px 24px;background:#1a1a2e;border:1px solid #333;border-radius:10px;">
-        <h3 style="margin-bottom:16px;color:#6CA0A3;font-size:1rem;letter-spacing:0.05em;text-transform:uppercase;">Invite New User</h3>
-        <p style="font-size:13px;color:#888;margin-bottom:14px;">
-          Enter their Google email. When they first sign in, they'll automatically get the role you pick here.
-        </p>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input type="email" id="invite-email" placeholder="amanda@example.com"
-            style="flex:1;min-width:200px;padding:9px 12px;background:#0f1117;border:1px solid #444;border-radius:6px;color:#e0e0e0;font-size:14px;">
-          <select id="invite-role"
-            style="padding:9px 12px;background:#0f1117;border:1px solid #444;border-radius:6px;color:#e0e0e0;font-size:14px;">
-            <option value="student">Student</option>
-            <option value="admin">Admin</option>
-          </select>
-          <button onclick="inviteUser()"
-            style="padding:9px 18px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px;">
-            Add
-          </button>
-        </div>
-        <div id="invite-status" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
-        <div id="pending-list" style="margin-top:16px;"></div>
-      </div>
     </div>
   </div>
 
@@ -446,74 +423,7 @@
       show('main-content');
       document.getElementById('admin-email').textContent = user.email;
       loadDashboard();
-      loadPendingUsers();
     });
-
-    /* ── Invite / pending-users functions ───────────────────── */
-    function inviteUser() {
-      var email  = (document.getElementById('invite-email').value || '').trim().toLowerCase();
-      var role   = document.getElementById('invite-role').value;
-      var status = document.getElementById('invite-status');
-
-      if (!email || !email.includes('@')) {
-        status.style.color   = '#ffc107';
-        status.textContent   = '⚠️ Please enter a valid email address.';
-        return;
-      }
-
-      status.style.color = '#aaa';
-      status.textContent = 'Saving…';
-
-      AA.preRegisterEmail(email, role)
-        .then(function () {
-          status.style.color = '#28a745';
-          status.textContent = '✅ ' + email + ' added as ' + role +
-            '. They\'ll get this role automatically when they first sign in with Google.';
-          document.getElementById('invite-email').value = '';
-          loadPendingUsers();
-        })
-        .catch(function (err) {
-          status.style.color = '#dc3545';
-          status.textContent = '❌ Error: ' + err.message;
-        });
-    }
-
-    function loadPendingUsers() {
-      AA.getPendingUsers().then(function (snap) {
-        var list = document.getElementById('pending-list');
-        if (!list) return;
-        if (snap.empty) {
-          list.innerHTML = '<p style="font-size:12px;color:#666;">No pending invitations.</p>';
-          return;
-        }
-        var rows = snap.docs.map(function (d) {
-          var data = d.data();
-          return '<tr>' +
-            '<td style="padding:6px 10px;color:#ccc;">' + data.email + '</td>' +
-            '<td style="padding:6px 10px;color:#6CA0A3;">' + (data.role || 'student') + '</td>' +
-            '<td style="padding:6px 10px;">' +
-              '<button onclick="cancelInvite(\'' + d.id.replace(/'/g,"\\'") + '\')" ' +
-              'style="padding:3px 10px;background:#c0392b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">' +
-              'Cancel</button></td>' +
-            '</tr>';
-        }).join('');
-        list.innerHTML =
-          '<p style="font-size:12px;color:#888;margin-bottom:8px;">Pending invitations:</p>' +
-          '<table style="width:100%;font-size:13px;border-collapse:collapse;">' +
-          '<tr><th style="text-align:left;padding:4px 10px;color:#666;border-bottom:1px solid #333;">Email</th>' +
-          '<th style="text-align:left;padding:4px 10px;color:#666;border-bottom:1px solid #333;">Role</th>' +
-          '<th style="border-bottom:1px solid #333;"></th></tr>' +
-          rows + '</table>';
-      }).catch(function (err) {
-        console.warn('[AA Admin] loadPendingUsers error:', err);
-      });
-    }
-
-    function cancelInvite(email) {
-      AA.cancelPendingUser(email)
-        .then(function () { loadPendingUsers(); })
-        .catch(function (err) { alert('Error cancelling: ' + err.message); });
-    }
 
     function show(id) {
       ['auth-gate','access-denied','main-content'].forEach(function(x) {

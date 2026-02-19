@@ -29,12 +29,8 @@ Your disability accommodations and support network">Your disability accommodatio
         <span id="userNameDisplay"></span>
       </div>
 
-      <!-- Firebase Sign-In Button (hidden once signed in) -->
-      <button id="aa-signin-btn" title="Sign in with Google"
-        style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:#fff;color:#444;border:1px solid #dadce0;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.1);">
-        <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
-        Sign in with Google
-      </button>
+      <!-- Google Sign-In Container -->
+      <div id="googleSignInContainer"></div>
 
       <!-- Sign Out Button (hidden until signed in) -->
       <button id="signOutButton" style="display: none;">Sign Out</button>
@@ -47,115 +43,132 @@ Your disability accommodations and support network">Your disability accommodatio
   <!-- Status Circle Container -->
   <div aria-live="polite" id="status-circle-container" role="status" title="Authentication Status"></div>
 
-  <!-- ── Firebase Auth (single source of truth for all pages) ── -->
-  <!-- Sequential loader: skips SDK loading if the page already loaded Firebase
-       (e.g. admin.html loads it in <head>). Works the same on every page. -->
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSignIn()"></script>
+
+  <!-- Google Sign-In JavaScript -->
   <script>
-  (function () {
-    'use strict';
-    var FB_BASE   = 'https://www.gstatic.com/firebasejs/9.23.0/';
-    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js';
-
-    /* ── 3. Wire up the header UI once window.AA is ready ── */
-    function initAuthUI() {
-      if (!window.AA || !window.AA.auth) { setTimeout(initAuthUI, 100); return; }
-
-      var signinBtn  = document.getElementById('aa-signin-btn');
-      var infoWrap   = document.getElementById('userInfoDisplay');
-      var nameEl     = document.getElementById('userNameDisplay');
-      var signoutBtn = document.getElementById('signOutButton');
-
-      /* Sign-in click → Firebase Google popup */
-      if (signinBtn) {
-        signinBtn.addEventListener('click', function () {
-          signinBtn.disabled    = true;
-          signinBtn.textContent = 'Signing in…';
-          window.AA.signInWithGoogle().catch(function (err) {
-            console.error('[AA header] sign-in error:', err);
-            signinBtn.disabled    = false;
-            signinBtn.innerHTML   = '&#x25B6; Sign in with Google';
-          });
-        });
+    // This function will be called when Google Identity Services loads
+    function initGoogleSignIn() {
+      // Check if user is already signed in
+      const savedUser = sessionStorage.getItem('academicAlliesUser');
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        updateUIForSignedInUser(userData);
       }
 
-      /* Sign-out click */
-      if (signoutBtn) {
-        signoutBtn.addEventListener('click', function () {
-          sessionStorage.removeItem('academicAlliesUser');
-          window.AA.signOut();
-        });
-      }
-
-      /* React to every auth state change */
-      window.AA.auth.onAuthStateChanged(function (user) {
-        if (!user) {
-          if (signinBtn)  { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
-          if (infoWrap)   infoWrap.style.display   = 'none';
-          if (signoutBtn) signoutBtn.style.display  = 'none';
-          return;
-        }
-
-        /* Look up role in Firestore */
-        window.AA.db.collection('users').doc(user.uid).get()
-          .then(function (doc) {
-            var role    = doc.exists ? (doc.data().role || 'student') : 'student';
-            var isAdmin = (role === 'admin');
-            var first   = (user.displayName || user.email || '').split(' ')[0];
-
-            if (signinBtn)  signinBtn.style.display  = 'none';
-            if (infoWrap)   infoWrap.style.display   = 'flex';
-            if (nameEl)     nameEl.textContent = first + (isAdmin ? ' · 🔧 Admin' : '');
-            if (signoutBtn) signoutBtn.style.display  = 'inline-block';
-
-            /* Show admin card on home page */
-            var adminCard = document.getElementById('adminCard');
-            if (adminCard && isAdmin) adminCard.style.display = 'flex';
-
-            /* Keep sessionStorage for any pages still reading it */
-            try {
-              sessionStorage.setItem('academicAlliesUser', JSON.stringify({
-                name: user.displayName, email: user.email, role: role
-              }));
-            } catch (e) {}
-          })
-          .catch(function () {
-            /* Firestore unavailable — show name, no role badge */
-            var first = (user.displayName || user.email || '').split(' ')[0];
-            if (signinBtn)  signinBtn.style.display  = 'none';
-            if (infoWrap)   infoWrap.style.display   = 'flex';
-            if (nameEl)     nameEl.textContent = first;
-            if (signoutBtn) signoutBtn.style.display  = 'inline-block';
-          });
+      // Initialize Google Sign-In
+      google.accounts.id.initialize({
+        client_id: '93996985456-ffj2euk9i4q41v88njuhpusk73mdb31j.apps.googleusercontent.com',
+        callback: handleCredentialResponse
       });
-    }
 
-    /* ── 2. Load aa-firebase.js after SDKs are ready ──────── */
-    function loadAAFirebase() {
-      if (window.AA && window.AA.auth) { initAuthUI(); return; }
-      var s = document.createElement('script');
-      s.src    = AA_JS;
-      s.onload = initAuthUI;
-      s.onerror = function () { console.error('[AA header] Cannot load aa-firebase.js'); };
-      document.head.appendChild(s);
-    }
+      google.accounts.id.renderButton(
+        document.getElementById('googleSignInContainer'),
+        {
+          theme: 'outline',
+          size: 'medium',
+          type: 'standard',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          text: 'signin_with'
+        }
+      );
 
-    /* ── 1. Load Firebase SDKs if the page hasn't loaded them ─ */
-    function loadSDKs() {
-      if (window.firebase && window.AA)     { initAuthUI();    return; }
-      if (window.firebase && !window.AA)   { loadAAFirebase(); return; }
-      var sdks = ['firebase-app-compat.js','firebase-auth-compat.js','firebase-firestore-compat.js'];
-      var i = 0;
-      function next() {
-        if (i >= sdks.length) { loadAAFirebase(); return; }
-        var s = document.createElement('script');
-        s.src = FB_BASE + sdks[i++]; s.onload = next;
-        document.head.appendChild(s);
+      // Set up sign out button
+      const signOutBtn = document.getElementById('signOutButton');
+      if (signOutBtn) {
+        signOutBtn.addEventListener('click', signOut);
       }
-      next();
     }
 
-    loadSDKs();
-  })();
+    function handleCredentialResponse(response) {
+      console.log('User signed in successfully');
+      
+      // Decode the JWT token to get user info
+      const base64Url = response.credential.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      
+      const userData = JSON.parse(jsonPayload);
+      console.log('User data:', userData);
+
+      // Store user info in session
+      sessionStorage.setItem('academicAlliesUser', JSON.stringify({
+        name: userData.name,
+        email: userData.email,
+        picture: userData.picture,
+        sub: userData.sub
+      }));
+
+      // Update UI
+      updateUIForSignedInUser({
+        name: userData.name,
+        email: userData.email,
+        picture: userData.picture
+      });
+
+      // IMPORTANT: Also sign into Firebase Auth so admin/protected pages work
+      // Use the credential directly (no popup) to avoid browser popup-blocking
+      if (window.handleGoogleCredential) {
+        console.log('[shared-header] Triggering Firebase Auth via credential...');
+        window.handleGoogleCredential(response.credential);
+      }
+    }
+
+    function updateUIForSignedInUser(userData) {
+      // Hide sign-in button
+      const signInContainer = document.getElementById('googleSignInContainer');
+      if (signInContainer) signInContainer.style.display = 'none';
+      
+      // Show user info and sign out button
+      const userInfoDisplay = document.getElementById('userInfoDisplay');
+      const userNameDisplay = document.getElementById('userNameDisplay');
+      const signOutButton = document.getElementById('signOutButton');
+      
+      if (userInfoDisplay) userInfoDisplay.style.display = 'block';
+      if (userNameDisplay) userNameDisplay.textContent = 'Welcome, ' + userData.name;
+      if (signOutButton) signOutButton.style.display = 'inline-block';
+      
+      // Update status circle
+      const statusCircle = document.getElementById('status-circle');
+      if (statusCircle) {
+        statusCircle.classList.add('signed-in');
+        statusCircle.setAttribute('aria-label', 'Status: Signed in as ' + userData.name);
+        statusCircle.title = 'Signed in as ' + userData.name;
+      }
+    }
+
+    function signOut() {
+      // Clear session storage
+      sessionStorage.removeItem('academicAlliesUser');
+      
+      // Reset UI
+      const signInContainer = document.getElementById('googleSignInContainer');
+      const userInfoDisplay = document.getElementById('userInfoDisplay');
+      const signOutButton = document.getElementById('signOutButton');
+      
+      if (signInContainer) signInContainer.style.display = 'block';
+      if (userInfoDisplay) userInfoDisplay.style.display = 'none';
+      if (signOutButton) signOutButton.style.display = 'none';
+      
+      // Reset status circle
+      const statusCircle = document.getElementById('status-circle');
+      if (statusCircle) {
+        statusCircle.classList.remove('signed-in');
+        statusCircle.setAttribute('aria-label', 'Status: Not signed in');
+        statusCircle.title = 'Click to toggle status, drag to reorder';
+      }
+      
+      console.log('User signed out');
+    }
+
+    // If Google library is already loaded (for dynamically inserted headers), initialize now
+    if (typeof google !== 'undefined' && google.accounts) {
+      initGoogleSignIn();
+    }
   </script>
 <script src="/Academic-Allies/modular/js/draggable.js"></script>
 <script src="/Academic-Allies/modular/js/status-circle.js"></script>
