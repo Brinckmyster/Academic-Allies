@@ -154,9 +154,8 @@
     var isPlatformAdmin    = false;
     var isMirrorMode       = false;   // true for support/family/nearby-help roles
 
-    /* Everyone except student gets mirror (read-only) view.
-       Student is sudo — they own their own network. */
-    var MIRROR_ROLES = ['admin', 'support', 'family', 'nearby-help'];
+    /* Tiers that get mirror (read-only) view — not boss controls */
+    var MIRROR_ROLES = ['support', 'family', 'nearby-help'];
 
     /* ── Wait for AA to be ready, then boot ──────────────── */
     function waitForAA(cb, tries) {
@@ -180,52 +179,48 @@
           var data = doc.data();
           isPlatformAdmin = (data.role === 'admin');
 
-          if (data.role === 'student') {
-            /* Student = sudo. Full boss controls over their own network. */
-            loadNetwork(user.uid, data.displayName || user.displayName || 'You');
-
-          } else if (isPlatformAdmin) {
-            /* Platform admin = mirror, but with a student picker to choose whose network to view */
-            isMirrorMode = true;
+          if (isPlatformAdmin) {
+            /* Platform admin sees a student picker first */
             document.getElementById('student-picker-wrap').style.display = 'block';
             loadStudentPicker().then(applyUrlParam);
-            activateMirrorBanner('admin', data.displayName || user.displayName || 'You');
             document.getElementById('loading-msg').style.display = 'none';
 
           } else if (MIRROR_ROLES.indexOf(data.role) !== -1) {
-            /* Support / Family / Nearby Help → mirror mode, auto-find their student */
+            /* Support / Family / Nearby Help → mirror mode */
             isMirrorMode = true;
             activateMirrorMode(data.role, data.displayName || user.displayName || 'You');
+
+          } else {
+            /* Student sees their own network with full boss controls */
+            loadNetwork(user.uid, data.displayName || user.displayName || 'You');
           }
         });
       });
     }
 
-    /* ── Mirror mode ─────────────────────────────────────── */
+    /* ── Mirror mode: for support/family/nearby-help roles ── */
     var MIRROR_LABELS = {
-      'admin':       'Platform Admin',
       'support':     'Support Member',
       'family':      'Family Member',
       'nearby-help': 'Nearby Help'
     };
 
-    /* Just show the banner (used by admin who has their own picker) */
-    function activateMirrorBanner(role, name) {
+    function activateMirrorMode(role, name) {
       var label = MIRROR_LABELS[role] || role;
+
+      /* Restyle the page title */
       document.querySelector('.page-wrap').classList.add('mirror-mode');
       document.getElementById('page-title').textContent = '🪞 Network Mirror';
-      document.getElementById('page-sub').textContent   = 'Read-only view — the student is sudo and controls their own network.';
+      document.getElementById('page-sub').textContent   = 'Read-only view — the student controls their own network.';
+
+      /* Show mirror banner */
       var banner = document.getElementById('mirror-banner');
       banner.style.display = 'block';
       document.getElementById('mirror-title').textContent =
         'You\'re signed in as ' + esc(name) + ' (' + label + ')';
       document.getElementById('mirror-desc').textContent =
-        'Students own their support networks. You can view any network but cannot add, remove, or change roles.';
-    }
-
-    /* Full mirror mode: show banner + auto-find which student(s) this person belongs to */
-    function activateMirrorMode(role, name) {
-      activateMirrorBanner(role, name);
+        'You can see the networks you\'re part of, but only the student can add, remove, or change roles. ' +
+        'Contact your student to update your access.';
 
       /* Try to find which student(s) this person is in the network of */
       document.getElementById('loading-msg').textContent = 'Finding your network connections…';
