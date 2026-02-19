@@ -152,8 +152,7 @@
     var currentStudentUid  = null;
     var currentStudentName = null;
     var isPlatformAdmin    = false;
-    var isMirrorMode       = false;   // true when viewing someone else's network read-only
-    var isViewingOtherStudent = false; // true when a student is mirroring another student
+    var isMirrorMode       = false;   // true for support/family/nearby-help roles
 
     /* Non-student, non-admin roles get mirror (read-only) view.
        Student = sudo (owns their network).
@@ -183,41 +182,8 @@
           isPlatformAdmin = (data.role === 'admin');
 
           if (data.role === 'student') {
-            /* Student = sudo over their OWN network.
-               But if a ?student=uid param points to someone else, check whether
-               the signed-in student is in that person's supportNetwork.
-               If yes → mirror mode for that student's network.
-               Updated 2026-02-19 by Claude */
-            var params    = new URLSearchParams(window.location.search);
-            var targetUid = params.get('student');
-
-            if (targetUid && targetUid !== user.uid) {
-              /* Visiting another student's network via link */
-              AA.getUserDoc(targetUid).then(function(targetDoc) {
-                if (!targetDoc.exists) {
-                  showError('That student profile wasn\'t found.');
-                  return;
-                }
-                var targetData = targetDoc.data();
-                var network    = targetData.supportNetwork || {};
-
-                if (network[user.uid]) {
-                  /* They ARE in this student's network → mirror/read-only */
-                  isMirrorMode          = true;
-                  isViewingOtherStudent = true;
-                  activateMirrorBanner('nearby-help', data.displayName || user.displayName || 'You');
-                  document.getElementById('loading-msg').style.display = 'none';
-                  loadNetwork(targetUid, targetData.displayName || targetData.email);
-                } else {
-                  showError('You\'re not in ' + esc(targetData.displayName || 'that student') + '\'s support network yet — ask them to add you.');
-                }
-              }).catch(function(err) {
-                showError('Could not load that network: ' + err.message);
-              });
-            } else {
-              /* Normal: student views their own network */
-              loadNetwork(user.uid, data.displayName || user.displayName || 'You');
-            }
+            /* Student = sudo. Full boss controls over their own network. */
+            loadNetwork(user.uid, data.displayName || user.displayName || 'You');
 
           } else if (isPlatformAdmin) {
             /* Platform admin = can edit any student's network on their behalf.
@@ -366,13 +332,9 @@
     }
 
     /* ── Render the network list ─────────────────────────── */
-    /* Updated 2026-02-19 by Claude — owner card "(You)" only when it IS you;
-       boss mode adds "👁 View Dashboard" link to each member card. */
     function renderNetwork(studentUid, studentName, members) {
       var list = document.getElementById('network-list');
       list.innerHTML = '';
-
-      var isOwnNetwork = (studentUid === AA.auth.currentUser.uid);
 
       /* Owner card — always first */
       var ownerCard = document.createElement('div');
@@ -380,8 +342,8 @@
       ownerCard.innerHTML =
         '<span class="tier-badge badge-owner">Owner</span>' +
         '<div class="card-info">' +
-          '<div class="card-name">' + esc(studentName) + (isOwnNetwork ? ' (You)' : '') + '</div>' +
-          '<div class="card-desc">' + (isOwnNetwork ? 'Full control — this is your network' : 'Student — controls their own network') + '</div>' +
+          '<div class="card-name">' + esc(studentName) + ' (You)</div>' +
+          '<div class="card-desc">Full control — this is your network</div>' +
         '</div>';
       list.appendChild(ownerCard);
 
@@ -400,16 +362,10 @@
           return '<option value="' + t + '"' + (t === m.tier ? ' selected' : '') + '>' + TIERS[t].label + '</option>';
         }).join('');
 
-        /* Mirror mode: read-only label + "👁 View Dashboard" link
-           Boss mode:   full edit controls + "👁 View Dashboard" link */
-        var viewBtn = '<a href="user-tiers.html?student=' + m.uid + '" ' +
-          'style="font-size:12px;color:#4a7f82;text-decoration:none;border:1px solid #b2d4d7;' +
-          'border-radius:5px;padding:4px 9px;white-space:nowrap;" title="View their dashboard">👁 View</a>';
-
+        /* Mirror mode: no edit controls */
         var actionsHtml = isMirrorMode
           ? '<div class="card-actions"><span style="font-size:12px;color:#818cf8;">read-only</span></div>'
           : '<div class="card-actions">' +
-              viewBtn +
               '<select class="tier-select-sm" id="tier-' + m.uid + '" onchange="updateBadge(\'' + m.uid + '\', this.value)">' +
                 tierOpts +
               '</select>' +
@@ -527,9 +483,7 @@
       return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    /* If platform admin arrived via ?student=uid link, auto-select that student.
-       (Students handle the same URL param in their own boot branch above.)
-       Updated 2026-02-19 by Claude */
+    /* If admin arrived via ?student=uid link, auto-select that student */
     function applyUrlParam() {
       var params = new URLSearchParams(window.location.search);
       var uid    = params.get('student');
