@@ -1,0 +1,1505 @@
+<\!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spoon Planner - Mary's Safe Space</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        body {
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            font-size: 18pt;
+            line-height: 1.5;
+            letter-spacing: 0.035em;
+            background: #FAFAF9;
+            color: #333333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .planner-container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 22pt;
+            margin-bottom: 10px;
+            color: #6CA0A3;
+        }
+
+        /* Top Action Bar */
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            background: #999;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16pt;
+            cursor: pointer;
+            min-height: 19mm;
+            transition: opacity 0.2s;
+            font-weight: 600;
+        }
+
+        .btn-cancel:hover {
+            opacity: 0.8;
+        }
+
+        .btn-cancel:active {
+            animation: blink 0.3s;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Spoon Counter */
+        .spoon-summary {
+            background: #6CA0A3;
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .spoon-display {
+            font-size: 24pt;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .spoon-details {
+            display: flex;
+            justify-content: space-around;
+            font-size: 14pt;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #6CA0A3;
+            margin-bottom: 15px;
+            font-size: 20pt;
+        }
+
+        /* Task List */
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            min-height: 19mm;
+            background: white;
+            cursor: grab;
+        }
+
+        .task-item:active {
+            cursor: grabbing;
+        }
+
+        .task-item.dragging {
+            opacity: 0.5;
+            border-color: #6CA0A3;
+        }
+
+        .drag-handle {
+            font-size: 20pt;
+            margin-right: 12px;
+            cursor: grab;
+            color: #999;
+            min-width: 19mm;
+            text-align: center;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-name {
+            font-size: 16pt;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .task-meta {
+            font-size: 14pt;
+            color: #666;
+        }
+
+        .task-spoons {
+            font-size: 18pt;
+            font-weight: 700;
+            color: #6CA0A3;
+            margin: 0 15px;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            font-size: 20pt;
+            cursor: pointer;
+            padding: 8px;
+            min-width: 19mm;
+            min-height: 19mm;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-icon:hover {
+            background: #f0f0f0;
+        }
+
+        .btn-icon:focus {
+            outline: 3px solid #6CA0A3;
+        }
+
+        /* Add Task Form */
+        .add-task-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .form-label {
+            font-weight: 600;
+            min-width: 100px;
+            font-size: 16pt;
+        }
+
+        .form-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16pt;
+            min-height: 19mm;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #6CA0A3;
+        }
+
+        .form-input-small {
+            width: 80px;
+        }
+
+        /* Buttons */
+        .btn {
+            background: #6CA0A3;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18pt;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            min-height: 19mm;
+            transition: opacity 0.2s;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn:focus {
+            outline: 3px solid #6CA0A3;
+            outline-offset: 2px;
+        }
+
+        .btn-confirm {
+            background: #6CA0A3;
+            font-size: 20pt;
+            padding: 20px;
+        }
+
+        .btn-add {
+            background: #4caf50;
+        }
+
+        .btn-bulk {
+            background: #999;
+            font-size: 16pt;
+            padding: 12px 20px;
+        }
+
+        /* Bulk Actions */
+        .bulk-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .bulk-actions .btn {
+            flex: 1;
+        }
+
+        /* Modal for Edit Task */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            color: #6CA0A3;
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .form-label {
+                min-width: auto;
+            }
+
+            .bulk-actions {
+                flex-direction: column;
+            }
+
+            .action-bar {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html')
+      .then(response => response.text())
+      .then(html => {
+        const container = document.getElementById('site-header');
+        container.innerHTML = html;
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+        const dragScript = document.createElement('script');
+        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
+        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(dragScript);
+      });
+  </script>
+    <div class="planner-container">
+        <div class="header">
+            <h1>📋 Spoon Planner</h1>
+            <p>Plan your day with care</p>
+        </div>
+
+        <!-- Action Bar with Cancel -->
+        <div class="action-bar">
+            <button class="btn-cancel" onclick="cancelPlanner()">← Cancel</button>
+            <div style="flex: 1; text-align: center; font-size: 16pt; color: #666;">
+                Editing your daily plan
+            </div>
+        </div>
+
+        <!-- Spoon Summary -->
+        <div class="spoon-summary">
+            <div class="spoon-display">
+                🥄 <span id="remaining-spoons">10</span> / <span id="total-spoons">10</span> Spoons
+            </div>
+            <div class="spoon-details">
+                <div>Planned: <span id="planned-spoons">0</span></div>
+                <div>Remaining: <span id="leftover-spoons">10</span></div>
+            </div>
+        </div>
+
+        <!-- Add New Task -->
+        <div class="card">
+            <h2>➕ Add New Task</h2>
+            <div class="add-task-form">
+                <div class="form-row">
+                    <label class="form-label">Task Name:</label>
+                    <input type="text" id="new-task-name" class="form-input" placeholder="What do you need to do?">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Spoon Cost:</label>
+                    <input type="number" id="new-task-spoons" class="form-input form-input-small" min="0" max="20" value="1" step="0.5">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Time:</label>
+                    <input type="time" id="new-task-time" class="form-input">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Priority:</label>
+                    <select id="new-task-priority" class="form-input">
+                        <option value="High">High</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                <button class="btn btn-add" onclick="addTask()">Add Task</button>
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <div class="card">
+            <h2>📝 Your Tasks</h2>
+            <p style="margin-bottom: 15px; color: #666; font-size: 14pt;">Drag to reorder. Tap to edit.</p>
+            
+            <ul class="task-list" id="task-list">
+                <!-- Tasks will be added here -->
+            </ul>
+
+            <div id="empty-state" style="text-align: center; padding: 40px; color: #999;">
+                <p style="font-size: 48pt;">📋</p>
+                <p style="font-size: 16pt;">No tasks yet. Add one above!</p>
+            </div>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="bulk-actions">
+            <button class="btn btn-bulk" onclick="clearAllTasks()">🗑️ Clear All</button>
+            <button class="btn btn-bulk" onclick="duplicateDay()">📋 Duplicate Yesterday</button>
+        </div>
+
+        <!-- Confirm Button - Bottom -->
+        <button class="btn btn-confirm" onclick="confirmPlan()">
+            ✅ Confirm Plan
+        </button>
+
+        <!-- Back to Recovery Mode -->
+        <button class="btn" onclick="backToRecovery()">
+            ← Back to Recovery Mode
+        </button>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div class="modal" id="edit-modal">
+        <div class="modal-content">
+            <h2>✏️ Edit Task</h2>
+            <div class="add-task-form">
+                <div class="form-row">
+                    <label class="form-label">Task Name:</label>
+                    <input type="text" id="edit-task-name" class="form-input">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Spoon Cost:</label>
+                    <input type="number" id="edit-task-spoons" class="form-input form-input-small" min="0" max="20" step="0.5">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Time:</label>
+                    <input type="time" id="edit-task-time" class="form-input">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Priority:</label>
+                    <select id="edit-task-priority" class="form-input">
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn" onclick="saveEdit()">Save</button>
+                    <button class="btn btn-cancel" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let tasks = [];
+        let totalSpoons = 10;
+        let editingTaskIndex = -1;
+        let originalTasks = []; // For cancel functionality
+
+        // Load saved data
+        function loadSavedData() {
+            const saved = localStorage.getItem('spoonPlannerTasks');
+            if (saved) {
+                originalTasks = JSON.parse(saved);
+                tasks = JSON.parse(JSON.stringify(originalTasks)); // Deep copy
+            }
+
+            const savedSpoons = localStorage.getItem('dailySpoons');
+            if (savedSpoons) {
+                totalSpoons = parseInt(savedSpoons);
+            }
+        }
+
+        // Save data
+        function saveTasks() {
+            localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
+        }
+
+        // Update spoon counter
+        function updateSpoonCounter() {
+            const planned = tasks.reduce((sum, task) => sum + task.spoons, 0);
+            const remaining = totalSpoons - planned;
+
+            document.getElementById('total-spoons').textContent = totalSpoons;
+            document.getElementById('planned-spoons').textContent = planned.toFixed(1);
+            document.getElementById('remaining-spoons').textContent = totalSpoons;
+            document.getElementById('leftover-spoons').textContent = remaining.toFixed(1);
+        }
+
+        // Render task list
+        function renderTasks() {
+            const taskList = document.getElementById('task-list');
+            const emptyState = document.getElementById('empty-state');
+
+            if (tasks.length === 0) {
+                taskList.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            taskList.innerHTML = '';
+
+            tasks.forEach((task, index) => {
+                const li = document.createElement('li');
+                li.className = 'task-item';
+                li.draggable = true;
+                li.dataset.index = index;
+
+                li.innerHTML = `
+                    <span class="drag-handle">☰</span>
+                    <div class="task-content">
+                        <div class="task-name">${task.name}</div>
+                        <div class="task-meta">${task.time ? task.time + ' • ' : ''}${task.priority} Priority</div>
+                    </div>
+                    <span class="task-spoons">${task.spoons}🥄</span>
+                    <div class="task-actions">
+                        <button class="btn-icon" onclick="editTask(${index})" aria-label="Edit task">✏️</button>
+                        <button class="btn-icon" onclick="deleteTask(${index})" aria-label="Delete task">🗑️</button>
+                    </div>
+                `;
+
+                // Drag and drop handlers
+                li.addEventListener('dragstart', handleDragStart);
+                li.addEventListener('dragover', handleDragOver);
+                li.addEventListener('drop', handleDrop);
+                li.addEventListener('dragend', handleDragEnd);
+
+                taskList.appendChild(li);
+            });
+
+            updateSpoonCounter();
+        }
+
+        // Add new task
+        function addTask() {
+            const name = document.getElementById('new-task-name').value.trim();
+            const spoons = parseFloat(document.getElementById('new-task-spoons').value) || 1;
+            const time = document.getElementById('new-task-time').value;
+            const priority = document.getElementById('new-task-priority').value;
+
+            if (!name) {
+                alert('Please enter a task name');
+                return;
+            }
+
+            tasks.push({
+                name,
+                spoons,
+                time,
+                priority,
+                completed: false
+            });
+
+            // Clear form
+            document.getElementById('new-task-name').value = '';
+            document.getElementById('new-task-spoons').value = '1';
+            document.getElementById('new-task-time').value = '';
+            document.getElementById('new-task-priority').value = 'Medium';
+
+            renderTasks();
+        }
+
+        // Edit task
+        function editTask(index) {
+            editingTaskIndex = index;
+            const task = tasks[index];
+
+            document.getElementById('edit-task-name').value = task.name;
+            document.getElementById('edit-task-spoons').value = task.spoons;
+            document.getElementById('edit-task-time').value = task.time || '';
+            document.getElementById('edit-task-priority').value = task.priority;
+
+            document.getElementById('edit-modal').classList.add('show');
+        }
+
+        function saveEdit() {
+            if (editingTaskIndex === -1) return;
+
+            tasks[editingTaskIndex] = {
+                name: document.getElementById('edit-task-name').value.trim(),
+                spoons: parseFloat(document.getElementById('edit-task-spoons').value) || 1,
+                time: document.getElementById('edit-task-time').value,
+                priority: document.getElementById('edit-task-priority').value,
+                completed: tasks[editingTaskIndex].completed
+            };
+
+            closeEditModal();
+            renderTasks();
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('show');
+            editingTaskIndex = -1;
+        }
+
+        // Delete task
+        function deleteTask(index) {
+            if (confirm('Delete this task?')) {
+                tasks.splice(index, 1);
+                renderTasks();
+            }
+        }
+
+        // Bulk actions
+        function clearAllTasks() {
+            if (confirm('Clear all tasks? This cannot be undone.')) {
+                tasks = [];
+                renderTasks();
+            }
+        }
+
+        function duplicateDay() {
+            const yesterday = localStorage.getItem('yesterdayTasks');
+            if (yesterday) {
+                tasks = JSON.parse(yesterday);
+                renderTasks();
+            } else {
+                alert('No tasks from yesterday to duplicate.');
+            }
+        }
+
+        // Drag and drop
+        let draggedElement = null;
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            if (draggedElement !== this) {
+                const fromIndex = parseInt(draggedElement.dataset.index);
+                const toIndex = parseInt(this.dataset.index);
+
+                const [movedTask] = tasks.splice(fromIndex, 1);
+                tasks.splice(toIndex, 0, movedTask);
+
+                renderTasks();
+            }
+
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+        }
+
+        // Confirm plan
+        function confirmPlan() {
+            // Save to localStorage
+            saveTasks();
+            
+            // Save as yesterday for duplication
+            localStorage.setItem('yesterdayTasks', JSON.stringify(tasks));
+            
+            // Update the original tasks (so cancel has new baseline)
+            originalTasks = JSON.parse(JSON.stringify(tasks));
+            
+            alert('✅ Plan confirmed! Your tasks are ready in Recovery Mode.');
+            
+            // Return to Recovery Mode
+            window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
+        }
+
+        // Cancel plan
+        function cancelPlanner() {
+            // Revert to original tasks (no save)
+            tasks = JSON.parse(JSON.stringify(originalTasks));
+            
+            // Visual feedback - button blink is in CSS
+            const cancelBtn = event.target;
+            cancelBtn.style.animation = 'blink 0.3s';
+            
+            setTimeout(() => {
+                window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
+            }, 300);
+        }
+
+        // Back to Recovery Mode (same as cancel)
+        function backToRecovery() {
+            if (confirm('Go back without saving? Any unsaved changes will be lost.')) {
+                cancelPlanner();
+            }
+        }
+
+        // Initialize
+        loadSavedData();
+        renderTasks();
+
+        // ARIA announcements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Make sure all interactive elements are keyboard accessible
+            document.querySelectorAll('.task-item').forEach(item => {
+                item.setAttribute('role', 'listitem');
+            });
+        });
+    </script>
+</body>
+</html>play: none; text-align: center; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 10px; border: 1px solid #ccc; text-align: left; }
+  th { position: sticky; top: 0; background: #f0f4f9; z-index: 1; }
+  tr.overdue { background: #ffd6d6; }
+  tr.completed { background: #d7f0d7; opacity: 0.85; }
+  tr.outoforder { border-left: 5px solid #ffa500; background: #fffaf0; }
+  td.clickable { cursor: pointer; }
+  #legend { font-family: monospace; white-space: nowrap; overflow-x: auto; padding-bottom: 10px; }
+  button { cursor: pointer; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; background: #1a73e8; color: white; transition: background-color 0.3s ease; }
+  button:hover { background: #155ab6; }
+  button:disabled { background: #a6c8f3; cursor: not-allowed; }
+  #addTaskBtn, #manageTemplatesBtn { display: block; margin: 1rem auto 0; max-width: 180px; }
+  .modal { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); overflow-y: auto; }
+  .modal-content { background: white; max-width: 500px; margin: 5% auto; padding: 1.5rem 2rem 2rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.25); position: relative; }
+  .modal-content h2 { margin: 0 0 1rem; }
+  .modal-content label { display: block; margin-top: 0.75rem; font-weight: 600; }
+  .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 0.5rem 0.75rem; margin-top: 0.25rem; font-size: 1rem; border-radius: 5px; border: 1px solid #ccc; }
+  .modal-content textarea { min-height: 60px; resize: vertical; }
+  .modal-close { position: absolute; top: 10px; right: 14px; font-size: 1.8rem; font-weight: 700; color: #666; cursor: pointer; }
+  .modal-close:hover { color: #000; }
+  .modal-actions { margin-top: 1.25rem; display: flex; gap: 1rem; }
+  .modal-actions button { flex: 1; padding: 0.65rem 0; }
+  #templateList { max-height: 300px; overflow-y: auto; margin-top: 1rem; }
+  .template-item { border-bottom: 1px solid #eee; padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html')
+      .then(response => response.text())
+      .then(html => {
+        const container = document.getElementById('site-header');
+        container.innerHTML = html;
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+        const dragScript = document.createElement('script');
+        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
+        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(dragScript);
+      });
+  </script>
+<div class="container" role="main" aria-label="SpoonPal Mini App for chronic pain management and spoon accounting">
+  <h1>SpoonPal Mini App</h1>
+  <div id="timestamp" aria-live="polite"></div>
+  <div id="legend" class="section" aria-label="Protocol Legend"></div>
+  <div id="debtWarning" role="alert" aria-live="assertive"></div>
+
+  <section class="section spoon-summary" aria-label="Spoon Management Summary">
+    <div><strong>Baseline:</strong> <span id="baselineSpoons">--</span> &nbsp;&nbsp;
+    <strong>Borrowed:</strong> <span id="borrowedSpoons">--</span> &nbsp;&nbsp;
+    <strong>Start:</strong> <span id="startSpoons">--</span></div>
+    <div><strong>Planned:</strong> <span id="plannedSpoons">--</span> &nbsp;&nbsp;
+    <strong>Spent:</strong> <span id="spentSpoons">--</span> &nbsp;&nbsp;
+    <strong>Remaining:</strong> <span id="remainingSpoons">--</span></div>
+    <div><strong>Depletion:</strong> <span id="depletionSpoons">--</span> &nbsp;&nbsp;
+    <strong>Consecutive Debt Days:</strong> <span id="consecutiveDebt">0</span></div>
+  </section>
+
+  <section class="section checkin" aria-label="User daily check-in metrics">
+    <label for="painLevel">Pain (1-10)
+      <input type="number" id="painLevel" min="1" max="10" value="7" />
+    </label>
+    <label for="fatigueLevel">Fatigue (1-10)
+      <input type="number" id="fatigueLevel" min="1" max="10" value="5" />
+    </label>
+    <label for="sleepHours">Sleep (hours)
+      <input type="number" id="sleepHours" step="0.25" min="0" max="24" value="8.33" />
+    </label>
+    <label for="moodLevel">Mood
+      <select id="moodLevel" aria-label="Select your current mood">
+        <option value="excellent">Excellent</option>
+        <option value="good">Good</option>
+        <option value="okay">Okay</option>
+        <option value="poor" selected>Poor</option>
+        <option value="terrible">Terrible</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="section weather" aria-label="Weather information and controls">
+    <span id="weatherInfo">Loading weather...</span>
+    <button id="refreshWeather" type="button" aria-label="Refresh weather">Refresh</button>
+  </section>
+
+  <table aria-label="Daily task timeline" id="timelineTable" role="grid">
+    <thead>
+      <tr>
+        <th scope="col">Time</th>
+        <th scope="col">LMJ</th>
+        <th scope="col">Task Description</th>
+        <th scope="col">Spoon <span aria-hidden="true">🥄</span></th>
+        <th scope="col">Status</th>
+        <th scope="col">Area Notes</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="timelineBody">
+    </tbody>
+  </table>
+
+  <button id="addTaskBtn" type="button" aria-label="Add new task">Add Task</button>
+  <button id="manageTemplatesBtn" type="button" aria-label="Manage editable templates">Manage Templates</button>
+
+  <!-- Task Edit Modal -->
+  <div id="taskModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+    <div class="modal-content">
+      <button class="modal-close" id="taskModalClose" aria-label="Close modal">&times;</button>
+      <h2 id="taskModalTitle">Edit Task</h2>
+      <form id="taskForm">
+        <label for="taskTemplateSelect">Apply Template (optional)</label>
+        <select id="taskTemplateSelect">
+          <option value="">None</option>
+          <!-- Populated dynamically -->
+        </select>
+        <label for="taskTime">Time</label>
+        <input type="text" id="taskTime" name="taskTime" placeholder="8:30 AM" autocomplete="off" required />
+        <label for="taskLmj">LMJ Code</label>
+        <input type="text" id="taskLmj" name="taskLmj" readonly aria-readonly="true" />
+        <label for="taskEmoji">Emoji</label>
+        <input type="text" id="taskEmoji" name="taskEmoji" readonly aria-readonly="true" />
+        <label for="taskDescription">Description</label>
+        <input type="text" id="taskDescription" name="taskDescription" required />
+        <label for="taskSpoon">Spoon Cost</label>
+        <input type="number" id="taskSpoon" name="taskSpoon" step="0.5" min="0" max="20" required />
+        <label for="taskPriority">Priority</label>
+        <select id="taskPriority" name="taskPriority" required>
+          <option value="Urgent">Urgent</option>
+          <option value="High" selected>High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <label for="taskFixed">Fixed / Flexible</label>
+        <select id="taskFixed" name="taskFixed" required>
+          <option value="true">Fixed 🔒</option>
+          <option value="false" selected>Flexible ↕️</option>
+        </select>
+        <label for="taskStatus">Status</label>
+        <select id="taskStatus" name="taskStatus" required>
+          <option value="incomplete">⬜ Incomplete</option>
+          <option value="partial">⏳ Partial</option>
+          <option value="progress">🛠️ Progress</option>
+          <option value="complete">✅ Complete</option>
+          <option value="interrupted">🚧 Interrupted</option>
+          <option value="skipped">❌ Skipped</option>
+          <option value="rescheduled">🔄 Rescheduled</option>
+        </select>
+        <label for="taskNotes">Area Notes</label>
+        <textarea id="taskNotes" name="taskNotes"></textarea>
+        <div class="modal-actions">
+          <button type="submit">Save</button>
+          <button type="button" id="deleteTaskBtn" style="background:#d9534f; color:#fff;">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Templates Management Modal -->
+  <div id="templateModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="templateModalTitle">
+    <div class="modal-content">
+      <button class="modal-close" id="templateModalClose" aria-label="Close modal">&times;</button>
+      <h2 id="templateModalTitle">Manage Templates</h2>
+      <button id="addTemplateBtn" type="button" style="margin-bottom: 1rem;">Add New Template</button>
+      <div id="templateList" aria-label="List of editable templates">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Template Edit Sub-Modal -->
+  <div id="templateEditModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="templateEditTitle">
+    <div class="modal-content">
+      <button class="modal-close" id="templateEditClose" aria-label="Close modal">&times;</button>
+      <h2 id="templateEditTitle">Edit Template</h2>
+      <form id="templateForm">
+        <label for="templateName">Template Name</label>
+        <input type="text" id="templateName" name="templateName" required />
+        <label for="templateEmoji">Emoji</label>
+        <input type="text" id="templateEmoji" name="templateEmoji" placeholder="e.g., 🚿" />
+        <label for="templateDesc">Description</label>
+        <input type="text" id="templateDesc" name="templateDesc" required />
+        <label for="templateCost">Default Spoon Cost</label>
+        <input type="number" id="templateCost" name="templateCost" step="0.5" min="0" max="20" required />
+        <label for="templatePriority">Default Priority</label>
+        <select id="templatePriority" name="templatePriority" required>
+          <option value="Urgent">Urgent</option>
+          <option value="High" selected>High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <label for="templateFixed">Default Fixed / Flexible</label>
+        <select id="templateFixed" name="templateFixed" required>
+          <option value="true">Fixed 🔒</option>
+          <option value="false" selected>Flexible ↕️</option>
+        </select>
+        <div class="modal-actions">
+          <button type="submit">Save</button>
+          <button type="button" id="deleteTemplateBtn" style="background:#d9534f; color:#fff;">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // Constants and locked protocol data (corrected: B🍽️, S🤟, ZZ📵, C🔗 Word Connect, I🎨 NightCafe, all streak savers)
+  const LOCKED_LMJ_ORDER = ['A', 'V', 'B', 'C', 'D', 'S', 'L', 'I', 'G', 'N', 'ME', 'H', 'CC', 'DD', 'EE', 'FF', 'ZZ'];
+  const LOCKED_LMJ_META = {
+    A: {emoji: '💊', desc: 'Morning Medications', defaultCost: 2, fixed: true},
+    V: {emoji: '🦾', desc: 'CPAP Prep / Wrist Brace', defaultCost: 1, fixed: true},
+    B: {emoji: '🍽️', desc: 'Family Scriptures / Breakfast', defaultCost: 2, fixed: false},
+    C: {emoji: '🔗', desc: 'Word Connect Streak Saver', defaultCost: 1, fixed: false},
+    D: {emoji: '🦉', desc: 'Duolingo Streak Saver', defaultCost: 1, fixed: false},
+    S: {emoji: '🤟', desc: 'ASL Streak Saver', defaultCost: 1, fixed: false},
+    L: {emoji: '🦙', desc: 'Lingo Legend Streak Saver', defaultCost: 1, fixed: false},
+    I: {emoji: '🎨', desc: 'NightCafe Streak Saver', defaultCost: 1, fixed: false},
+    G: {emoji: '🐣', desc: 'Gosling Time', defaultCost: 1, fixed: false},
+    N: {emoji: '📰', desc: 'News with Mom', defaultCost: 1, fixed: false},
+    ME: {emoji: '🙂', desc: 'Me Time', defaultCost: 1, fixed: false},
+    H: {emoji: '🧺', desc: 'Hamper (Clothes / Bedtime)', defaultCost: 1, fixed: false},
+    CC: {emoji: '🛏️', desc: 'In Bed', defaultCost: 0, fixed: true},
+    DD: {emoji: '🌬️', desc: 'Breathe (Recovery)', defaultCost: 0, fixed: true},
+    EE: {emoji: '😷', desc: 'CPAP Mask On', defaultCost: 0, fixed: true},
+    FF: {emoji: '🛡️', desc: 'Wrist Brace (Night)', defaultCost: 0, fixed: true},
+    ZZ: {emoji: '📵', desc: 'Device Off / Crash', defaultCost: 0, fixed: true}
+  };
+  const STATUS_ORDER = ['incomplete', 'partial', 'progress', 'complete', 'interrupted', 'skipped', 'rescheduled'];
+  const STATUS_ICONS = {
+    incomplete: '⬜',
+    partial: '⏳',
+    progress: '🛠️',
+    complete: '✅',
+    interrupted: '🚧',
+    skipped: '❌',
+    rescheduled: '🔄'
+  };
+
+  // Variables
+  let timeline = [];
+  let checkIn = {pain: 7, fatigue: 5, sleep: 8.33, mood: 'poor'};
+  let spoonDebtHistory = [];
+  let dayStart = 8;
+  let dayEnd = 25;
+  let weather = {desc: 'Loading...', impact: -1}; // Communal cold penalty
+  let selectedIndex = null;
+  let templates = {
+    'Word Connect': {emoji: '🔗', desc: 'Word Connect Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'NightCafe': {emoji: '🎨', desc: 'NightCafe Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'Duolingo': {emoji: '🦉', desc: 'Duolingo Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'ASL': {emoji: '🤟', desc: 'ASL Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'Lingo Legend': {emoji: '🦙', desc: 'Lingo Legend Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'Monday': {tasks: [ // Full Monday template from your provided data
+      {time: '8:30 ☀️🔒', lmj: 'A', emoji: '🛁', description: 'Bathroom/CPAP cleaning (High)', spoon: 1, priority: 'High', fixed: true, status: 'incomplete', notes: 'Essential start, sanitize CPAP'},
+      {time: '9:00 ☀️🔒', lmj: 'B', emoji: '📖', description: 'Family scriptures & breakfast (High)', spoon: 1, priority: 'High', fixed: true, status: 'incomplete', notes: 'PB/fruit, hydrate with meal'},
+      {time: '9:30 ☀️↕️', lmj: 'C', emoji: '🚽', description: 'Bathroom break (High)', spoon: 0, priority: 'High', fixed: false, status: 'incomplete', notes: 'Standalone'},
+      {time: '10:00 ☀️↕️', lmj: 'D', emoji: '🧽', description: 'Clean kitchen counters (High)', spoon: 1, priority: 'High', fixed: false, status: 'incomplete', notes: 'Microtask, quick win'},
+      // ... add the rest of Monday tasks from your provided Monday template ...
+      {time: '[actual]', lmj: 'ZZ', emoji: '📵', description: 'Device off, crash (High)', spoon: 0, priority: 'High', fixed: true, status: 'incomplete', notes: 'Sleep initiation'}
+    ]},
+    // Add Tuesday, Thursday, Friday templates similarly from your provided data
+  };
+  let selectedTemplateKey = null;
+
+  // Utility functions (same as before)
+  function pad(n) { return n.toString().padStart(2, '0'); }
+
+  function parseTime(tstr) {
+    const m = tstr.match(/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1]), mns = parseInt(m[2] || '0');
+    if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+    return h * 60 + mns;
+  }
+
+  function formatTime(minutes) {
+    if (minutes < 0) minutes += 1440;
+    const h = Math.floor(minutes / 60) % 24;
+    const m = minutes % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hr12 = h % 12 || 12;
+    return `${hr12}:${pad(m)} ${ampm}`;
+  }
+
+  function uniqueLMJ() {
+    const taken = new Set(timeline.map(t => t.lmj));
+    for (const lmj of LOCKED_LMJ_ORDER) {
+      if (!taken.has(lmj)) return lmj;
+    }
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (let i = 0; i < letters.length; i++) {
+      if (!taken.has(letters[i])) return letters[i];
+    }
+    for (let l1 of letters) {
+      for (let l2 of letters) {
+        const c = l1 + l2;
+        if (!taken.has(c)) return c;
+      }
+    }
+    return 'XX';
+  }
+
+  function assignEmoji(lmj) {
+    return LOCKED_LMJ_META[lmj]?.emoji || '🧩';
+  }
+
+  // Spoon calculations
+  function calculateSpoons() {
+    let base = 20;
+    base -= Math.max(0, checkIn.pain - 5);
+    base -= Math.max(0, checkIn.fatigue - 5);
+    if (checkIn.sleep < 7) base -= 2 * (7 - checkIn.sleep);
+    else if (checkIn.sleep > 9) base += Math.min(3, checkIn.sleep - 9);
+    const moodAdj = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
+    base += moodAdj[checkIn.mood] || 0;
+    base += weather.impact || 0;
+    base = Math.max(1, base);
+
+    let borrowed = 0;
+    let planned = timeline.reduce((acc, t) => acc + (t.spoon || 0), 0);
+    let spent = timeline.reduce((acc, t) => {
+      if (t.status === 'complete') return acc + (t.spoon || 0);
+      else if (t.status === 'partial') return acc + (t.spoon || 0) / 2;
+      else return acc;
+    }, 0);
+
+    const start = base - borrowed;
+    const remaining = start - spent;
+    const depletion = remaining - (planned - spent);
+
+    spoonDebtHistory = spoonDebtHistory.filter(h => h.date !== new Date().toDateString());
+    spoonDebtHistory.push({ date: new Date().toDateString(), base, spent, depletion });
+
+    let counter = 0;
+    for (let i = spoonDebtHistory.length - 1; i >= 0; i--) {
+      if (spoonDebtHistory[i].depletion < 0) counter++;
+      else break;
+    }
+    document.getElementById('baselineSpoons').textContent = base;
+    document.getElementById('borrowedSpoons').textContent = borrowed;
+    document.getElementById('startSpoons').textContent = start;
+    document.getElementById('plannedSpoons').textContent = planned.toFixed(1);
+    document.getElementById('spentSpoons').textContent = spent.toFixed(1);
+    document.getElementById('remainingSpoons').textContent = remaining.toFixed(1);
+    document.getElementById('depletionSpoons').textContent = depletion.toFixed(1);
+    document.getElementById('consecutiveDebt').textContent = counter;
+
+    if (counter >= 2) {
+      let text = counter >= 5 ? '🚨 CRITICAL SPOON DEBT PERIOD 🚨' : '⚠️ SPOON DEBT WARNING ⚠️';
+      let debtDiv = document.getElementById('debtWarning');
+      debtDiv.textContent = `${text} (${counter} days)`;
+      debtDiv.style.display = 'block';
+    } else {
+      document.getElementById('debtWarning').style.display = 'none';
+    }
+  }
+
+  // Timeline rendering
+  function renderTimeline() {
+    const tbody = document.getElementById('timelineBody');
+    tbody.innerHTML = '';
+    timeline.sort((a, b) => {
+      let aM = parseTime(a.time);
+      let bM = parseTime(b.time);
+      if (aM < dayStart * 60) aM += 1440;
+      if (bM < dayStart * 60) bM += 1440;
+      return aM - bM;
+    });
+    // Enforce H after ME
+    const idxME = timeline.findIndex(t => t.lmj === 'ME');
+    const idxH = timeline.findIndex(t => t.lmj === 'H');
+    if (idxME !== -1 && idxH !== -1) {
+      if (parseTime(timeline[idxH].time) <= parseTime(timeline[idxME].time)) {
+        timeline[idxH].time = formatTime(parseTime(timeline[idxME].time) + 30);
+      }
+    }
+    for (let i = 0; i < timeline.length; i++) {
+      const t = timeline[i];
+      const tr = document.createElement('tr');
+      if (t.status === 'complete') tr.classList.add('completed');
+      const now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
+      let taskTime = parseTime(t.time);
+      let adjTaskTime = taskTime;
+      if (taskTime < dayStart * 60) adjTaskTime += 1440;
+      if (t.status === 'incomplete' && adjTaskTime < now - 15) tr.classList.add('overdue');
+
+      const timeTd = document.createElement('td');
+      timeTd.textContent = `${t.time} ${taskTime >= 720 ? '🌙' : '☀️'} ${t.fixed ? '🔒' : '↕️'}`;
+      tr.appendChild(timeTd);
+
+      const lmjTd = document.createElement('td');
+      lmjTd.textContent = `${t.lmj}${t.emoji || assignEmoji(t.lmj)}`;
+      tr.appendChild(lmjTd);
+
+      const descTd = document.createElement('td');
+      descTd.textContent = `${t.description} (${t.priority})`;
+      descTd.classList.add('clickable');
+      descTd.onclick = () => openTaskModal(i);
+      tr.appendChild(descTd);
+
+      const spoonTd = document.createElement('td');
+      spoonTd.textContent = t.spoon.toFixed(1);
+      spoonTd.classList.add('clickable');
+      spoonTd.onclick = () => openTaskModal(i);
+      tr.appendChild(spoonTd);
+
+      const statusTd = document.createElement('td');
+      statusTd.textContent = STATUS_ICONS[t.status] || STATUS_ICONS['incomplete'];
+      statusTd.classList.add('clickable');
+      statusTd.onclick = () => toggleStatus(i);
+      tr.appendChild(statusTd);
+
+      const noteTd = document.createElement('td');
+      noteTd.textContent = t.notes || '';
+      noteTd.classList.add('clickable');
+      noteTd.onclick = () => openTaskModal(i);
+      tr.appendChild(noteTd);
+
+      const actionTd = document.createElement('td');
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = (e) => { e.stopPropagation(); openTaskModal(i); };
+      actionTd.appendChild(editBtn);
+      const cloneBtn = document.createElement('button');
+      cloneBtn.textContent = 'Clone Template';
+      cloneBtn.style.background = '#28a745';
+      cloneBtn.onclick = (e) => { e.stopPropagation(); addFromTemplate(t); };
+      actionTd.appendChild(cloneBtn);
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.style.background = '#d9534f';
+      delBtn.onclick = (e) => { e.stopPropagation(); deleteTask(i); };
+      actionTd.appendChild(delBtn);
+      tr.appendChild(actionTd);
+
+      tbody.appendChild(tr);
+    }
+  }
+
+  // Task Modal functions
+  function openTaskModal(index) {
+    selectedIndex = index;
+    const task = timeline[index];
+    populateTemplateSelect('taskTemplateSelect');
+    document.getElementById('taskTemplateSelect').value = '';
+    document.getElementById('taskTime').value = task.time;
+    document.getElementById('taskLmj').value = task.lmj;
+    document.getElementById('taskEmoji').value = task.emoji || assignEmoji(task.lmj);
+    document.getElementById('taskDescription').value = task.description;
+    document.getElementById('taskSpoon').value = task.spoon;
+    document.getElementById('taskPriority').value = task.priority;
+    document.getElementById('taskFixed').value = task.fixed ? 'true' : 'false';
+    document.getElementById('taskStatus').value = task.status;
+    document.getElementById('taskNotes').value = task.notes || '';
+    document.getElementById('taskModal').style.display = 'block';
+  }
+
+  function closeTaskModal() {
+    document.getElementById('taskModal').style.display = 'none';
+    selectedIndex = null;
+  }
+
+  function saveTask(e) {
+    e.preventDefault();
+    if (selectedIndex === null) return;
+    const t = timeline[selectedIndex];
+    const timeVal = document.getElementById('taskTime').value.trim().toUpperCase();
+    if (!/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/.test(timeVal)) {
+      alert('Invalid time format, please use formats like 8:30 AM');
+      return;
+    }
+    t.time = timeVal;
+    t.description = document.getElementById('taskDescription').value.trim() || '';
+    t.spoon = parseFloat(document.getElementById('taskSpoon').value) || 0;
+    t.priority = document.getElementById('taskPriority').value;
+    t.fixed = document.getElementById('taskFixed').value === 'true';
+    t.status = document.getElementById('taskStatus').value;
+    t.notes = document.getElementById('taskNotes').value.trim();
+    t.emoji = document.getElementById('taskEmoji').value;
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+    closeTaskModal();
+  }
+
+  // Template functions
+  function populateTemplateSelect(selectId) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">None</option>';
+    for (const key in templates) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = key;
+      select.appendChild(opt);
+    }
+  }
+
+  function applyTemplate(key) {
+    const temp = templates[key];
+    if (!temp) return;
+    document.getElementById('taskEmoji').value = temp.emoji || '';
+    document.getElementById('taskDescription').value = temp.desc;
+    document.getElementById('taskSpoon').value = temp.defaultCost;
+    document.getElementById('taskPriority').value = temp.priority;
+    document.getElementById('taskFixed').value = temp.fixed ? 'true' : 'false';
+  }
+
+  function openTemplateModal() {
+    renderTemplateList();
+    document.getElementById('templateModal').style.display = 'block';
+  }
+
+  function closeTemplateModal() {
+    document.getElementById('templateModal').style.display = 'none';
+  }
+
+  function renderTemplateList() {
+    const list = document.getElementById('templateList');
+    list.innerHTML = '';
+    for (const key in templates) {
+      const item = document.createElement('div');
+      item.classList.add('template-item');
+      item.innerHTML = `<span>${key}: ${templates[key].desc} (${templates[key].defaultCost} spoons)</span>`;
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = () => openTemplateEdit(key);
+      item.appendChild(editBtn);
+      list.appendChild(item);
+    }
+  }
+
+  function openTemplateEdit(key) {
+    selectedTemplateKey = key;
+    const temp = templates[key] || { emoji: '', desc: '', defaultCost: 1, priority: 'Medium', fixed: false };
+    document.getElementById('templateName').value = key || '';
+    document.getElementById('templateEmoji').value = temp.emoji || '';
+    document.getElementById('templateDesc').value = temp.desc || '';
+    document.getElementById('templateCost').value = temp.defaultCost;
+    document.getElementById('templatePriority').value = temp.priority;
+    document.getElementById('templateFixed').value = temp.fixed ? 'true' : 'false';
+    document.getElementById('templateEditModal').style.display = 'block';
+  }
+
+  function closeTemplateEdit() {
+    document.getElementById('templateEditModal').style.display = 'none';
+    selectedTemplateKey = null;
+  }
+
+  function saveTemplate(e) {
+    e.preventDefault();
+    const name = document.getElementById('templateName').value.trim();
+    if (!name) {
+      alert('Template name required');
+      return;
+    }
+    if (selectedTemplateKey && selectedTemplateKey !== name) {
+      delete templates[selectedTemplateKey];
+    }
+    templates[name] = {
+      emoji: document.getElementById('templateEmoji').value.trim(),
+      desc: document.getElementById('templateDesc').value.trim(),
+      defaultCost: parseFloat(document.getElementById('templateCost').value) || 0,
+      priority: document.getElementById('templatePriority').value,
+      fixed: document.getElementById('templateFixed').value === 'true'
+    };
+    saveData();
+    renderTemplateList();
+    closeTemplateEdit();
+  }
+
+  function deleteTemplate() {
+    if (selectedTemplateKey && confirm(`Delete template "${selectedTemplateKey}"?`)) {
+      delete templates[selectedTemplateKey];
+      saveData();
+      renderTemplateList();
+      closeTemplateEdit();
+    }
+  }
+
+  function addFromTemplate(task) {
+    const lmj = uniqueLMJ();
+    timeline.push({
+      time: task.time,
+      lmj,
+      emoji: task.emoji,
+      description: task.description,
+      spoon: task.spoon,
+      priority: task.priority,
+      fixed: task.fixed,
+      status: 'incomplete',
+      notes: task.notes
+    });
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+  }
+
+  // Add task
+  function addTask() {
+    const lmj = uniqueLMJ();
+    const startMinutes = dayStart * 60;
+    const time = formatTime(startMinutes);
+    timeline.push({
+      time,
+      lmj,
+      emoji: assignEmoji(lmj),
+      description: LOCKED_LMJ_META[lmj]?.desc || '',
+      spoon: LOCKED_LMJ_META[lmj]?.defaultCost || 1,
+      priority: 'High',
+      fixed: LOCKED_LMJ_META[lmj]?.fixed || false,
+      status: 'incomplete',
+      notes: ''
+    });
+    openTaskModal(timeline.length - 1);
+    populateTemplateSelect('taskTemplateSelect');
+  }
+
+  // Delete task
+  function deleteTask(index) {
+    if (!confirm('Delete this task?')) return;
+    timeline.splice(index, 1);
+    saveData();
+    renderTimeline();
+  }
+
+  // Toggle status
+  function toggleStatus(index) {
+    if (index < 0 || index >= timeline.length) return;
+    let s = timeline[index].status;
+    let pos = STATUS_ORDER.indexOf(s);
+    pos = (pos + 1) % STATUS_ORDER.length;
+    timeline[index].status = STATUS_ORDER[pos];
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+  }
+
+  // Save/load
+  function saveData() {
+    const obj = {
+      timeline,
+      checkIn,
+      spoonDebtHistory,
+      dayStart,
+      dayEnd,
+      weather,
+      templates
+    };
+    localStorage.setItem('spoonPalSave', JSON.stringify(obj));
+  }
+
+  function loadData() {
+    const data = localStorage.getItem('spoonPalSave');
+    if (!data) return;
+    try {
+      const obj = JSON.parse(data);
+      timeline = obj.timeline || [];
+      checkIn = obj.checkIn || checkIn;
+      spoonDebtHistory = obj.spoonDebtHistory || [];
+      dayStart = obj.dayStart || 8;
+      dayEnd = obj.dayEnd || 25;
+      weather = obj.weather || { desc: 'Loading...', impact: -1 };
+      templates = obj.templates || templates;
+    } catch (e) {}
+  }
+
+  // Check-in update
+  function updateCheckIn() {
+    checkIn.pain = parseInt(document.getElementById('painLevel').value) || 7;
+    checkIn.fatigue = parseInt(document.getElementById('fatigueLevel').value) || 5;
+    checkIn.sleep = parseFloat(document.getElementById('sleepHours').value) || 8.33;
+    checkIn.mood = document.getElementById('moodLevel').value || 'poor';
+    calculateSpoons();
+    saveData();
+  }
+
+  // Weather fetch (Grand Junction, CO)
+  async function fetchWeather() {
+    try {
+      const lat = 39.0639, lon = -108.5506;
+      const header = { 'User-Agent': 'SpoonPalApp (contact@example.com)' };
+      const pointsResp = await fetch(`https://api.weather.gov/points/${lat},${lon}`, { headers: header });
+      if (!pointsResp.ok) throw new Error('NWS points API error');
+      const pointsData = await pointsResp.json();
+      const forecastUrl = pointsData.properties.forecast;
+      const forecastResp = await fetch(forecastUrl, { headers: header });
+      if (!forecastResp.ok) throw new Error('NWS forecast API error');
+      const forecastData = await forecastResp.json();
+      const currentPeriod = forecastData.properties.periods.find(p => p.isDaytime) || forecastData.properties.periods[0];
+      const temp = currentPeriod.temperature;
+      const desc = currentPeriod.shortForecast;
+      let impact = -1; // Communal cold penalty
+      if (temp < 50) impact -= 2;
+      else if (temp > 85) impact -= 1;
+      weather = { desc: `${temp}°F - ${desc}`, impact };
+      document.getElementById('weatherInfo').textContent = `Weather: ${weather.desc}`;
+      calculateSpoons();
+      saveData();
+    } catch (e) {
+      document.getElementById('weatherInfo').textContent = 'Weather data unavailable';
+    }
+  }
+
+  // Render legend
+  function renderLegend() {
+    let legendText = "Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon LMJ 🎯 Status ";
+    legendText += Object.values(STATUS_ICONS).join(' ') + "\nLMJ:";
+    LOCKED_LMJ_ORDER.forEach(lmj => {
+      legendText += ` ${lmj}${LOCKED_LMJ_META[lmj]?.emoji || ''}`;
+    });
+    document.getElementById('legend').textContent = legendText;
+  }
+
+  // Initialize
+  window.onload = () => {
+    loadData();
+    fetchWeather();
+    calculateSpoons();
+    renderTimeline();
+    renderLegend();
+    document.getElementById('timestamp').textContent = new Date().toLocaleString();
+    setInterval(() => document.getElementById('timestamp').textContent = new Date().toLocaleString(), 60000);
+
+    // Event listeners
+    document.getElementById('addTaskBtn').onclick = addTask;
+    document.getElementById('manageTemplatesBtn').onclick = openTemplateModal;
+    document.getElementById('refreshWeather').onclick = fetchWeather;
+    document.getElementById('taskModalClose').onclick = closeTaskModal;
+    document.getElementById('templateModalClose').onclick = closeTemplateModal;
+    document.getElementById('templateEditClose').onclick = closeTemplateEdit;
+    document.getElementById('taskForm').onsubmit = saveTask;
+    document.getElementById('templateForm').onsubmit = saveTemplate;
+    document.getElementById('addTemplateBtn').onclick = () => openTemplateEdit(null);
+    document.getElementById('deleteTemplateBtn').onclick = deleteTemplate;
+    document.getElementById('deleteTaskBtn').onclick = () => deleteTask(selectedIndex);
+    document.getElementById('taskTemplateSelect').onchange = (e) => applyTemplate(e.target.value);
+    ['painLevel', 'fatigueLevel', 'sleepHours', 'moodLevel'].forEach(id =>
+      document.getElementById(id).addEventListener('change', updateCheckIn)
+    );
+  };
+})();
+</script>
+</body>
+</html>
