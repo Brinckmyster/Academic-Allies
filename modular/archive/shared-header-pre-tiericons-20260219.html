@@ -25,9 +25,7 @@ Your disability accommodations and support network">Your disability accommodatio
 
     <div class="header-controls">
       <!-- User Info Display (hidden until signed in) -->
-      <div id="userInfoDisplay" style="display: none; margin-right: 10px; align-items: center; gap: 7px;">
-        <img id="userTierIcon" src="" alt="" width="28" height="28"
-          style="border-radius:50%;object-fit:cover;display:none;vertical-align:middle;">
+      <div id="userInfoDisplay" style="display: none; margin-right: 10px;">
         <span id="userNameDisplay"></span>
       </div>
 
@@ -65,26 +63,6 @@ Your disability accommodations and support network">Your disability accommodatio
       var signinBtn  = document.getElementById('aa-signin-btn');
       var infoWrap   = document.getElementById('userInfoDisplay');
       var nameEl     = document.getElementById('userNameDisplay');
-      var tierIconEl = document.getElementById('userTierIcon');
-
-      /* Tier icon map — family uses icon-user-family.png when added */
-      var TIER_ICONS = {
-        'admin':       '/Academic-Allies/modular/icons/icon-user-admin.png',
-        'student':     '/Academic-Allies/modular/icons/icon-user-student.png',
-        'support':     '/Academic-Allies/modular/icons/icon-user-support.png',
-        'nearby-help': '/Academic-Allies/modular/icons/icon-user-nearby-help.png',
-        'family':      '/Academic-Allies/modular/icons/icon-user-family.png'
-      };
-
-      function setTierIcon(role) {
-        if (!tierIconEl) return;
-        var src = TIER_ICONS[role] || TIER_ICONS['student'];
-        tierIconEl.src = src;
-        tierIconEl.alt = role;
-        tierIconEl.style.display = 'inline-block';
-        /* Hide gracefully if icon file doesn't exist */
-        tierIconEl.onerror = function () { tierIconEl.style.display = 'none'; };
-      }
       var signoutBtn = document.getElementById('signOutButton');
 
       /* Sign-in click → Firebase Google popup */
@@ -128,7 +106,6 @@ Your disability accommodations and support network">Your disability accommodatio
             if (infoWrap)   infoWrap.style.display   = 'flex';
             if (nameEl)     nameEl.textContent = first + (isAdmin ? ' · 🔧 Admin' : '');
             if (signoutBtn) signoutBtn.style.display  = 'inline-block';
-            setTierIcon(role);
 
             /* Show admin card on home page */
             var adminCard = document.getElementById('adminCard');
@@ -142,13 +119,12 @@ Your disability accommodations and support network">Your disability accommodatio
             } catch (e) {}
           })
           .catch(function () {
-            /* Firestore unavailable — show name, student icon as fallback */
+            /* Firestore unavailable — show name, no role badge */
             var first = (user.displayName || user.email || '').split(' ')[0];
             if (signinBtn)  signinBtn.style.display  = 'none';
             if (infoWrap)   infoWrap.style.display   = 'flex';
             if (nameEl)     nameEl.textContent = first;
             if (signoutBtn) signoutBtn.style.display  = 'inline-block';
-            setTierIcon('student');
           });
       });
     }
