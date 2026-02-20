@@ -361,25 +361,32 @@
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
 
-    // ── History reader ─────────────────────────────────────
+    // ── History reader — Firestore-backed (no localStorage) ──
+    // Updated 2026-02-19 by Claude
+    var recentHistory  = [];  // populated async from Firestore on auth
+    var todayLogCache  = [];  // populated via onSnapshot; used by getTodayLog()
+    var currentUid     = null;
+    var unsubTodayLog  = null;
+
+    /* Synchronous accessor used by auto-detect — reads from in-memory cache */
     function getRecentEntries(days) {
-      var recent = [];
-      for (var i = 1; i <= days; i++) {
-        var d = new Date();
-        d.setDate(d.getDate() - i);
-        var key = 'checkins_' + d.toISOString().split('T')[0];
-        var raw = localStorage.getItem(key);
-        if (raw) {
-          try {
-            var entries = JSON.parse(raw);
-            if (entries.length > 0) {
-              // Use the last check-in of each day
-              recent.push(entries[entries.length - 1]);
+      return recentHistory.slice(0, days || 5);
+    }
+
+    /* Load recent history from Firestore into recentHistory cache, then run callback */
+    function loadRecentHistory(callback) {
+      if (!window.AA || !AA.auth.currentUser) { callback([]); return; }
+      AA.getRecentCheckins(AA.auth.currentUser.uid, 7)
+        .then(function(days) {
+          recentHistory = [];
+          days.forEach(function(day) {
+            if (day.entries && day.entries.length > 0) {
+              recentHistory.push(day.entries[day.entries.length - 1]);
             }
-          } catch(e) {}
-        }
-      }
-      return recent;
+          });
+          callback(recentHistory);
+        })
+        .catch(function() { callback([]); });
     }
 
     // ── Auto-detection logic ───────────────────────────────
@@ -536,10 +543,9 @@
       }
     });
 
-    // ── Log ────────────────────────────────────────────────
+    // ── Log — reads from in-memory cache (kept fresh by onSnapshot) ──
     function getTodayLog() {
-      var raw = localStorage.getItem('checkins_' + dateKey);
-      return raw ? JSON.parse(raw) : [];
+      return todayLogCache;
     }
 
     function renderLog() {
@@ -593,9 +599,17 @@
         savedAt:     new Date().toISOString()
       };
 
-      var log = getTodayLog();
-      log.push(entry);
-      localStorage.setItem('checkins_' + dateKey, JSON.stringify(log));
+      // Save to Firestore — offline persistence handles no-connection gracefully.
+      // onSnapshot will refresh todayLogCache + renderLog() automatically.
+      // Updated 2026-02-19 by Claude — replaced localStorage with Firestore.
+      if (window.AA && currentUid) {
+        AA.saveCheckin(currentUid, dateKey, entry)
+          .catch(function(err) { console.error('[AA] saveCheckin error:', err); });
+      } else {
+        // Not signed in — update cache directly for immediate in-page feedback
+        todayLogCache.push(entry);
+        renderLog();
+      }
 
       // Show save message
       var msg = document.getElementById('savedMsg');
@@ -636,13 +650,49 @@
       renderLog();
     }
 
-    // ── Run auto-detect on page load ───────────────────────
-    runAutoDetect();
+    // ── Firebase boot — load history + start real-time log listener ──
+    // Updated 2026-02-19 by Claude — replaces the old localStorage-only runAutoDetect()
+    function waitForAA(cb, tries) {
+      tries = tries || 0;
+      if (window.AA && window.AA.auth) { cb(); return; }
+      if (tries > 40) return; // Firebase unavailable — form still works in-page
+      setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
+    }
+
+    function bootFirebase() {
+      AA.auth.onAuthStateChanged(function(user) {
+        if (!user) {
+          // Not signed in: auto-detect skipped (no history), form still usable
+          return;
+        }
+        currentUid = user.uid;
+
+        // 1. Load recent check-in history from Firestore → run auto-detect
+        loadRecentHistory(function() {
+          runAutoDetect();
+        });
+
+        // 2. Real-time listener for today's log → keeps renderLog() live
+        if (unsubTodayLog) { unsubTodayLog(); }
+        unsubTodayLog = AA.db
+          .collection('checkins').doc(user.uid)
+          .collection('days').doc(dateKey)
+          .onSnapshot(function(doc) {
+            todayLogCache = (doc.exists && Array.isArray(doc.data().entries))
+              ? doc.data().entries : [];
+            renderLog();
+          }, function(err) {
+            console.warn('[AA] today log listener:', err);
+          });
+      });
+    }
+
+    waitForAA(bootFirebase);
   </script>
 
   <!-- Header loader -->
   <script>
-    fetch('/Academic-Allies/modular/shared-header.html')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260220d')
       .then(function(r) { return r.text(); })
       .then(function(html) {
         var c = document.getElementById('site-header');

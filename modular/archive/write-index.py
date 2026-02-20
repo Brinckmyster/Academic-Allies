@@ -1,0 +1,158 @@
+content = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Allies - Your disability accommodations and support network</title>
+    <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
+</head>
+<body>
+
+<div id="site-header-placeholder"></div>
+<script>
+  fetch('/Academic-Allies/modular/shared-header.html')
+    .then(r => r.text())
+    .then(html => {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const header = tmp.querySelector('header') || tmp.firstElementChild;
+      document.getElementById('site-header-placeholder').replaceWith(header);
+      header.querySelectorAll('script').forEach(s => {
+        const ns = document.createElement('script');
+        if (s.src) { ns.src = s.src; ns.async = s.async; ns.defer = s.defer; }
+        else { ns.textContent = s.textContent; }
+        document.body.appendChild(ns);
+      });
+    });
+</script>
+
+<main class="dashboard">
+  <div class="module-grid">
+
+    <a class="module-card" href="/Academic-Allies/modular/checkin.html">
+      <span class="module-icon">&#x1F4CB;</span>
+      <span class="module-name">Daily Check-In</span>
+    </a>
+
+    <a class="module-card" href="/Academic-Allies/modular/emergency.html">
+      <span class="module-icon">&#x1F6A8;</span>
+      <span class="module-name">Emergency Contact</span>
+    </a>
+
+    <a class="module-card" href="/Academic-Allies/modular/components/meal-planner-mary/index.html">
+      <span class="module-icon">&#x1F37D;&#xFE0F;</span>
+      <span class="module-name">Meal Planner</span>
+    </a>
+
+    <a class="module-card" href="/Academic-Allies/modular/components/spoon-planner/spoon-planner.html">
+      <span class="module-icon">&#x1F944;</span>
+      <span class="module-name">Spoon Planner</span>
+    </a>
+
+    <a class="module-card" href="/Academic-Allies/modular/components/calendar/calendar.html">
+      <span class="module-icon">&#x1F4C5;</span>
+      <span class="module-name">Calendar</span>
+    </a>
+
+    <a class="module-card" href="/Academic-Allies/modular/components/message-system/message-system.html">
+      <span class="module-icon">&#x1F4AC;</span>
+      <span class="module-name">Messages</span>
+    </a>
+
+    <a class="module-card" href="/Academic-Allies/modular/accommodations.html">
+      <span class="module-icon">&#x1F4DD;</span>
+      <span class="module-name">Accommodations</span>
+    </a>
+
+    <a class="module-card admin-card" href="/Academic-Allies/modular/admin.html" id="adminCard" style="display:none;">
+      <span class="module-icon">&#x2699;&#xFE0F;</span>
+      <span class="module-name">Admin</span>
+    </a>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-content">
+    <a href="/Academic-Allies/modular/static/sitemap.html">Site Map</a>
+    <a href="/Academic-Allies/modular/static/docs/TEAM-PROFILES.html">About the Team</a>
+    <span>&copy; 2025 Academic Allies &mdash; Licensed under <a href="/Academic-Allies/LICENSE">MIT</a></span>
+  </div>
+</footer>
+
+<style>
+.dashboard {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 0 24px;
+}
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
+}
+.module-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 16px;
+  background: #fff;
+  border: 1px solid #e1e5e9;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #333;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+}
+.module-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  transform: translateY(-2px);
+  border-color: #2a9d8f;
+  color: #2a9d8f;
+}
+.module-icon { font-size: 2rem; line-height: 1; }
+.module-name { text-align: center; }
+.admin-card { border-style: dashed; opacity: 0.75; }
+.site-footer {
+  margin-top: 60px;
+  border-top: 1px solid #e1e5e9;
+  padding: 24px;
+  background: #f8f9fa;
+}
+.footer-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #666;
+}
+.footer-content a { color: #2a9d8f; text-decoration: none; }
+.footer-content a:hover { text-decoration: underline; }
+@media (max-width: 600px) {
+  .module-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+
+<script>
+  (function() {
+    const user = sessionStorage.getItem('academicAlliesUser');
+    if (user) {
+      const card = document.getElementById('adminCard');
+      if (card) card.style.display = 'flex';
+    }
+  })();
+</script>
+
+</body>
+</html>'''
+
+with open('index.html', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("index.html written successfully")
