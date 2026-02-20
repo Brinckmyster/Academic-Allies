@@ -2,8 +2,6 @@
 <!-- ============================================================
      admin.html — Academic Allies Admin Dashboard
      Rebuilt: 2026-02-18 by Claude
-     Updated: 2026-02-20 by Claude — added Students/Support/Both filter to User Management table
-     Updated: 2026-02-20 by Claude — added Archive button + Show Archived toggle to User Management table
      Uses aa-firebase.js (compat SDK) for real-time student data.
      Shows: Nope status (live), Flower Quiz progress, role editor.
      ============================================================ -->
@@ -303,37 +301,6 @@
     }
     .btn-small:hover { background: #9333ea; }
 
-    /* ── Role filter buttons ────────────────────────────────── */
-    .role-filter {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 14px;
-      align-items: center;
-    }
-    .role-filter span {
-      font-size: 0.78rem;
-      color: #666;
-      margin-right: 4px;
-    }
-    .filter-btn {
-      padding: 5px 16px;
-      border-radius: 20px;
-      border: 1px solid #3a3a4a;
-      background: #1a1a2e;
-      color: #888;
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: all 0.15s;
-      letter-spacing: 0.3px;
-    }
-    .filter-btn:hover { border-color: #6CA0A3; color: #ccc; }
-    .filter-btn.active {
-      background: #4a7f82;
-      border-color: #4a7f82;
-      color: #fff;
-      font-weight: 600;
-    }
-
     /* ── Refresh bar ────────────────────────────────────────── */
     .refresh-bar {
       display: flex;
@@ -405,18 +372,6 @@
 
     <!-- User management -->
     <div class="section-title">User Management</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-      <div class="role-filter" style="margin-bottom:0;">
-        <span>Show:</span>
-        <button class="filter-btn active" id="filter-both"    onclick="setFilter('both')">Everyone</button>
-        <button class="filter-btn"        id="filter-student" onclick="setFilter('student')">Students</button>
-        <button class="filter-btn"        id="filter-support" onclick="setFilter('support')">Support Network</button>
-      </div>
-      <button id="toggle-archived-btn" onclick="toggleArchived()"
-        style="padding:5px 14px;border-radius:20px;border:1px solid #555;background:transparent;color:#666;font-size:0.78rem;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px;">
-        📦 Show Archived
-      </button>
-    </div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -426,8 +381,6 @@
             <th>Role</th>
             <th>Since</th>
             <th>Update</th>
-            <th>Network</th>
-            <th></th>
           </tr>
         </thead>
         <tbody id="user-list">
@@ -465,7 +418,7 @@
 
   <script>
     /* ── Shared header ──────────────────────────────────────── */
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260220d')
+    fetch('/Academic-Allies/modular/shared-header.html')
       .then(function(r) { return r.text(); })
       .then(function(html) {
         var container = document.getElementById('site-header');
@@ -481,9 +434,6 @@
     /* ── State ──────────────────────────────────────────────── */
     var _unsubNope = {};   // uid → unsub function
     var _studentData = {}; // uid → { user, nope, quiz, logs }
-    var _allUsers      = []; // full user list for filtering
-    var _roleFilter    = 'both';  // 'both' | 'student' | 'support'
-    var _showArchived  = false;   // toggle to show/hide archived records
 
     /* ── Auth gate ──────────────────────────────────────────── */
     AA.auth.onAuthStateChanged(function(user) {
@@ -539,30 +489,10 @@
           list.innerHTML = '<p style="font-size:12px;color:#666;">No pending invitations.</p>';
           return;
         }
-        // Build a set of emails already in the signed-in user table
-        var signedInEmails = {};
-        _allUsers.forEach(function(u) {
-          if (u.data.email) signedInEmails[u.data.email.toLowerCase()] = true;
-        });
-
         var rows = snap.docs.map(function (d) {
-          var data  = d.data();
-          var email = (data.email || d.id || '').toLowerCase();
-          var alreadySignedIn = signedInEmails[email];
-
-          if (alreadySignedIn) {
-            // Already signed in — show warning row and auto-cancel button
-            return '<tr style="background:#3a1a1a;">' +
-              '<td style="padding:6px 10px;color:#ff6b6b;">⚠️ ' + email + '</td>' +
-              '<td style="padding:6px 10px;color:#ff9999;font-style:italic;">already signed in</td>' +
-              '<td style="padding:6px 10px;">' +
-                '<button onclick="cancelInvite(\'' + d.id.replace(/'/g,"\\'") + '\')" ' +
-                'style="padding:3px 10px;background:#c0392b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">' +
-                'Remove</button></td>' +
-              '</tr>';
-          }
+          var data = d.data();
           return '<tr>' +
-            '<td style="padding:6px 10px;color:#ccc;">' + email + '</td>' +
+            '<td style="padding:6px 10px;color:#ccc;">' + data.email + '</td>' +
             '<td style="padding:6px 10px;color:#6CA0A3;">' + (data.role || 'student') + '</td>' +
             '<td style="padding:6px 10px;">' +
               '<button onclick="cancelInvite(\'' + d.id.replace(/'/g,"\\'") + '\')" ' +
@@ -620,7 +550,6 @@
           var students = [];
           snap.forEach(function(docSnap) { students.push({ id: docSnap.id, data: docSnap.data() }); });
 
-          _allUsers = students;
           renderUserTable(students);
 
           var studentUsers = students.filter(function(s) { return s.data.role === 'student'; });
@@ -781,39 +710,14 @@
       ].join('');
     }
 
-    /* ── Role filter ────────────────────────────────────────── */
-    function setFilter(filter) {
-      _roleFilter = filter;
-      ['both','student','support'].forEach(function(f) {
-        var btn = document.getElementById('filter-' + f);
-        if (btn) btn.className = 'filter-btn' + (f === filter ? ' active' : '');
-      });
-      renderUserTable(_allUsers);
-    }
-
     /* ── User management table ──────────────────────────────── */
     function renderUserTable(users) {
-      var filtered = users.filter(function(u) {
-        var r = u.data.role;
-        var archived = u.data.archived === true;
-        // Archive visibility
-        if (!_showArchived && archived) return false;
-        if (_showArchived  && !archived) return false;
-        // Role filter (skip when viewing archived — show all roles)
-        if (!archived) {
-          if (_roleFilter === 'student') return r === 'student';
-          if (_roleFilter === 'support') return ['support','family','nearby-help'].indexOf(r) !== -1;
-          return true; // 'both'/Everyone: show all roles
-        }
-        return true;
-      });
       var tbody = document.getElementById('user-list');
-      if (!filtered.length) {
-        var msg = _showArchived ? 'No archived users.' : 'No users match this filter.';
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">' + msg + '</td></tr>';
+      if (!users.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">No users.</td></tr>';
         return;
       }
-      tbody.innerHTML = filtered.map(function(u) {
+      tbody.innerHTML = users.map(function(u) {
         var d = u.data;
         var since = '';
         try {
@@ -827,21 +731,14 @@
           return '<option value="' + r + '"' + (d.role === r ? ' selected' : '') + '>' + r + '</option>';
         }).join('');
 
-        var isArchived = d.archived === true;
-        var rowStyle   = isArchived ? ' style="opacity:0.45;"' : '';
-        var archiveBtn = isArchived
-          ? '<button class="btn-small" style="background:#2e7d32;" onclick="restoreUser(\'' + u.id + '\')">↩ Restore</button>'
-          : '<button class="btn-small" style="background:#555;" onclick="archiveUser(\'' + u.id + '\')">📦 Archive</button>';
-
         return [
-          '<tr', rowStyle, '>',
-            '<td>', escHtml(d.displayName || '—'), isArchived ? ' <span style="font-size:0.7rem;color:#888;">(archived)</span>' : '', '</td>',
+          '<tr>',
+            '<td>', escHtml(d.displayName || '—'), '</td>',
             '<td>', escHtml(d.email || '—'), '</td>',
-            '<td><select id="role-', u.id, '"', isArchived ? ' disabled' : '', '>', opts, '</select></td>',
+            '<td><select id="role-', u.id, '">', opts, '</select></td>',
             '<td style="color:#555;font-size:0.8rem">', since, '</td>',
-            '<td>', isArchived ? '' : '<button class="btn-small" onclick="updateRole(\'' + u.id + '\')">Save</button>', '</td>',
-            '<td><a href="/Academic-Allies/modular/components/user-tiers/user-tiers.html?v=20260220d&student=', u.id, '" style="font-size:12px;color:#4a9eff;">Manage Network</a></td>',
-            '<td>', archiveBtn, '</td>',
+            '<td><button class="btn-small" onclick="updateRole(\'', u.id, '\')">Save</button></td>',
+            '<td><a href="/Academic-Allies/modular/components/user-tiers/user-tiers.html?student=', u.id, '" style="font-size:12px;color:#4a9eff;">Manage Network</a></td>',
           '</tr>'
         ].join('');
       }).join('');
@@ -853,40 +750,6 @@
       AA.db.collection('users').doc(uid).update({ role: sel.value })
         .then(function() { alert('Role updated to: ' + sel.value); })
         .catch(function(err) { alert('Error: ' + err.message); });
-    };
-
-    /* ── Archive / Restore ──────────────────────────────────── */
-    window.archiveUser = function(uid) {
-      if (!confirm('Archive this user? They won\'t be deleted — you can restore them anytime.')) return;
-      AA.db.collection('users').doc(uid).update({ archived: true, archivedAt: new Date() })
-        .then(function() {
-          // Update local cache
-          var u = _allUsers.find(function(x) { return x.id === uid; });
-          if (u) u.data.archived = true;
-          renderUserTable(_allUsers);
-        })
-        .catch(function(err) { alert('Error archiving: ' + err.message); });
-    };
-
-    window.restoreUser = function(uid) {
-      AA.db.collection('users').doc(uid).update({ archived: false, archivedAt: null })
-        .then(function() {
-          var u = _allUsers.find(function(x) { return x.id === uid; });
-          if (u) u.data.archived = false;
-          renderUserTable(_allUsers);
-        })
-        .catch(function(err) { alert('Error restoring: ' + err.message); });
-    };
-
-    window.toggleArchived = function() {
-      _showArchived = !_showArchived;
-      var btn = document.getElementById('toggle-archived-btn');
-      if (btn) {
-        btn.textContent  = _showArchived ? '👥 Show Active' : '📦 Show Archived';
-        btn.style.color  = _showArchived ? '#ffa726' : '#666';
-        btn.style.border = _showArchived ? '1px solid #ffa726' : '1px solid #555';
-      }
-      renderUserTable(_allUsers);
     };
 
     /* ── Helpers ────────────────────────────────────────────── */
