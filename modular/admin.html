@@ -539,10 +539,30 @@
           list.innerHTML = '<p style="font-size:12px;color:#666;">No pending invitations.</p>';
           return;
         }
+        // Build a set of emails already in the signed-in user table
+        var signedInEmails = {};
+        _allUsers.forEach(function(u) {
+          if (u.data.email) signedInEmails[u.data.email.toLowerCase()] = true;
+        });
+
         var rows = snap.docs.map(function (d) {
-          var data = d.data();
+          var data  = d.data();
+          var email = (data.email || d.id || '').toLowerCase();
+          var alreadySignedIn = signedInEmails[email];
+
+          if (alreadySignedIn) {
+            // Already signed in — show warning row and auto-cancel button
+            return '<tr style="background:#3a1a1a;">' +
+              '<td style="padding:6px 10px;color:#ff6b6b;">⚠️ ' + email + '</td>' +
+              '<td style="padding:6px 10px;color:#ff9999;font-style:italic;">already signed in</td>' +
+              '<td style="padding:6px 10px;">' +
+                '<button onclick="cancelInvite(\'' + d.id.replace(/'/g,"\\'") + '\')" ' +
+                'style="padding:3px 10px;background:#c0392b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">' +
+                'Remove</button></td>' +
+              '</tr>';
+          }
           return '<tr>' +
-            '<td style="padding:6px 10px;color:#ccc;">' + data.email + '</td>' +
+            '<td style="padding:6px 10px;color:#ccc;">' + email + '</td>' +
             '<td style="padding:6px 10px;color:#6CA0A3;">' + (data.role || 'student') + '</td>' +
             '<td style="padding:6px 10px;">' +
               '<button onclick="cancelInvite(\'' + d.id.replace(/'/g,"\\'") + '\')" ' +
