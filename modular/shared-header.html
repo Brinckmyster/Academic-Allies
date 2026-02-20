@@ -8,6 +8,7 @@ Your disability accommodations and support network">Your disability accommodatio
     <nav aria-label="Main navigation">
       <ul class="nav-list">
         <li><a href="/Academic-Allies/modular/components/calendar/calendar.html" title="Calendar">Calendar</a></li>
+        <li><a href="/Academic-Allies/modular/components/message-system/message-system.html" title="Messages">Messages</a></li>
         <li><a href="/Academic-Allies/modular/emergency.html" title="Emergency Contact">Emergency Contact</a></li>
         <li><a href="/Academic-Allies/modular/checkin.html" title="Daily Check-In">Daily Check-In</a></li>
         <li><a href="/Academic-Allies/modular/icon-gallery.html" title="Icon Gallery">Icon Gallery</a></li>
@@ -38,6 +39,12 @@ Your disability accommodations and support network">Your disability accommodatio
         Sign in with Google
       </button>
 
+      <!-- Admin Panel Button (shown only for admins) -->
+      <a id="adminPanelBtn" href="/Academic-Allies/modular/admin.html" title="Admin Panel" style="display:none;align-items:center;gap:6px;padding:7px 13px;background:#4a7f82;color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;border:none;">
+        <img src="https://brinckmyster.github.io/Academic-Allies/modular/icons/badge-admin-icon.png" width="18" height="18" alt="" style="vertical-align:middle;">
+        Admin
+      </a>
+
       <!-- Sign Out Button (hidden until signed in) -->
       <button id="signOutButton" style="display: none;">Sign Out</button>
 
@@ -56,17 +63,18 @@ Your disability accommodations and support network">Your disability accommodatio
   (function () {
     'use strict';
     var FB_BASE   = 'https://www.gstatic.com/firebasejs/9.23.0/';
-    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js';
+    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260220e'; /* Updated: 2026-02-20 by Claude — Admin Panel button in header */
 
     /* ── 3. Wire up the header UI once window.AA is ready ── */
     function initAuthUI() {
       if (!window.AA || !window.AA.auth) { setTimeout(initAuthUI, 100); return; }
 
-      var signinBtn  = document.getElementById('aa-signin-btn');
-      var infoWrap   = document.getElementById('userInfoDisplay');
-      var nameEl     = document.getElementById('userNameDisplay');
-      var tierIconEl = document.getElementById('userTierIcon');
-      var signoutBtn = document.getElementById('signOutButton');
+      var signinBtn    = document.getElementById('aa-signin-btn');
+      var infoWrap     = document.getElementById('userInfoDisplay');
+      var nameEl       = document.getElementById('userNameDisplay');
+      var tierIconEl   = document.getElementById('userTierIcon');
+      var signoutBtn   = document.getElementById('signOutButton');
+      var adminBtn     = document.getElementById('adminPanelBtn');
 
       /* Tier icon map */
       var TIER_ICONS = {
@@ -113,27 +121,35 @@ Your disability accommodations and support network">Your disability accommodatio
           if (signinBtn)  { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
           if (infoWrap)   infoWrap.style.display   = 'none';
           if (signoutBtn) signoutBtn.style.display  = 'none';
+          if (adminBtn)   adminBtn.style.display    = 'none';
           return;
         }
 
         /* Look up role in Firestore */
         window.AA.db.collection('users').doc(user.uid).get()
           .then(function (doc) {
-            var role    = doc.exists ? (doc.data().role || 'student') : 'student';
+            var data    = doc.exists ? doc.data() : {};
+            var role    = data.role || 'student';
             var isAdmin = (role === 'admin');
             var first   = (user.displayName || user.email || '').split(' ')[0];
 
             if (signinBtn)  signinBtn.style.display  = 'none';
             if (infoWrap)   infoWrap.style.display   = 'flex';
-            if (nameEl)     nameEl.textContent = first + (isAdmin ? ' · 🔧 Admin' : '');
+            if (nameEl)     nameEl.textContent = first;
+            if (adminBtn)   adminBtn.style.display   = isAdmin ? 'inline-flex' : 'none';
             if (signoutBtn) signoutBtn.style.display  = 'inline-block';
             setTierIcon(role);
 
-            /* Show admin card on home page */
-            var adminCard    = document.getElementById('adminCard');
-            var spoonpalCard = document.getElementById('spoonpalCard');
-            if (adminCard    && isAdmin) adminCard.style.display    = 'flex';
-            if (spoonpalCard && isAdmin) spoonpalCard.style.display = 'flex';
+            /* Show role-specific cards on home page — updated 2026-02-20 by Claude */
+            var adminCard       = document.getElementById('adminCard');
+            var spoonpalCard    = document.getElementById('spoonpalCard');
+            var supportDashCard = document.getElementById('supportDashCard');
+            var isSupportRole   = ['support','family','nearby-help'].indexOf(role) !== -1;
+            // isSupporter flag: student who is also in someone else's support network
+            var isStudentSupporter = (role === 'student' && data.isSupporter === true);
+            if (adminCard       && isAdmin)                        adminCard.style.display       = 'flex';
+            if (spoonpalCard    && isAdmin)                        spoonpalCard.style.display    = 'flex';
+            if (supportDashCard && (isSupportRole || isStudentSupporter)) supportDashCard.style.display = 'flex';
 
             /* Keep sessionStorage for any pages still reading it */
             try {
@@ -184,7 +200,8 @@ Your disability accommodations and support network">Your disability accommodatio
   </script>
 <script src="/Academic-Allies/modular/js/draggable.js"></script>
 <script src="/Academic-Allies/modular/js/status-circle.js"></script>
-  <script type="module" src="/Academic-Allies/modular/js/auth-system.js"></script>
+  <!-- auth-system.js retired 2026-02-20 — was creating duplicate 'pending' user docs
+       and conflicting with aa-firebase.js. Archived as archive/auth-system-RETIRED-*.js -->
 </header>
 
 <style>

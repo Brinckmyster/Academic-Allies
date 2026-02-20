@@ -93,21 +93,7 @@
           console.log('[AA] Admin role self-heal →', user.email);
           db.collection('users').doc(user.uid).update({ role: 'admin' }).catch(function () {});
         }
-        // ── Pending honor: if admin pre-registered this user with a role AFTER they
-        //    already signed in, honor it now and clean up the pendingUsers entry ──
-        return db.collection('pendingUsers').doc(user.email).get()
-          .then(function (pending) {
-            if (pending.exists) {
-              var pendingRole = pending.data().role || 'student';
-              console.log('[AA] Honoring pending role for existing user:', user.email, '→', pendingRole);
-              return db.collection('pendingUsers').doc(user.email).delete()
-                .catch(function () {})
-                .then(function () {
-                  return db.collection('users').doc(user.uid).update({ role: pendingRole });
-                });
-            }
-          })
-          .catch(function () {}); // permission denied = no pending entry, fine
+        return; // already registered, nothing more to do
       }
 
       // Attempt to read a pending pre-registration for this email.
