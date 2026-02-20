@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Academic Allies – Daily Check-In</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    body {
+      font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+      font-size: 16pt;
+      line-height: 1.6;
+      background: #FAFAF9;
+      color: #333;
+      min-height: 100vh;
+      padding: 20px;
+      margin: 0;
+    }
+    .checkin-container { max-width: 640px; margin: 0 auto; }
+    .page-title { text-align: center; color: #6CA0A3; font-size: 22pt; margin-bottom: 6px; }
+    .date-display { text-align: center; color: #888; font-size: 13pt; margin-bottom: 28px; }
+
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 22px 24px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h2 { color: #6CA0A3; font-size: 15pt; margin: 0 0 10px 0; }
+
+    .reassurance {
+      background: #f0f7f8;
+      border-left: 4px solid #6CA0A3;
+      border-radius: 0 10px 10px 0;
+      padding: 10px 14px;
+      font-size: 12pt;
+      color: #555;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    /* Auto-detect badge */
+    .auto-detect-badge {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 9px 13px;
+      background: #fff8e1;
+      border: 1.5px solid #ffe082;
+      border-radius: 10px;
+      font-size: 11pt;
+      color: #6d5200;
+      line-height: 1.4;
+    }
+    .auto-detect-badge .badge-icon { font-size: 14pt; flex-shrink: 0; }
+    .auto-detect-badge .badge-text { flex: 1; }
+
+    /* Yes / No / Skip buttons */
+    .yn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .yn-btn {
+      flex: 1;
+      min-width: 80px;
+      padding: 12px 10px;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      font-size: 13pt;
+      cursor: pointer;
+      background: #f0f4f5;
+      font-family: inherit;
+      transition: all 0.18s;
+      text-align: center;
+    }
+    .yn-btn:hover { background: #e0eced; border-color: #6CA0A3; }
+    .yn-btn.selected-yes  { background: #d4edda; border-color: #28a745; color: #155724; }
+    .yn-btn.selected-no   { background: #fff3cd; border-color: #ffc107; color: #856404; }
+    .yn-btn.selected-red  { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+    .yn-btn.skip          { flex: 0 0 auto; background: #f8f8f8; color: #aaa; font-size: 11pt; border-color: #eee; }
+    .yn-btn.skip:hover    { color: #777; border-color: #ccc; }
+
+    /* Expandable checklist (for symptom question) */
+    .symptom-list {
+      display: none;
+      margin-top: 14px;
+      padding: 14px;
+      background: #f8f8f8;
+      border-radius: 12px;
+    }
+    .symptom-list.open { display: block; }
+    .symptom-list label {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13pt; margin-bottom: 10px; cursor: pointer;
+    }
+    .symptom-list input[type="checkbox"] {
+      width: 20px; height: 20px; accent-color: #6CA0A3; flex-shrink: 0;
+    }
+
+    /* Mood grid */
+    .mood-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    .mood-btn {
+      background: #f0f4f5; border: 2px solid transparent;
+      border-radius: 12px; padding: 12px 6px; font-size: 24pt;
+      cursor: pointer; text-align: center; transition: all 0.18s;
+      font-family: inherit;
+    }
+    .mood-btn:hover { background: #e0eced; }
+    .mood-btn.selected { border-color: #6CA0A3; background: #e8f2f3; }
+    .mood-label { display: block; font-size: 9pt; color: #555; margin-top: 3px; }
+
+    /* "Have you…" checkboxes */
+    .hyu-list { display: flex; flex-direction: column; gap: 12px; }
+    .hyu-list label {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 14pt; cursor: pointer;
+    }
+    .hyu-list input[type="checkbox"] {
+      width: 22px; height: 22px; accent-color: #6CA0A3; flex-shrink: 0;
+    }
+
+    textarea {
+      width: 100%; border: 2px solid #e0e0e0; border-radius: 10px;
+      padding: 12px; font-family: inherit; font-size: 13pt;
+      resize: vertical; min-height: 80px; box-sizing: border-box;
+    }
+    textarea:focus { border-color: #6CA0A3; outline: none; }
+
+    /* Inline flag note (shows when No selected) */
+    .flag-note {
+      display: none; margin-top: 12px; font-size: 12pt;
+      padding: 10px 14px; border-radius: 10px;
+    }
+    .flag-note.yellow { background: #fff3cd; color: #856404; }
+    .flag-note.red    { background: #f8d7da; color: #721c24; }
+
+    .save-btn {
+      background: #6CA0A3; color: white; border: none;
+      border-radius: 25px; padding: 14px 40px; font-size: 16pt;
+      cursor: pointer; width: 100%; margin-top: 6px;
+      min-height: 19mm; font-family: inherit;
+    }
+    .save-btn:hover { background: #5a8c8f; }
+    .save-btn:active { transform: scale(0.98); }
+
+    #savedMsg {
+      display: none; text-align: center; padding: 14px 18px;
+      border-radius: 14px; margin-top: 14px; font-size: 13pt;
+    }
+
+    /* Today's log */
+    .log-title { color: #6CA0A3; font-weight: 600; font-size: 12pt; margin-bottom: 10px; }
+    .log-entry {
+      background: #f0f4f5; border-radius: 12px;
+      padding: 10px 14px; margin-bottom: 8px; font-size: 11pt;
+    }
+
+    /* ── Auto-detect warning modal ──────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal-box {
+      background: white;
+      border-radius: 22px;
+      padding: 30px 28px 24px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.22);
+      text-align: center;
+    }
+    .modal-icon { font-size: 36pt; margin-bottom: 8px; }
+    .modal-title {
+      color: #6CA0A3; font-size: 17pt; margin: 0 0 14px;
+      font-family: inherit;
+    }
+    .modal-body {
+      font-size: 12pt; color: #555; line-height: 1.6;
+      margin: 0 0 10px;
+      background: #fff8e1;
+      border: 1.5px solid #ffe082;
+      border-radius: 10px;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .modal-question {
+      font-size: 13pt; color: #333; margin: 14px 0 18px;
+      font-weight: 600;
+    }
+    .modal-btns {
+      display: flex; gap: 12px; flex-wrap: wrap;
+    }
+    .modal-btn-keep {
+      flex: 1; padding: 13px 10px;
+      background: #e8f2f3; color: #2d6a6d;
+      border: 2px solid #6CA0A3; border-radius: 14px;
+      font-size: 12pt; cursor: pointer;
+      font-family: inherit; line-height: 1.3;
+    }
+    .modal-btn-keep:hover { background: #d2e8ea; }
+    .modal-btn-change {
+      flex: 1; padding: 13px 10px;
+      background: #f0f4f5; color: #555;
+      border: 2px solid #ddd; border-radius: 14px;
+      font-size: 12pt; cursor: pointer;
+      font-family: inherit; line-height: 1.3;
+    }
+    .modal-btn-change:hover { background: #e4e8e9; border-color: #bbb; }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <!-- Auto-detect warning modal -->
+  <div id="autoDetectModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-box">
+      <div class="modal-icon">🔍</div>
+      <h3 class="modal-title" id="modalTitle">We noticed something</h3>
+      <p class="modal-body" id="modalBody"></p>
+      <p class="modal-question">Are you sure you want to change your answer?</p>
+      <div class="modal-btns">
+        <button class="modal-btn-keep" onclick="cancelAutoChange()">Keep auto-detected answer</button>
+        <button class="modal-btn-change" onclick="confirmAutoChange()">Yes, change it</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="checkin-container">
+    <h1 class="page-title">📋 Daily Check-In</h1>
+    <p class="date-display" id="todayDate"></p>
+
+    <!-- MOOD (supplemental, not in core spec) -->
+    <div class="card">
+      <h2>How are you feeling right now? 💭</h2>
+      <div class="reassurance">This is just for your own tracking — no flags, no alerts. Skip it if you want.</div>
+      <div class="mood-grid">
+        <button class="mood-btn" onclick="selectMood(this,'Great')"     aria-label="Great">😄<span class="mood-label">Great</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Good')"      aria-label="Good">🙂<span class="mood-label">Good</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Okay')"      aria-label="Okay">😐<span class="mood-label">Okay</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Tired')"     aria-label="Tired">😴<span class="mood-label">Tired</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Anxious')"   aria-label="Anxious">😰<span class="mood-label">Anxious</span></button>
+        <button class="mood-btn" onclick="selectMood(this,'Struggling')" aria-label="Struggling">😔<span class="mood-label">Struggling</span></button>
+      </div>
+    </div>
+
+    <!-- QUESTION A: Symptoms -->
+    <div class="card" id="card-symptoms">
+      <h2>A. Pain, fatigue, or brain fog today?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If we notice signs of a bad brain day in the background, we'll note that for you. No action needed unless you want to add details.</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="symptomsNo"   onclick="selectQ('symptoms','no')">✅ No</button>
+        <button class="yn-btn" id="symptomsYes"  onclick="selectQ('symptoms','yes')">😔 Yes</button>
+        <button class="yn-btn skip"              onclick="selectQ('symptoms','skip')">⏭ Skip</button>
+      </div>
+      <div class="symptom-list" id="symptomChecklist">
+        <strong style="font-size:12pt;color:#555;display:block;margin-bottom:10px;">Which ones? (check all that apply)</strong>
+        <label><input type="checkbox" value="Headache"> Headache</label>
+        <label><input type="checkbox" value="Muscle pain"> Muscle pain</label>
+        <label><input type="checkbox" value="Joint pain"> Joint pain</label>
+        <label><input type="checkbox" value="Severe tiredness/fatigue"> Severe tiredness / fatigue</label>
+        <label><input type="checkbox" value="Trouble thinking/brain fog"> Trouble thinking / brain fog</label>
+        <label><input type="checkbox" value="Dizziness"> Dizziness</label>
+        <label><input type="checkbox" value="Nausea"> Nausea</label>
+        <label><input type="checkbox" value="Other"> Other</label>
+      </div>
+      <!-- Auto-detect badge injected here by JS if applicable -->
+    </div>
+
+    <!-- QUESTION B: Sleep -->
+    <div class="card" id="card-sleep">
+      <h2>B. At least 6 hours of sleep last night?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If you use a phone-based sleep app, this can be auto-logged eventually. No action needed unless you want to record it.</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="sleepYes" onclick="selectQ('sleep','yes')">✅ Yes</button>
+        <button class="yn-btn" id="sleepNo"  onclick="selectQ('sleep','no')">❌ No</button>
+        <button class="yn-btn skip"          onclick="selectQ('sleep','skip')">⏭ Skip</button>
+      </div>
+      <!-- Auto-detect badge injected here by JS if applicable -->
+    </div>
+
+    <!-- HAVE YOU…? (supplemental basics) -->
+    <div class="card">
+      <h2>Quick basics ✅</h2>
+      <div class="reassurance">No flags — just helpful to track for yourself and your team.</div>
+      <div class="hyu-list">
+        <label><input type="checkbox" id="ateToday">   Eaten something today</label>
+        <label><input type="checkbox" id="drankWater"> Had water or fluids</label>
+        <label><input type="checkbox" id="tookMeds">   Taken any needed meds</label>
+      </div>
+    </div>
+
+    <!-- QUESTION C: Support connection -->
+    <div class="card" id="card-support">
+      <h2>C. Talked to someone on your support team today?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If you skip, we'll just note that. No action needed unless you want to add details. (Bruise, Mom, a counselor, anyone counts.)</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="supportYes" onclick="selectQ('support','yes')">✅ Yes</button>
+        <button class="yn-btn" id="supportNo"  onclick="selectQ('support','no')">❌ Not yet</button>
+        <button class="yn-btn skip"            onclick="selectQ('support','skip')">⏭ Skip</button>
+      </div>
+      <div class="flag-note yellow" id="supportFlagNote">🟡 Noted — your team will know to check in with you.</div>
+    </div>
+
+    <!-- QUESTION D: Planner review -->
+    <div class="card" id="card-planner">
+      <h2>D. Reviewed your calendar or planner today?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If you skip, we'll just note that. No action needed unless you want to add details.</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="plannerYes" onclick="selectQ('planner','yes')">✅ Yes</button>
+        <button class="yn-btn" id="plannerNo"  onclick="selectQ('planner','no')">❌ Not today</button>
+        <button class="yn-btn skip"            onclick="selectQ('planner','skip')">⏭ Skip</button>
+      </div>
+    </div>
+
+    <!-- QUESTION E: Emergency protocols -->
+    <div class="card" id="card-emergency">
+      <h2>E. Did you need emergency support today?</h2>
+      <div class="reassurance">You don't need to answer this if you're not sure. If you skip, we'll just note that. No action needed unless you want to record it.</div>
+      <div class="yn-row">
+        <button class="yn-btn" id="emergencyNo"  onclick="selectQ('emergency','no')">✅ No</button>
+        <button class="yn-btn" id="emergencyYes" onclick="selectQ('emergency','yes')">🚨 Yes</button>
+        <button class="yn-btn skip"              onclick="selectQ('emergency','skip')">⏭ Skip</button>
+      </div>
+      <div class="flag-note red" id="emergencyFlagNote">🔴 Recorded. Please reach out right now — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or contact Bruise directly.</div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="card">
+      <h2>Anything else to note? 📝</h2>
+      <div class="reassurance">Completely optional. Anything — how class went, what hurts, what you need, what's on your mind.</div>
+      <textarea id="checkinNotes" placeholder="Type here, or leave it blank…"></textarea>
+    </div>
+
+    <button class="save-btn" onclick="saveCheckin()">Save Check-In ✓</button>
+    <div id="savedMsg"></div>
+    <div id="todayLog" style="margin-top:28px;"></div>
+  </div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────
+    var selectedMood = '';
+    var answers = { symptoms: '', sleep: '', support: '', planner: '', emergency: '' };
+    var now = new Date();
+    var dateKey = now.toISOString().split('T')[0];
+
+    // Auto-detect state
+    // autoFilled[group] = { answer: 'yes'/'no', reason: 'human-readable string' }
+    var autoFilled = {};
+    var pendingChange = null; // { group, answer } — waiting for modal confirmation
+
+    // Show date
+    document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    // ── History reader ─────────────────────────────────────
+    function getRecentEntries(days) {
+      var recent = [];
+      for (var i = 1; i <= days; i++) {
+        var d = new Date();
+        d.setDate(d.getDate() - i);
+        var key = 'checkins_' + d.toISOString().split('T')[0];
+        var raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            var entries = JSON.parse(raw);
+            if (entries.length > 0) {
+              // Use the last check-in of each day
+              recent.push(entries[entries.length - 1]);
+            }
+          } catch(e) {}
+        }
+      }
+      return recent;
+    }
+
+    // ── Auto-detection logic ───────────────────────────────
+    function runAutoDetect() {
+      var recent = getRecentEntries(5);
+      if (recent.length < 2) return; // not enough history yet
+
+      // Question A: symptoms — auto-fill "yes" if 2+ of last 5 days had symptoms
+      var symptomDays = recent.filter(function(e) { return e.symptoms === 'yes'; }).length;
+      if (symptomDays >= 2) {
+        var label = symptomDays === 2
+          ? 'You reported symptoms on 2 of the last 5 days.'
+          : 'You reported symptoms on ' + symptomDays + ' of the last 5 days.';
+        applyAutoFill('symptoms', 'yes', label);
+      }
+
+      // Question B: sleep — auto-fill "no" if 2+ of last 5 days had poor sleep
+      var noSleepDays = recent.filter(function(e) { return e.sleep === 'no'; }).length;
+      if (noSleepDays >= 2) {
+        var sleepLabel = noSleepDays === 2
+          ? 'You reported poor sleep on 2 of the last 5 days.'
+          : 'You reported poor sleep on ' + noSleepDays + ' of the last 5 days.';
+        applyAutoFill('sleep', 'no', sleepLabel);
+      }
+    }
+
+    function applyAutoFill(group, answer, reason) {
+      autoFilled[group] = { answer: answer, reason: reason };
+      // Apply the selection silently (skipWarning = true)
+      applySelection(group, answer);
+      // Show the badge on the card
+      showAutoDetectBadge(group, reason);
+    }
+
+    function showAutoDetectBadge(group, reason) {
+      var cardId = 'card-' + group;
+      var card = document.getElementById(cardId);
+      if (!card) return;
+      // Remove existing badge if any
+      var existing = document.getElementById('autoBadge-' + group);
+      if (existing) existing.remove();
+      var badge = document.createElement('div');
+      badge.className = 'auto-detect-badge';
+      badge.id = 'autoBadge-' + group;
+      badge.innerHTML = '<span class="badge-icon">🔍</span><span class="badge-text">Auto-detected: ' + reason + '</span>';
+      card.appendChild(badge);
+    }
+
+    // ── Mood ───────────────────────────────────────────────
+    function selectMood(btn, mood) {
+      selectedMood = mood;
+      document.querySelectorAll('.mood-btn').forEach(function(b) { b.classList.remove('selected'); });
+      btn.classList.add('selected');
+    }
+
+    // ── Button state maps ──────────────────────────────────
+    var btnMap = {
+      symptoms:  { yes: 'symptomsYes',  no: 'symptomsNo'  },
+      sleep:     { yes: 'sleepYes',     no: 'sleepNo'     },
+      support:   { yes: 'supportYes',   no: 'supportNo'   },
+      planner:   { yes: 'plannerYes',   no: 'plannerNo'   },
+      emergency: { yes: 'emergencyYes', no: 'emergencyNo' }
+    };
+
+    // Applies visual selection without any auto-detect check
+    function applySelection(group, answer) {
+      answers[group] = answer;
+
+      // Clear all button styles for this group
+      Object.values(btnMap[group]).forEach(function(id) {
+        var btn = document.getElementById(id);
+        if (btn) btn.className = 'yn-btn';
+      });
+
+      if (answer === 'yes') {
+        var yBtn = document.getElementById(btnMap[group].yes);
+        if (yBtn) yBtn.className = (group === 'emergency') ? 'yn-btn selected-red' : 'yn-btn selected-yes';
+      } else if (answer === 'no') {
+        var nBtn = document.getElementById(btnMap[group].no);
+        if (nBtn) nBtn.className = (group === 'emergency') ? 'yn-btn selected-yes' : 'yn-btn selected-no';
+      }
+
+      // Symptom checklist toggle
+      if (group === 'symptoms') {
+        var cl = document.getElementById('symptomChecklist');
+        cl.className = answer === 'yes' ? 'symptom-list open' : 'symptom-list';
+      }
+
+      // Support flag note
+      if (group === 'support') {
+        document.getElementById('supportFlagNote').style.display = (answer === 'no') ? 'block' : 'none';
+      }
+
+      // Emergency flag note + red style
+      if (group === 'emergency') {
+        document.getElementById('emergencyFlagNote').style.display = (answer === 'yes') ? 'block' : 'none';
+        var eYes = document.getElementById('emergencyYes');
+        var eNo  = document.getElementById('emergencyNo');
+        if (answer === 'yes' && eYes) eYes.className = 'yn-btn selected-red';
+        if (answer === 'no'  && eNo)  eNo.className  = 'yn-btn selected-yes';
+      }
+    }
+
+    // ── Yes/No/Skip click handler (checks auto-detect) ──────
+    function selectQ(group, answer) {
+      // If this group was auto-filled AND the current answer matches the auto-filled one
+      // AND the user is now choosing something different → show warning dialog
+      var af = autoFilled[group];
+      if (af && answers[group] === af.answer && answer !== af.answer && answer !== 'skip') {
+        pendingChange = { group: group, answer: answer };
+        document.getElementById('modalBody').textContent =
+          af.reason + ' Based on your recent history, we pre-filled this answer for you.';
+        document.getElementById('autoDetectModal').classList.add('open');
+        return;
+      }
+
+      // If they're changing a previously auto-filled answer (already confirmed once), just go ahead
+      applySelection(group, answer);
+
+      // If they chose skip after an auto-fill, silently remove the badge
+      if (answer === 'skip' && af) {
+        var badge = document.getElementById('autoBadge-' + group);
+        if (badge) badge.remove();
+        delete autoFilled[group];
+      }
+    }
+
+    // ── Modal: keep auto-filled answer ────────────────────
+    function cancelAutoChange() {
+      pendingChange = null;
+      document.getElementById('autoDetectModal').classList.remove('open');
+    }
+
+    // ── Modal: confirm change, dismiss badge ──────────────
+    function confirmAutoChange() {
+      if (pendingChange) {
+        var g = pendingChange.group;
+        // Remove auto-fill tracking so it won't trigger again this session
+        delete autoFilled[g];
+        // Remove badge
+        var badge = document.getElementById('autoBadge-' + g);
+        if (badge) badge.remove();
+        // Apply the change
+        applySelection(g, pendingChange.answer);
+        pendingChange = null;
+      }
+      document.getElementById('autoDetectModal').classList.remove('open');
+    }
+
+    // Allow pressing Escape to keep auto-filled answer
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && document.getElementById('autoDetectModal').classList.contains('open')) {
+        cancelAutoChange();
+      }
+    });
+
+    // ── Log ────────────────────────────────────────────────
+    function getTodayLog() {
+      var raw = localStorage.getItem('checkins_' + dateKey);
+      return raw ? JSON.parse(raw) : [];
+    }
+
+    function renderLog() {
+      var log = getTodayLog();
+      var container = document.getElementById('todayLog');
+      if (log.length === 0) { container.innerHTML = ''; return; }
+      var html = '<div class="log-title">Today\'s check-ins (' + log.length + ')</div>';
+      log.slice().reverse().forEach(function(e) {
+        var t   = new Date(e.savedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        var dot = e.flag === 'red' ? '🔴' : e.flag === 'yellow' ? '🟡' : '🟢';
+        html += '<div class="log-entry">' + dot + ' <strong>' + t + '</strong>';
+        if (e.mood) html += ' — ' + e.mood;
+        if (e.symptoms === 'yes' && e.symptomList && e.symptomList.length)
+          html += '<br>Symptoms: ' + e.symptomList.join(', ');
+        if (e.notes) html += '<br><span style="color:#555;">' + e.notes + '</span>';
+        html += '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    renderLog();
+
+    // ── Save ───────────────────────────────────────────────
+    function saveCheckin() {
+      // Determine overall flag
+      var flag = 'green';
+      if (answers.emergency === 'yes') flag = 'red';
+      else if (answers.support === 'no') flag = 'yellow';
+
+      // Collect symptom checklist
+      var symptomList = [];
+      if (answers.symptoms === 'yes') {
+        document.querySelectorAll('#symptomChecklist input[type="checkbox"]:checked').forEach(function(cb) {
+          symptomList.push(cb.value);
+        });
+      }
+
+      var entry = {
+        mood:        selectedMood,
+        symptoms:    answers.symptoms,
+        symptomList: symptomList,
+        sleep:       answers.sleep,
+        ate:         document.getElementById('ateToday').checked,
+        water:       document.getElementById('drankWater').checked,
+        meds:        document.getElementById('tookMeds').checked,
+        support:     answers.support,
+        planner:     answers.planner,
+        emergency:   answers.emergency,
+        flag:        flag,
+        notes:       document.getElementById('checkinNotes').value,
+        savedAt:     new Date().toISOString()
+      };
+
+      var log = getTodayLog();
+      log.push(entry);
+      localStorage.setItem('checkins_' + dateKey, JSON.stringify(log));
+
+      // Show save message
+      var msg = document.getElementById('savedMsg');
+      if (flag === 'red') {
+        msg.style.cssText = 'display:block;background:#f8d7da;color:#721c24;padding:14px;border-radius:14px;margin-top:14px;font-size:13pt;';
+        msg.innerHTML = '🔴 Check-in saved. Please reach out — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or contact Bruise now.';
+      } else if (flag === 'yellow') {
+        msg.style.cssText = 'display:block;background:#fff3cd;color:#856404;padding:14px;border-radius:14px;margin-top:14px;font-size:13pt;';
+        msg.innerHTML = '🟡 Check-in saved. Your team has been notified to check in with you.';
+        setTimeout(function() { msg.style.display = 'none'; }, 6000);
+      } else {
+        msg.style.cssText = 'display:block;background:#e8f2f3;color:#2d6a6d;padding:14px;border-radius:14px;margin-top:14px;font-size:13pt;';
+        msg.textContent = '✔ Check-in saved.';
+        setTimeout(function() { msg.style.display = 'none'; }, 4000);
+      }
+
+      // Reset form (keep auto-detect badges/fills for next entry in session)
+      selectedMood = '';
+      answers = { symptoms: '', sleep: '', support: '', planner: '', emergency: '' };
+      document.querySelectorAll('.mood-btn').forEach(function(b) { b.classList.remove('selected'); });
+      document.querySelectorAll('.yn-btn').forEach(function(b) {
+        b.className = b.classList.contains('skip') ? 'yn-btn skip' : 'yn-btn';
+      });
+      document.getElementById('symptomChecklist').className = 'symptom-list';
+      document.querySelectorAll('#symptomChecklist input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+      document.getElementById('supportFlagNote').style.display = 'none';
+      document.getElementById('emergencyFlagNote').style.display = 'none';
+      document.getElementById('ateToday').checked = false;
+      document.getElementById('drankWater').checked = false;
+      document.getElementById('tookMeds').checked = false;
+      document.getElementById('checkinNotes').value = '';
+
+      // Re-apply auto-fills after reset (so they persist across multiple check-ins in same session)
+      Object.keys(autoFilled).forEach(function(group) {
+        applySelection(group, autoFilled[group].answer);
+      });
+
+      renderLog();
+    }
+
+    // ── Run auto-detect on page load ───────────────────────
+    runAutoDetect();
+  </script>
+
+  <!-- Header loader -->
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        });
+        var d = document.createElement('script');
+        d.src = '/Academic-Allies/modular/js/draggable.js';
+        d.onload = function() { if (typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(d);
+      })
+      .catch(function(e) { console.error('Header error:', e); });
+  </script>
+</body>
+</html>

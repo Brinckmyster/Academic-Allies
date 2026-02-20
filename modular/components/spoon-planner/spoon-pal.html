@@ -110,7 +110,7 @@
 <body>
 <div id="site-header"></div>
 <script>
-    fetch('/Academic-Allies/modular/shared-header.html')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260221')
       .then(response => response.text())
       .then(html => {
         const container = document.getElementById('site-header');
@@ -333,6 +333,7 @@
   let dayEnd = 25;
   let weather = {desc: 'Loading...', impact: -1}; // Communal cold penalty
   let selectedIndex = null;
+  let currentUid = null;  // set by Firebase auth
   let templates = {
     'Word Connect': {emoji: '🔗', desc: 'Word Connect Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
     'NightCafe': {emoji: '🎨', desc: 'NightCafe Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
@@ -725,7 +726,7 @@
     saveData();
   }
 
-  // Save/load
+  // Save/load — Firestore-backed (Claude / aa-firebase.js integration)
   function saveData() {
     const obj = {
       timeline,
@@ -734,24 +735,38 @@
       dayStart,
       dayEnd,
       weather,
-      templates
+      templates,
+      savedAt: new Date().toISOString()
     };
-    localStorage.setItem('spoonPalSave', JSON.stringify(obj));
+    if (window.AA && window.AA.db && currentUid) {
+      window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
+        .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
+    }
   }
 
-  function loadData() {
-    const data = localStorage.getItem('spoonPalSave');
-    if (!data) return;
-    try {
-      const obj = JSON.parse(data);
-      timeline = obj.timeline || [];
-      checkIn = obj.checkIn || checkIn;
-      spoonDebtHistory = obj.spoonDebtHistory || [];
-      dayStart = obj.dayStart || 8;
-      dayEnd = obj.dayEnd || 25;
-      weather = obj.weather || { desc: 'Loading...', impact: -1 };
-      templates = obj.templates || templates;
-    } catch (e) {}
+  function loadData(callback) {
+    if (window.AA && window.AA.db && currentUid) {
+      window.AA.db.collection('spoonPal').doc(currentUid).get()
+        .then(function(doc) {
+          if (doc.exists) {
+            const obj = doc.data();
+            timeline = obj.timeline || [];
+            checkIn = obj.checkIn || checkIn;
+            spoonDebtHistory = obj.spoonDebtHistory || [];
+            dayStart = obj.dayStart || 8;
+            dayEnd = obj.dayEnd || 25;
+            weather = obj.weather || { desc: 'Loading...', impact: -1 };
+            templates = obj.templates || templates;
+          }
+          if (callback) callback();
+        })
+        .catch(function(err) {
+          console.error('[SpoonPal] Firestore load error:', err);
+          if (callback) callback();
+        });
+    } else {
+      if (callback) callback();
+    }
   }
 
   // Check-in update
@@ -801,9 +816,15 @@
     document.getElementById('legend').textContent = legendText;
   }
 
+  // Poll until window.AA (aa-firebase.js) is ready
+  function waitForAA(cb) {
+    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+    setTimeout(function() { waitForAA(cb); }, 100);
+  }
+
   // Initialize
   window.onload = () => {
-    loadData();
+    // Render immediately with defaults (Firestore data will overwrite once loaded)
     fetchWeather();
     calculateSpoons();
     renderTimeline();
@@ -827,9 +848,23 @@
     ['painLevel', 'fatigueLevel', 'sleepHours', 'moodLevel'].forEach(id =>
       document.getElementById(id).addEventListener('change', updateCheckIn)
     );
+
+    // Boot Firestore — load saved data once user is confirmed
+    waitForAA(function() {
+      window.AA.auth.onAuthStateChanged(function(user) {
+        if (!user) return;
+        currentUid = user.uid;
+        loadData(function() {
+          // Re-render with Firestore data
+          calculateSpoons();
+          renderTimeline();
+        });
+      });
+    });
   };
 })();
 </script>
 </body>
 </html>
 <!-- Cache bust #5: 2026-02-18 Bruise - Grok assisted - SpoonPal full recovery from backup -->
+<!-- Cache bust #6: 2026-02-20 Claude - localStorage → Firestore migration for spoonPal collection -->
