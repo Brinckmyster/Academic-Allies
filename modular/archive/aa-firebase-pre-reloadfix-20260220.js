@@ -104,8 +104,7 @@
                 .catch(function () {})
                 .then(function () {
                   return db.collection('users').doc(user.uid).update({ role: pendingRole });
-                })
-                .then(function () { window.location.reload(); }); // reload so header picks up new role
+                });
             }
           })
           .catch(function () {}); // permission denied = no pending entry, fine
@@ -120,14 +119,13 @@
           if (pending.exists) {
             role = pending.data().role || 'student';
             console.log('[AA] Found pending registration for', user.email, '→ role:', role);
+            // Clean up the pending entry now that they've signed in
             return db.collection('pendingUsers').doc(user.email).delete()
-              .catch(function () {})
-              .then(function () { return createUserDoc(user, role); })
-              .then(function () { window.location.reload(); }); // reload so header shows correct role
+              .catch(function () { /* delete might also be denied — ok, ignore */ })
+              .then(function () { return createUserDoc(user, role); });
           } else {
             role = ADMIN_EMAILS.indexOf(user.email) !== -1 ? 'admin' : 'student';
-            return createUserDoc(user, role)
-              .then(function () { window.location.reload(); }); // reload so header shows correct role
+            return createUserDoc(user, role);
           }
         })
         .catch(function (err) {
@@ -135,8 +133,7 @@
           // Fall through: create the user doc with default role.
           console.log('[AA] pendingUsers check skipped (' + err.code + ') — using default role.');
           var role = ADMIN_EMAILS.indexOf(user.email) !== -1 ? 'admin' : 'student';
-          return createUserDoc(user, role)
-            .then(function () { window.location.reload(); }); // reload so header shows correct role
+          return createUserDoc(user, role);
         });
     }).catch(function (err) {
       console.error('[AA] User profile create error:', err);
