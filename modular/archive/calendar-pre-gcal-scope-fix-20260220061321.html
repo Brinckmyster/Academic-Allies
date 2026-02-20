@@ -180,11 +180,63 @@
 
   <script>
   // ── Google Calendar config ───────────────────────────────────────
-  // Client ID from console.cloud.google.com → OAuth 2.0 credentials.
-  // gcalToken, gcalEvents, gcalConnect, and loadGcalMonth are defined
-  // INSIDE the IIFE below so they can access viewYear/viewMonth/refreshCalendar.
+  // To enable: create a project at console.cloud.google.com,
+  // enable Google Calendar API, create OAuth 2.0 Web Client credentials,
+  // add your GitHub Pages URL as an Authorized JavaScript Origin,
+  // then paste your Client ID below.
   var GCAL_CLIENT_ID = '93996985456-bf65ba18asc6vajl9ngs4kge19qet341.apps.googleusercontent.com';
   var GCAL_SCOPE     = 'https://www.googleapis.com/auth/calendar.readonly';
+  var gcalToken      = null;   // OAuth access token once connected
+  var gcalEvents     = {};     // { dateKey: [eventTitle, ...] }
+
+  window.gcalConnect = function() {
+    if (!GCAL_CLIENT_ID || GCAL_CLIENT_ID.startsWith('YOUR_')) {
+      alert('Google Calendar is not configured yet.\nAsk your admin to add the Google Client ID.');
+      return;
+    }
+    if (!window.google || !window.google.accounts) {
+      alert('Google sign-in library not loaded. Check your internet connection.');
+      return;
+    }
+    var client = google.accounts.oauth2.initTokenClient({
+      client_id: GCAL_CLIENT_ID,
+      scope:     GCAL_SCOPE,
+      callback:  function(resp) {
+        if (resp.error) { console.error('[GCal]', resp); return; }
+        gcalToken = resp.access_token;
+        document.getElementById('gcal-btn').textContent    = '✅ Connected';
+        document.getElementById('gcal-btn').className      = 'btn-gcal connected';
+        document.getElementById('gcal-status').textContent = '📅 Google Calendar connected';
+        loadGcalMonth(viewYear, viewMonth);
+      }
+    });
+    client.requestAccessToken();
+  };
+
+  function loadGcalMonth(year, month) {
+    if (!gcalToken) return;
+    var timeMin = new Date(year, month, 1).toISOString();
+    var timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+    fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events' +
+      '?timeMin=' + encodeURIComponent(timeMin) +
+      '&timeMax=' + encodeURIComponent(timeMax) +
+      '&singleEvents=true&orderBy=startTime&maxResults=100', {
+      headers: { 'Authorization': 'Bearer ' + gcalToken }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      gcalEvents = {};
+      (data.items || []).forEach(function(ev) {
+        var start = ev.start.date || (ev.start.dateTime || '').split('T')[0];
+        if (start) {
+          if (!gcalEvents[start]) gcalEvents[start] = [];
+          gcalEvents[start].push(ev.summary || '(No title)');
+        }
+      });
+      refreshCalendar(); // re-render with gcal dots
+    })
+    .catch(function(err) { console.error('[GCal] fetch error:', err); });
+  }
   // ── End Google Calendar config ───────────────────────────────────
 
   (function() {
@@ -195,82 +247,6 @@
     var today     = new Date();
     var currentUid = null;
     var selectedDateKey = null;
-    var gcalToken  = null;   // Google Calendar OAuth access token
-    var gcalEvents = {};     // { 'YYYY-MM-DD': ['Event title', ...] }
-
-    /* ── Google Calendar: connect + multi-calendar fetch ──── */
-    /* Fixed 2026-02-20 by Claude: moved inside IIFE so gcalConnect can access
-       viewYear/viewMonth/refreshCalendar without scoping issues.
-       Also upgraded to fetch ALL calendars (not just primary). */
-    window.gcalConnect = function() {
-      if (!GCAL_CLIENT_ID || GCAL_CLIENT_ID.startsWith('YOUR_')) {
-        alert('Google Calendar is not configured yet. Ask your admin to add the Google Client ID.');
-        return;
-      }
-      if (!window.google || !window.google.accounts) {
-        alert('Google sign-in library not loaded. Check your internet connection and try again.');
-        return;
-      }
-      var client = google.accounts.oauth2.initTokenClient({
-        client_id: GCAL_CLIENT_ID,
-        scope:     GCAL_SCOPE,
-        callback:  function(resp) {
-          if (resp.error) { console.error('[GCal]', resp); return; }
-          gcalToken = resp.access_token;
-          document.getElementById('gcal-btn').textContent    = '✅ Connected';
-          document.getElementById('gcal-btn').className      = 'btn-gcal connected';
-          document.getElementById('gcal-status').textContent = '📅 Google Calendar connected';
-          loadGcalMonth(viewYear, viewMonth); // now correctly uses IIFE-local viewYear/viewMonth
-        }
-      });
-      client.requestAccessToken();
-    };
-
-    function loadGcalMonth(year, month) {
-      if (!gcalToken) return;
-      var timeMin = new Date(year, month, 1).toISOString();
-      var timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
-      var hdrs    = { 'Authorization': 'Bearer ' + gcalToken };
-
-      // Step 1: list ALL calendars the user has access to
-      fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50', { headers: hdrs })
-        .then(function(r) { return r.json(); })
-        .then(function(list) {
-          var calIds = (list.items || []).map(function(c) { return c.id; });
-          if (!calIds.length) calIds = ['primary'];
-
-          // Step 2: fetch events from each calendar in parallel
-          var fetches = calIds.map(function(id) {
-            return fetch(
-              'https://www.googleapis.com/calendar/v3/calendars/' +
-              encodeURIComponent(id) + '/events' +
-              '?timeMin=' + encodeURIComponent(timeMin) +
-              '&timeMax=' + encodeURIComponent(timeMax) +
-              '&singleEvents=true&orderBy=startTime&maxResults=100',
-              { headers: hdrs }
-            )
-            .then(function(r) { return r.json(); })
-            .then(function(d)  { return d.items || []; })
-            .catch(function()  { return []; }); // skip calendars that error
-          });
-          return Promise.all(fetches);
-        })
-        .then(function(allItems) {
-          gcalEvents = {};
-          allItems.forEach(function(items) {
-            items.forEach(function(ev) {
-              var start = ev.start.date || (ev.start.dateTime || '').split('T')[0];
-              if (start) {
-                if (!gcalEvents[start]) gcalEvents[start] = [];
-                gcalEvents[start].push(ev.summary || '(No title)');
-              }
-            });
-          });
-          refreshCalendar(); // re-render grid with all calendar dots — now works!
-        })
-        .catch(function(err) { console.error('[GCal] load error:', err); });
-    }
-    /* ── End Google Calendar ───────────────────────────────── */
 
     // Cache for loaded month data: { checkins: {dateKey: [entries]}, meals: {dateKey: [meals]} }
     var cache = {};

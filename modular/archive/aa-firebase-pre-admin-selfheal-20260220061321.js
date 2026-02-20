@@ -87,14 +87,7 @@
   auth.onAuthStateChanged(function (user) {
     if (!user) return;
     db.collection('users').doc(user.uid).get().then(function (doc) {
-      if (doc.exists) {
-        // ── Admin self-heal: if this is an admin email but role got wiped, restore it ──
-        if (ADMIN_EMAILS.indexOf(user.email) !== -1 && doc.data().role !== 'admin') {
-          console.log('[AA] Admin role self-heal →', user.email);
-          db.collection('users').doc(user.uid).update({ role: 'admin' }).catch(function () {});
-        }
-        return; // already registered, nothing more to do
-      }
+      if (doc.exists) return; // already registered, nothing to do
 
       // Attempt to read a pending pre-registration for this email.
       // Non-admin users will get PERMISSION_DENIED here (by design) —
