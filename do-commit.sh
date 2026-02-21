@@ -4,8 +4,9 @@ cd ~/academic-allies
 
 rm -f .git/index.lock .git/HEAD.lock .git/refs/heads/main.lock
 
-# Stage everything — modified tracked files + all untracked
-git add -A
+# Remove the bad submodule entry from the index
+git rm --cached .claude/worktrees/naughty-taussig 2>/dev/null || true
+git rm -r --cached .claude/ 2>/dev/null || true
 
 if [ -f .git/index.lock ]; then
   cp .git/index.lock .git/index
@@ -14,14 +15,20 @@ fi
 
 rm -f .git/HEAD.lock .git/refs/heads/main.lock
 
-git commit -m "Commit all pending changes: modified pages, archive files, flower images
+# Add .gitignore to exclude .claude/ going forward
+git add .gitignore
 
-- All version-bumped HTML pages from session work
-- Archive files (admin, shared-header, aa-firebase, calendar, etc.)
-- New flower images (flowers 31-40: iris, lily, calla lily, gerber daisy, etc.)
-- support-dashboard component folder
-- auth-system.js (retired stub)
-- do-commit.sh utility script
+if [ -f .git/index.lock ]; then
+  cp .git/index.lock .git/index
+  rm -f .git/index.lock
+fi
+
+rm -f .git/HEAD.lock .git/refs/heads/main.lock
+
+git commit -m "Remove .claude/ submodule, add .gitignore
+
+Accidentally committed .claude/worktrees as embedded repo — broke
+GitHub Pages build. Removed from index and added to .gitignore.
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
