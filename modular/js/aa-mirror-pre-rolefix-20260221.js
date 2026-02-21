@@ -24,7 +24,7 @@
   'use strict';
 
   var CACHE_KEY     = 'aa-mirror';
-  var SUPPORT_ROLES = ['support'];   /* only 'support' role triggers mirror */
+  var SUPPORT_ROLES = ['support', 'family', 'nearby-help'];
   var FLOWER_EXEMPT = 'dorothy.brinck@gmail.com';
 
   /* Pages where mirroring is suppressed entirely */
@@ -140,16 +140,11 @@
           if (!doc.exists) return;
           var role = doc.data().role || 'student';
 
-          /* Not a support role — clear any stale mirror state.
-             If AA_MIRROR_UID was already set from a stale sessionStorage cache
-             (e.g. support user → logout → student login, same session), reload
-             so the page re-initialises without the stale mirror UID. */
+          /* Not a support role — clear any stale mirror state */
           if (SUPPORT_ROLES.indexOf(role) === -1) {
-            var wasMirroring = !!window.AA_MIRROR_UID;
             clearCache();
             window.AA_MIRROR_UID = null;
             window.AA_MIRROR     = null;
-            if (wasMirroring) { window.location.reload(); }
             return;
           }
 
