@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'brinckmyster@gmail.com';
+    }
+
+    // ── Users ────────────────────────────────────────────────────
+    // Any signed-in user reads (needed for lookupByEmail, getAllStudents,
+    // support network scanning in aa-mirror). Owner or admin writes.
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // ── Pending pre-registrations — admin only ───────────────────
+    // Non-admins intentionally get PERMISSION_DENIED here on first sign-in;
+    // aa-firebase.js catches the error and falls through to default role.
+    match /pendingUsers/{email} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── Nope mode ────────────────────────────────────────────────
+    match /nope/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid);
+
+      match /logs/{logId} {
+        allow read: if isSignedIn();
+        allow create: if isOwner(uid);
+        allow update, delete: if false;
+      }
+    }
+
+    // ── Flower quiz ───────────────────────────────────────────────
+    match /flowerQuiz/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid);
+    }
+
+    // ── Check-ins ────────────────────────────────────────────────
+    match /checkins/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid);
+
+      match /days/{dateKey} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(uid);
+      }
+    }
+
+    // ── Meal plans (base plan) ───────────────────────────────────
+    match /mealPlans/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // ── Meal logs (daily actuals) ────────────────────────────────
+    match /mealLogs/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid) || isAdmin();
+
+      match /days/{dateKey} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(uid) || isAdmin();
+      }
+    }
+
+    // ── SpoonPal ─────────────────────────────────────────────────
+    match /spoonPal/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // ── Messages ─────────────────────────────────────────────────
+    // Thread doc — participants array controls who can access.
+    // watchThreads() uses array-contains query which is consistent
+    // with the read rule, so Firestore allows the query.
+    match /messages/{threadId} {
+      allow read: if isSignedIn()
+        && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn()
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.participants.size() == 2;
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.participants;
+      allow delete: if false;
+
+      // Individual messages
+      // !exists() handles the race condition on first send: the thread doc
+      // set() and msgs add() happen back-to-back; the server may not have
+      // committed the thread doc yet when the msgs rule fires on first message.
+      match /msgs/{msgId} {
+        allow read: if isSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/messages/$(threadId)).data.participants;
+        allow create: if isSignedIn()
+          && request.auth.uid == request.resource.data.senderUid
+          && (
+            !exists(/databases/$(database)/documents/messages/$(threadId))
+            || request.auth.uid in get(/databases/$(database)/documents/messages/$(threadId)).data.participants
+          );
+        allow update, delete: if false;
+      }
+    }
+
+  }
+}
