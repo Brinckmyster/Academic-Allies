@@ -420,7 +420,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="/Academic-Allies/modular/aa-firebase.js"></script>
-    <script src="/Academic-Allies/modular/js/aa-mirror.js"></script>
 
     <script>
         // Spoon Management
@@ -456,11 +455,9 @@
             updateSpoonCounter();
            
             localStorage.setItem('energyLevel', level);
-            // Firebase sync (silent, non-blocking) — skip in mirror mode (unless dorothy)
+            // Firebase sync (silent, non-blocking)
             if (window.AA && AA.auth && AA.auth.currentUser) {
-                if (!window.AA_MIRROR_UID || AA.auth.currentUser.email === 'dorothy.brinck@gmail.com') {
-                    AA.patchFlowerQuiz(AA.auth.currentUser.uid, { energyLevel: level });
-                }
+                AA.patchFlowerQuiz(AA.auth.currentUser.uid, { energyLevel: level });
             }
         }
         function showSpoonPlanner() {
@@ -578,11 +575,9 @@
                 reportedFlowers.push(currentFlower.name);
                 localStorage.setItem('reportedFlowers', JSON.stringify(reportedFlowers));
                 document.getElementById('report-count').textContent = reportedFlowers.length;
-                // Firebase sync (silent, non-blocking) — skip in mirror mode (unless dorothy)
+                // Firebase sync (silent, non-blocking)
                 if (window.AA && AA.auth && AA.auth.currentUser) {
-                    if (!window.AA_MIRROR_UID || AA.auth.currentUser.email === 'dorothy.brinck@gmail.com') {
-                        AA.patchFlowerQuiz(AA.auth.currentUser.uid, { reportedFlowers: reportedFlowers });
-                    }
+                    AA.patchFlowerQuiz(AA.auth.currentUser.uid, { reportedFlowers: reportedFlowers });
                 }
                 alert(`✅ Reported: ${currentFlower.name} - Quiz ${currentFlower.quiz}\n\nTotal reports: ${reportedFlowers.length}`);
             } else {
@@ -652,13 +647,10 @@
                 localStorage.setItem('flowerCount', flowerCount);
                 document.getElementById('flower-count').textContent = flowerCount;
                 // Firebase sync — debounced so rapid answers don't hammer the DB
-                // Skip write in mirror mode (unless dorothy)
                 clearTimeout(window._fcTimer);
                 window._fcTimer = setTimeout(function() {
                     if (window.AA && AA.auth && AA.auth.currentUser) {
-                        if (!window.AA_MIRROR_UID || AA.auth.currentUser.email === 'dorothy.brinck@gmail.com') {
-                            AA.patchFlowerQuiz(AA.auth.currentUser.uid, { flowerCount: flowerCount });
-                        }
+                        AA.patchFlowerQuiz(AA.auth.currentUser.uid, { flowerCount: flowerCount });
                     }
                 }, 3000);
                 document.getElementById('quiz-progress').style.width = Math.min(flowerCount * 5, 100) + '%';
@@ -801,8 +793,7 @@
             if (window.AA && AA.auth) {
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) return; // not signed in — just use localStorage, no problem
-                    var quizUid = (window.AA_flower_uid ? window.AA_flower_uid(user.uid, user.email) : user.uid);
-                    AA.getFlowerQuiz(quizUid).then(function(doc) {
+                    AA.getFlowerQuiz(user.uid).then(function(doc) {
                         if (!doc.exists) return; // first time — nothing to load yet
                         var data = doc.data();
 

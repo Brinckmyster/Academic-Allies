@@ -399,7 +399,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <!-- Academic Allies Firebase layer -->
   <script src="/Academic-Allies/modular/aa-firebase.js"></script>
-  <script src="/Academic-Allies/modular/js/aa-mirror.js"></script>
 
   <script>
     // ── Section links ──────────────────────────────────────
@@ -437,7 +436,7 @@
     // ── Boot: listen for sign-in ───────────────────────────
     AA.auth.onAuthStateChanged(function (user) {
       if (user) {
-        currentUid = window.AA_MIRROR_UID || user.uid;
+        currentUid = user.uid;
         showAuthGate(false);
         subscribeToNope();
       } else {
@@ -466,11 +465,6 @@
 
     // ── Routing ────────────────────────────────────────────
     function route() {
-      /* Mirror: if student is not in nope, nothing to see here — go home */
-      if (window.AA_MIRROR_UID && currentMode === null) {
-        window.location.href = '/Academic-Allies/';
-        return;
-      }
       if (currentMode === 'nope') {
         showScreen('nope-screen');
         updateTimestamp();
@@ -496,7 +490,6 @@
     }
 
     function activateNope() {
-      if (window.AA_MIRROR_UID) return; /* read-only in mirror mode */
       document.getElementById('confirmOverlay').classList.remove('open');
       nopeActivatedAt = new Date();
       currentMode     = 'nope';
@@ -510,7 +503,6 @@
 
     // ── Nope → Semi-Nope ───────────────────────────────────
     function goSemiNope() {
-      if (window.AA_MIRROR_UID) return; /* read-only in mirror mode */
       currentMode = 'semi-nope';
       if (currentUid) {
         AA.setNopeMode(currentUid, 'semi-nope', semiVisible);
@@ -523,7 +515,6 @@
 
     // ── Semi-Nope → Nope ───────────────────────────────────
     function goBackToNope() {
-      if (window.AA_MIRROR_UID) return; /* read-only in mirror mode */
       currentMode = 'nope';
       if (currentUid) {
         AA.setNopeMode(currentUid, 'nope', semiVisible);
@@ -535,7 +526,6 @@
 
     // ── Cancel everything ──────────────────────────────────
     function cancelNope() {
-      if (window.AA_MIRROR_UID) { window.location.href = '/Academic-Allies/'; return; }
       if (currentUid) {
         AA.addNopeLog(currentUid, 'nope_canceled');
         AA.clearNope(currentUid);
@@ -546,7 +536,6 @@
 
     // ── Semi-nope section toggle ───────────────────────────
     function toggleSection(key, checked) {
-      if (window.AA_MIRROR_UID) return; /* read-only in mirror mode */
       semiVisible[key] = checked;
       if (currentUid) {
         AA.setNopeMode(currentUid, 'semi-nope', semiVisible);
