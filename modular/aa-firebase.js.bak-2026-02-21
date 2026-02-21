@@ -54,49 +54,9 @@
 
   /* ── Auth helpers ───────────────────────────────────────── */
 
-  /* ── Account-linking helper ──────────────────────────────────
-     Returns a Firebase auth provider instance for a given method ID.
-     Only OAuth providers can be used in signInWithPopup; email/password
-     cannot be auto-linked without the user's password. */
-  function _providerFor(method) {
-    if (method === 'google.com')   return new firebase.auth.GoogleAuthProvider();
-    if (method === 'github.com')   return new firebase.auth.GithubAuthProvider();
-    if (method === 'facebook.com') return new firebase.auth.FacebookAuthProvider();
-    return null;
-  }
-
-  /* Sign in with Google.
-     If the email already exists under a different auth provider,
-     sign in with that provider first, then link the Google credential
-     so a single Firebase account covers both methods.
-     Added 2026-02-21 by Claude. */
   window.AA.signInWithGoogle = function () {
-    var googleProvider = new firebase.auth.GoogleAuthProvider();
-    return auth.signInWithPopup(googleProvider)
-      .catch(function (err) {
-        if (err.code !== 'auth/account-exists-with-different-credential') throw err;
-
-        var pendingCred = err.credential; // Google credential to link
-        var email       = err.email;
-
-        console.warn('[AA] Account exists with different credential for:', email, '— attempting link.');
-
-        return auth.fetchSignInMethodsForEmail(email)
-          .then(function (methods) {
-            var existingProvider = _providerFor(methods[0]);
-            if (!existingProvider) {
-              // email/password or unknown — cannot auto-link; surface clear error
-              var e = new Error('This email (' + email + ') is registered via "' + methods[0] + '". Please sign in with that method.');
-              e.code = 'auth/account-exists-with-different-credential';
-              throw e;
-            }
-            // Sign in with the original provider, then link the Google credential
-            return auth.signInWithPopup(existingProvider)
-              .then(function (result) {
-                return result.user.linkWithCredential(pendingCred);
-              });
-          });
-      });
+    var provider = new firebase.auth.GoogleAuthProvider();
+    return auth.signInWithPopup(provider);
   };
 
   window.AA.signOut = function () { return auth.signOut(); };
