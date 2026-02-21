@@ -376,7 +376,7 @@
     /* Load recent history from Firestore into recentHistory cache, then run callback */
     function loadRecentHistory(callback) {
       if (!window.AA || !AA.auth.currentUser) { callback([]); return; }
-      AA.getRecentCheckins(currentUid, 7)
+      AA.getRecentCheckins(AA.auth.currentUser.uid, 7)
         .then(function(days) {
           recentHistory = [];
           days.forEach(function(day) {
@@ -570,7 +570,6 @@
 
     // ── Save ───────────────────────────────────────────────
     function saveCheckin() {
-      if (window.AA_MIRROR_UID) return; /* read-only in mirror mode */
       // Determine overall flag
       var flag = 'green';
       if (answers.emergency === 'yes') flag = 'red';
@@ -666,7 +665,7 @@
           // Not signed in: auto-detect skipped (no history), form still usable
           return;
         }
-        currentUid = window.AA_MIRROR_UID || user.uid;
+        currentUid = user.uid;
 
         // 1. Load recent check-in history from Firestore → run auto-detect
         loadRecentHistory(function() {
@@ -676,7 +675,7 @@
         // 2. Real-time listener for today's log → keeps renderLog() live
         if (unsubTodayLog) { unsubTodayLog(); }
         unsubTodayLog = AA.db
-          .collection('checkins').doc(currentUid)
+          .collection('checkins').doc(user.uid)
           .collection('days').doc(dateKey)
           .onSnapshot(function(doc) {
             todayLogCache = (doc.exists && Array.isArray(doc.data().entries))

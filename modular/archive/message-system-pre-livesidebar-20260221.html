@@ -37,8 +37,7 @@
     }
     .contact-info { min-width: 0; }
     .contact-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .contact-tier    { font-size: 0.72rem; color: #888; }
-    .contact-preview { font-size: 0.72rem; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .contact-tier { font-size: 0.72rem; color: #888; }
     .contact-unread {
       margin-left: auto; background: #4a7f82; color: #fff;
       border-radius: 10px; padding: 1px 7px; font-size: 0.72rem; font-weight: 700;
@@ -173,8 +172,7 @@
     var currentUser     = null;
     var activeContact   = null;   // { uid, name, tier }
     var activeThreadId  = null;
-    var unsubMessages   = null;   // Firestore listener unsub fn for active thread
-    var unsubThreads    = null;   // Firestore listener for sidebar real-time updates
+    var unsubMessages   = null;   // Firestore listener unsub fn
 
     /* ── Helpers ─────────────────────────────────────────── */
     function threadId(uid1, uid2) {
@@ -227,7 +225,6 @@
               }
             });
             renderContacts(contacts);
-            watchThreads();
             document.getElementById('msg-loading').style.display = 'none';
             document.getElementById('msg-layout').style.display  = 'flex';
           }).catch(function(err) {
@@ -277,7 +274,6 @@
 
               Promise.all(fetches).then(function(contacts) {
                 renderContacts(contacts.filter(function(c) { return c.data; }));
-                watchThreads();
                 document.getElementById('msg-loading').style.display = 'none';
                 document.getElementById('msg-layout').style.display  = 'flex';
               });
@@ -334,10 +330,6 @@
 
       activeContact  = { uid: uid, name: name, tier: tier };
       activeThreadId = threadId(currentUser.uid, uid);
-      markRead(activeThreadId);
-      /* Clear badge from the contact item immediately */
-      var badge = el && el.querySelector('.contact-unread');
-      if (badge) badge.remove();
 
       /* Highlight selected contact */
       document.querySelectorAll('.contact-item').forEach(function(i) { i.classList.remove('active'); });
@@ -390,13 +382,6 @@
 
       /* Scroll to bottom */
       area.scrollTop = area.scrollHeight;
-
-      /* Mark active thread as read */
-      if (activeThreadId) {
-        markRead(activeThreadId);
-        var activeBadge = document.querySelector('.contact-item.active .contact-unread');
-        if (activeBadge) activeBadge.remove();
-      }
     }
 
     /* ── Send a message ──────────────────────────────────── */
@@ -435,67 +420,6 @@
     /* ── HTML escape ─────────────────────────────────────── */
     function esc(s) {
       return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    /* ── Last-read tracking (localStorage) ───────────────── */
-    function getLastRead(tid) {
-      try { return parseInt(localStorage.getItem('aa-msg-read-' + tid) || '0'); } catch(e) { return 0; }
-    }
-    function markRead(tid) {
-      try { localStorage.setItem('aa-msg-read-' + tid, Date.now().toString()); } catch(e) {}
-    }
-
-    /* ── Real-time sidebar: last message preview + unread ── */
-    /* Listens to all threads this user participates in.
-       Updates each contact item's preview text and unread badge. */
-    function watchThreads() {
-      if (unsubThreads) { unsubThreads(); unsubThreads = null; }
-      unsubThreads = AA.db.collection('messages')
-        .where('participants', 'array-contains', currentUser.uid)
-        .onSnapshot(function(snap) {
-          snap.docs.forEach(function(doc) {
-            var d   = doc.data();
-            var tid = doc.id;
-            var otherUid = (d.participants || []).filter(function(uid) { return uid !== currentUser.uid; })[0];
-            if (!otherUid) return;
-            var item = document.querySelector('.contact-item[data-uid="' + otherUid + '"]');
-            if (!item) return;
-            updateSidebarItem(item, d, tid);
-          });
-        }, function(err) {
-          console.warn('[AA messages] thread watcher:', err);
-        });
-    }
-
-    function updateSidebarItem(item, threadData, tid) {
-      /* Last message preview */
-      var preview = item.querySelector('.contact-preview');
-      if (!preview) {
-        preview = document.createElement('div');
-        preview.className = 'contact-preview';
-        var info = item.querySelector('.contact-info');
-        if (info) info.appendChild(preview);
-      }
-      var lastMsg = threadData.lastMessage || '';
-      preview.textContent = lastMsg.length > 36 ? lastMsg.slice(0, 36) + '\u2026' : lastMsg;
-
-      /* Unread badge: show if thread updated after last-read and not the active thread */
-      var lastAtMs   = threadData.lastAt ? threadData.lastAt.toMillis() : 0;
-      var lastReadMs = getLastRead(tid);
-      var isActive   = (tid === activeThreadId);
-      var hasUnread  = lastAtMs > lastReadMs && !isActive;
-
-      var badge = item.querySelector('.contact-unread');
-      if (hasUnread) {
-        if (!badge) {
-          badge = document.createElement('span');
-          badge.className = 'contact-unread';
-          item.appendChild(badge);
-        }
-        badge.textContent = '\u2022'; /* bullet — keeps badge small */
-      } else if (badge) {
-        badge.remove();
-      }
     }
 
     waitForAA(boot);

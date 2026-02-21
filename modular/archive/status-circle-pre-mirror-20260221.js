@@ -274,11 +274,10 @@
   }
 
   function startWatching(user) {
-    var uid     = window.AA_MIRROR_UID || user.uid;  /* mirror UID if active */
     var dateKey = new Date().toISOString().split('T')[0];
     teardown();
 
-    _unsubNope = window.AA.db.collection('nope').doc(uid)
+    _unsubNope = window.AA.db.collection('nope').doc(user.uid)
       .onSnapshot(function (doc) {
         _nope = !!(doc.exists && doc.data().active);
         render();
@@ -287,7 +286,7 @@
       });
 
     _unsubDay = window.AA.db
-      .collection('checkins').doc(uid)
+      .collection('checkins').doc(user.uid)
       .collection('days').doc(dateKey)
       .onSnapshot(function (doc) {
         var entries = (doc.exists && Array.isArray(doc.data().entries))
