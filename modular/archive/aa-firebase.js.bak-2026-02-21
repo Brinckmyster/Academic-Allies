@@ -117,26 +117,6 @@
     });
   }
 
-  /* Resolve role for a brand-new user doc.
-     Priority: admin email → existing Firestore doc with same email → 'student'.
-     If another UID already holds this email (duplicate account), inherit its role
-     so the user doesn't silently lose a non-student assignment.
-     Added 2026-02-21 by Claude. */
-  function _resolveRoleForNewUser(email) {
-    if (ADMIN_EMAILS.indexOf(email) !== -1) return Promise.resolve('admin');
-    return db.collection('users')
-      .where('email', '==', email).limit(1).get()
-      .then(function (snap) {
-        if (!snap.empty) {
-          var inherited = snap.docs[0].data().role || 'student';
-          console.log('[AA] Inheriting role from existing user doc:', email, '→', inherited);
-          return inherited;
-        }
-        return 'student';
-      })
-      .catch(function () { return 'student'; });
-  }
-
   /* Create user profile on first sign-in.
      Checks /pendingUsers/{email} so pre-registered users (like Amanda)
      get the correct role automatically on their very first Google sign-in.
@@ -185,18 +165,18 @@
               .then(function () { return createUserDoc(user, role); })
               .then(function () { window.location.reload(); }); // reload so header shows correct role
           } else {
-            return _resolveRoleForNewUser(user.email)
-              .then(function (role) { return createUserDoc(user, role); })
-              .then(function () { window.location.reload(); });
+            role = ADMIN_EMAILS.indexOf(user.email) !== -1 ? 'admin' : 'student';
+            return createUserDoc(user, role)
+              .then(function () { window.location.reload(); }); // reload so header shows correct role
           }
         })
         .catch(function (err) {
           // Permission denied reading pendingUsers (non-admin first-time sign-in).
-          // Resolve role (may inherit from an existing doc with the same email).
-          console.log('[AA] pendingUsers check skipped (' + err.code + ') — resolving role.');
-          return _resolveRoleForNewUser(user.email)
-            .then(function (role) { return createUserDoc(user, role); })
-            .then(function () { window.location.reload(); });
+          // Fall through: create the user doc with default role.
+          console.log('[AA] pendingUsers check skipped (' + err.code + ') — using default role.');
+          var role = ADMIN_EMAILS.indexOf(user.email) !== -1 ? 'admin' : 'student';
+          return createUserDoc(user, role)
+            .then(function () { window.location.reload(); }); // reload so header shows correct role
         });
     }).catch(function (err) {
       console.error('[AA] User profile create error:', err);
