@@ -4,6 +4,7 @@
      Rebuilt: 2026-02-18 by Claude
      Updated: 2026-02-20 by Claude — added Students/Support/Both filter to User Management table
      Updated: 2026-02-20 by Claude — added Archive button + Show Archived toggle to User Management table
+     Updated: 2026-02-22 by Claude — added checkbox selection + Merge duplicate accounts
      Uses aa-firebase.js (compat SDK) for real-time student data.
      Shows: Nope status (live), Flower Quiz progress, role editor.
      ============================================================ -->
@@ -334,6 +335,47 @@
       font-weight: 600;
     }
 
+    /* ── Merge bar ──────────────────────────────────────────── */
+    #merge-bar {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: #2a1a3a;
+      border: 1px solid #7c3aed;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      font-size: 0.85rem;
+      color: #ccc;
+    }
+    #merge-bar.visible { display: flex; }
+    #merge-bar strong  { color: #fff; }
+    .btn-merge {
+      padding: 6px 16px;
+      background: #7c3aed;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .btn-merge:hover { background: #9333ea; }
+    .btn-clear-sel {
+      padding: 6px 12px;
+      background: transparent;
+      color: #888;
+      border: 1px solid #555;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    input[type="checkbox"].row-check {
+      width: 15px; height: 15px;
+      cursor: pointer;
+      accent-color: #7c3aed;
+    }
+
     /* ── Refresh bar ────────────────────────────────────────── */
     .refresh-bar {
       display: flex;
@@ -417,10 +459,19 @@
         📦 Show Archived
       </button>
     </div>
+    <!-- Merge bar (appears when exactly 2 rows are checked) -->
+    <div id="merge-bar">
+      <strong>🔀 Merge duplicates?</strong>
+      <span id="merge-bar-names" style="color:#aaa;"></span>
+      <button class="btn-merge" onclick="openMergeDialog()">Choose which to keep →</button>
+      <button class="btn-clear-sel" onclick="clearSelection()">✕ Clear</button>
+    </div>
+
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
+            <th style="width:32px;"></th>
             <th>Name</th>
             <th>Email</th>
             <th>Role</th>
@@ -484,6 +535,7 @@
     var _allUsers      = []; // full user list for filtering
     var _roleFilter    = 'both';  // 'both' | 'student' | 'support'
     var _showArchived  = false;   // toggle to show/hide archived records
+    var _checkedUsers  = {};      // uid → true, for merge selection
 
     /* ── Auth gate ──────────────────────────────────────────── */
     AA.auth.onAuthStateChanged(function(user) {
@@ -833,8 +885,11 @@
           ? '<button class="btn-small" style="background:#2e7d32;" onclick="restoreUser(\'' + u.id + '\')">↩ Restore</button>'
           : '<button class="btn-small" style="background:#555;" onclick="archiveUser(\'' + u.id + '\')">📦 Archive</button>';
 
+        var isChecked = _checkedUsers[u.id] ? ' checked' : '';
         return [
           '<tr', rowStyle, '>',
+            '<td style="text-align:center;"><input type="checkbox" class="row-check"', isChecked,
+              ' onchange="toggleCheck(\'', u.id, '\', this.checked)" onclick="event.stopPropagation()"></td>',
             '<td>', escHtml(d.displayName || '—'), isArchived ? ' <span style="font-size:0.7rem;color:#888;">(archived)</span>' : '', '</td>',
             '<td>', escHtml(d.email || '—'), '</td>',
             '<td><select id="role-', u.id, '"', isArchived ? ' disabled' : '', '>', opts, '</select></td>',
@@ -887,6 +942,71 @@
         btn.style.border = _showArchived ? '1px solid #ffa726' : '1px solid #555';
       }
       renderUserTable(_allUsers);
+    };
+
+    /* ── Merge selection ────────────────────────────────────── */
+    window.toggleCheck = function(uid, checked) {
+      if (checked) {
+        _checkedUsers[uid] = true;
+      } else {
+        delete _checkedUsers[uid];
+      }
+      updateMergeBar();
+    };
+
+    function updateMergeBar() {
+      var ids  = Object.keys(_checkedUsers);
+      var bar  = document.getElementById('merge-bar');
+      var names = document.getElementById('merge-bar-names');
+      if (!bar) return;
+      if (ids.length === 2) {
+        bar.className = 'visible';
+        var labels = ids.map(function(id) {
+          var u = _allUsers.find(function(x) { return x.id === id; });
+          return u ? (u.data.displayName || u.data.email || id) : id;
+        });
+        if (names) names.textContent = labels[0] + '  ↔  ' + labels[1];
+      } else {
+        bar.className = '';
+      }
+    }
+
+    window.clearSelection = function() {
+      _checkedUsers = {};
+      updateMergeBar();
+      renderUserTable(_allUsers);
+    };
+
+    window.openMergeDialog = function() {
+      var ids = Object.keys(_checkedUsers);
+      if (ids.length !== 2) return;
+      var a = _allUsers.find(function(x) { return x.id === ids[0]; });
+      var b = _allUsers.find(function(x) { return x.id === ids[1]; });
+      if (!a || !b) return;
+
+      var labelA = (a.data.displayName || '—') + '\n' + (a.data.email || '') + '\nSince: ' + (a.data.createdAt ? (a.data.createdAt.toDate ? a.data.createdAt.toDate().toLocaleDateString() : new Date(a.data.createdAt).toLocaleDateString()) : '?');
+      var labelB = (b.data.displayName || '—') + '\n' + (b.data.email || '') + '\nSince: ' + (b.data.createdAt ? (b.data.createdAt.toDate ? b.data.createdAt.toDate().toLocaleDateString() : new Date(b.data.createdAt).toLocaleDateString()) : '?');
+
+      var choice = confirm(
+        'KEEP which record?\n\n' +
+        'OK  →  Keep A, archive B\n' +
+        'Cancel  →  Cancel merge\n\n' +
+        '── A (KEEP if OK) ──\n' + labelA + '\n\n' +
+        '── B (archived if OK) ──\n' + labelB
+      );
+      if (!choice) return;
+
+      // Archive B, clear selection
+      AA.db.collection('users').doc(b.id).update({ archived: true, archivedAt: new Date(), mergedInto: a.id })
+        .then(function() {
+          var u = _allUsers.find(function(x) { return x.id === b.id; });
+          if (u) u.data.archived = true;
+          _checkedUsers = {};
+          updateMergeBar();
+          renderUserTable(_allUsers);
+          alert('✅ Merged! ' + (b.data.displayName || b.data.email) + ' archived. ' + (a.data.displayName || a.data.email) + ' kept.');
+        })
+        .catch(function(err) { alert('Error merging: ' + err.message); });
     };
 
     /* ── Helpers ────────────────────────────────────────────── */
