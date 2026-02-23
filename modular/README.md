@@ -1,0 +1,1 @@
+Working on: streak counter for Social, thumping voices flag, fixed button positions, detailed check-in expands. Deploying after Tuesday Claude session.
