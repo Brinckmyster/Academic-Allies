@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Academic Allies – Flower Genus Quiz</title>
+  <title>Academic Allies – Flower Quiz</title>
   <link rel="icon" href="/Academic-Allies/favicon.ico">
   <style>
     body {
@@ -17,56 +17,56 @@
       flex-direction: column;
       align-items: center;
     }
-    h1 { color: #6CA0A3; text-align: center; margin-bottom: 20px; }
+    h1 { color: #6CA0A3; text-align: center; margin-bottom: 10px; }
     .quiz-container {
-      max-width: 700px;
+      max-width: 720px;
       width: 100%;
       background: white;
       border-radius: 16px;
       padding: 30px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      text-align: center;
     }
-    .question {
-      margin-bottom: 30px;
+    .flower-image {
+      width: 280px;
+      height: 280px;
+      object-fit: contain;
+      margin: 20px auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    .question h2 {
-      font-size: 20pt;
-      margin-bottom: 15px;
+    .prompt {
+      font-size: 18pt;
+      margin: 15px 0;
     }
     .options {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
+      max-width: 500px;
+      margin: 20px auto;
     }
     .option-btn {
-      padding: 16px;
-      font-size: 16pt;
+      padding: 18px;
+      font-size: 17pt;
       border: 2px solid #ddd;
       border-radius: 12px;
       background: #f8f9fa;
       cursor: pointer;
-      text-align: left;
       transition: all 0.2s;
     }
-    .option-btn:hover {
-      background: #e0eced;
-      border-color: #6CA0A3;
-    }
-    .option-btn.correct {
-      background: #d4edda;
-      border-color: #28a745;
-      color: #155724;
-    }
-    .option-btn.wrong {
-      background: #f8d7da;
-      border-color: #dc3545;
-      color: #721c24;
-    }
-    .hint {
-      font-size: 13pt;
-      color: #555;
-      margin-top: 10px;
-      font-style: italic;
+    .option-btn:hover { background: #e0eced; border-color: #6CA0A3; }
+    .option-btn.correct { background: #d4edda; border-color: #28a745; color: #155724; }
+    .option-btn.wrong { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+    .flip-btn {
+      background: #6CA0A3;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 16pt;
+      cursor: pointer;
+      margin-bottom: 20px;
     }
     #score {
       font-size: 24pt;
@@ -82,14 +82,13 @@
       border: none;
       border-radius: 12px;
       cursor: pointer;
-      margin-top: 20px;
     }
   </style>
 </head>
 <body>
   <div class="quiz-container">
-    <h1>Flower Genus Quiz 🌸</h1>
-    <p>Match the common name to the genus — all from your Pinterest board! Tap an answer to check.</p>
+    <h1>Flower Quiz 🌸</h1>
+    <button class="flip-btn" id="flipBtn" onclick="toggleFlip()">Currently: Genus → Common Name</button>
 
     <div id="quiz"></div>
     <div id="score" style="display:none;"></div>
@@ -97,48 +96,108 @@
   </div>
 
   <script>
-    const questions = [
-      { common: "Rose", genus: "Rosa", hint: "", options: ["Rosa", "Dianthus", "Gerbera", "Tulipa"], correct: 0 },
-      { common: "Sunflower", genus: "Helianthus", hint: "", options: ["Helianthus", "Bellis", "Chrysanthemum", "Zinnia"], correct: 0 },
-      { common: "Tulip", genus: "Tulipa", hint: "", options: ["Tulipa", "Lilium", "Iris", "Narcissus"], correct: 0 },
-      { common: "Lavender", genus: "Lavandula", hint: "", options: ["Lavandula", "Salvia", "Agastache", "Nepeta"], correct: 0 },
-      { common: "Daisy", genus: "Bellis", hint: "Daisy family — this version has small white petals and yellow center, low-growing plant", options: ["Bellis", "Gerbera", "Leucanthemum", "Osteospermum"], correct: 0 },
-      { common: "Marigold", genus: "Tagetes", hint: "", options: ["Tagetes", "Calendula", "Rudbeckia", "Gaillardia"], correct: 0 },
-      { common: "Delphinium", genus: "Delphinium", hint: "", options: ["Delphinium", "Aconitum", "Lupinus", "Salvia"], correct: 0 },
-      { common: "Carnation", genus: "Dianthus", hint: "", options: ["Dianthus", "Chrysanthemum", "Pelargonium", "Begonia"], correct: 0 },
-      { common: "Gerbera Daisy", genus: "Gerbera", hint: "Daisy family — this version has large bold petals in bright colors, tall stem", options: ["Gerbera", "Rudbeckia", "Coreopsis", "Helianthus"], correct: 0 },
-      { common: "Baby's Breath", genus: "Gypsophila", hint: "", options: ["Gypsophila", "Alstroemeria", "Limonium", "Astrantia"], correct: 0 },
-      { common: "Chrysanthemum", genus: "Chrysanthemum", hint: "", options: ["Chrysanthemum", "Aster", "Dendranthema", "Leucanthemum"], correct: 0 },
-      { common: "Zinnia", genus: "Zinnia", hint: "", options: ["Zinnia", "Tagetes", "Gaillardia", "Rudbeckia"], correct: 0 },
-      { common: "Rudbeckia", genus: "Rudbeckia", hint: "", options: ["Rudbeckia", "Helianthus", "Coreopsis", "Gaillardia"], correct: 0 },
-      { common: "Coreopsis", genus: "Coreopsis", hint: "", options: ["Coreopsis", "Rudbeckia", "Gaillardia", "Tagetes"], correct: 0 },
-      { common: "Gaillardia", genus: "Gaillardia", hint: "", options: ["Gaillardia", "Rudbeckia", "Coreopsis", "Tagetes"], correct: 0 },
-      { common: "Alstroemeria", genus: "Alstroemeria", hint: "", options: ["Alstroemeria", "Lilium", "Iris", "Freesia"], correct: 0 },
-      { common: "Limonium", genus: "Limonium", hint: "", options: ["Limonium", "Gypsophila", "Astrantia", "Ageratum"], correct: 0 },
-      { common: "Astrantia", genus: "Astrantia", hint: "", options: ["Astrantia", "Limonium", "Gypsophila", "Eryngium"], correct: 0 },
-      { common: "Iris", genus: "Iris", hint: "", options: ["Iris", "Gladiolus", "Crocus", "Freesia"], correct: 0 },
-      { common: "Lilium", genus: "Lilium", hint: "", options: ["Lilium", "Tulipa", "Hyacinthus", "Narcissus"], correct: 0 },
-      { common: "Pelargonium", genus: "Pelargonium", hint: "", options: ["Pelargonium", "Geranium", "Impatiens", "Begonia"], correct: 0 },
-      { common: "Begonia", genus: "Begonia", hint: "", options: ["Begonia", "Impatiens", "Pelargonium", "Fuchsia"], correct: 0 },
-      { common: "Salvia", genus: "Salvia", hint: "", options: ["Salvia", "Lavandula", "Agastache", "Nepeta"], correct: 0 },
-      { common: "Agastache", genus: "Agastache", hint: "", options: ["Agastache", "Salvia", "Lavandula", "Nepeta"], correct: 0 },
-      { common: "Nepeta", genus: "Nepeta", hint: "", options: ["Nepeta", "Lavandula", "Salvia", "Agastache"], correct: 0 },
-      { common: "Freesia", genus: "Freesia", hint: "", options: ["Freesia", "Iris", "Gladiolus", "Crocus"], correct: 0 },
-      { common: "Gladiolus", genus: "Gladiolus", hint: "", options: ["Gladiolus", "Iris", "Freesia", "Crocus"], correct: 0 },
-      { common: "Crocus", genus: "Crocus", hint: "", options: ["Crocus", "Iris", "Gladiolus", "Freesia"], correct: 0 },
-      { common: "Hyacinthus", genus: "Hyacinthus", hint: "", options: ["Hyacinthus", "Lilium", "Tulipa", "Narcissus"], correct: 0 },
-      { common: "Narcissus", genus: "Narcissus", hint: "", options: ["Narcissus", "Lilium", "Tulipa", "Hyacinthus"], correct: 0 },
-      { common: "Eryngium", genus: "Eryngium", hint: "", options: ["Eryngium", "Astrantia", "Limonium", "Gypsophila"], correct: 0 },
-      { common: "Ageratum", genus: "Ageratum", hint: "", options: ["Ageratum", "Limonium", "Gypsophila", "Astrantia"], correct: 0 },
-      // Add more board-specific questions here (e.g., Chrysanthemum, Zinnia, Rudbeckia, Coreopsis, Gaillardia, Alstroemeria, Limonium, Astrantia, Iris, Lilium, Pelargonium, Begonia, Salvia, Agastache, Nepeta, etc.)
+    // Only flowers that actually have photos in your folder
+    const flowerPool = [
+      { image: "modular/icons/flowers/flower31-2 Seeded Eucalyptus.jpg", genus: "Eucalyptus", common: "Seeded Eucalyptus" },
+      { image: "modular/icons/flowers/flower31-3 Seeded Eucalyptus.jpg", genus: "Eucalyptus", common: "Seeded Eucalyptus" },
+      { image: "modular/icons/flowers/flower31-4 Seeded Eucalyptus.jpg", genus: "Eucalyptus", common: "Seeded Eucalyptus" },
+      { image: "modular/icons/flowers/flower31-5 Seeded Eucalyptus.jpg", genus: "Eucalyptus", common: "Seeded Eucalyptus" },
+      { image: "modular/icons/flowers/flower31-6 Seeded Eucalyptus.jpg", genus: "Eucalyptus", common: "Seeded Eucalyptus" },
+      { image: "modular/icons/flowers/flower31-7 Seeded Eucalyptus.jpg", genus: "Eucalyptus", common: "Seeded Eucalyptus" },
+      { image: "modular/icons/flowers/flower41-1 Leather leaf.jpg", genus: "Leucadendron", common: "Leather Leaf" },
+      { image: "modular/icons/flowers/flower41-2 Leather leaf.jpg", genus: "Leucadendron", common: "Leather Leaf" },
+      { image: "modular/icons/flowers/flower41-3 Leather leaf.jpg", genus: "Leucadendron", common: "Leather Leaf" },
+      { image: "modular/icons/flowers/flower41-4 Leather leaf.jpg", genus: "Leucadendron", common: "Leather Leaf" },
+      { image: "modular/icons/flowers/flower41-5 Leather leaf.jpg", genus: "Leucadendron", common: "Leather Leaf" },
+      { image: "modular/icons/flowers/flower41-6 Leather leaf.jpg", genus: "Leucadendron", common: "Leather Leaf" },
+      { image: "modular/icons/flowers/flower42-1 Bear Grass.jpg", genus: "Xerophyllum", common: "Bear Grass" },
+      { image: "modular/icons/flowers/flower42-2 Bear Grass.jpg", genus: "Xerophyllum", common: "Bear Grass" },
+      { image: "modular/icons/flowers/flower42-3 Bear Grass.jpg", genus: "Xerophyllum", common: "Bear Grass" },
+      { image: "modular/icons/flowers/flower42-4 Bear Grass.jpg", genus: "Xerophyllum", common: "Bear Grass" },
+      { image: "modular/icons/flowers/flower42-5 Bear Grass.jpg", genus: "Xerophyllum", common: "Bear Grass" },
+      { image: "modular/icons/flowers/flower42-6 Bear Grass.jpg", genus: "Xerophyllum", common: "Bear Grass" },
+      { image: "modular/icons/flowers/flower42-7 Bear Grass.jpg", genus: "Xerophyllum", common: "Bear Grass" },
+      { image: "modular/icons/flowers/flower43-1 Lilly Grass.jpg", genus: "Liriope", common: "Lilly Grass" },
+      { image: "modular/icons/flowers/flower43-2 Lilly Grass.jpg", genus: "Liriope", common: "Lilly Grass" },
+      { image: "modular/icons/flowers/flower43-3 Lilly Grass.jpg", genus: "Liriope", common: "Lilly Grass" },
+      { image: "modular/icons/flowers/flower43-4 Lilly Grass.jpg", genus: "Liriope", common: "Lilly Grass" },
+      { image: "modular/icons/flowers/flower43-5 Lilly Grass.jpg", genus: "Liriope", common: "Lilly Grass" },
+      { image: "modular/icons/flowers/flower43-6 Lilly Grass.jpg", genus: "Liriope", common: "Lilly Grass" },
+      { image: "modular/icons/flowers/flower43-7 Lilly Grass.jpg", genus: "Liriope", common: "Lilly Grass" },
+      { image: "modular/icons/flowers/flower43-8 Lilly Grass.jpg", genus: "Liriope", common: "Lilly Grass" },
+      { image: "modular/icons/flowers/flower44-1 Israeli Ruscus.png", genus: "Ruscus", common: "Israeli Ruscus" },
+      { image: "modular/icons/flowers/flower44-1 Italian Ruscus.jpg", genus: "Ruscus", common: "Italian Ruscus" },
+      { image: "modular/icons/flowers/flower44-2 Israeli Ruscus.jpg", genus: "Ruscus", common: "Israeli Ruscus" },
+      { image: "modular/icons/flowers/flower44-2 Italian Ruscus.jpg", genus: "Ruscus", common: "Italian Ruscus" },
+      { image: "modular/icons/flowers/flower44-3 Israeli Ruscus.jpg", genus: "Ruscus", common: "Israeli Ruscus" },
+      { image: "modular/icons/flowers/flower44-3 Italian Ruscus.jpg", genus: "Ruscus", common: "Italian Ruscus" },
+      { image: "modular/icons/flowers/flower44-4 Israeli Ruscus.jpg", genus: "Ruscus", common: "Israeli Ruscus" },
+      { image: "modular/icons/flowers/flower44-4 Italian Ruscus.jpg", genus: "Ruscus", common: "Italian Ruscus" },
+      { image: "modular/icons/flowers/flower44-5 Israeli Ruscus.jpg", genus: "Ruscus", common: "Israeli Ruscus" },
+      { image: "modular/icons/flowers/flower44-5 Italian Ruscus.jpg", genus: "Ruscus", common: "Italian Ruscus" },
+      { image: "modular/icons/flowers/flower44-6 Israeli Ruscus.jpg", genus: "Ruscus", common: "Israeli Ruscus" },
+      { image: "modular/icons/flowers/flower44-6 Italian Ruscus.jpg", genus: "Ruscus", common: "Italian Ruscus" },
+      { image: "modular/icons/flowers/flower44-7 Israeli Ruscus.jpg", genus: "Ruscus", common: "Israeli Ruscus" },
+      { image: "modular/icons/flowers/flower44-7 Italian Ruscus.jpg", genus: "Ruscus", common: "Italian Ruscus" },
+      { image: "modular/icons/flowers/flower44-8 Israeli Ruscus.jpg", genus: "Ruscus", common: "Israeli Ruscus" },
+      { image: "modular/icons/flowers/flower44-8 Italian Ruscus.jpg", genus: "Ruscus", common: "Italian Ruscus" },
+      { image: "modular/icons/flowers/flower44-9 Israeli Ruscus.jpg", genus: "Ruscus", common: "Israeli Ruscus" },
+      { image: "modular/icons/flowers/flower45-1 Salal.jpg", genus: "Gaultheria", common: "Salal" },
+      { image: "modular/icons/flowers/flower45-2 Salal.jpg", genus: "Gaultheria", common: "Salal" },
+      { image: "modular/icons/flowers/flower45-3 Salal.jpg", genus: "Gaultheria", common: "Salal" },
+      { image: "modular/icons/flowers/flower45-4 Salal.jpg", genus: "Gaultheria", common: "Salal" },
+      { image: "modular/icons/flowers/flower45-5 Salal.jpg", genus: "Gaultheria", common: "Salal" },
+      { image: "modular/icons/flowers/flower45-6 Salal.jpg", genus: "Gaultheria", common: "Salal" },
+      { image: "modular/icons/flowers/flower45-7 Salal.jpg", genus: "Gaultheria", common: "Salal" },
+      { image: "modular/icons/flowers/flower45-8 Salal.jpg", genus: "Gaultheria", common: "Salal" },
+      { image: "modular/icons/flowers/flower45-9 Salal.jpg", genus: "Gaultheria", common: "Salal" },
+      { image: "modular/icons/flowers/flower46-1 Grevillea.jpg", genus: "Grevillea", common: "Grevillea" },
+      { image: "modular/icons/flowers/flower46-2 Grevillea.jpg", genus: "Grevillea", common: "Grevillea" },
+      { image: "modular/icons/flowers/flower46-3 Grevillea.jpg", genus: "Grevillea", common: "Grevillea" },
+      { image: "modular/icons/flowers/flower46-4 Grevillea.jpg", genus: "Grevillea", common: "Grevillea" },
+      { image: "modular/icons/flowers/flower46-5 Grevillea.jpg", genus: "Grevillea", common: "Grevillea" },
+      { image: "modular/icons/flowers/flower46-6 Grevillea.jpg", genus: "Grevillea", common: "Grevillea" },
+      { image: "modular/icons/flowers/flower46-7 Grevillea.jpg", genus: "Grevillea", common: "Grevillea" },
+      { image: "modular/icons/flowers/flower46-8 Grevillea.jpg", genus: "Grevillea", common: "Grevillea" },
+      { image: "modular/icons/flowers/flower47-1 Pitt.jpg", genus: "Pittosporum", common: "Pitt" },
+      { image: "modular/icons/flowers/flower47-2 Pitt.jpg", genus: "Pittosporum", common: "Pitt" },
+      { image: "modular/icons/flowers/flower47-3 Pitt.jpg", genus: "Pittosporum", common: "Pitt" },
+      { image: "modular/icons/flowers/flower47-4 Pitt.jpg", genus: "Pittosporum", common: "Pitt" },
+      { image: "modular/icons/flowers/flower47-5 Pitt.jpg", genus: "Pittosporum", common: "Pitt" },
+      { image: "modular/icons/flowers/flower47-6 Pitt.jpg", genus: "Pittosporum", common: "Pitt" },
+      { image: "modular/icons/flowers/flower47-7 Pitt.jpg", genus: "Pittosporum", common: "Pitt" },
+      { image: "modular/icons/flowers/flower47-8 Pitt.jpg", genus: "Pittosporum", common: "Pitt" },
+      { image: "modular/icons/flowers/flower47-9 Pitt.jpg", genus: "Pittosporum", common: "Pitt" },
+      { image: "modular/icons/flowers/flower48-1 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-10 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-11 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-12 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-2 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-3 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-4 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-5 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-6 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-7 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-8 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      { image: "modular/icons/flowers/flower48-9 Myrtle.jpg", genus: "Myrtus", common: "Myrtle" },
+      // Add any other flower files from your folder here if you want them included
     ];
 
+    let isFlipped = false; // false = Genus → Common   true = Common → Genus
     let currentQuestion = 0;
     let score = 0;
+    let shuffledPool = [];
+
+    function toggleFlip() {
+      isFlipped = !isFlipped;
+      document.getElementById('flipBtn').textContent = isFlipped ? 
+        "Currently: Common Name → Genus" : 
+        "Currently: Genus → Common Name";
+      startQuiz();
+    }
 
     function startQuiz() {
-      // Shuffle questions for randomization
-      questions.sort(() => Math.random() - 0.5);
+      shuffledPool = [...flowerPool].sort(() => Math.random() - 0.5);
       currentQuestion = 0;
       score = 0;
       document.getElementById('score').style.display = 'none';
@@ -147,42 +206,53 @@
     }
 
     function showQuestion() {
-      const q = questions[currentQuestion];
-      let html = `<div class="question">
-        <h2>Question ${currentQuestion + 1} of ${questions.length}</h2>
-        <p><strong>Common name:</strong> ${q.common}</p>`;
+      if (currentQuestion >= shuffledPool.length) {
+        showScore();
+        return;
+      }
 
-      if (q.hint) html += `<p class="hint">${q.hint}</p>`;
+      const flower = shuffledPool[currentQuestion];
+      let correctAnswer = isFlipped ? flower.common : flower.genus;
+      let wrongs = flowerPool
+        .filter(f => f.common !== flower.common)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3)
+        .map(f => isFlipped ? f.common : f.genus);
 
-      html += `<div class="options">`;
+      let options = [correctAnswer, ...wrongs];
+      options = options.sort(() => Math.random() - 0.5);
 
-      q.options.forEach((opt, i) => {
-        html += `<button class="option-btn" onclick="checkAnswer(${i})">${String.fromCharCode(65 + i)}) ${opt}</button>`;
+      const correctIndex = options.indexOf(correctAnswer);
+
+      let html = `
+        <div class="question">
+          <h2>Question ${currentQuestion + 1} of ${shuffledPool.length}</h2>
+          <img src="${flower.image}" class="flower-image" alt="${flower.common}">
+          <p class="prompt"><strong>${isFlipped ? "Common Name" : "Genus"}:</strong> ${isFlipped ? flower.common : flower.genus}</p>
+          <div class="options">`;
+
+      options.forEach((opt, i) => {
+        html += `<button class="option-btn" onclick="checkAnswer(${i}, ${correctIndex})">${opt}</button>`;
       });
 
       html += `</div></div>`;
       document.getElementById('quiz').innerHTML = html;
     }
 
-    function checkAnswer(selected) {
-      const q = questions[currentQuestion];
+    function checkAnswer(selected, correct) {
       const buttons = document.querySelectorAll('.option-btn');
 
       buttons.forEach((btn, i) => {
         btn.disabled = true;
-        if (i === q.correct) btn.classList.add('correct');
-        if (i === selected && i !== q.correct) btn.classList.add('wrong');
+        if (i === correct) btn.classList.add('correct');
+        if (i === selected && i !== correct) btn.classList.add('wrong');
       });
 
-      if (selected === q.correct) score++;
+      if (selected === correct) score++;
 
       setTimeout(() => {
         currentQuestion++;
-        if (currentQuestion < questions.length) {
-          showQuestion();
-        } else {
-          showScore();
-        }
+        showQuestion();
       }, 1500);
     }
 
@@ -194,7 +264,7 @@
       else message = "Amazing! You're a flower master! 🏆🌷";
 
       document.getElementById('quiz').innerHTML = '';
-      document.getElementById('score').innerHTML = `You got ${score} out of ${questions.length} correct!<br>${message}`;
+      document.getElementById('score').innerHTML = `You got ${score} out of ${shuffledPool.length} correct!<br>${message}`;
       document.getElementById('score').style.display = 'block';
       document.getElementById('restart').style.display = 'block';
     }
