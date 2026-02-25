@@ -3,7 +3,7 @@
 
 **Last confirmed:** February 2026
 **Source:** Perplexity Space thread + user CoT + direct corrections
-**Updated 2026-02-25 by Claude:** Mental/Emotional segment now uses Mary's confirmed 10-point energy scale (energyLevel field).
+**Updated 2026-02-25 by Claude:** Mental/Emotional segment confirmed energy scale; weekend logic confirmed; Bad Brain Day trigger confirmed; no-grey rule confirmed.
 
 ### Confirmed Energy Scale (Mental/Emotional — DO NOT CHANGE)
 | Level | Emoji | Label | Circle Color |
@@ -27,9 +27,9 @@
 |---|---------|--------------|
 | 1-1 | One circle, always visible | Top right corner. Never multiple circles or icons. Never hidden except bad brain day logic (see 1-5). |
 | 1-2 | Toggle: single color ↔ pie chart | Tap the circle OR change in Settings. Two default views only. No toggle switches on dashboard — labeled choices in Settings only. |
-| 1-3 | Weekend logic | **NOT YET CONFIRMED. Do not implement until user specifies.** |
-| 1-4 | Default / processing states | **Default = grey** (no check-in yet, or data unavailable). **Processing = blue spinning circle** (awaiting auto-fill or check-in). |
-| 1-5 | Bad brain day | Circle is hidden. If a new message is waiting → show message icon in same spot instead. **Trigger logic NOT YET CONFIRMED.** |
+| 1-3 | Weekend logic | **CONFIRMED.** Saturday = Social segment only. Sunday = Spiritual segment only. All other segments hidden on weekends. Already implemented in status-circle.js. |
+| 1-4 | Default / processing states | **No grey for segments.** If a segment has no check-in data → segment is simply absent (not drawn). Grey is removed from segment display. **Processing = blue spinning circle** (awaiting auto-fill or check-in). |
+| 1-5 | Bad brain day | Circle is hidden. If a new message is waiting → show message icon in same spot instead. **Trigger: student role (Mary / future students), admin, or family CAN trigger Bad Brain Day mode. Student always has final control — they can exit at any time. Support and nearby-help roles cannot trigger it.** Note: "Mary" = student role. When app scales to a 2nd student (e.g. Amanda), same rules apply to that student's account. |
 | 1-6 | Item-dependent logic | Each segment color is determined by its own confirmed check-in item. See Section 3. |
 | 1-7 | Accessibility (ADA) | High contrast. No flashing/pulsing. Keyboard accessible. Screen reader labels. Large/touch-friendly. Spinning animation is ADA-compliant. |
 
@@ -52,13 +52,13 @@
 
 ## 3. Segment Mapping (Weekday Logic)
 
-| Segment | Label | Data Source | Green | Yellow | Orange | Red | Grey |
+| Segment | Label | Data Source | Green | Yellow | Orange | Red | Absent (no data) |
 |---------|-------|-------------|-------|--------|--------|-----|------|
-| Mental | Mental | Energy level (check-in) + brain fog from Q-A symptom list | Energy 1–4 (Fully Charged → Doing Okay) | Energy 5 (Neutral) or brain fog | Energy 6–7 (Starting to Tire / Pretty Tired) | Energy 8–10 (Very Exhausted → Completely Depleted) or emergency | No check-in |
-| Physical | Physical | Q-A symptoms + Q-B sleep | No symptoms, good sleep | Some symptoms OR poor sleep | Symptoms + poor sleep | 3+ symptoms or emergency | No check-in |
-| Spiritual | Spiritual | **NOT YET TRACKED** | — | — | — | — | Always grey until confirmed |
-| Academic | Academic | Q-D planner review | Reviewed planner | Planner not reviewed | — | Emergency | Not recorded/skipped |
-| Social | Social | Q-C support connection | Talked to support team | No support contact | — | Emergency | Not recorded/skipped |
+| Mental | Mental | Energy level (check-in) + brain fog from Q-A symptom list | Energy 1–4 (Fully Charged → Doing Okay) | Energy 5 (Neutral) or brain fog | Energy 6–7 (Starting to Tire / Pretty Tired) | Energy 8–10 (Very Exhausted → Completely Depleted) or emergency | No check-in → segment not drawn |
+| Physical | Physical | Q-A symptoms + Q-B sleep | No symptoms, good sleep | Some symptoms OR poor sleep | Symptoms + poor sleep | 3+ symptoms or emergency | No check-in → segment not drawn |
+| Spiritual | Spiritual | **NOT YET TRACKED** | — | — | — | — | Always absent until data source confirmed |
+| Academic | Academic | Q-D planner review | Reviewed planner | Planner not reviewed | — | Emergency | Skipped → segment not drawn |
+| Social | Social | Q-C support connection | Talked to support team | No support contact | — | Emergency | Skipped → segment not drawn |
 
 > **Emergency (Q-E = Yes):** Immediately sets ALL segments to red.
 
@@ -72,7 +72,7 @@
 | Yellow | Some concern | `#ffc107` |
 | Orange | Needs attention | `#fd7e14` |
 | Red | Urgent / emergency | `#dc3545` |
-| Grey | No data / default | `#adb5bd` |
+| *(none)* | No data / segment absent | Segment simply not drawn — no grey fill used |
 | Blue (spinning) | Processing | `#4fa3e0` |
 
 ---
@@ -92,13 +92,14 @@
 
 ## 6. What Is NOT Included (until user confirms)
 
-- ❌ Weekend logic (Saturday/Sunday special colors)
-- ❌ Bad brain day trigger/definition
+- ✅ ~~Weekend logic~~ — CONFIRMED (see 1-3)
+- ✅ ~~Bad brain day trigger~~ — CONFIRMED (see 1-5)
 - ❌ Cognitive scale
 - ❌ Emoji in circle (off by default; enable in Settings)
 - ❌ Alerts for Mary or Mom (unless confirmed)
 - ❌ Any logic based on personal tiredness or bedtime
 - ❌ Nope day / skip day logic (TBD — see nope-day spec when created)
+- ❌ Spiritual segment data source (always absent until confirmed)
 
 ---
 
