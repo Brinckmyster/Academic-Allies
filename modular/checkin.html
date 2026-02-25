@@ -3,782 +3,914 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Academic Allies – Daily Check-In</title>
-  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <title>Daily Check-In — Academic Allies</title>
+  <!-- Updated: 2026-02-25 by Claude — full 5-category gateway check-in per confirmed Grok spec + Mary's energy scale -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
   <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --green:   #28a745;
+      --yellow:  #ffc107;
+      --orange:  #fd7e14;
+      --red:     #dc3545;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.08);
+    }
     body {
-      font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
-      font-size: 16pt;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
       line-height: 1.6;
-      background: #FAFAF9;
-      color: #333;
-      min-height: 100vh;
-      padding: 20px;
-      margin: 0;
+      padding-bottom: 3rem;
     }
-    .checkin-container { max-width: 640px; margin: 0 auto; }
-    .page-title { text-align: center; color: #6CA0A3; font-size: 22pt; margin-bottom: 6px; }
-    .date-display { text-align: center; color: #888; font-size: 13pt; margin-bottom: 28px; }
+    body.high-contrast { background:#000; color:#fff; }
+    body.high-contrast .card { background:#111; border-color:#fff; }
+    body.dyslexia-font { font-family: 'OpenDyslexic', sans-serif; }
+    body.reduced-motion * { transition: none !important; animation: none !important; }
 
+    /* ── Header placeholder ── */
+    #shared-header { min-height: 56px; }
+
+    /* ── Layout ── */
+    .page-wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1rem 1rem 2rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: var(--teal-dk);
+      margin: 1rem 0 .25rem;
+    }
+    .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 1.25rem; }
+
+    /* ── Cards ── */
     .card {
-      background: white;
-      border-radius: 18px;
-      padding: 22px 24px;
-      margin-bottom: 18px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.25rem 1.25rem 1rem;
+      margin-bottom: 1rem;
     }
-    .card h2 { color: #6CA0A3; font-size: 15pt; margin: 0 0 10px 0; }
-
+    .card h2 {
+      font-size: 1.1rem;
+      color: var(--teal-dk);
+      margin-bottom: .35rem;
+    }
+    .card .gateway-q {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: .5rem 0 .25rem;
+    }
     .reassurance {
-      background: #f0f7f8;
-      border-left: 4px solid #6CA0A3;
-      border-radius: 0 10px 10px 0;
-      padding: 10px 14px;
-      font-size: 12pt;
-      color: #555;
-      margin-bottom: 14px;
-      line-height: 1.5;
+      font-size: .85rem;
+      color: var(--muted);
+      margin-bottom: .75rem;
+      font-style: italic;
     }
 
-    /* Auto-detect badge */
-    .auto-detect-badge {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      margin-top: 12px;
-      padding: 9px 13px;
-      background: #fff8e1;
-      border: 1.5px solid #ffe082;
-      border-radius: 10px;
-      font-size: 11pt;
-      color: #6d5200;
-      line-height: 1.4;
-    }
-    .auto-detect-badge .badge-icon { font-size: 14pt; flex-shrink: 0; }
-    .auto-detect-badge .badge-text { flex: 1; }
-
-    /* Yes / No / Skip buttons */
-    .yn-row { display: flex; gap: 10px; flex-wrap: wrap; }
-    .yn-btn {
-      flex: 1;
-      min-width: 80px;
-      padding: 12px 10px;
-      border: 2px solid #ddd;
-      border-radius: 12px;
-      font-size: 13pt;
+    /* ── Gateway row ── */
+    .gw-row { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
+    .gw-btn {
+      flex: 1; min-width: 80px;
+      padding: .55rem .5rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      font-family: inherit;
+      font-size: .95rem;
+      font-weight: 700;
       cursor: pointer;
-      background: #f0f4f5;
-      font-family: inherit;
-      transition: all 0.18s;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .gw-btn:hover { border-color: var(--teal); }
+    .gw-btn.sel-yes  { background: #e6f4ea; border-color: var(--green);  color: #155724; }
+    .gw-btn.sel-no   { background: #fff3cd; border-color: var(--yellow); color: #856404; }
+    .gw-btn.sel-skip { background: #f0f0f0; border-color: #aaa;         color: #555;    }
+
+    /* ── Expand sections ── */
+    .expand { display: none; margin-top: .75rem; }
+    .expand.open { display: block; }
+    .expand h3 { font-size: .95rem; color: var(--muted); margin-bottom: .5rem; }
+
+    /* ── Checklist ── */
+    .checklist { list-style: none; padding: 0; }
+    .checklist li { margin-bottom: .4rem; }
+    .checklist label {
+      display: flex; align-items: flex-start; gap: .5rem;
+      cursor: pointer; font-size: .95rem;
+    }
+    .checklist input[type=checkbox] { margin-top: .15rem; flex-shrink: 0; accent-color: var(--teal); }
+
+    /* ── Emoji row ── */
+    .emoji-row {
+      display: flex; flex-wrap: wrap; gap: .35rem;
+      margin: .75rem 0 .5rem;
+    }
+    .emoji-btn {
+      display: flex; flex-direction: column; align-items: center;
+      padding: .35rem .4rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-size: .8rem;
       text-align: center;
-    }
-    .yn-btn:hover { background: #e0eced; border-color: #6CA0A3; }
-    .yn-btn.selected-yes  { background: #d4edda; border-color: #28a745; color: #155724; }
-    .yn-btn.selected-no   { background: #fff3cd; border-color: #ffc107; color: #856404; }
-    .yn-btn.selected-red  { background: #f8d7da; border-color: #dc3545; color: #721c24; }
-    .yn-btn.skip          { flex: 0 0 auto; background: #f8f8f8; color: #aaa; font-size: 11pt; border-color: #eee; }
-    .yn-btn.skip:hover    { color: #777; border-color: #ccc; }
-
-    /* Expandable checklist (for symptom question) */
-    .symptom-list {
-      display: none;
-      margin-top: 14px;
-      padding: 14px;
-      background: #f8f8f8;
-      border-radius: 12px;
-    }
-    .symptom-list.open { display: block; }
-    .symptom-list label {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 13pt; margin-bottom: 10px; cursor: pointer;
-    }
-    .symptom-list input[type="checkbox"] {
-      width: 20px; height: 20px; accent-color: #6CA0A3; flex-shrink: 0;
-    }
-
-    /* Energy scale (replaces mood grid — Updated 2026-02-25 by Claude) */
-    .energy-scale-list { list-style: none; }
-    .energy-scale-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 8px 10px; border-radius: 10px; cursor: pointer;
-      border: 2px solid transparent; transition: background 0.12s, border-color 0.12s;
-      margin-bottom: 3px; min-height: 19mm;
-    }
-    .energy-scale-item:hover, .energy-scale-item:focus {
-      background: #f0f7f8; border-color: #6CA0A3; outline: none;
-    }
-    .energy-scale-item.selected { background: #6CA0A3; color: white; border-color: #6CA0A3; }
-    .energy-scale-em  { font-size: 22pt; min-width: 36px; text-align: center; }
-    .energy-scale-lbl { font-size: 14pt; font-weight: 600; }
-    .energy-threshold-line {
-      text-align: center; font-size: 10pt; color: #ccc; letter-spacing: 0.08em;
-      padding: 4px 0 6px; display: flex; align-items: center; gap: 8px;
-    }
-    .energy-threshold-line::before, .energy-threshold-line::after {
-      content: ''; flex: 1; height: 1px; background: #ebebeb;
-    }
-    .energy-logged-note {
-      display: none; margin-top: 10px; padding: 9px 12px;
-      background: #f0f7f8; border-radius: 8px;
-      font-size: 12pt; color: #6CA0A3; text-align: center;
-    }
-
-    /* "Have you…" checkboxes */
-    .hyu-list { display: flex; flex-direction: column; gap: 12px; }
-    .hyu-list label {
-      display: flex; align-items: center; gap: 12px;
-      font-size: 14pt; cursor: pointer;
-    }
-    .hyu-list input[type="checkbox"] {
-      width: 22px; height: 22px; accent-color: #6CA0A3; flex-shrink: 0;
-    }
-
-    textarea {
-      width: 100%; border: 2px solid #e0e0e0; border-radius: 10px;
-      padding: 12px; font-family: inherit; font-size: 13pt;
-      resize: vertical; min-height: 80px; box-sizing: border-box;
-    }
-    textarea:focus { border-color: #6CA0A3; outline: none; }
-
-    /* Inline flag note (shows when No selected) */
-    .flag-note {
-      display: none; margin-top: 12px; font-size: 12pt;
-      padding: 10px 14px; border-radius: 10px;
-    }
-    .flag-note.yellow { background: #fff3cd; color: #856404; }
-    .flag-note.red    { background: #f8d7da; color: #721c24; }
-
-    .save-btn {
-      background: #6CA0A3; color: white; border: none;
-      border-radius: 25px; padding: 14px 40px; font-size: 16pt;
-      cursor: pointer; width: 100%; margin-top: 6px;
-      min-height: 19mm; font-family: inherit;
-    }
-    .save-btn:hover { background: #5a8c8f; }
-    .save-btn:active { transform: scale(0.98); }
-
-    #savedMsg {
-      display: none; text-align: center; padding: 14px 18px;
-      border-radius: 14px; margin-top: 14px; font-size: 13pt;
-    }
-
-    /* Today's log */
-    .log-title { color: #6CA0A3; font-weight: 600; font-size: 12pt; margin-bottom: 10px; }
-    .log-entry {
-      background: #f0f4f5; border-radius: 12px;
-      padding: 10px 14px; margin-bottom: 8px; font-size: 11pt;
-    }
-
-    /* ── Auto-detect warning modal ──────────────────────────── */
-    .modal-overlay {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.45);
-      z-index: 9000;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .modal-overlay.open { display: flex; }
-
-    .modal-box {
-      background: white;
-      border-radius: 22px;
-      padding: 30px 28px 24px;
-      max-width: 420px;
-      width: 100%;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.22);
-      text-align: center;
-    }
-    .modal-icon { font-size: 36pt; margin-bottom: 8px; }
-    .modal-title {
-      color: #6CA0A3; font-size: 17pt; margin: 0 0 14px;
+      min-width: 56px;
+      transition: border-color .15s, background .15s;
       font-family: inherit;
     }
-    .modal-body {
-      font-size: 12pt; color: #555; line-height: 1.6;
-      margin: 0 0 10px;
-      background: #fff8e1;
-      border: 1.5px solid #ffe082;
-      border-radius: 10px;
-      padding: 10px 14px;
-      text-align: left;
+    .emoji-btn .em { font-size: 1.4rem; line-height: 1.2; }
+    .emoji-btn .lbl { font-size: .65rem; color: var(--muted); line-height: 1.2; margin-top: .1rem; }
+    .emoji-btn:hover { border-color: var(--teal); }
+    .emoji-btn.sel-g { background: #e6f4ea; border-color: var(--green); }
+    .emoji-btn.sel-y { background: #fff9e6; border-color: var(--yellow); }
+    .emoji-btn.sel-o { background: #fff3e0; border-color: var(--orange); }
+    .emoji-btn.sel-r { background: #fde8ea; border-color: var(--red); }
+
+    /* BBD mode — bigger emoji */
+    body.bbd-active .emoji-btn { min-width: 70px; padding: .5rem; }
+    body.bbd-active .emoji-btn .em { font-size: 1.8rem; }
+    body.bbd-active .expand h3,
+    body.bbd-active .checklist,
+    body.bbd-active .reassurance { display: none; }
+    body.bbd-active .expand.open { padding-top: 0; }
+
+    /* ── Note fields ── */
+    .note-wrap { margin-top: .6rem; }
+    .note-wrap label { font-size: .85rem; color: var(--muted); display: block; margin-bottom: .25rem; }
+    .note-wrap textarea {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 8px;
+      padding: .5rem; font-family: inherit; font-size: .9rem;
+      resize: vertical; min-height: 60px; background: var(--bg);
     }
-    .modal-question {
-      font-size: 13pt; color: #333; margin: 14px 0 18px;
-      font-weight: 600;
+
+    /* ── Thumping banner ── */
+    #thumping-banner {
+      display: none;
+      background: #fff3cd; border: 2px solid var(--yellow);
+      border-radius: 8px; padding: .75rem 1rem;
+      font-size: .9rem; color: #856404;
+      margin-bottom: 1rem;
     }
-    .modal-btns {
-      display: flex; gap: 12px; flex-wrap: wrap;
+    #thumping-banner.show { display: block; }
+
+    /* ── Flag indicator ── */
+    #flag-bar {
+      display: none;
+      border-radius: 8px; padding: .6rem 1rem;
+      font-size: .9rem; font-weight: 700;
+      margin-bottom: 1rem;
+      border: 2px solid transparent;
     }
-    .modal-btn-keep {
-      flex: 1; padding: 13px 10px;
-      background: #e8f2f3; color: #2d6a6d;
-      border: 2px solid #6CA0A3; border-radius: 14px;
-      font-size: 12pt; cursor: pointer;
-      font-family: inherit; line-height: 1.3;
+    #flag-bar.show { display: block; }
+    #flag-bar.flag-g { background:#e6f4ea; border-color:var(--green);  color:#155724; }
+    #flag-bar.flag-y { background:#fff9e6; border-color:var(--yellow); color:#856404; }
+    #flag-bar.flag-o { background:#fff3e0; border-color:var(--orange); color:#7a3e00; }
+    #flag-bar.flag-r { background:#fde8ea; border-color:var(--red);    color:#721c24; }
+
+    /* ── Bad Brain Day toggle card ── */
+    #bbd-card { border-color: #6CA0A3; }
+    #bbd-card h2 { color: #4d787b; }
+    .bbd-toggle-row { display: flex; align-items: center; gap: .75rem; margin-top: .5rem; }
+    #bbd-toggle-btn {
+      padding: .5rem 1.1rem;
+      border-radius: 8px; border: 2px solid var(--teal);
+      background: #fff; font-family: inherit; font-weight: 700;
+      font-size: .95rem; cursor: pointer; color: var(--teal-dk);
+      transition: background .15s;
     }
-    .modal-btn-keep:hover { background: #d2e8ea; }
-    .modal-btn-change {
-      flex: 1; padding: 13px 10px;
-      background: #f0f4f5; color: #555;
-      border: 2px solid #ddd; border-radius: 14px;
-      font-size: 12pt; cursor: pointer;
-      font-family: inherit; line-height: 1.3;
+    #bbd-toggle-btn.active { background: var(--teal); color: #fff; }
+    #skip-all-btn {
+      display: none;
+      padding: .45rem 1rem;
+      border-radius: 8px; border: 2px solid #aaa;
+      background: #f0f0f0; font-family: inherit; font-size: .9rem;
+      cursor: pointer; color: #555;
     }
-    .modal-btn-change:hover { background: #e4e8e9; border-color: #bbb; }
+    body.bbd-active #skip-all-btn { display: inline-block; }
+
+    /* ── Basics card ── */
+    .basics-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .5rem; }
+    .basic-item { display: flex; align-items: center; gap: .4rem; font-size: .95rem; }
+    .basic-item input { accent-color: var(--teal); width: 1.1rem; height: 1.1rem; }
+
+    /* ── Emergency card ── */
+    #emergency-card { border-color: var(--red); }
+    #emergency-card h2 { color: #b02032; }
+    .emergency-q { font-size: 1rem; font-weight: 700; margin: .5rem 0; }
+    .emerg-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .emerg-btn {
+      flex: 1; min-width: 80px;
+      padding: .55rem .5rem;
+      border: 2px solid var(--border);
+      border-radius: 8px; background: #fff;
+      font-family: inherit; font-size: .95rem; font-weight: 700;
+      cursor: pointer; transition: background .15s, border-color .15s;
+    }
+    .emerg-btn.sel-yes { background: #fde8ea; border-color: var(--red); color: #721c24; }
+    .emerg-btn.sel-no  { background: #e6f4ea; border-color: var(--green); color: #155724; }
+
+    /* ── Save / Reset ── */
+    .save-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .75rem; }
+    #save-btn {
+      flex: 2; padding: .75rem;
+      background: var(--teal); color: #fff;
+      border: none; border-radius: 8px;
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: background .15s;
+    }
+    #save-btn:hover { background: var(--teal-dk); }
+    #save-btn:disabled { background: #aaa; cursor: not-allowed; }
+    #reset-btn {
+      flex: 1; padding: .75rem;
+      background: #f0f0f0; color: #555;
+      border: 2px solid #ccc; border-radius: 8px;
+      font-family: inherit; font-size: .95rem; cursor: pointer;
+    }
+    #save-status {
+      text-align: center; font-size: .9rem; margin-top: .5rem;
+      min-height: 1.4rem; color: var(--muted);
+    }
+
+    /* ── Notes final card ── */
+    #notes-card textarea { min-height: 80px; }
   </style>
 </head>
 <body>
-  <div id="site-header"></div>
 
-  <!-- Auto-detect warning modal -->
-  <div id="autoDetectModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal-box">
-      <div class="modal-icon">🔍</div>
-      <h3 class="modal-title" id="modalTitle">We noticed something</h3>
-      <p class="modal-body" id="modalBody"></p>
-      <p class="modal-question">Are you sure you want to change your answer?</p>
-      <div class="modal-btns">
-        <button class="modal-btn-keep" onclick="cancelAutoChange()">Keep auto-detected answer</button>
-        <button class="modal-btn-change" onclick="confirmAutoChange()">Yes, change it</button>
-      </div>
+<!-- Shared header -->
+<div id="shared-header"></div>
+
+<div class="page-wrap">
+  <h1>Daily Check-In</h1>
+  <p class="subtitle">Take your time. Every section is optional — just answer what feels right today.</p>
+
+  <!-- ══ Flag bar (shown after any gateway answered) ══ -->
+  <div id="flag-bar" role="status" aria-live="polite"></div>
+
+  <!-- ══ Thumping voices banner ══ -->
+  <div id="thumping-banner" role="alert">
+    🔔 Thumping voices flagged — your support team will be gently notified.
+  </div>
+
+  <!-- ══ Bad Brain Day toggle ══ -->
+  <div class="card" id="bbd-card">
+    <h2>🧠 How are we starting today?</h2>
+    <p style="font-size:.9rem;color:var(--muted);margin:.25rem 0 .5rem;">
+      On a Bad Brain Day the form simplifies to just the essentials.
+    </p>
+    <div class="bbd-toggle-row">
+      <button id="bbd-toggle-btn" onclick="toggleBBD()">Bad Brain Day mode: OFF</button>
+      <button id="skip-all-btn" onclick="skipAll()">Skip all categories</button>
     </div>
   </div>
 
-  <div class="checkin-container">
-    <h1 class="page-title">📋 Daily Check-In</h1>
-    <p class="date-display" id="todayDate"></p>
+  <!-- ══ 1. MENTAL / HEAD SPACE ══ -->
+  <div class="card" id="cat-mental">
+    <h2>🧠 Mental / Head Space</h2>
+    <p class="gateway-q">Is your head feeling okay enough to think and engage today?</p>
+    <p class="reassurance">There's no wrong answer here — this is just a temperature check.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-mental-yes"  onclick="selectGW('mental','yes')">✅ Yes</button>
+      <button class="gw-btn" id="gw-mental-no"   onclick="selectGW('mental','no')">❌ No</button>
+      <button class="gw-btn" id="gw-mental-skip" onclick="selectGW('mental','skip')">⏭ Skip</button>
+    </div>
 
-    <!-- ENERGY / MOOD — feeds Mental/Emotional segment of status circle -->
-    <!-- Updated 2026-02-25 by Claude — replaced 6-emoji grid with Mary's confirmed 10-point scale -->
-    <div class="card">
-      <h2>How is your energy right now? 💡</h2>
-      <div class="reassurance">Tap the one that fits. This feeds your status circle (Mental/Emotional). Skip it if it's too much today.</div>
-      <ul class="energy-scale-list" role="listbox" aria-label="Energy level">
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="1" data-label="Fully Charged"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">😁</span><span class="energy-scale-lbl">Fully Charged</span>
-        </li>
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="2" data-label="Energized"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">😊</span><span class="energy-scale-lbl">Energized</span>
-        </li>
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="3" data-label="Pretty Good"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">🙂</span><span class="energy-scale-lbl">Pretty Good</span>
-        </li>
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="4" data-label="Doing Okay"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">🙂</span><span class="energy-scale-lbl">Doing Okay</span>
-        </li>
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="5" data-label="Neutral"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">😐</span><span class="energy-scale-lbl">Neutral</span>
-        </li>
-        <li class="energy-threshold-line" aria-hidden="true">Exhaustion Threshold</li>
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="6" data-label="Starting to Tire"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">😕</span><span class="energy-scale-lbl">Starting to Tire</span>
-        </li>
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="7" data-label="Pretty Tired"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">😟</span><span class="energy-scale-lbl">Pretty Tired</span>
-        </li>
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="8" data-label="Very Exhausted"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">😫</span><span class="energy-scale-lbl">Very Exhausted</span>
-        </li>
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="9" data-label="Almost Empty"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">😩</span><span class="energy-scale-lbl">Almost Empty</span>
-        </li>
-        <li class="energy-scale-item" role="option" tabindex="0" data-level="10" data-label="Completely Depleted"
-            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
-          <span class="energy-scale-em">☠️</span><span class="energy-scale-lbl">Completely Depleted</span>
-        </li>
+    <!-- Yes expand -->
+    <div class="expand" id="expand-mental-yes">
+      <h3>How's your head space? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="mental_yes" value="focused"> Feeling focused or clear-headed</label></li>
+        <li><label><input type="checkbox" name="mental_yes" value="creative"> Feeling creative or motivated</label></li>
+        <li><label><input type="checkbox" name="mental_yes" value="anxious"> Some anxiety in the background</label></li>
+        <li><label>
+          <input type="checkbox" id="thumping-mental" onchange="updateThumping()">
+          🔔 Hearing thumping voices / intrusive thoughts
+        </label></li>
       </ul>
-      <div class="energy-logged-note" id="energyLoggedNote" role="status" aria-live="polite"></div>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How charged are you right now?</p>
+      <div class="emoji-row" id="emoji-mental-yes"></div>
     </div>
 
-    <!-- QUESTION A: Symptoms -->
-    <div class="card" id="card-symptoms">
-      <h2>A. Pain, fatigue, or brain fog today?</h2>
-      <div class="reassurance">You don't need to answer this if you're not sure. If we notice signs of a bad brain day in the background, we'll note that for you. No action needed unless you want to add details.</div>
-      <div class="yn-row">
-        <button class="yn-btn" id="symptomsNo"   onclick="selectQ('symptoms','no')">✅ No</button>
-        <button class="yn-btn" id="symptomsYes"  onclick="selectQ('symptoms','yes')">😔 Yes</button>
-        <button class="yn-btn skip"              onclick="selectQ('symptoms','skip')">⏭ Skip</button>
-      </div>
-      <div class="symptom-list" id="symptomChecklist">
-        <strong style="font-size:12pt;color:#555;display:block;margin-bottom:10px;">Which ones? (check all that apply)</strong>
-        <label><input type="checkbox" value="Headache"> Headache</label>
-        <label><input type="checkbox" value="Muscle pain"> Muscle pain</label>
-        <label><input type="checkbox" value="Joint pain"> Joint pain</label>
-        <label><input type="checkbox" value="Severe tiredness/fatigue"> Severe tiredness / fatigue</label>
-        <label><input type="checkbox" value="Trouble thinking/brain fog"> Trouble thinking / brain fog</label>
-        <label><input type="checkbox" value="Dizziness"> Dizziness</label>
-        <label><input type="checkbox" value="Nausea"> Nausea</label>
-        <label><input type="checkbox" value="Other"> Other</label>
-      </div>
-      <!-- Auto-detect badge injected here by JS if applicable -->
+    <!-- No expand -->
+    <div class="expand" id="expand-mental-no">
+      <h3>What's making it hard? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="mental_no" value="brain_fog"> Brain fog — hard to think clearly</label></li>
+        <li><label><input type="checkbox" name="mental_no" value="overwhelmed"> Overwhelmed or shut-down feeling</label></li>
+        <li><label><input type="checkbox" name="mental_no" value="anxiety"> Anxiety or racing thoughts</label></li>
+        <li><label><input type="checkbox" name="mental_no" value="depression"> Depression or low mood</label></li>
+        <li><label><input type="checkbox" name="mental_no" value="dissociating"> Dissociating or spacing out</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">Roughly how depleted does it feel?</p>
+      <div class="emoji-row" id="emoji-mental-no"></div>
     </div>
 
-    <!-- QUESTION B: Sleep -->
-    <div class="card" id="card-sleep">
-      <h2>B. At least 6 hours of sleep last night?</h2>
-      <div class="reassurance">You don't need to answer this if you're not sure. If you use a phone-based sleep app, this can be auto-logged eventually. No action needed unless you want to record it.</div>
-      <div class="yn-row">
-        <button class="yn-btn" id="sleepYes" onclick="selectQ('sleep','yes')">✅ Yes</button>
-        <button class="yn-btn" id="sleepNo"  onclick="selectQ('sleep','no')">❌ No</button>
-        <button class="yn-btn skip"          onclick="selectQ('sleep','skip')">⏭ Skip</button>
-      </div>
-      <!-- Auto-detect badge injected here by JS if applicable -->
+    <!-- Note (shown on yes/no, hidden on skip) -->
+    <div class="note-wrap" id="note-wrap-mental" style="display:none;">
+      <label for="note-mental">Anything else about your head space today? (optional)</label>
+      <textarea id="note-mental" placeholder="Optional note…"></textarea>
     </div>
-
-    <!-- HAVE YOU…? (supplemental basics) -->
-    <div class="card">
-      <h2>Quick basics ✅</h2>
-      <div class="reassurance">No flags — just helpful to track for yourself and your team.</div>
-      <div class="hyu-list">
-        <label><input type="checkbox" id="ateToday">   Eaten something today</label>
-        <label><input type="checkbox" id="drankWater"> Had water or fluids</label>
-        <label><input type="checkbox" id="tookMeds">   Taken any needed meds</label>
-      </div>
-    </div>
-
-    <!-- QUESTION C: Support connection -->
-    <div class="card" id="card-support">
-      <h2>C. Talked to someone on your support team today?</h2>
-      <div class="reassurance">You don't need to answer this if you're not sure. If you skip, we'll just note that. No action needed unless you want to add details. (Bruise, Mom, a counselor, anyone counts.)</div>
-      <div class="yn-row">
-        <button class="yn-btn" id="supportYes" onclick="selectQ('support','yes')">✅ Yes</button>
-        <button class="yn-btn" id="supportNo"  onclick="selectQ('support','no')">❌ Not yet</button>
-        <button class="yn-btn skip"            onclick="selectQ('support','skip')">⏭ Skip</button>
-      </div>
-      <div class="flag-note yellow" id="supportFlagNote">🟡 Noted — your team will know to check in with you.</div>
-    </div>
-
-    <!-- QUESTION D: Planner review -->
-    <div class="card" id="card-planner">
-      <h2>D. Reviewed your calendar or planner today?</h2>
-      <div class="reassurance">You don't need to answer this if you're not sure. If you skip, we'll just note that. No action needed unless you want to add details.</div>
-      <div class="yn-row">
-        <button class="yn-btn" id="plannerYes" onclick="selectQ('planner','yes')">✅ Yes</button>
-        <button class="yn-btn" id="plannerNo"  onclick="selectQ('planner','no')">❌ Not today</button>
-        <button class="yn-btn skip"            onclick="selectQ('planner','skip')">⏭ Skip</button>
-      </div>
-    </div>
-
-    <!-- QUESTION E: Emergency protocols -->
-    <div class="card" id="card-emergency">
-      <h2>E. Did you need emergency support today?</h2>
-      <div class="reassurance">You don't need to answer this if you're not sure. If you skip, we'll just note that. No action needed unless you want to record it.</div>
-      <div class="yn-row">
-        <button class="yn-btn" id="emergencyNo"  onclick="selectQ('emergency','no')">✅ No</button>
-        <button class="yn-btn" id="emergencyYes" onclick="selectQ('emergency','yes')">🚨 Yes</button>
-        <button class="yn-btn skip"              onclick="selectQ('emergency','skip')">⏭ Skip</button>
-      </div>
-      <div class="flag-note red" id="emergencyFlagNote">🔴 Recorded. Please reach out right now — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or contact Bruise directly.</div>
-    </div>
-
-    <!-- NOTES -->
-    <div class="card">
-      <h2>Anything else to note? 📝</h2>
-      <div class="reassurance">Completely optional. Anything — how class went, what hurts, what you need, what's on your mind.</div>
-      <textarea id="checkinNotes" placeholder="Type here, or leave it blank…"></textarea>
-    </div>
-
-    <button class="save-btn" onclick="saveCheckin()">Save Check-In ✓</button>
-    <div id="savedMsg"></div>
-    <div id="todayLog" style="margin-top:28px;"></div>
-
   </div>
 
+  <!-- ══ 2. PHYSICAL / BODY ══ -->
+  <div class="card" id="cat-physical">
+    <h2>🫀 Physical / Body</h2>
+    <p class="gateway-q">Is your body holding up okay today?</p>
+    <p class="reassurance">Even small stuff counts — this is about your whole body experience.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-physical-yes"  onclick="selectGW('physical','yes')">✅ Yes</button>
+      <button class="gw-btn" id="gw-physical-no"   onclick="selectGW('physical','no')">❌ No</button>
+      <button class="gw-btn" id="gw-physical-skip" onclick="selectGW('physical','skip')">⏭ Skip</button>
+    </div>
 
-  <script>
-    // ── State ──────────────────────────────────────────────
-    var selectedMood = '';        /* label text — kept for backwards compat */
-    var selectedEnergyLevel = 0; /* 1–10 numeric — feeds status circle */
-    var answers = { symptoms: '', sleep: '', support: '', planner: '', emergency: '' };
-    var now = new Date();
-    var dateKey = now.toISOString().split('T')[0];
+    <!-- Yes expand -->
+    <div class="expand" id="expand-physical-yes">
+      <h3>Great! Any symptoms to note? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="physical_yes" value="fatigue"> Some fatigue</label></li>
+        <li><label><input type="checkbox" name="physical_yes" value="pain"> Pain or discomfort</label></li>
+        <li><label><input type="checkbox" name="physical_yes" value="headache"> Headache</label></li>
+        <li><label><input type="checkbox" name="physical_yes" value="nausea"> Nausea</label></li>
+        <li><label><input type="checkbox" name="physical_yes" value="sleep_ok"> Slept okay last night</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">Overall physical energy?</p>
+      <div class="emoji-row" id="emoji-physical-yes"></div>
+    </div>
 
-    // Auto-detect state
-    // autoFilled[group] = { answer: 'yes'/'no', reason: 'human-readable string' }
-    var autoFilled = {};
-    var pendingChange = null; // { group, answer } — waiting for modal confirmation
+    <!-- No expand -->
+    <div class="expand" id="expand-physical-no">
+      <h3>What's going on? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="physical_no" value="exhausted"> Severely exhausted / crash</label></li>
+        <li><label><input type="checkbox" name="physical_no" value="pain_high"> High pain levels</label></li>
+        <li><label><input type="checkbox" name="physical_no" value="sick"> Feeling sick or unwell</label></li>
+        <li><label><input type="checkbox" name="physical_no" value="no_sleep"> Poor or no sleep last night</label></li>
+        <li><label><input type="checkbox" name="physical_no" value="mobility"> Mobility or sensory issues</label></li>
+        <li><label>
+          <input type="checkbox" id="thumping-physical" onchange="updateThumping()">
+          🔔 Physical symptoms feel overwhelming / hard to manage
+        </label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How depleted does your body feel?</p>
+      <div class="emoji-row" id="emoji-physical-no"></div>
+    </div>
 
-    // Show date
-    document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    <div class="note-wrap" id="note-wrap-physical" style="display:none;">
+      <label for="note-physical">Anything else about how your body feels? (optional)</label>
+      <textarea id="note-physical" placeholder="Optional note…"></textarea>
+    </div>
+  </div>
+
+  <!-- ══ 3. SCHOOL / ACADEMIC ══ -->
+  <div class="card" id="cat-school">
+    <h2>📚 School</h2>
+    <p class="gateway-q">Do you feel able to engage with school stuff today?</p>
+    <p class="reassurance">This is about capacity, not performance — no judgment here.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-school-yes"  onclick="selectGW('school','yes')">✅ Yes</button>
+      <button class="gw-btn" id="gw-school-no"   onclick="selectGW('school','no')">❌ No</button>
+      <button class="gw-btn" id="gw-school-skip" onclick="selectGW('school','skip')">⏭ Skip</button>
+    </div>
+
+    <!-- Yes expand -->
+    <div class="expand" id="expand-school-yes">
+      <h3>Good! What's on your plate? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="school_yes" value="planner"> Reviewed planner / to-do list today</label></li>
+        <li><label><input type="checkbox" name="school_yes" value="assignment"> Assignment or project to work on</label></li>
+        <li><label><input type="checkbox" name="school_yes" value="class"> Class or meeting to attend</label></li>
+        <li><label><input type="checkbox" name="school_yes" value="ahead"> Feeling ahead or on track</label></li>
+        <li><label><input type="checkbox" name="school_yes" value="behind"> Feeling a little behind</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How's your academic energy today?</p>
+      <div class="emoji-row" id="emoji-school-yes"></div>
+    </div>
+
+    <!-- No expand -->
+    <div class="expand" id="expand-school-no">
+      <h3>That's okay. What feels hardest right now? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="school_no" value="overwhelmed"> Overwhelmed by workload</label></li>
+        <li><label><input type="checkbox" name="school_no" value="deadline"> Missing deadline or already behind</label></li>
+        <li><label><input type="checkbox" name="school_no" value="executive"> Executive function / can't start tasks</label></li>
+        <li><label><input type="checkbox" name="school_no" value="prof"> Issue with professor or class</label></li>
+        <li><label><input type="checkbox" name="school_no" value="accommodation"> Need accommodation support</label></li>
+      </ul>
+    </div>
+
+    <div class="note-wrap" id="note-wrap-school" style="display:none;">
+      <label for="note-school">Anything specific about school today? (optional)</label>
+      <textarea id="note-school" placeholder="Optional note…"></textarea>
+    </div>
+  </div>
+
+  <!-- ══ 4. SPIRITUAL ══ -->
+  <div class="card" id="cat-spiritual">
+    <h2>✨ Spiritual</h2>
+    <p class="gateway-q">How's your inner sense of meaning, peace, or groundedness today?</p>
+    <p class="reassurance">This can be religious, personal, or just a general sense of okay-ness.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-spiritual-yes"  onclick="selectGW('spiritual','yes')">✅ Yes</button>
+      <button class="gw-btn" id="gw-spiritual-no"   onclick="selectGW('spiritual','no')">❌ No</button>
+      <button class="gw-btn" id="gw-spiritual-skip" onclick="selectGW('spiritual','skip')">⏭ Skip</button>
+    </div>
+
+    <!-- Yes expand -->
+    <div class="expand" id="expand-spiritual-yes">
+      <h3>What's grounding you? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="spiritual_yes" value="prayer"> Prayer or meditation</label></li>
+        <li><label><input type="checkbox" name="spiritual_yes" value="scripture"> Scripture or devotional reading</label></li>
+        <li><label><input type="checkbox" name="spiritual_yes" value="nature"> Time in nature or outdoors</label></li>
+        <li><label><input type="checkbox" name="spiritual_yes" value="gratitude"> Feeling grateful or at peace</label></li>
+        <li><label><input type="checkbox" name="spiritual_yes" value="community"> Connected to faith community</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How grounded do you feel?</p>
+      <div class="emoji-row" id="emoji-spiritual-yes"></div>
+    </div>
+
+    <!-- No expand -->
+    <div class="expand" id="expand-spiritual-no">
+      <h3>That's okay. What feels off? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="spiritual_no" value="disconnected"> Feeling disconnected or empty</label></li>
+        <li><label><input type="checkbox" name="spiritual_no" value="doubt"> Doubt or spiritual struggle</label></li>
+        <li><label><input type="checkbox" name="spiritual_no" value="grief"> Grief or loss</label></li>
+        <li><label><input type="checkbox" name="spiritual_no" value="lonely"> Spiritual loneliness</label></li>
+      </ul>
+    </div>
+
+    <div class="note-wrap" id="note-wrap-spiritual" style="display:none;">
+      <label for="note-spiritual">Anything on your heart today? (optional)</label>
+      <textarea id="note-spiritual" placeholder="Optional note…"></textarea>
+    </div>
+  </div>
+
+  <!-- ══ 5. SOCIAL / HEART ══ -->
+  <div class="card" id="cat-social">
+    <h2>💛 Social / Heart</h2>
+    <p class="gateway-q">Have you felt connected to people who support you recently?</p>
+    <p class="reassurance">Connection looks different for everyone — even a text counts.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-social-yes"  onclick="selectGW('social','yes')">✅ Yes</button>
+      <button class="gw-btn" id="gw-social-no"   onclick="selectGW('social','no')">❌ No</button>
+      <button class="gw-btn" id="gw-social-skip" onclick="selectGW('social','skip')">⏭ Skip</button>
+    </div>
+
+    <!-- Yes expand -->
+    <div class="expand" id="expand-social-yes">
+      <h3>Great! Who or what connected you? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="social_yes" value="family"> Family</label></li>
+        <li><label><input type="checkbox" name="social_yes" value="friend"> Friend</label></li>
+        <li><label><input type="checkbox" name="social_yes" value="support_team"> Support team (counselor, coach, etc.)</label></li>
+        <li><label><input type="checkbox" name="social_yes" value="online"> Online community or group</label></li>
+        <li><label><input type="checkbox" name="social_yes" value="cozy_solo"> Enjoyed meaningful solo time</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How connected does your heart feel?</p>
+      <div class="emoji-row" id="emoji-social-yes"></div>
+    </div>
+
+    <!-- No expand -->
+    <div class="expand" id="expand-social-no">
+      <h3>What's making connection hard? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="social_no" value="isolated"> Feeling isolated or alone</label></li>
+        <li><label><input type="checkbox" name="social_no" value="conflict"> Conflict or tension with someone</label></li>
+        <li><label><input type="checkbox" name="social_no" value="energy"> Not enough energy to reach out</label></li>
+        <li><label><input type="checkbox" name="social_no" value="rejection"> Fear of rejection or judgment</label></li>
+        <li><label><input type="checkbox" name="social_no" value="withdrawal"> Wanting to withdraw completely</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How does your heart feel right now?</p>
+      <div class="emoji-row" id="emoji-social-no"></div>
+    </div>
+
+    <div class="note-wrap" id="note-wrap-social" style="display:none;">
+      <label for="note-social">Anything else about connections today? (optional)</label>
+      <textarea id="note-social" placeholder="Optional note…"></textarea>
+    </div>
+  </div>
+
+  <!-- ══ Quick Basics ══ -->
+  <div class="card" id="basics-card">
+    <h2>🥤 Quick Basics</h2>
+    <p style="font-size:.9rem;color:var(--muted);margin-bottom:.5rem;">Check off what you've done so far today:</p>
+    <div class="basics-row">
+      <div class="basic-item">
+        <input type="checkbox" id="basics-ate" name="basics" value="ate">
+        <label for="basics-ate">🍽 Eaten something</label>
+      </div>
+      <div class="basic-item">
+        <input type="checkbox" id="basics-water" name="basics" value="water">
+        <label for="basics-water">💧 Had water</label>
+      </div>
+      <div class="basic-item">
+        <input type="checkbox" id="basics-meds" name="basics" value="meds">
+        <label for="basics-meds">💊 Took meds (if applicable)</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Emergency ══ -->
+  <div class="card" id="emergency-card">
+    <h2>🆘 Safety Check</h2>
+    <p class="emergency-q">Are you in crisis or having thoughts of harming yourself?</p>
+    <div class="emerg-row">
+      <button class="emerg-btn" id="emerg-yes" onclick="selectEmergency('yes')">Yes — I need help</button>
+      <button class="emerg-btn" id="emerg-no"  onclick="selectEmergency('no')">No — I'm okay</button>
+    </div>
+    <div id="emerg-expand" style="display:none; margin-top:.75rem;">
+      <p style="color:var(--red);font-weight:700;margin-bottom:.5rem;">
+        Your safety matters — you're not alone. Reaching out is brave. 💛
+      </p>
+      <p style="font-size:.9rem;">
+        Please call or text <strong>988</strong> (Suicide &amp; Crisis Lifeline) or text HOME to <strong>741741</strong>.
+        Your support team is being notified.
+      </p>
+    </div>
+  </div>
+
+  <!-- ══ Final notes ══ -->
+  <div class="card" id="notes-card">
+    <h2>📝 Anything else?</h2>
+    <div class="note-wrap">
+      <label for="final-note">Open notes — share anything you want your team to know:</label>
+      <textarea id="final-note" placeholder="Whatever's on your mind…"></textarea>
+    </div>
+    <div class="save-row">
+      <button id="save-btn" onclick="saveCheckin()">Save Check-In</button>
+      <button id="reset-btn" onclick="resetForm()">Start Over</button>
+    </div>
+    <div id="save-status"></div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<script>
+// ── Firebase init ──
+var firebaseConfig = {
+  apiKey: "AIzaSyC9o6gCSmGiFiXeXsYU-3mAd72EB3h3wjM",
+  authDomain: "academicalliesapp.firebaseapp.com",
+  projectId: "academicalliesapp",
+  storageBucket: "academicalliesapp.appspot.com",
+  messagingSenderId: "263432768518",
+  appId: "1:263432768518:web:e5e63a73b1e35c22b9c1cc"
+};
+if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+var db = firebase.firestore();
+
+// ── Mary's confirmed 10-point energy scale (DO NOT CHANGE) ──
+var EMOJIS = [
+  { e:'😁', lbl:'Fully Charged',      t:'g', v:1  },
+  { e:'😊', lbl:'Energized',           t:'g', v:2  },
+  { e:'🙂', lbl:'Pretty Good',         t:'g', v:3  },
+  { e:'🙂', lbl:'Doing Okay',          t:'g', v:4  },
+  { e:'😐', lbl:'Neutral',             t:'y', v:5  },
+  { e:'😕', lbl:'Starting to Tire',    t:'o', v:6  },
+  { e:'😟', lbl:'Pretty Tired',        t:'o', v:7  },
+  { e:'😫', lbl:'Very Exhausted',      t:'r', v:8  },
+  { e:'😩', lbl:'Almost Empty',        t:'r', v:9  },
+  { e:'☠️', lbl:'Completely Depleted', t:'r', v:10 }
+];
+
+// ── State ──
+var gwState    = {};   // { mental: 'yes'|'no'|'skip', ... }
+var catEmoji   = {};   // { 'mental-yes': 3, 'physical-no': 7, ... }
+var catMood    = {};   // { mental: 'Pretty Good', ... }  (label string)
+var bbdActive  = false;
+var emergencyYes = false;
+
+// ── Build emoji rows on load ──
+var emojiTargets = [
+  'emoji-mental-yes','emoji-mental-no',
+  'emoji-physical-yes','emoji-physical-no',
+  'emoji-school-yes',
+  'emoji-spiritual-yes',
+  'emoji-social-yes','emoji-social-no'
+];
+emojiTargets.forEach(function(id) {
+  buildEmojiRow(id);
+});
+
+function buildEmojiRow(containerId) {
+  var wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  EMOJIS.forEach(function(em, idx) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'emoji-btn';
+    btn.setAttribute('aria-label', em.lbl);
+    btn.innerHTML = '<span class="em">' + em.e + '</span><span class="lbl">' + em.lbl + '</span>';
+    btn.onclick = function() { selEmoji(containerId, btn, idx); };
+    wrap.appendChild(btn);
+  });
+}
+
+// ── Gateway logic ──
+function selectGW(cat, ans) {
+  gwState[cat] = ans;
+
+  // Style buttons
+  ['yes','no','skip'].forEach(function(a) {
+    var btn = document.getElementById('gw-' + cat + '-' + a);
+    if (!btn) return;
+    btn.className = 'gw-btn' + (a === ans ? ' sel-' + a : '');
+  });
+
+  // Show/hide expands
+  ['yes','no'].forEach(function(a) {
+    var el = document.getElementById('expand-' + cat + '-' + a);
+    if (!el) return;
+    el.classList.toggle('open', a === ans && ans !== 'skip');
+  });
+
+  // Show/hide note
+  var noteWrap = document.getElementById('note-wrap-' + cat);
+  if (noteWrap) noteWrap.style.display = (ans !== 'skip') ? 'block' : 'none';
+
+  computeFlag();
+}
+
+// ── Emoji selection ──
+function selEmoji(containerId, btn, idx) {
+  var wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  // Deselect all in this row
+  wrap.querySelectorAll('.emoji-btn').forEach(function(b) {
+    b.className = 'emoji-btn';
+  });
+  // Select clicked
+  var em = EMOJIS[idx];
+  btn.className = 'emoji-btn sel-' + em.t;
+  catEmoji[containerId] = em.v;
+
+  // Store mood label per category (use the container prefix)
+  var cat = containerId.replace('emoji-','').replace('-yes','').replace('-no','');
+  catMood[cat] = em.lbl;
+
+  computeFlag();
+}
+
+// ── Thumping voices ──
+function updateThumping() {
+  var mental   = document.getElementById('thumping-mental');
+  var physical = document.getElementById('thumping-physical');
+  var on = (mental && mental.checked) || (physical && physical.checked);
+  var banner = document.getElementById('thumping-banner');
+  banner.classList.toggle('show', on);
+  computeFlag();
+}
+
+// ── Flag logic ──
+// worst emoji 1-4 → green, 5-7 → yellow, 8-10 → red
+// thumping → at least yellow
+// 3+ No gateways → yellow
+// Physical Yes + emoji>=8 → red
+// Mental Yes + emoji=10 → red
+// emergency Yes → always red
+function computeFlag() {
+  var anyAnswered = Object.keys(gwState).length > 0;
+  if (!anyAnswered) {
+    document.getElementById('flag-bar').classList.remove('show');
+    return;
+  }
+
+  var flag = 'g'; // green default
+  var noCount = 0;
+  var thumping = false;
+  var mental_t = document.getElementById('thumping-mental');
+  var physical_t = document.getElementById('thumping-physical');
+  if ((mental_t && mental_t.checked) || (physical_t && physical_t.checked)) thumping = true;
+
+  Object.keys(gwState).forEach(function(cat) {
+    if (gwState[cat] === 'no') noCount++;
+  });
+
+  // Worst emoji across all answered categories
+  var worstV = 0;
+  Object.keys(catEmoji).forEach(function(k) {
+    if (catEmoji[k] > worstV) worstV = catEmoji[k];
+  });
+
+  if (emergencyYes) {
+    flag = 'r';
+  } else {
+    // emoji-based
+    if (worstV >= 8) flag = 'r';
+    else if (worstV >= 5) flag = setFlag(flag, 'y');
+
+    // thumping
+    if (thumping) flag = setFlag(flag, 'y');
+
+    // 3+ No gateways
+    if (noCount >= 3) flag = setFlag(flag, 'y');
+
+    // Physical yes + emoji >= 8
+    var physYesV = catEmoji['emoji-physical-yes'] || 0;
+    if (gwState.physical === 'yes' && physYesV >= 8) flag = 'r';
+
+    // Mental yes + emoji = 10
+    var mentalYesV = catEmoji['emoji-mental-yes'] || 0;
+    if (gwState.mental === 'yes' && mentalYesV === 10) flag = 'r';
+  }
+
+  showFlag(flag);
+}
+
+function setFlag(cur, next) {
+  var order = ['g','y','o','r'];
+  return order.indexOf(next) > order.indexOf(cur) ? next : cur;
+}
+
+function showFlag(f) {
+  var bar = document.getElementById('flag-bar');
+  bar.className = 'flag-bar show flag-' + f;
+  var msgs = {
+    g: '🟢 Overall: Looking good today.',
+    y: '🟡 Some concerns noted — your team will check in gently.',
+    o: '🟠 A few things to watch — support is standing by.',
+    r: '🔴 Flagged for urgent attention — you are not alone. 💛'
+  };
+  bar.textContent = msgs[f] || '';
+  bar.classList.add('show');
+}
+
+// ── Emergency ──
+function selectEmergency(ans) {
+  emergencyYes = (ans === 'yes');
+  document.getElementById('emerg-yes').className = 'emerg-btn' + (ans==='yes' ? ' sel-yes' : '');
+  document.getElementById('emerg-no').className  = 'emerg-btn' + (ans==='no'  ? ' sel-no'  : '');
+  document.getElementById('emerg-expand').style.display = emergencyYes ? 'block' : 'none';
+  computeFlag();
+}
+
+// ── Bad Brain Day ──
+function toggleBBD() {
+  bbdActive = !bbdActive;
+  document.body.classList.toggle('bbd-active', bbdActive);
+  var btn = document.getElementById('bbd-toggle-btn');
+  btn.textContent = 'Bad Brain Day mode: ' + (bbdActive ? 'ON' : 'OFF');
+  btn.classList.toggle('active', bbdActive);
+}
+
+function skipAll() {
+  ['mental','physical','school','spiritual','social'].forEach(function(cat) {
+    selectGW(cat, 'skip');
+  });
+}
+
+// ── Save ──
+function saveCheckin() {
+  var btn = document.getElementById('save-btn');
+  var status = document.getElementById('save-status');
+  btn.disabled = true;
+  status.textContent = 'Saving…';
+
+  // Collect categories object
+  var categories = {};
+  ['mental','physical','school','spiritual','social'].forEach(function(cat) {
+    if (!gwState[cat]) return;
+    var checked = [];
+    document.querySelectorAll('[name=' + cat + '_' + gwState[cat] + ']:checked').forEach(function(cb) {
+      checked.push(cb.value);
     });
-
-    // ── History reader — Firestore-backed (no localStorage) ──
-    // Updated 2026-02-19 by Claude
-    var recentHistory  = [];  // populated async from Firestore on auth
-    var todayLogCache  = [];  // populated via onSnapshot; used by getTodayLog()
-    var currentUid     = null;
-    var unsubTodayLog  = null;
-
-    /* Synchronous accessor used by auto-detect — reads from in-memory cache */
-    function getRecentEntries(days) {
-      return recentHistory.slice(0, days || 5);
-    }
-
-    /* Load recent history from Firestore into recentHistory cache, then run callback */
-    function loadRecentHistory(callback) {
-      if (!window.AA || !AA.auth.currentUser) { callback([]); return; }
-      AA.getRecentCheckins(currentUid, 7)
-        .then(function(days) {
-          recentHistory = [];
-          days.forEach(function(day) {
-            if (day.entries && day.entries.length > 0) {
-              recentHistory.push(day.entries[day.entries.length - 1]);
-            }
-          });
-          callback(recentHistory);
-        })
-        .catch(function() { callback([]); });
-    }
-
-    // ── Auto-detection logic ───────────────────────────────
-    function runAutoDetect() {
-      var recent = getRecentEntries(5);
-      if (recent.length < 2) return; // not enough history yet
-
-      // Question A: symptoms — auto-fill "yes" if 2+ of last 5 days had symptoms
-      var symptomDays = recent.filter(function(e) { return e.symptoms === 'yes'; }).length;
-      if (symptomDays >= 2) {
-        var label = symptomDays === 2
-          ? 'You reported symptoms on 2 of the last 5 days.'
-          : 'You reported symptoms on ' + symptomDays + ' of the last 5 days.';
-        applyAutoFill('symptoms', 'yes', label);
-      }
-
-      // Question B: sleep — auto-fill "no" if 2+ of last 5 days had poor sleep
-      var noSleepDays = recent.filter(function(e) { return e.sleep === 'no'; }).length;
-      if (noSleepDays >= 2) {
-        var sleepLabel = noSleepDays === 2
-          ? 'You reported poor sleep on 2 of the last 5 days.'
-          : 'You reported poor sleep on ' + noSleepDays + ' of the last 5 days.';
-        applyAutoFill('sleep', 'no', sleepLabel);
-      }
-    }
-
-    function applyAutoFill(group, answer, reason) {
-      autoFilled[group] = { answer: answer, reason: reason };
-      // Apply the selection silently (skipWarning = true)
-      applySelection(group, answer);
-      // Show the badge on the card
-      showAutoDetectBadge(group, reason);
-    }
-
-    function showAutoDetectBadge(group, reason) {
-      var cardId = 'card-' + group;
-      var card = document.getElementById(cardId);
-      if (!card) return;
-      // Remove existing badge if any
-      var existing = document.getElementById('autoBadge-' + group);
-      if (existing) existing.remove();
-      var badge = document.createElement('div');
-      badge.className = 'auto-detect-badge';
-      badge.id = 'autoBadge-' + group;
-      badge.innerHTML = '<span class="badge-icon">🔍</span><span class="badge-text">Auto-detected: ' + reason + '</span>';
-      card.appendChild(badge);
-    }
-
-    // ── Energy / Mood — Updated 2026-02-25 by Claude ───────
-    function selectEnergy(el) {
-      selectedEnergyLevel = parseInt(el.dataset.level);
-      selectedMood        = el.dataset.label;
-      document.querySelectorAll('.energy-scale-item').forEach(function(i) {
-        i.classList.remove('selected');
-        i.setAttribute('aria-selected', 'false');
-      });
-      el.classList.add('selected');
-      el.setAttribute('aria-selected', 'true');
-      var note = document.getElementById('energyLoggedNote');
-      note.style.display  = 'block';
-      note.textContent    = 'Logged: ' + el.querySelector('.energy-scale-em').textContent
-                          + ' ' + selectedMood;
-    }
-
-    // ── Button state maps ──────────────────────────────────
-    var btnMap = {
-      symptoms:  { yes: 'symptomsYes',  no: 'symptomsNo'  },
-      sleep:     { yes: 'sleepYes',     no: 'sleepNo'     },
-      support:   { yes: 'supportYes',   no: 'supportNo'   },
-      planner:   { yes: 'plannerYes',   no: 'plannerNo'   },
-      emergency: { yes: 'emergencyYes', no: 'emergencyNo' }
+    var emojiKey = gwState[cat] !== 'skip'
+      ? ('emoji-' + cat + '-' + gwState[cat])
+      : null;
+    categories[cat] = {
+      gateway: gwState[cat],
+      checked: checked,
+      emojiV:  emojiKey ? (catEmoji[emojiKey] || null) : null,
+      mood:    emojiKey ? (catMood[cat]        || null) : null,
+      note:    (document.getElementById('note-' + cat) || {}).value || ''
     };
+  });
 
-    // Applies visual selection without any auto-detect check
-    function applySelection(group, answer) {
-      answers[group] = answer;
+  // Basics
+  var basics = [];
+  document.querySelectorAll('[name=basics]:checked').forEach(function(cb) { basics.push(cb.value); });
 
-      // Clear all button styles for this group
-      Object.values(btnMap[group]).forEach(function(id) {
-        var btn = document.getElementById(id);
-        if (btn) btn.className = 'yn-btn';
-      });
+  // Thumping
+  var tm = document.getElementById('thumping-mental');
+  var tp = document.getElementById('thumping-physical');
+  var thumping = (tm && tm.checked) || (tp && tp.checked);
 
-      if (answer === 'yes') {
-        var yBtn = document.getElementById(btnMap[group].yes);
-        if (yBtn) yBtn.className = (group === 'emergency') ? 'yn-btn selected-red' : 'yn-btn selected-yes';
-      } else if (answer === 'no') {
-        var nBtn = document.getElementById(btnMap[group].no);
-        if (nBtn) nBtn.className = (group === 'emergency') ? 'yn-btn selected-yes' : 'yn-btn selected-no';
-      }
+  // Legacy compat fields (for status-circle.js and existing queries)
+  var mentalCat  = categories.mental  || {};
+  var physCat    = categories.physical || {};
+  var schoolCat  = categories.school  || {};
+  var socialCat  = categories.social  || {};
 
-      // Symptom checklist toggle
-      if (group === 'symptoms') {
-        var cl = document.getElementById('symptomChecklist');
-        cl.className = answer === 'yes' ? 'symptom-list open' : 'symptom-list';
-      }
+  var entry = {
+    timestamp:    new Date(),
+    bbdMode:      bbdActive,
+    categories:   categories,
+    basics:       basics,
+    thumping:     thumping,
+    emergency:    emergencyYes,
+    finalNote:    document.getElementById('final-note').value || '',
 
-      // Support flag note
-      if (group === 'support') {
-        document.getElementById('supportFlagNote').style.display = (answer === 'no') ? 'block' : 'none';
-      }
+    // Legacy compat
+    energyLevel:  mentalCat.emojiV || null,
+    mood:         mentalCat.mood   || null,
+    symptoms:     physCat.gateway === 'no',
+    symptomList:  physCat.checked  || [],
+    support:      socialCat.gateway === 'yes',
+    planner:      (schoolCat.checked || []).indexOf('planner') !== -1
+  };
 
-      // Emergency flag note + red style
-      if (group === 'emergency') {
-        document.getElementById('emergencyFlagNote').style.display = (answer === 'yes') ? 'block' : 'none';
-        var eYes = document.getElementById('emergencyYes');
-        var eNo  = document.getElementById('emergencyNo');
-        if (answer === 'yes' && eYes) eYes.className = 'yn-btn selected-red';
-        if (answer === 'no'  && eNo)  eNo.className  = 'yn-btn selected-yes';
-      }
-    }
-
-    // ── Yes/No/Skip click handler (checks auto-detect) ──────
-    function selectQ(group, answer) {
-      // If this group was auto-filled AND the current answer matches the auto-filled one
-      // AND the user is now choosing something different → show warning dialog
-      var af = autoFilled[group];
-      if (af && answers[group] === af.answer && answer !== af.answer && answer !== 'skip') {
-        pendingChange = { group: group, answer: answer };
-        document.getElementById('modalBody').textContent =
-          af.reason + ' Based on your recent history, we pre-filled this answer for you.';
-        document.getElementById('autoDetectModal').classList.add('open');
-        return;
-      }
-
-      // If they're changing a previously auto-filled answer (already confirmed once), just go ahead
-      applySelection(group, answer);
-
-      // If they chose skip after an auto-fill, silently remove the badge
-      if (answer === 'skip' && af) {
-        var badge = document.getElementById('autoBadge-' + group);
-        if (badge) badge.remove();
-        delete autoFilled[group];
-      }
-    }
-
-    // ── Modal: keep auto-filled answer ────────────────────
-    function cancelAutoChange() {
-      pendingChange = null;
-      document.getElementById('autoDetectModal').classList.remove('open');
-    }
-
-    // ── Modal: confirm change, dismiss badge ──────────────
-    function confirmAutoChange() {
-      if (pendingChange) {
-        var g = pendingChange.group;
-        // Remove auto-fill tracking so it won't trigger again this session
-        delete autoFilled[g];
-        // Remove badge
-        var badge = document.getElementById('autoBadge-' + g);
-        if (badge) badge.remove();
-        // Apply the change
-        applySelection(g, pendingChange.answer);
-        pendingChange = null;
-      }
-      document.getElementById('autoDetectModal').classList.remove('open');
-    }
-
-    // Allow pressing Escape to keep auto-filled answer
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && document.getElementById('autoDetectModal').classList.contains('open')) {
-        cancelAutoChange();
-      }
+  db.collection('checkins').add(entry)
+    .then(function() {
+      status.textContent = '✅ Check-in saved! Great job showing up today. 💛';
+      btn.disabled = false;
+    })
+    .catch(function(err) {
+      console.error('Save error:', err);
+      status.textContent = '⚠️ Save failed — please try again.';
+      btn.disabled = false;
     });
+}
 
-    // ── Log — reads from in-memory cache (kept fresh by onSnapshot) ──
-    function getTodayLog() {
-      return todayLogCache;
-    }
+// ── Reset ──
+function resetForm() {
+  if (!confirm('Start over? Your current check-in will be lost.')) return;
 
-    function renderLog() {
-      var log = getTodayLog();
-      var container = document.getElementById('todayLog');
-      if (log.length === 0) { container.innerHTML = ''; return; }
-      var html = '<div class="log-title">Today\'s check-ins (' + log.length + ')</div>';
-      log.slice().reverse().forEach(function(e) {
-        var t   = new Date(e.savedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        var dot = e.flag === 'red' ? '🔴' : e.flag === 'yellow' ? '🟡' : '🟢';
-        html += '<div class="log-entry">' + dot + ' <strong>' + t + '</strong>';
-        if (e.mood) html += ' — ' + e.mood;
-        if (e.symptoms === 'yes' && e.symptomList && e.symptomList.length)
-          html += '<br>Symptoms: ' + e.symptomList.join(', ');
-        if (e.notes) html += '<br><span style="color:#555;">' + e.notes + '</span>';
-        html += '</div>';
-      });
-      container.innerHTML = html;
-    }
+  gwState    = {};
+  catEmoji   = {};
+  catMood    = {};
+  bbdActive  = false;
+  emergencyYes = false;
 
-    renderLog();
+  document.body.classList.remove('bbd-active');
+  document.getElementById('bbd-toggle-btn').textContent = 'Bad Brain Day mode: OFF';
+  document.getElementById('bbd-toggle-btn').classList.remove('active');
 
-    // ── Save ───────────────────────────────────────────────
-    function saveCheckin() {
-      if (window.AA_MIRROR_UID) return; /* read-only in mirror mode */
-      // Determine overall flag
-      var flag = 'green';
-      if (answers.emergency === 'yes') flag = 'red';
-      else if (answers.support === 'no') flag = 'yellow';
+  // Reset gateway buttons
+  ['mental','physical','school','spiritual','social'].forEach(function(cat) {
+    ['yes','no','skip'].forEach(function(a) {
+      var btn = document.getElementById('gw-' + cat + '-' + a);
+      if (btn) btn.className = 'gw-btn';
+    });
+    var eyEl = document.getElementById('expand-' + cat + '-yes');
+    var enEl = document.getElementById('expand-' + cat + '-no');
+    if (eyEl) eyEl.classList.remove('open');
+    if (enEl) enEl.classList.remove('open');
+    var nw = document.getElementById('note-wrap-' + cat);
+    if (nw) nw.style.display = 'none';
+  });
 
-      // Collect symptom checklist
-      var symptomList = [];
-      if (answers.symptoms === 'yes') {
-        document.querySelectorAll('#symptomChecklist input[type="checkbox"]:checked').forEach(function(cb) {
-          symptomList.push(cb.value);
-        });
-      }
+  // Reset emoji rows
+  emojiTargets.forEach(function(id) {
+    var wrap = document.getElementById(id);
+    if (wrap) wrap.querySelectorAll('.emoji-btn').forEach(function(b) { b.className = 'emoji-btn'; });
+  });
 
-      var entry = {
-        mood:        selectedMood,
-        energyLevel: selectedEnergyLevel || null,
-        symptoms:    answers.symptoms,
-        symptomList: symptomList,
-        sleep:       answers.sleep,
-        ate:         document.getElementById('ateToday').checked,
-        water:       document.getElementById('drankWater').checked,
-        meds:        document.getElementById('tookMeds').checked,
-        support:     answers.support,
-        planner:     answers.planner,
-        emergency:   answers.emergency,
-        flag:        flag,
-        notes:       document.getElementById('checkinNotes').value,
-        savedAt:     new Date().toISOString()
-      };
+  // Reset checkboxes
+  document.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
 
-      // Save to Firestore — offline persistence handles no-connection gracefully.
-      // onSnapshot will refresh todayLogCache + renderLog() automatically.
-      // Updated 2026-02-19 by Claude — replaced localStorage with Firestore.
-      if (window.AA && currentUid) {
-        AA.saveCheckin(currentUid, dateKey, entry)
-          .catch(function(err) { console.error('[AA] saveCheckin error:', err); });
-      } else {
-        // Not signed in — update cache directly for immediate in-page feedback
-        todayLogCache.push(entry);
-        renderLog();
-      }
+  // Reset textareas
+  document.querySelectorAll('textarea').forEach(function(ta) { ta.value = ''; });
 
-      // Show save message
-      var msg = document.getElementById('savedMsg');
-      if (flag === 'red') {
-        msg.style.cssText = 'display:block;background:#f8d7da;color:#721c24;padding:14px;border-radius:14px;margin-top:14px;font-size:13pt;';
-        msg.innerHTML = '🔴 Check-in saved. Please reach out — <a href="/Academic-Allies/modular/emergency.html" style="color:#721c24;font-weight:bold;">Emergency Contacts</a> or contact Bruise now.';
-      } else if (flag === 'yellow') {
-        msg.style.cssText = 'display:block;background:#fff3cd;color:#856404;padding:14px;border-radius:14px;margin-top:14px;font-size:13pt;';
-        msg.innerHTML = '🟡 Check-in saved. Your team has been notified to check in with you.';
-        setTimeout(function() { msg.style.display = 'none'; }, 6000);
-      } else {
-        msg.style.cssText = 'display:block;background:#e8f2f3;color:#2d6a6d;padding:14px;border-radius:14px;margin-top:14px;font-size:13pt;';
-        msg.textContent = '✔ Check-in saved.';
-        setTimeout(function() { msg.style.display = 'none'; }, 4000);
-      }
+  // Reset emergency
+  document.getElementById('emerg-yes').className = 'emerg-btn';
+  document.getElementById('emerg-no').className  = 'emerg-btn';
+  document.getElementById('emerg-expand').style.display = 'none';
 
-      // Reset form (keep auto-detect badges/fills for next entry in session)
-      selectedMood = '';
-      selectedEnergyLevel = 0;
-      answers = { symptoms: '', sleep: '', support: '', planner: '', emergency: '' };
-      document.querySelectorAll('.energy-scale-item').forEach(function(i) {
-        i.classList.remove('selected');
-        i.setAttribute('aria-selected', 'false');
-      });
-      var note = document.getElementById('energyLoggedNote');
-      if (note) note.style.display = 'none';
-      document.querySelectorAll('.yn-btn').forEach(function(b) {
-        b.className = b.classList.contains('skip') ? 'yn-btn skip' : 'yn-btn';
-      });
-      document.getElementById('symptomChecklist').className = 'symptom-list';
-      document.querySelectorAll('#symptomChecklist input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
-      document.getElementById('supportFlagNote').style.display = 'none';
-      document.getElementById('emergencyFlagNote').style.display = 'none';
-      document.getElementById('ateToday').checked = false;
-      document.getElementById('drankWater').checked = false;
-      document.getElementById('tookMeds').checked = false;
-      document.getElementById('checkinNotes').value = '';
+  // Reset flag/thumping/save status
+  document.getElementById('flag-bar').classList.remove('show');
+  document.getElementById('thumping-banner').classList.remove('show');
+  document.getElementById('save-status').textContent = '';
 
-      // Re-apply auto-fills after reset (so they persist across multiple check-ins in same session)
-      Object.keys(autoFilled).forEach(function(group) {
-        applySelection(group, autoFilled[group].answer);
-      });
+  // Reset basics
+  document.querySelectorAll('[name=basics]').forEach(function(cb) { cb.checked = false; });
+}
+</script>
 
-      renderLog();
-    }
+<!-- Shared header loader -->
+<script>
+fetch('/Academic-Allies/modular/shared-header.html?v=20260225d')
+  .then(function(r){ return r.text(); })
+  .then(function(html){ document.getElementById('shared-header').innerHTML = html; })
+  .catch(function(){ /* header optional */ });
+</script>
 
-    // ── Firebase boot — load history + start real-time log listener ──
-    // Updated 2026-02-19 by Claude — replaces the old localStorage-only runAutoDetect()
-    function waitForAA(cb, tries) {
-      tries = tries || 0;
-      if (window.AA && window.AA.auth) { cb(); return; }
-      if (tries > 40) return; // Firebase unavailable — form still works in-page
-      setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
-    }
-
-    function bootFirebase() {
-      AA.auth.onAuthStateChanged(function(user) {
-        if (!user) {
-          // Not signed in: auto-detect skipped (no history), form still usable
-          return;
-        }
-        currentUid = window.AA_MIRROR_UID || user.uid;
-
-        // 1. Load recent check-in history from Firestore → run auto-detect
-        loadRecentHistory(function() {
-          runAutoDetect();
-        });
-
-        // 2. Real-time listener for today's log → keeps renderLog() live
-        if (unsubTodayLog) { unsubTodayLog(); }
-        unsubTodayLog = AA.db
-          .collection('checkins').doc(currentUid)
-          .collection('days').doc(dateKey)
-          .onSnapshot(function(doc) {
-            todayLogCache = (doc.exists && Array.isArray(doc.data().entries))
-              ? doc.data().entries : [];
-            renderLog();
-          }, function(err) {
-            console.warn('[AA] today log listener:', err);
-          });
-      });
-    }
-
-    waitForAA(bootFirebase);
-  </script>
-
-  <!-- Header loader -->
-  <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260220d')
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        var c = document.getElementById('site-header');
-        c.innerHTML = html;
-        c.querySelectorAll('script').forEach(function(old) {
-          var s = document.createElement('script');
-          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
-          s.textContent = old.textContent;
-          old.replaceWith(s);
-        });
-        var d = document.createElement('script');
-        d.src = '/Academic-Allies/modular/js/draggable.js';
-        d.onload = function() { if (typeof initDrag === 'function') initDrag(); };
-        document.body.appendChild(d);
-      })
-      .catch(function(e) { console.error('Header error:', e); });
-  </script>
 </body>
 </html>

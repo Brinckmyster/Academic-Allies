@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UTC Time Converter — Academic Allies</title>
+  <!-- Created: 2026-02-25 by Claude — UTC converter utility tool, placed in static/ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.08);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.6;
+      padding-bottom: 3rem;
+    }
+    #shared-header { min-height: 56px; }
+    .page-wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1rem 1rem 2rem;
+    }
+    h1 { font-size: 1.5rem; color: var(--teal-dk); margin: 1rem 0 .25rem; }
+    .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 1.25rem; }
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.25rem 1.25rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 { font-size: 1.1rem; color: var(--teal-dk); margin-bottom: .75rem; }
+
+    label { display: block; font-size: .9rem; color: var(--muted); margin-bottom: .3rem; }
+    input[type="datetime-local"],
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: .95rem;
+      background: var(--bg);
+      color: var(--text);
+      margin-bottom: .75rem;
+    }
+    input:focus, select:focus {
+      outline: 2px solid var(--teal);
+      border-color: var(--teal);
+    }
+
+    .btn-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+    button {
+      padding: .55rem 1.1rem;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button:hover { background: var(--teal-dk); }
+    button.secondary {
+      background: #f0f0f0;
+      color: #555;
+      border: 1.5px solid #ccc;
+    }
+    button.secondary:hover { background: #e0e0e0; }
+
+    .result-box {
+      background: #f0f8f8;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      margin-top: .75rem;
+      font-size: .95rem;
+    }
+    .result-box .result-label { font-size: .8rem; color: var(--muted); margin-bottom: .2rem; }
+    .result-box .result-value { font-weight: 700; font-size: 1.05rem; color: var(--teal-dk); }
+    .result-box .result-copy {
+      float: right;
+      font-size: .78rem;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: .2rem .55rem;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .result-box .result-copy:hover { background: var(--teal-dk); }
+
+    .now-display {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--teal-dk);
+      margin-bottom: .25rem;
+    }
+    .now-utc {
+      font-size: .9rem;
+      color: var(--muted);
+    }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+    .tz-list { list-style: none; padding: 0; }
+    .tz-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: .35rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: .9rem;
+    }
+    .tz-list li:last-child { border-bottom: none; }
+    .tz-list .tz-name { color: var(--muted); flex: 0 0 180px; }
+    .tz-list .tz-time { font-weight: 700; color: var(--teal-dk); }
+  </style>
+</head>
+<body>
+
+<div id="shared-header"></div>
+
+<div class="page-wrap">
+  <h1>🕐 UTC Time Converter</h1>
+  <p class="subtitle">Convert between UTC and your local time, or check what time it is around the world.</p>
+
+  <!-- Current time card -->
+  <div class="card">
+    <h2>Current Time</h2>
+    <div class="now-display" id="now-local">—</div>
+    <div class="now-utc" id="now-utc">UTC: —</div>
+    <hr class="divider" />
+    <h3 style="font-size:.95rem;color:var(--muted);margin-bottom:.5rem;">Common time zones right now:</h3>
+    <ul class="tz-list" id="tz-now-list">
+      <li><span class="tz-name">Mountain Time (you)</span><span class="tz-time" id="tz-mt">—</span></li>
+      <li><span class="tz-name">Eastern Time</span><span class="tz-time" id="tz-et">—</span></li>
+      <li><span class="tz-name">Central Time</span><span class="tz-time" id="tz-ct">—</span></li>
+      <li><span class="tz-name">Pacific Time</span><span class="tz-time" id="tz-pt">—</span></li>
+      <li><span class="tz-name">UTC</span><span class="tz-time" id="tz-utc">—</span></li>
+      <li><span class="tz-name">London (GMT/BST)</span><span class="tz-time" id="tz-lon">—</span></li>
+    </ul>
+  </div>
+
+  <!-- Convert a specific time -->
+  <div class="card">
+    <h2>Convert a Specific Time</h2>
+
+    <label for="input-dt">Enter a date and time:</label>
+    <input type="datetime-local" id="input-dt" />
+
+    <label for="input-from-tz">This time is in:</label>
+    <select id="input-from-tz">
+      <option value="America/Denver">Mountain Time (MT)</option>
+      <option value="America/New_York">Eastern Time (ET)</option>
+      <option value="America/Chicago">Central Time (CT)</option>
+      <option value="America/Los_Angeles">Pacific Time (PT)</option>
+      <option value="UTC">UTC</option>
+      <option value="Europe/London">London (GMT/BST)</option>
+      <option value="Europe/Paris">Paris / Rome (CET)</option>
+      <option value="Asia/Tokyo">Tokyo (JST)</option>
+      <option value="Australia/Sydney">Sydney (AEST)</option>
+    </select>
+
+    <label for="input-to-tz">Convert to:</label>
+    <select id="input-to-tz">
+      <option value="UTC">UTC</option>
+      <option value="America/Denver">Mountain Time (MT)</option>
+      <option value="America/New_York">Eastern Time (ET)</option>
+      <option value="America/Chicago">Central Time (CT)</option>
+      <option value="America/Los_Angeles">Pacific Time (PT)</option>
+      <option value="Europe/London">London (GMT/BST)</option>
+      <option value="Europe/Paris">Paris / Rome (CET)</option>
+      <option value="Asia/Tokyo">Tokyo (JST)</option>
+      <option value="Australia/Sydney">Sydney (AEST)</option>
+    </select>
+
+    <div class="btn-row">
+      <button onclick="convertTime()">Convert</button>
+      <button class="secondary" onclick="setNow()">Use Current Time</button>
+    </div>
+
+    <div class="result-box" id="convert-result" style="display:none;">
+      <div class="result-label">Result:</div>
+      <button class="result-copy" onclick="copyResult()" title="Copy to clipboard">Copy</button>
+      <div class="result-value" id="convert-value">—</div>
+    </div>
+  </div>
+
+  <!-- UTC to local quick converter -->
+  <div class="card">
+    <h2>Quick: UTC → My Local Time</h2>
+    <label for="utc-input">Paste a UTC time string (e.g. 2026-02-25T18:30:00Z or just 18:30 UTC):</label>
+    <input type="text" id="utc-input" placeholder="e.g. 2026-02-25T18:30:00Z" />
+    <div class="btn-row">
+      <button onclick="parseUTC()">Convert to My Time</button>
+    </div>
+    <div class="result-box" id="utc-result" style="display:none;">
+      <div class="result-label">In your local time:</div>
+      <button class="result-copy" onclick="copyUTCResult()" title="Copy to clipboard">Copy</button>
+      <div class="result-value" id="utc-value">—</div>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<script>
+// ── Live clock ──
+function fmtTime(date, tz) {
+  return date.toLocaleTimeString('en-US', {
+    timeZone: tz,
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: true, weekday: 'short', month: 'short', day: 'numeric'
+  });
+}
+
+function updateClock() {
+  var now = new Date();
+  document.getElementById('now-local').textContent = now.toLocaleString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+  });
+  document.getElementById('now-utc').textContent = 'UTC: ' + now.toUTCString();
+
+  var zones = {
+    'tz-mt':  'America/Denver',
+    'tz-et':  'America/New_York',
+    'tz-ct':  'America/Chicago',
+    'tz-pt':  'America/Los_Angeles',
+    'tz-utc': 'UTC',
+    'tz-lon': 'Europe/London'
+  };
+  Object.keys(zones).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = fmtTime(now, zones[id]);
+  });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── Set now ──
+function setNow() {
+  var now = new Date();
+  var local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  document.getElementById('input-dt').value = local.toISOString().slice(0,16);
+}
+
+// ── Convert a specific time ──
+function convertTime() {
+  var dtVal = document.getElementById('input-dt').value;
+  var fromTZ = document.getElementById('input-from-tz').value;
+  var toTZ   = document.getElementById('input-to-tz').value;
+
+  if (!dtVal) { alert('Please enter a date and time first.'); return; }
+
+  try {
+    // Parse the local date string as if it were in fromTZ
+    // We use Intl to get the UTC offset for fromTZ at that moment
+    var parts = dtVal.split('T');
+    var datePart = parts[0];
+    var timePart = parts[1] || '00:00';
+    var isoStr = datePart + 'T' + timePart + ':00';
+
+    // Create a date in the target timezone
+    // Trick: format the date string to get the offset
+    var tempDate = new Date(isoStr);
+
+    // Get offset for fromTZ
+    var utcDate = getUTCFromTZ(isoStr, fromTZ);
+
+    var result = utcDate.toLocaleString('en-US', {
+      timeZone: toTZ,
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true
+    });
+
+    var tzLabel = document.getElementById('input-to-tz').options[document.getElementById('input-to-tz').selectedIndex].text;
+    document.getElementById('convert-value').textContent = result + ' (' + tzLabel + ')';
+    document.getElementById('convert-result').style.display = 'block';
+  } catch(e) {
+    alert('Could not convert — please check the date and time format.');
+    console.error(e);
+  }
+}
+
+function getUTCFromTZ(isoStr, tz) {
+  // Parse isoStr (YYYY-MM-DDTHH:MM:SS) as if it's in tz,
+  // return a Date object representing that moment in UTC
+  var d = new Date(isoStr + 'Z'); // treat as UTC temporarily
+  // Get the UTC offset of tz at that moment
+  var utcMs = d.getTime();
+  var tzFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  });
+  // Format a UTC time, see what tz says it is
+  var parts = tzFormatter.formatToParts(d);
+  var pv = {};
+  parts.forEach(function(p) { pv[p.type] = p.value; });
+  // Build a "local" time from tz perspective
+  var tzLocal = new Date(
+    pv.year + '-' + pv.month + '-' + pv.day + 'T' +
+    (pv.hour === '24' ? '00' : pv.hour) + ':' + pv.minute + ':' + pv.second + 'Z'
+  );
+  // Offset = d (UTC) - tzLocal (tz-interpreted-as-UTC)
+  var offsetMs = d.getTime() - tzLocal.getTime();
+  // The true UTC of isoStr-in-tz is: isoStr-as-UTC - offsetMs
+  // (We want: input local time = utc + offset → utc = input - offset)
+  return new Date(d.getTime() - offsetMs);
+}
+
+// ── Parse UTC string ──
+function parseUTC() {
+  var raw = document.getElementById('utc-input').value.trim();
+  if (!raw) { alert('Please paste a UTC time string first.'); return; }
+
+  try {
+    var d;
+    // Try parsing ISO format directly
+    if (raw.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)) {
+      d = new Date(raw.endsWith('Z') ? raw : raw + 'Z');
+    }
+    // Try "HH:MM UTC" or "HH:MM:SS UTC" (today)
+    else if (raw.match(/^\d{1,2}:\d{2}/)) {
+      var today = new Date().toISOString().split('T')[0];
+      var timeOnly = raw.replace(/\s*UTC\s*/i, '').trim();
+      if (!timeOnly.match(/:\d{2}:\d{2}$/)) timeOnly += ':00';
+      d = new Date(today + 'T' + timeOnly + 'Z');
+    } else {
+      d = new Date(raw);
+    }
+
+    if (isNaN(d.getTime())) throw new Error('Invalid date');
+
+    var local = d.toLocaleString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true
+    });
+
+    document.getElementById('utc-value').textContent = local + ' (your local time)';
+    document.getElementById('utc-result').style.display = 'block';
+  } catch(e) {
+    alert('Could not parse that time string. Try: 2026-02-25T18:30:00Z or 18:30 UTC');
+  }
+}
+
+// ── Copy helpers ──
+function copyResult() {
+  var txt = document.getElementById('convert-value').textContent;
+  navigator.clipboard.writeText(txt).catch(function() {
+    prompt('Copy this:', txt);
+  });
+}
+function copyUTCResult() {
+  var txt = document.getElementById('utc-value').textContent;
+  navigator.clipboard.writeText(txt).catch(function() {
+    prompt('Copy this:', txt);
+  });
+}
+</script>
+
+<!-- Shared header loader -->
+<script>
+fetch('/Academic-Allies/modular/shared-header.html?v=20260225d')
+  .then(function(r){ return r.text(); })
+  .then(function(html){ document.getElementById('shared-header').innerHTML = html; })
+  .catch(function(){ /* header optional */ });
+</script>
+
+</body>
+</html>
