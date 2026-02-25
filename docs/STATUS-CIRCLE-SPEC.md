@@ -3,6 +3,21 @@
 
 **Last confirmed:** February 2026
 **Source:** Perplexity Space thread + user CoT + direct corrections
+**Updated 2026-02-25 by Claude:** Mental/Emotional segment now uses Mary's confirmed 10-point energy scale (energyLevel field).
+
+### Confirmed Energy Scale (Mental/Emotional — DO NOT CHANGE)
+| Level | Emoji | Label | Circle Color |
+|-------|-------|-------|-------------|
+| 1 | 😁 | Fully Charged | 🟢 Green |
+| 2 | 😊 | Energized | 🟢 Green |
+| 3 | 🙂 | Pretty Good | 🟢 Green |
+| 4 | 🙂 | Doing Okay | 🟢 Green |
+| 5 | 😐 | Neutral | 🟡 Yellow |
+| 6 | 😕 | Starting to Tire | 🟠 Orange |
+| 7 | 😟 | Pretty Tired | 🟠 Orange |
+| 8 | 😫 | Very Exhausted | 🔴 Red |
+| 9 | 😩 | Almost Empty | 🔴 Red |
+| 10 | ☠️ | Completely Depleted | 🔴 Red |
 
 ---
 
@@ -39,7 +54,7 @@
 
 | Segment | Label | Data Source | Green | Yellow | Orange | Red | Grey |
 |---------|-------|-------------|-------|--------|--------|-----|------|
-| Mental | Mental | Mood (check-in) + brain fog from Q-A symptom list | Mood: Great/Good | Mood: Okay/Tired, or brain fog | Mood: Anxious | Mood: Struggling, or emergency | No check-in |
+| Mental | Mental | Energy level (check-in) + brain fog from Q-A symptom list | Energy 1–4 (Fully Charged → Doing Okay) | Energy 5 (Neutral) or brain fog | Energy 6–7 (Starting to Tire / Pretty Tired) | Energy 8–10 (Very Exhausted → Completely Depleted) or emergency | No check-in |
 | Physical | Physical | Q-A symptoms + Q-B sleep | No symptoms, good sleep | Some symptoms OR poor sleep | Symptoms + poor sleep | 3+ symptoms or emergency | No check-in |
 | Spiritual | Spiritual | **NOT YET TRACKED** | — | — | — | — | Always grey until confirmed |
 | Academic | Academic | Q-D planner review | Reviewed planner | Planner not reviewed | — | Emergency | Not recorded/skipped |
