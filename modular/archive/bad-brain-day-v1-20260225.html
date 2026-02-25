@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bad Brain Day — Mary's Safe Space</title>
+    <link rel="icon" href="../../icons/mode-bad-brain-day.jpg">
+    <style>
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            font-size: 18pt;
+            line-height: 1.5;
+            letter-spacing: 0.035em;
+            background: #FAFAF9;
+            color: #333333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 24px; }
+        .header img { max-width: 200px; width: 100%; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto; }
+        .header h1 { font-size: 22pt; color: #6CA0A3; margin-bottom: 6px; }
+        .header p { font-size: 16pt; opacity: 0.85; }
+
+        /* Spoon Counter */
+        .spoon-bar {
+            background: #6CA0A3;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 18px;
+            font-size: 20pt;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        .spoon-controls button {
+            background: rgba(255,255,255,0.3);
+            border: none;
+            color: white;
+            font-size: 20pt;
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            cursor: pointer;
+            min-width: 19mm;
+            min-height: 19mm;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .card h2 {
+            color: #6CA0A3;
+            font-size: 20pt;
+            margin-bottom: 14px;
+        }
+
+        /* Energy Scale */
+        .energy-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            min-height: 19mm;
+            border: 2px solid transparent;
+            transition: background 0.15s, border-color 0.15s;
+            margin-bottom: 6px;
+        }
+        .energy-item:hover, .energy-item:focus {
+            background: #f0f7f8;
+            border-color: #6CA0A3;
+            outline: none;
+        }
+        .energy-item.selected {
+            background: #6CA0A3;
+            color: white;
+            border-color: #6CA0A3;
+        }
+        .energy-item.selected .energy-def { color: rgba(255,255,255,0.85); }
+        .energy-emoji { font-size: 28pt; min-width: 44px; text-align: center; }
+        .energy-label { font-size: 17pt; font-weight: 600; }
+        .energy-def { font-size: 13pt; color: #666; display: block; }
+        .threshold-divider {
+            text-align: center;
+            font-size: 12pt;
+            color: #999;
+            letter-spacing: 0.1em;
+            padding: 6px 0 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .threshold-divider::before, .threshold-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #ddd;
+        }
+        .energy-logged {
+            display: none;
+            text-align: center;
+            padding: 12px;
+            background: #f0f7f8;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 16pt;
+            color: #6CA0A3;
+        }
+
+        /* Minimalist To-Do */
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            min-height: 19mm;
+        }
+        .todo-item:last-of-type { border-bottom: none; }
+        .todo-check {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            cursor: pointer;
+            accent-color: #6CA0A3;
+        }
+        .todo-text { font-size: 17pt; flex: 1; }
+        .todo-text.done { text-decoration: line-through; color: #aaa; }
+        .spoon-badge {
+            font-size: 13pt;
+            color: #888;
+            white-space: nowrap;
+        }
+
+        /* Call Help */
+        .help-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 18px;
+            margin-bottom: 10px;
+            border-radius: 14px;
+            border: none;
+            font-size: 17pt;
+            font-family: inherit;
+            letter-spacing: 0.035em;
+            cursor: pointer;
+            min-height: 19mm;
+            text-align: left;
+        }
+        .help-btn.roommates  { background: #e8f4f5; color: #3a7a7d; }
+        .help-btn.therapist  { background: #eef3ff; color: #4a5fa3; }
+        .help-btn.local      { background: #f3f0ff; color: #6a4fa3; }
+        .help-btn:hover { filter: brightness(0.95); }
+        .help-btn:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+
+        /* Messages */
+        .msg-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 14px 18px;
+            margin-bottom: 10px;
+            border-radius: 14px;
+            background: #f5f5f5;
+            border: none;
+            font-size: 17pt;
+            font-family: inherit;
+            letter-spacing: 0.035em;
+            cursor: pointer;
+            min-height: 19mm;
+        }
+        .msg-btn:hover { background: #eee; }
+        .badge {
+            background: #f5576c;
+            color: white;
+            border-radius: 50%;
+            font-size: 12pt;
+            min-width: 26px;
+            min-height: 26px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 6px;
+        }
+
+        /* Meal Suggestions */
+        .meal-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 16pt;
+        }
+        .meal-item:last-child { border-bottom: none; }
+        .meal-note { font-size: 13pt; color: #888; }
+
+        /* Recovery Suggestions */
+        .suggestion-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 16pt;
+        }
+        .suggestion-item:last-child { border-bottom: none; }
+        .suggestion-icon { font-size: 22pt; min-width: 36px; }
+
+        /* More section */
+        .more-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16pt;
+            color: #6CA0A3;
+            font-family: inherit;
+            letter-spacing: 0.035em;
+            padding: 8px 0;
+        }
+        .more-toggle:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+        .more-section { display: none; }
+        .more-section.open { display: block; margin-top: 10px; }
+
+        /* Breathing */
+        .breathe-btn {
+            width: 100%;
+            padding: 16px;
+            background: #e8f4f5;
+            border: none;
+            border-radius: 14px;
+            font-size: 17pt;
+            font-family: inherit;
+            color: #3a7a7d;
+            cursor: pointer;
+            min-height: 19mm;
+            margin-bottom: 10px;
+        }
+        .breathing-wrap { display: none; text-align: center; padding: 16px 0; }
+        .breathing-circle {
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 38% 38%, #c5e8ea 0%, #6CA0A3 65%);
+            margin: 0 auto 14px;
+            animation: breathe-cycle 8s ease-in-out infinite;
+        }
+        @keyframes breathe-cycle {
+            0%   { transform: scale(0.72); }
+            50%  { transform: scale(1.22); }
+            100% { transform: scale(0.72); }
+        }
+        .breathing-phase { font-size: 18pt; color: #6CA0A3; font-weight: 700; min-height: 34px; }
+        .breathing-timer { font-size: 13pt; color: #999; margin-top: 4px; }
+        @media (prefers-reduced-motion: reduce) { .breathing-circle { animation: none; } }
+
+        /* Pro Help */
+        .pro-btn {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 14px;
+            background: #fff3e0;
+            border: none;
+            font-size: 17pt;
+            font-family: inherit;
+            color: #8a5c00;
+            cursor: pointer;
+            min-height: 19mm;
+            text-align: left;
+            margin-bottom: 8px;
+        }
+
+        /* Back to Brain Fog */
+        .back-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: #f0f0f0;
+            color: #666;
+            border: none;
+            border-radius: 14px;
+            font-size: 16pt;
+            font-family: inherit;
+            letter-spacing: 0.035em;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 6px;
+            min-height: 19mm;
+            text-decoration: none;
+        }
+        .back-btn:hover { background: #e5e5e5; }
+        .back-btn:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+    </style>
+</head>
+<body>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260225a')
+      .then(r => r.text())
+      .then(html => {
+        const c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(s => {
+            const n = document.createElement('script');
+            Array.from(s.attributes).forEach(a => n.setAttribute(a.name, a.value));
+            n.textContent = s.textContent;
+            s.replaceWith(n);
+        });
+      });
+</script>
+
+<div class="container">
+
+    <!-- Header -->
+    <div class="header">
+        <img src="../../icons/mode-bad-brain-day.jpg" alt="Bad Brain Day Mode">
+        <h1>🧠 Bad Brain Day</h1>
+        <p>You're safe here, Mary. Just the essentials — one thing at a time.</p>
+    </div>
+
+    <!-- Spoon Counter -->
+    <div class="spoon-bar" role="status" aria-live="polite">
+        <div class="spoon-controls">
+            <button onclick="changeSpoons(-1)" aria-label="Remove one spoon">−</button>
+        </div>
+        🥄 <span id="spoon-count">10</span> spoons today
+        <div class="spoon-controls">
+            <button onclick="changeSpoons(1)" aria-label="Add one spoon">+</button>
+        </div>
+    </div>
+
+    <!-- 1. Energy Check-In -->
+    <div class="card">
+        <h2>💡 How Is Your Energy?</h2>
+        <p style="font-size:15pt;color:#888;margin-bottom:14px;">Tap the one that fits right now.</p>
+
+        <div id="energy-scale" role="listbox" aria-label="Energy level scale">
+            <!-- Items 1–4: above threshold -->
+            <div class="energy-item" role="option" tabindex="0" data-value="1" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">😁</span>
+                <span><span class="energy-label">Fully Charged</span><span class="energy-def">Peak energy — enthusiastic and vibrant</span></span>
+            </div>
+            <div class="energy-item" role="option" tabindex="0" data-value="2" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">😀</span>
+                <span><span class="energy-label">High Energy</span><span class="energy-def">Very well-rested — ready for tasks</span></span>
+            </div>
+            <div class="energy-item" role="option" tabindex="0" data-value="3" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">🙂</span>
+                <span><span class="energy-label">Some Energy</span><span class="energy-def">Mildly upbeat — able to engage comfortably</span></span>
+            </div>
+            <div class="energy-item" role="option" tabindex="0" data-value="4" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">😐</span>
+                <span><span class="energy-label">Neutral</span><span class="energy-def">Neither energized nor tired — baseline</span></span>
+            </div>
+
+            <!-- Exhaustion Threshold Divider -->
+            <div class="threshold-divider" aria-hidden="true">Exhaustion Threshold</div>
+
+            <!-- Items 5–10: below threshold -->
+            <div class="energy-item" role="option" tabindex="0" data-value="5" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">😶</span>
+                <span><span class="energy-label">Blank Face</span><span class="energy-def">Minimal drive — neither good nor bad</span></span>
+            </div>
+            <div class="energy-item" role="option" tabindex="0" data-value="6" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">☹️</span>
+                <span><span class="energy-label">Slightly Drained</span><span class="energy-def">Early signs of fatigue — low motivation</span></span>
+            </div>
+            <div class="energy-item" role="option" tabindex="0" data-value="7" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">😒</span>
+                <span><span class="energy-label">Tired</span><span class="energy-def">Noticeable depletion — wanting a break</span></span>
+            </div>
+            <div class="energy-item" role="option" tabindex="0" data-value="8" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">😫</span>
+                <span><span class="energy-label">Weary</span><span class="energy-def">Deep fatigue — hard to concentrate</span></span>
+            </div>
+            <div class="energy-item" role="option" tabindex="0" data-value="9" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">😭</span>
+                <span><span class="energy-label">Overwhelmed</span><span class="energy-def">Emotional exhaustion — on the verge of tears</span></span>
+            </div>
+            <div class="energy-item" role="option" tabindex="0" data-value="10" onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+                <span class="energy-emoji">☠️</span>
+                <span><span class="energy-label">Completely Depleted</span><span class="energy-def">Utterly drained — feeling shutdown</span></span>
+            </div>
+        </div>
+
+        <div id="energy-logged" class="energy-logged" role="status" aria-live="polite"></div>
+    </div>
+
+    <!-- 2. Minimalist To-Do -->
+    <div class="card">
+        <h2>✅ Today's Tasks</h2>
+        <div id="todo-list">
+            <div class="todo-item">
+                <input type="checkbox" class="todo-check" id="task-eat" aria-label="Eat on Schedule"
+                    onchange="completeTask('task-eat-label', this.checked, 2)">
+                <label class="todo-text" id="task-eat-label" for="task-eat">
+                    Eat on Schedule <span style="color:#888;font-size:14pt;">(See Meal Suggestions)</span>
+                </label>
+                <span class="spoon-badge">🥄×2</span>
+            </div>
+            <div class="todo-item">
+                <input type="checkbox" class="todo-check" id="task-hydrate" aria-label="Stay Hydrated"
+                    onchange="completeTask('task-hydrate-label', this.checked, 1)">
+                <label class="todo-text" id="task-hydrate-label" for="task-hydrate">Stay Hydrated</label>
+                <span class="spoon-badge">🥄×1</span>
+            </div>
+        </div>
+        <p style="font-size:14pt;color:#aaa;margin-top:12px;text-align:center;">More tasks live in your Spoon Planner.</p>
+    </div>
+
+    <!-- 3. Call Help -->
+    <div class="card">
+        <h2>🆘 Call Help</h2>
+        <p style="font-size:15pt;color:#888;margin-bottom:14px;">Who do you need right now?</p>
+        <button class="help-btn roommates" aria-label="Contact your roommates">
+            🏠 Roommates / Nearby Help
+        </button>
+        <button class="help-btn therapist" aria-label="Contact your therapist">
+            🧠 Therapist
+        </button>
+        <button class="help-btn local" aria-label="Contact local support">
+            🤝 Local Support
+        </button>
+    </div>
+
+    <!-- 4. Messages -->
+    <div class="card">
+        <h2>💬 Messages</h2>
+        <button class="msg-btn" aria-label="View support messages">
+            <span>Support Messages</span>
+            <span class="badge" id="msg-badge" style="display:none">0</span>
+        </button>
+        <button class="msg-btn" aria-label="Message your supervisor or class contact">
+            <span>📚 Message Class / Supervisor</span>
+        </button>
+    </div>
+
+    <!-- 5. Meal Suggestions -->
+    <div class="card">
+        <h2>🍲 Meal Suggestions</h2>
+        <p style="font-size:14pt;color:#888;margin-bottom:10px;">Easy on the stomach. ~1,495–1,497 cal today.</p>
+        <div class="meal-item">🥛 Yogurt or kefir <span class="meal-note">— gut-friendly, easy to eat</span></div>
+        <div class="meal-item">🍌 Banana or applesauce <span class="meal-note">— soft, gentle energy</span></div>
+        <div class="meal-item">🍵 Broth or soup <span class="meal-note">— hydrating, warm comfort</span></div>
+        <div class="meal-item">🥤 Protein shake or smoothie <span class="meal-note">— liquid meal, easy to get down</span></div>
+        <div class="meal-item">🍞 Toast with butter <span class="meal-note">— simple carbs when nothing sounds good</span></div>
+    </div>
+
+    <!-- 6. Recovery Suggestions -->
+    <div class="card">
+        <h2>💡 Recovery Suggestions</h2>
+        <div class="suggestion-item">
+            <span class="suggestion-icon">⏰</span>
+            <span>You have <strong>approved extra-time accommodations</strong> — use them. No guilt.</span>
+        </div>
+        <div class="suggestion-item">
+            <span class="suggestion-icon">🎧</span>
+            <span>Switch to <strong>audio materials</strong> instead of reading today.</span>
+        </div>
+        <div class="suggestion-item">
+            <span class="suggestion-icon">💤</span>
+            <span>Take <strong>frequent short rests</strong> — even 5 minutes helps.</span>
+        </div>
+        <div class="suggestion-item">
+            <span class="suggestion-icon">🌙</span>
+            <span><strong>Sleep hygiene:</strong> dark room, consistent schedule, good environment.</span>
+        </div>
+        <div class="suggestion-item">
+            <span class="suggestion-icon">🎙️</span>
+            <span>Listen to <strong>podcasts or calming shows</strong> instead of heavy content.</span>
+        </div>
+        <div class="suggestion-item">
+            <span class="suggestion-icon">💧</span>
+            <span>Not eating is okay for now — focus on <strong>hydration and rest</strong> first.</span>
+        </div>
+    </div>
+
+    <!-- More ▾ (progressive disclosure) -->
+    <div class="card">
+        <button class="more-toggle" onclick="toggleMore()" aria-expanded="false" aria-controls="more-section" id="more-btn">
+            <span id="more-arrow">▾</span> More Tools
+        </button>
+        <div class="more-section" id="more-section">
+
+            <!-- Breathing -->
+            <h2 style="margin-top:10px;">🫁 Breathing Exercise</h2>
+            <button class="breathe-btn" onclick="startBreathing()" id="breathe-start-btn" aria-label="Start one-tap breathing exercise">
+                🌬️ Tap to Start — One Breath at a Time
+            </button>
+            <div class="breathing-wrap" id="breathing-wrap" aria-live="polite">
+                <div class="breathing-circle" id="breathing-circle"></div>
+                <div class="breathing-phase" id="breathing-phase">Breathe In…</div>
+                <div class="breathing-timer" id="breathing-timer"></div>
+                <button class="back-btn" style="margin-top:12px;" onclick="stopBreathing()">Stop</button>
+            </div>
+
+            <!-- Prompted Journaling -->
+            <h2 style="margin-top:20px;">📓 Prompted Reflection</h2>
+            <div id="journal-prompt" style="background:#f9f5ff;border-left:4px solid #9b8ec4;padding:14px;border-radius:10px;margin-bottom:12px;font-size:16pt;">
+                What is one small thing that felt okay today?
+            </div>
+            <textarea id="journal-entry" rows="4"
+                style="width:100%;padding:12px;border:2px solid #ddd;border-radius:10px;font-size:16pt;font-family:inherit;letter-spacing:0.035em;resize:vertical;"
+                placeholder="Just a few words is enough…" aria-label="Journal entry"></textarea>
+            <button onclick="nextJournalPrompt()" style="margin-top:8px;padding:10px 20px;background:#f0e8ff;border:none;border-radius:10px;font-size:15pt;cursor:pointer;font-family:inherit;">
+                Next Prompt →
+            </button>
+
+            <!-- Quick Access Pro Help -->
+            <h2 style="margin-top:20px;">🩺 Quick Access — Professional Help</h2>
+            <button class="pro-btn" aria-label="One-tap message to your therapist">
+                💬 Message My Therapist
+            </button>
+            <button class="pro-btn" aria-label="One-tap message to your doctor">
+                🏥 Message My Doctor
+            </button>
+            <button class="pro-btn" aria-label="BYU-Idaho Disability Services">
+                🎓 BYU-Idaho Disability Services
+            </button>
+        </div>
+    </div>
+
+    <!-- Back to Brain Fog -->
+    <a href="/Academic-Allies/modular/components/recovery-mode.html" class="back-btn" role="button"
+        aria-label="Exit Bad Brain Day mode and return to Recovery Mode">
+        ← Back to Brain Fog
+    </a>
+    <p style="text-align:center;font-size:13pt;color:#bbb;margin-top:8px;margin-bottom:30px;">
+        Not back to normal — just back to brain fog. That's enough.
+    </p>
+
+</div><!-- end container -->
+
+<script>
+// ── Spoon Counter ──────────────────────────────────────────────
+var spoons = 10;
+function changeSpoons(n) {
+    spoons = Math.max(0, Math.min(20, spoons + n));
+    document.getElementById('spoon-count').textContent = spoons;
+    if (spoons <= 2) {
+        document.querySelector('.spoon-bar').style.background = '#c0392b';
+    } else if (spoons <= 5) {
+        document.querySelector('.spoon-bar').style.background = '#e67e22';
+    } else {
+        document.querySelector('.spoon-bar').style.background = '#6CA0A3';
+    }
+}
+
+// ── Energy Scale ───────────────────────────────────────────────
+var energyLabels = ['','Fully Charged','High Energy','Some Energy','Neutral',
+    'Blank Face','Slightly Drained','Tired','Weary','Overwhelmed','Completely Depleted'];
+function selectEnergy(el) {
+    document.querySelectorAll('.energy-item').forEach(function(i) {
+        i.classList.remove('selected');
+        i.setAttribute('aria-selected','false');
+    });
+    el.classList.add('selected');
+    el.setAttribute('aria-selected','true');
+    var val = parseInt(el.dataset.value);
+    var logged = document.getElementById('energy-logged');
+    logged.style.display = 'block';
+    logged.textContent = 'Logged: ' + el.querySelector('.energy-emoji').textContent + ' ' + energyLabels[val];
+    if (val >= 5) changeSpoons(-1);  // exhaustion costs a spoon
+}
+
+// ── To-Do ──────────────────────────────────────────────────────
+function completeTask(labelId, done, cost) {
+    var lbl = document.getElementById(labelId);
+    if (done) {
+        lbl.classList.add('done');
+        changeSpoons(-cost);
+    } else {
+        lbl.classList.remove('done');
+        changeSpoons(cost);
+    }
+}
+
+// ── More Toggle ────────────────────────────────────────────────
+function toggleMore() {
+    var sec = document.getElementById('more-section');
+    var btn = document.getElementById('more-btn');
+    var arrow = document.getElementById('more-arrow');
+    var open = sec.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    arrow.textContent = open ? '▴' : '▾';
+}
+
+// ── Breathing ─────────────────────────────────────────────────
+var breathTimer = null, breathPhaseTimer = null, breathTotalTimer = null;
+var breathPhases = [
+    { text: 'Breathe In…',  dur: 4 },
+    { text: 'Hold…',        dur: 4 },
+    { text: 'Breathe Out…', dur: 4 },
+    { text: 'Hold…',        dur: 4 }
+];
+var breathIdx = 0, breathCountdown = 0;
+
+function startBreathing() {
+    document.getElementById('breathe-start-btn').style.display = 'none';
+    document.getElementById('breathing-wrap').style.display = 'block';
+    runBreathPhase();
+    // Auto-advance after 50s
+    breathTotalTimer = setTimeout(stopBreathing, 50000);
+}
+
+function runBreathPhase() {
+    var phase = breathPhases[breathIdx % breathPhases.length];
+    document.getElementById('breathing-phase').textContent = phase.text;
+    breathCountdown = phase.dur;
+    tick();
+}
+
+function tick() {
+    document.getElementById('breathing-timer').textContent = breathCountdown + 's';
+    if (breathCountdown > 0) {
+        breathCountdown--;
+        breathTimer = setTimeout(tick, 1000);
+    } else {
+        breathIdx++;
+        breathTimer = setTimeout(runBreathPhase, 200);
+    }
+}
+
+function stopBreathing() {
+    clearTimeout(breathTimer);
+    clearTimeout(breathTotalTimer);
+    document.getElementById('breathe-start-btn').style.display = 'block';
+    document.getElementById('breathing-wrap').style.display = 'none';
+    breathIdx = 0;
+}
+
+// ── Journaling ─────────────────────────────────────────────────
+var journalPrompts = [
+    'What is one small thing that felt okay today?',
+    'Name one person who makes you feel safe.',
+    'What does your body need right now?',
+    'One thing you did today — no matter how small.',
+    'What would feel gentle and kind right now?',
+    'What are you not responsible for today?',
+    'What would "good enough" look like today?'
+];
+var promptIdx = 0;
+function nextJournalPrompt() {
+    promptIdx = (promptIdx + 1) % journalPrompts.length;
+    document.getElementById('journal-prompt').textContent = journalPrompts[promptIdx];
+    document.getElementById('journal-entry').value = '';
+    document.getElementById('journal-entry').focus();
+}
+</script>
+</body>
+</html>
