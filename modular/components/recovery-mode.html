@@ -375,6 +375,32 @@
                 Flowers identified today: <span id="flower-count">0</span>
             </p>
         </div>
+
+        <!-- Genus Practice Quiz — Added 2026-02-25 by Claude -->
+        <div class="card">
+            <h2>🌿 Genus Practice</h2>
+            <div style="background:#f0f7f8;border-left:4px solid #6CA0A3;border-radius:0 10px 10px 0;padding:10px 14px;font-size:14pt;color:#555;margin-bottom:14px;line-height:1.5;">
+                Quiz 4 &amp; 5 flowers only. See a photo — pick the right answer.
+            </div>
+            <!-- Mode toggle -->
+            <div style="display:flex;gap:10px;margin-bottom:16px;">
+                <button id="gqModeGenus" onclick="gqSetMode('genus')"
+                    style="flex:1;padding:10px;border-radius:10px;border:2px solid #6CA0A3;background:#6CA0A3;color:#fff;font-family:inherit;font-size:14pt;cursor:pointer;min-height:19mm;">
+                    🔬 What's the genus?
+                </button>
+                <button id="gqModeCommon" onclick="gqSetMode('common')"
+                    style="flex:1;padding:10px;border-radius:10px;border:2px solid #ddd;background:#f0f4f5;color:#555;font-family:inherit;font-size:14pt;cursor:pointer;min-height:19mm;">
+                    🌸 Common name?
+                </button>
+            </div>
+            <div id="genusQuiz"></div>
+            <div id="genusScore" style="display:none;text-align:center;font-size:18pt;color:#6CA0A3;padding:20px 0;"></div>
+            <button id="genusRestart" onclick="gqStart()"
+                style="display:none;width:100%;padding:14px;background:#6CA0A3;color:#fff;border:none;border-radius:14px;font-size:16pt;font-family:inherit;cursor:pointer;margin-top:8px;min-height:19mm;">
+                Play Again 🌱
+            </button>
+        </div>
+
         <!-- Tiny Self-Care Wins -->
         <div class="card">
             <h2>💧 Tiny Self-Care Wins</h2>
@@ -840,6 +866,123 @@
                 });
             }
         });
+    </script>
+    <script>
+        // ── Genus Practice Quiz — 2026-02-25 by Claude ────────────────────────
+        var GQ_FLOWERS = [
+            // Quiz 4 – Form / Focal
+            { image: "../../icons/flowers/flower31-1 Iris.jpg",             genus: "Iris",          common: "Iris" },
+            { image: "../../icons/flowers/flower32-1 Lily.jpg",             genus: "Lilium",        common: "Lily" },
+            { image: "../../icons/flowers/flower33-1 Calla Lily.jpg",       genus: "Zantedeschia",  common: "Calla Lily" },
+            { image: "../../icons/flowers/flower34-1 Gerber Daisy.jpg",     genus: "Gerbera",       common: "Gerber Daisy" },
+            { image: "../../icons/flowers/flower35-1 Anthurium.jpg",        genus: "Anthurium",     common: "Anthurium" },
+            { image: "../../icons/flowers/flower36-1 Billy Balls.jpg",      genus: "Craspedia",     common: "Billy Balls" },
+            { image: "../../icons/flowers/flower37-1 Disbud Mum.jpg",       genus: "Chrysanthemum", common: "Disbud Mum" },
+            { image: "../../icons/flowers/flower38-1 Bird of Paradise.jpg", genus: "Strelitzia",    common: "Bird of Paradise" },
+            { image: "../../icons/flowers/flower39-1 Tulip.jpg",            genus: "Tulipa",        common: "Tulip" },
+            { image: "../../icons/flowers/flower40-1 Sunflower.jpg",        genus: "Helianthus",    common: "Sunflower" },
+            // Quiz 5 – Greens & Textures
+            { image: "../../icons/flowers/flower41-1 Leather leaf.jpg",     genus: "Leucadendron",  common: "Leather Leaf" },
+            { image: "../../icons/flowers/flower42-1 Bear Grass.jpg",       genus: "Xerophyllum",   common: "Bear Grass" },
+            { image: "../../icons/flowers/flower43-1 Lilly Grass.jpg",      genus: "Liriope",       common: "Lilly Grass" },
+            { image: "../../icons/flowers/flower44-1 Israeli Ruscus.png",   genus: "Ruscus",        common: "Israeli Ruscus" },
+            { image: "../../icons/flowers/flower49-1 Italian Ruscus.jpg",   genus: "Ruscus",        common: "Italian Ruscus" },
+            { image: "../../icons/flowers/flower45-1 Salal.jpg",            genus: "Gaultheria",    common: "Salal" },
+            { image: "../../icons/flowers/flower46-1 Grevillea.jpg",        genus: "Grevillea",     common: "Grevillea" },
+            { image: "../../icons/flowers/flower47-1 Pitt.jpg",             genus: "Pittosporum",   common: "Pitt" },
+            { image: "../../icons/flowers/flower48-1 Myrtle.jpg",           genus: "Myrtus",        common: "Myrtle" }
+        ];
+        var gqMode = 'genus', gqPool = [], gqIndex = 0, gqScore = 0, GQ_ROUNDS = 10;
+
+        function gqSetMode(mode) {
+            gqMode = mode;
+            var bg = document.getElementById('gqModeGenus');
+            var bc = document.getElementById('gqModeCommon');
+            bg.style.background = mode === 'genus' ? '#6CA0A3' : '#f0f4f5';
+            bg.style.color      = mode === 'genus' ? '#fff'     : '#555';
+            bg.style.border     = mode === 'genus' ? '2px solid #6CA0A3' : '2px solid #ddd';
+            bc.style.background = mode === 'common' ? '#6CA0A3' : '#f0f4f5';
+            bc.style.color      = mode === 'common' ? '#fff'     : '#555';
+            bc.style.border     = mode === 'common' ? '2px solid #6CA0A3' : '2px solid #ddd';
+            gqStart();
+        }
+
+        function gqShuffle(arr) {
+            var a = arr.slice();
+            for (var i = a.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var t = a[i]; a[i] = a[j]; a[j] = t;
+            }
+            return a;
+        }
+
+        function gqStart() {
+            gqPool  = gqShuffle(GQ_FLOWERS).slice(0, GQ_ROUNDS);
+            gqIndex = 0; gqScore = 0;
+            document.getElementById('genusScore').style.display   = 'none';
+            document.getElementById('genusRestart').style.display = 'none';
+            gqShowQuestion();
+        }
+
+        function gqShowQuestion() {
+            var container = document.getElementById('genusQuiz');
+            if (gqIndex >= gqPool.length) { gqShowScore(); return; }
+            var flower    = gqPool[gqIndex];
+            var isGenus   = (gqMode === 'genus');
+            var prompt    = isGenus ? flower.common : flower.genus;
+            var correct   = isGenus ? flower.genus  : flower.common;
+            var promptLbl = isGenus ? 'Common Name' : 'Genus';
+            var answerLbl = isGenus ? 'Genus'       : 'Common Name';
+            var others = gqShuffle(GQ_FLOWERS.filter(function(f) {
+                return (isGenus ? f.genus : f.common) !== correct;
+            })).slice(0, 3);
+            var options = gqShuffle([correct].concat(others.map(function(f) {
+                return isGenus ? f.genus : f.common;
+            })));
+            var correctIdx = options.indexOf(correct);
+            var imgSrc = flower.image;
+            var html = '<div style="text-align:center;">';
+            html += '<p style="font-size:13pt;color:#888;margin:0 0 8px;">Question ' + (gqIndex + 1) + ' of ' + gqPool.length + '</p>';
+            html += '<img src="' + imgSrc + '" '
+                 +  'style="width:240px;height:240px;object-fit:contain;border-radius:14px;box-shadow:0 3px 12px rgba(0,0,0,0.12);margin-bottom:14px;" '
+                 +  'alt="' + flower.common + '">';
+            html += '<p style="font-size:16pt;margin:0 0 6px;"><strong>' + promptLbl + ':</strong> ' + prompt + '</p>';
+            html += '<p style="font-size:13pt;color:#888;margin:0 0 12px;">↓ Pick the ' + answerLbl + '</p>';
+            html += '<div class="quiz-buttons">';
+            options.forEach(function(opt, i) {
+                html += '<button class="quiz-btn" onclick="gqAnswer(' + i + ',' + correctIdx + ')" '
+                     +  'style="font-size:14pt;padding:12px;min-height:19mm;">' + opt + '</button>';
+            });
+            html += '</div></div>';
+            container.innerHTML = html;
+        }
+
+        function gqAnswer(selected, correct) {
+            var btns = document.querySelectorAll('#genusQuiz .quiz-btn');
+            btns.forEach(function(b, i) {
+                b.disabled = true;
+                if (i === correct) b.classList.add('correct');
+                else if (i === selected) b.classList.add('incorrect');
+            });
+            if (selected === correct) gqScore++;
+            setTimeout(function() { gqIndex++; gqShowQuestion(); }, 1400);
+        }
+
+        function gqShowScore() {
+            document.getElementById('genusQuiz').innerHTML = '';
+            var pct = Math.round((gqScore / gqPool.length) * 100);
+            var msg = pct === 100 ? '🏆 Perfect! You know your genus!' :
+                      pct >= 70  ? '🌸 Nice work — keep practicing!' :
+                                   '🌱 Keep going — you're learning!';
+            document.getElementById('genusScore').innerHTML =
+                gqScore + ' / ' + gqPool.length + ' correct &nbsp;·&nbsp; ' + pct + '%<br>' +
+                '<span style="font-size:16pt;">' + msg + '</span>';
+            document.getElementById('genusScore').style.display   = 'block';
+            document.getElementById('genusRestart').style.display = 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() { gqStart(); });
+        if (document.readyState !== 'loading') { gqStart(); }
     </script>
 </body>
 </html>
