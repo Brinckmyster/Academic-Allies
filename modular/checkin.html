@@ -96,19 +96,32 @@
       width: 20px; height: 20px; accent-color: #6CA0A3; flex-shrink: 0;
     }
 
-    /* Mood grid */
-    .mood-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    /* Energy scale (replaces mood grid — Updated 2026-02-25 by Claude) */
+    .energy-scale-list { list-style: none; }
+    .energy-scale-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 10px; border-radius: 10px; cursor: pointer;
+      border: 2px solid transparent; transition: background 0.12s, border-color 0.12s;
+      margin-bottom: 3px; min-height: 19mm;
     }
-    .mood-btn {
-      background: #f0f4f5; border: 2px solid transparent;
-      border-radius: 12px; padding: 12px 6px; font-size: 24pt;
-      cursor: pointer; text-align: center; transition: all 0.18s;
-      font-family: inherit;
+    .energy-scale-item:hover, .energy-scale-item:focus {
+      background: #f0f7f8; border-color: #6CA0A3; outline: none;
     }
-    .mood-btn:hover { background: #e0eced; }
-    .mood-btn.selected { border-color: #6CA0A3; background: #e8f2f3; }
-    .mood-label { display: block; font-size: 9pt; color: #555; margin-top: 3px; }
+    .energy-scale-item.selected { background: #6CA0A3; color: white; border-color: #6CA0A3; }
+    .energy-scale-em  { font-size: 22pt; min-width: 36px; text-align: center; }
+    .energy-scale-lbl { font-size: 14pt; font-weight: 600; }
+    .energy-threshold-line {
+      text-align: center; font-size: 10pt; color: #ccc; letter-spacing: 0.08em;
+      padding: 4px 0 6px; display: flex; align-items: center; gap: 8px;
+    }
+    .energy-threshold-line::before, .energy-threshold-line::after {
+      content: ''; flex: 1; height: 1px; background: #ebebeb;
+    }
+    .energy-logged-note {
+      display: none; margin-top: 10px; padding: 9px 12px;
+      background: #f0f7f8; border-radius: 8px;
+      font-size: 12pt; color: #6CA0A3; text-align: center;
+    }
 
     /* "Have you…" checkboxes */
     .hyu-list { display: flex; flex-direction: column; gap: 12px; }
@@ -237,18 +250,55 @@
     <h1 class="page-title">📋 Daily Check-In</h1>
     <p class="date-display" id="todayDate"></p>
 
-    <!-- MOOD (supplemental, not in core spec) -->
+    <!-- ENERGY / MOOD — feeds Mental/Emotional segment of status circle -->
+    <!-- Updated 2026-02-25 by Claude — replaced 6-emoji grid with Mary's confirmed 10-point scale -->
     <div class="card">
-      <h2>How are you feeling right now? 💭</h2>
-      <div class="reassurance">This is just for your own tracking — no flags, no alerts. Skip it if you want.</div>
-      <div class="mood-grid">
-        <button class="mood-btn" onclick="selectMood(this,'Great')"     aria-label="Great">😄<span class="mood-label">Great</span></button>
-        <button class="mood-btn" onclick="selectMood(this,'Good')"      aria-label="Good">🙂<span class="mood-label">Good</span></button>
-        <button class="mood-btn" onclick="selectMood(this,'Okay')"      aria-label="Okay">😐<span class="mood-label">Okay</span></button>
-        <button class="mood-btn" onclick="selectMood(this,'Tired')"     aria-label="Tired">😴<span class="mood-label">Tired</span></button>
-        <button class="mood-btn" onclick="selectMood(this,'Anxious')"   aria-label="Anxious">😰<span class="mood-label">Anxious</span></button>
-        <button class="mood-btn" onclick="selectMood(this,'Struggling')" aria-label="Struggling">😔<span class="mood-label">Struggling</span></button>
-      </div>
+      <h2>How is your energy right now? 💡</h2>
+      <div class="reassurance">Tap the one that fits. This feeds your status circle (Mental/Emotional). Skip it if it's too much today.</div>
+      <ul class="energy-scale-list" role="listbox" aria-label="Energy level">
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="1" data-label="Fully Charged"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">😁</span><span class="energy-scale-lbl">Fully Charged</span>
+        </li>
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="2" data-label="Energized"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">😊</span><span class="energy-scale-lbl">Energized</span>
+        </li>
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="3" data-label="Pretty Good"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">🙂</span><span class="energy-scale-lbl">Pretty Good</span>
+        </li>
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="4" data-label="Doing Okay"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">🙂</span><span class="energy-scale-lbl">Doing Okay</span>
+        </li>
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="5" data-label="Neutral"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">😐</span><span class="energy-scale-lbl">Neutral</span>
+        </li>
+        <li class="energy-threshold-line" aria-hidden="true">Exhaustion Threshold</li>
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="6" data-label="Starting to Tire"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">😕</span><span class="energy-scale-lbl">Starting to Tire</span>
+        </li>
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="7" data-label="Pretty Tired"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">😟</span><span class="energy-scale-lbl">Pretty Tired</span>
+        </li>
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="8" data-label="Very Exhausted"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">😫</span><span class="energy-scale-lbl">Very Exhausted</span>
+        </li>
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="9" data-label="Almost Empty"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">😩</span><span class="energy-scale-lbl">Almost Empty</span>
+        </li>
+        <li class="energy-scale-item" role="option" tabindex="0" data-level="10" data-label="Completely Depleted"
+            onclick="selectEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')selectEnergy(this)">
+          <span class="energy-scale-em">☠️</span><span class="energy-scale-lbl">Completely Depleted</span>
+        </li>
+      </ul>
+      <div class="energy-logged-note" id="energyLoggedNote" role="status" aria-live="polite"></div>
     </div>
 
     <!-- QUESTION A: Symptoms -->
@@ -348,7 +398,8 @@
 
   <script>
     // ── State ──────────────────────────────────────────────
-    var selectedMood = '';
+    var selectedMood = '';        /* label text — kept for backwards compat */
+    var selectedEnergyLevel = 0; /* 1–10 numeric — feeds status circle */
     var answers = { symptoms: '', sleep: '', support: '', planner: '', emergency: '' };
     var now = new Date();
     var dateKey = now.toISOString().split('T')[0];
@@ -437,11 +488,20 @@
       card.appendChild(badge);
     }
 
-    // ── Mood ───────────────────────────────────────────────
-    function selectMood(btn, mood) {
-      selectedMood = mood;
-      document.querySelectorAll('.mood-btn').forEach(function(b) { b.classList.remove('selected'); });
-      btn.classList.add('selected');
+    // ── Energy / Mood — Updated 2026-02-25 by Claude ───────
+    function selectEnergy(el) {
+      selectedEnergyLevel = parseInt(el.dataset.level);
+      selectedMood        = el.dataset.label;
+      document.querySelectorAll('.energy-scale-item').forEach(function(i) {
+        i.classList.remove('selected');
+        i.setAttribute('aria-selected', 'false');
+      });
+      el.classList.add('selected');
+      el.setAttribute('aria-selected', 'true');
+      var note = document.getElementById('energyLoggedNote');
+      note.style.display  = 'block';
+      note.textContent    = 'Logged: ' + el.querySelector('.energy-scale-em').textContent
+                          + ' ' + selectedMood;
     }
 
     // ── Button state maps ──────────────────────────────────
@@ -588,6 +648,7 @@
 
       var entry = {
         mood:        selectedMood,
+        energyLevel: selectedEnergyLevel || null,
         symptoms:    answers.symptoms,
         symptomList: symptomList,
         sleep:       answers.sleep,
@@ -631,8 +692,14 @@
 
       // Reset form (keep auto-detect badges/fills for next entry in session)
       selectedMood = '';
+      selectedEnergyLevel = 0;
       answers = { symptoms: '', sleep: '', support: '', planner: '', emergency: '' };
-      document.querySelectorAll('.mood-btn').forEach(function(b) { b.classList.remove('selected'); });
+      document.querySelectorAll('.energy-scale-item').forEach(function(i) {
+        i.classList.remove('selected');
+        i.setAttribute('aria-selected', 'false');
+      });
+      var note = document.getElementById('energyLoggedNote');
+      if (note) note.style.display = 'none';
       document.querySelectorAll('.yn-btn').forEach(function(b) {
         b.className = b.classList.contains('skip') ? 'yn-btn skip' : 'yn-btn';
       });

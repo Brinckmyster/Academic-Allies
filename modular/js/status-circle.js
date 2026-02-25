@@ -98,11 +98,22 @@
                  e.symptomList.some(function (s) {
                    return /brain.fog|trouble.think/i.test(s);
                  }));
+      /* Updated 2026-02-25 by Claude — Mary's confirmed 10-point energy scale
+         1-4 green | 5 yellow | 6-7 orange | 8-10 red
+         Falls back to old mood string labels for entries saved before this change. */
+      var lvl = typeof e.energyLevel === 'number' ? e.energyLevel : 0;
+      if (lvl > 0) {
+        if (lvl >= 8) return C.red;
+        if (lvl >= 6) return C.orange;
+        if (lvl >= 5 || fog) return C.yellow;
+        return C.green;
+      }
+      /* Legacy fallback — old 6-label mood grid */
       var m = e.mood || '';
-      if (m === 'Struggling')                         return C.red;
-      if (m === 'Anxious')                            return C.orange;
-      if (m === 'Okay' || m === 'Tired' || fog)       return C.yellow;
-      if (m === 'Great' || m === 'Good')              return C.green;
+      if (m === 'Struggling')                   return C.red;
+      if (m === 'Anxious')                      return C.orange;
+      if (m === 'Okay' || m === 'Tired' || fog) return C.yellow;
+      if (m === 'Great' || m === 'Good')        return C.green;
       return null;
     }
 
