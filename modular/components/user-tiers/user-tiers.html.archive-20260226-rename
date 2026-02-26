@@ -1,4 +1,3 @@
-<!-- Updated 2026-02-26 by Claude — renamed 'admin' tier → 'network-lead', platform role 'admin' → 'backstage-manager' -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,8 +28,8 @@
       display: inline-block; padding: 3px 10px; border-radius: 20px;
       font-size: 0.78rem; font-weight: 700; color: #fff; white-space: nowrap;
     }
-    .badge-owner        { background: #4a7f82; }
-    .badge-network-lead { background: #6366f1; }
+    .badge-owner      { background: #4a7f82; }
+    .badge-admin      { background: #6366f1; }
     .badge-family     { background: #f59e0b; }
     .badge-support    { background: #10b981; }
     .badge-nearby-help { background: #f97316; }
@@ -202,7 +201,7 @@
           <option value="nearby-help">Nearby Help</option>
           <option value="family">Family</option>
           <option value="support">Support</option>
-          <option value="network-lead">Network Lead</option>
+          <option value="admin">Admin</option>
         </select>
         <button onclick="addMember()">Add</button>
       </div>
@@ -237,7 +236,7 @@
             <option value="nearby-help">Nearby Help</option>
             <option value="family">Family</option>
             <option value="support">Support</option>
-            <option value="network-lead">Network Lead (my network manager)</option>
+            <option value="admin">Admin (my network manager)</option>
           </select>
           <button onclick="generateInvite()">Generate Code</button>
         </div>
@@ -279,7 +278,7 @@
   <script>
     /* ── Tier display metadata ────────────────────────────── */
     var TIERS = {
-      'network-lead': { label: 'Network Lead', badge: 'badge-network-lead', desc: 'Trusted support — can help manage your data' },
+      'admin':       { label: 'Admin',        badge: 'badge-admin',       desc: 'Trusted support — can help manage your data' },
       'family':      { label: 'Family',        badge: 'badge-family',      desc: 'View logs and send messages' },
       'support':     { label: 'Support',       badge: 'badge-support',     desc: 'School staff / counselor — read-only' },
       'nearby-help': { label: 'Nearby Help',   badge: 'badge-nearby-help', desc: 'Local friend for emergency alerts' }
@@ -295,7 +294,7 @@
     /* Non-student, non-admin roles get mirror (read-only) view.
        Student = sudo (owns their network).
        Admin = can edit on behalf of a student, but student can always override. */
-    var MIRROR_ROLES = ['support', 'family', 'nearby-help', 'network-lead'];
+    var MIRROR_ROLES = ['support', 'family', 'nearby-help'];
 
     /* ── Wait for AA to be ready, then boot ──────────────── */
     function waitForAA(cb, tries) {
@@ -326,7 +325,7 @@
         AA.getUserDoc(user.uid).then(function(doc) {
           if (!doc.exists) { showError('Your profile isn\'t set up yet — try signing out and back in.'); return; }
           var data = doc.data();
-          isPlatformAdmin = (data.role === 'backstage-manager');
+          isPlatformAdmin = (data.role === 'admin');
 
           /* Show redeem-code panel for everyone except platform admin
              (admin has no need to join a network via invite code).
@@ -392,7 +391,7 @@
 
     /* ── Mirror mode ─────────────────────────────────────── */
     var MIRROR_LABELS = {
-      'backstage-manager': 'Backstage Manager',
+      'admin':       'Platform Admin',
       'support':     'Support Member',
       'family':      'Family Member',
       'nearby-help': 'Nearby Help'

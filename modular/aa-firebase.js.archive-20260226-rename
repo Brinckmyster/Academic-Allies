@@ -1,8 +1,6 @@
 /* ============================================================
    aa-firebase.js — Academic Allies Firebase layer
    Created: 2026-02-18 by Claude
-   Updated: 2026-02-26 by Claude — renamed platform role 'admin'→'backstage-manager',
-            network tier 'admin'→'network-lead' throughout
 
    Load AFTER the Firebase compat CDN scripts:
      firebase-app-compat.js
@@ -24,7 +22,7 @@
     appId:             '1:93996985456:web:c697df7623bbceeb1d18b5'
   };
 
-  /* Emails that get the "backstage-manager" role (can read all students' data) */
+  /* Emails that get the "admin" role (can read all students' data) */
   var ADMIN_EMAILS = ['brinckmyster@gmail.com'];
 
   /* ── Initialize Firebase once ───────────────────────────── */
@@ -129,7 +127,7 @@
      TODO (Play Store launch): Change 'pending' → 'student' in this function
      (see STUDENT-NETWORK-SPEC.md §7 Step 5) so direct downloads auto-become students. */
   function _resolveRoleForNewUser(email) {
-    if (ADMIN_EMAILS.indexOf(email) !== -1) return Promise.resolve('backstage-manager');
+    if (ADMIN_EMAILS.indexOf(email) !== -1) return Promise.resolve('admin');
     return db.collection('users')
       .where('email', '==', email).limit(1).get()
       .then(function (snap) {
@@ -160,9 +158,9 @@
     db.collection('users').doc(user.uid).get().then(function (doc) {
       if (doc.exists) {
         // ── Admin self-heal: if this is an admin email but role got wiped, restore it ──
-        if (ADMIN_EMAILS.indexOf(user.email) !== -1 && doc.data().role !== 'backstage-manager') {
-          console.log('[AA] Backstage-manager role self-heal →', user.email);
-          db.collection('users').doc(user.uid).update({ role: 'backstage-manager' }).catch(function () {});
+        if (ADMIN_EMAILS.indexOf(user.email) !== -1 && doc.data().role !== 'admin') {
+          console.log('[AA] Admin role self-heal →', user.email);
+          db.collection('users').doc(user.uid).update({ role: 'admin' }).catch(function () {});
         }
         // ── 24-hour admin timer: auto self-admin if slot empty >24h ──
         _check24HourAdminTimer(user.uid, doc.data());
@@ -299,7 +297,7 @@
 
   /* ── Support Network helpers ────────────────────────────────
      The support network lives on the STUDENT's own user doc as:
-       supportNetwork: { [memberUid]: 'network-lead' | 'family' | 'support' | 'nearby-help' }
+       supportNetwork: { [memberUid]: 'admin' | 'family' | 'support' | 'nearby-help' }
      The student is always the owner — they control who is in it.
   ────────────────────────────────────────────────────────── */
 
@@ -311,7 +309,7 @@
   /* Add or update a member in a student's support network.
      studentUid  = the student who owns the network
      memberUid   = the person being added
-     tier        = 'network-lead' | 'family' | 'support' | 'nearby-help'  */
+     tier        = 'admin' | 'family' | 'support' | 'nearby-help'  */
   window.AA.setNetworkMember = function (studentUid, memberUid, tier) {
     var update = {};
     update['supportNetwork.' + memberUid] = tier;
@@ -357,10 +355,10 @@
       });
   };
 
-  /* Get all backstage-manager-role users (so students can always message platform admin) */
+  /* Get all admin-role users (so students can always message platform admins) */
   window.AA.getAllAdmins = function () {
     return db.collection('users')
-      .where('role', '==', 'backstage-manager')
+      .where('role', '==', 'admin')
       .get()
       .then(function (snap) {
         return snap.docs.map(function (d) { return { uid: d.id, data: d.data() }; });
@@ -498,10 +496,10 @@
 
   /* Create an invite code for someone to join the student's support network.
      studentUid  — uid of the student creating the invite (caller)
-     role        — 'family' | 'support' | 'nearby-help' | 'network-lead'
+     role        — 'family' | 'support' | 'nearby-help' | 'admin'
      Returns Promise<{ code, expiresAt }>                              */
   window.AA.createInvite = function (studentUid, role) {
-    var validRoles = ['family', 'support', 'nearby-help', 'network-lead'];
+    var validRoles = ['family', 'support', 'nearby-help', 'admin'];
     if (validRoles.indexOf(role) === -1) {
       return Promise.reject(new Error('Invalid role: ' + role));
     }
@@ -619,31 +617,30 @@
     });
   };
 
-  /* ── 24-hour network-lead timer ──────────────────────────────
+  /* ── 24-hour admin timer ─────────────────────────────────────
      On every sign-in, check if the student's supportNetwork has
-     a 'network-lead' slot filled. If not and createdAt > 24 hours ago,
-     add the student as their own network-lead (self-lead state).
+     an 'admin' slot filled. If not and createdAt > 24 hours ago,
+     add the student as their own admin (self-admin state).
      Also fires after revocation — same 24-hour grace period applies.
      Added 2026-02-26 by Claude.
-     Updated 2026-02-26 by Claude — renamed 'admin' tier → 'network-lead'.
   ─────────────────────────────────────────────────────────── */
   function _check24HourAdminTimer(uid, data) {
     /* Only applies to students */
     if (data.role !== 'student') return;
 
-    /* Check if any supportNetwork member holds the 'network-lead' tier */
+    /* Check if any supportNetwork member holds the 'admin' tier */
     var network = data.supportNetwork || {};
     var hasAdmin = Object.keys(network).some(function (memberUid) {
-      return network[memberUid] === 'network-lead';
+      return network[memberUid] === 'admin';
     });
-    if (hasAdmin) return; /* network-lead slot is filled — nothing to do */
+    if (hasAdmin) return; /* admin slot is filled — nothing to do */
 
     /* No admin assigned — check how long it's been */
     var createdAt = data.createdAt && data.createdAt.toDate
       ? data.createdAt.toDate()
       : (data.createdAt ? new Date(data.createdAt) : null);
 
-    /* Also check adminRevokedAt (set when student revokes their network-lead) */
+    /* Also check adminRevokedAt (set when student revokes their admin) */
     var timerStart = data.adminRevokedAt && data.adminRevokedAt.toDate
       ? data.adminRevokedAt.toDate()
       : createdAt;
@@ -656,13 +653,13 @@
       return;
     }
 
-    /* 24 hours passed — assign student as their own network-lead */
-    console.log('[AA] 24h timer expired — assigning self network-lead for', uid);
+    /* 24 hours passed — assign student as their own admin */
+    console.log('[AA] 24h admin timer expired — assigning self-admin for', uid);
     var selfAdminUpdate = {};
-    selfAdminUpdate['supportNetwork.' + uid] = 'network-lead';
+    selfAdminUpdate['supportNetwork.' + uid] = 'admin';
     db.collection('users').doc(uid).update(selfAdminUpdate)
-      .then(function () { console.log('[AA] Self network-lead assigned for', uid); })
-      .catch(function (err) { console.warn('[AA] Self network-lead assign failed:', err); });
+      .then(function () { console.log('[AA] Self-admin assigned for', uid); })
+      .catch(function (err) { console.warn('[AA] Self-admin assign failed:', err); });
   }
 
   console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);
