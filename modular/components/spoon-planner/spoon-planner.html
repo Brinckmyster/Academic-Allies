@@ -492,29 +492,51 @@
     </div>
 
     <script>
+        /* Claude-credit: Firebase sync added 2026-02-26 by Claude */
         // State Management
         let tasks = [];
         let totalSpoons = 10;
         let editingTaskIndex = -1;
         let originalTasks = []; // For cancel functionality
 
-        // Load saved data
+        // Load saved data — localStorage first (fast), then Firebase if signed in
         function loadSavedData() {
             const saved = localStorage.getItem('spoonPlannerTasks');
             if (saved) {
                 originalTasks = JSON.parse(saved);
-                tasks = JSON.parse(JSON.stringify(originalTasks)); // Deep copy
+                tasks = JSON.parse(JSON.stringify(originalTasks));
             }
-
             const savedSpoons = localStorage.getItem('dailySpoons');
-            if (savedSpoons) {
-                totalSpoons = parseInt(savedSpoons);
+            if (savedSpoons) totalSpoons = parseInt(savedSpoons);
+            renderTasks();
+
+            // Then try Firebase — overrides localStorage if data is fresher
+            if (window.AA && AA.auth) {
+                AA.auth.onAuthStateChanged(function(user) {
+                    if (!user) return;
+                    AA.getSpoonPlan(user.uid).then(function(data) {
+                        if (!data) return;
+                        if (data.tasks)       { tasks = data.tasks; originalTasks = JSON.parse(JSON.stringify(tasks)); }
+                        if (data.dailySpoons) { totalSpoons = data.dailySpoons; }
+                        renderTasks();
+                    }).catch(function(err) {
+                        console.warn('[AA] Could not load spoon plan from Firebase:', err.message);
+                    });
+                });
             }
         }
 
-        // Save data
+        // Save data — always localStorage, also Firebase if signed in
         function saveTasks() {
             localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
+            if (window.AA && AA.auth && AA.auth.currentUser) {
+                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
+                    tasks: tasks,
+                    dailySpoons: totalSpoons
+                }).catch(function(err) {
+                    console.warn('[AA] Could not save spoon plan to Firebase:', err.message);
+                });
+            }
         }
 
         // Update spoon counter
@@ -656,6 +678,15 @@
             if (yesterday) {
                 tasks = JSON.parse(yesterday);
                 renderTasks();
+            } else if (window.AA && AA.auth && AA.auth.currentUser) {
+                AA.getSpoonPlan(AA.auth.currentUser.uid).then(function(data) {
+                    if (data && data.yesterdayTasks && data.yesterdayTasks.length > 0) {
+                        tasks = data.yesterdayTasks;
+                        renderTasks();
+                    } else {
+                        alert('No tasks from yesterday to duplicate.');
+                    }
+                });
             } else {
                 alert('No tasks from yesterday to duplicate.');
             }
@@ -704,16 +735,21 @@
         function confirmPlan() {
             // Save to localStorage
             saveTasks();
-            
-            // Save as yesterday for duplication
             localStorage.setItem('yesterdayTasks', JSON.stringify(tasks));
-            
-            // Update the original tasks (so cancel has new baseline)
             originalTasks = JSON.parse(JSON.stringify(tasks));
-            
+
+            // Also save yesterdayTasks to Firebase
+            if (window.AA && AA.auth && AA.auth.currentUser) {
+                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
+                    tasks: tasks,
+                    dailySpoons: totalSpoons,
+                    yesterdayTasks: tasks
+                }).catch(function(err) {
+                    console.warn('[AA] Firebase confirm save failed:', err.message);
+                });
+            }
+
             alert('✅ Plan confirmed! Your tasks are ready in Recovery Mode.');
-            
-            // Return to Recovery Mode
             window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
         }
 
@@ -752,5 +788,11 @@
     </script>
 </body>
 </html>
+    <!-- Firebase compat CDN — for cross-device spoon plan sync -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="/Academic-Allies/modular/aa-firebase.js?v=20260226e"></script>
 <!-- Cache bust #3: 2026-02-18 Bruise - Grok assisted - fixed history expansion -->
 <!-- Cache bust #4: 2026-02-18 Bruise - Grok assisted - cleaned DOCTYPE & remnant -->
+<!-- Cache bust #5: 2026-02-26 Claude - Firebase sync added -->

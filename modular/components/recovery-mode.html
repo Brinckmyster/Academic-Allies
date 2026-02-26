@@ -294,11 +294,8 @@
         <div class="card">
             <h2>✅ Today's Tasks</h2>
             <div id="todo-list">
-                <div class="todo-item">
-                    <input type="checkbox" class="todo-checkbox" onchange="completeTask(0, this.checked)">
-                    <span class="todo-text">Check in with myself</span>
-                    <span class="todo-spoons">1🥄</span>
-                </div>
+                <!-- Populated by loadSpoonPlan() -->
+                <div style="color:#aaa;font-size:15pt;padding:10px 0;">Loading your plan…</div>
             </div>
             <button class="btn" onclick="window.location.href='/Academic-Allies/modular/components/spoon-planner/spoon-planner.html'">📋 Plan My Spoons</button>
         </div>
@@ -820,13 +817,21 @@
                 if (el) el.classList.add('selected');
             }
 
+            // ── Spoon plan: load from localStorage first, then Firebase ──
+            // Claude-credit: spoon plan Firebase sync added 2026-02-26
+            loadSpoonPlan();
+
             // ── Firebase background sync (non-blocking) ──────────
             // Recovery mode works fully without sign-in (localStorage).
             // When signed in, Firebase loads the latest data and keeps
             // it in sync across all of Mary's devices.
             if (window.AA && AA.auth) {
                 AA.auth.onAuthStateChanged(function(user) {
-                    if (!user) return; // not signed in — just use localStorage, no problem
+                    if (!user) {
+                        // Not signed in — load from localStorage only
+                        loadSpoonPlanFromStorage();
+                        return;
+                    }
                     var quizUid = (window.AA_flower_uid ? window.AA_flower_uid(user.uid, user.email) : user.uid);
                     AA.getFlowerQuiz(quizUid).then(function(doc) {
                         if (!doc.exists) return; // first time — nothing to load yet
@@ -866,6 +871,60 @@
                 });
             }
         });
+    </script>
+    <script>
+        // ── Spoon Plan loader — Claude 2026-02-26 ──────────────────────────────
+        // Renders the todo-list from tasks array.
+        // Falls back to a default "Check in with myself" task if no plan exists.
+        function renderTodoList(tasks) {
+            var list = document.getElementById('todo-list');
+            if (!list) return;
+            if (!tasks || tasks.length === 0) {
+                list.innerHTML =
+                    '<div class="todo-item">' +
+                        '<input type="checkbox" class="todo-checkbox" onchange="completeTask(0, this.checked)">' +
+                        '<span class="todo-text">Check in with myself</span>' +
+                        '<span class="todo-spoons">1🥄</span>' +
+                    '</div>';
+                return;
+            }
+            list.innerHTML = tasks.map(function(task, i) {
+                return '<div class="todo-item">' +
+                    '<input type="checkbox" class="todo-checkbox"' +
+                        (task.completed ? ' checked' : '') +
+                        ' onchange="completeTask(' + i + ', this.checked)">' +
+                    '<span class="todo-text">' + (task.name || '') +
+                        (task.time ? ' <span style="font-size:13pt;color:#999;">(' + task.time + ')</span>' : '') +
+                    '</span>' +
+                    '<span class="todo-spoons">' + (task.spoons || 1) + '🥄</span>' +
+                '</div>';
+            }).join('');
+        }
+
+        function loadSpoonPlanFromStorage() {
+            var saved = localStorage.getItem('spoonPlannerTasks');
+            renderTodoList(saved ? JSON.parse(saved) : []);
+        }
+
+        function loadSpoonPlan() {
+            // Show localStorage immediately (fast), Firebase will overwrite if fresher
+            loadSpoonPlanFromStorage();
+
+            if (window.AA && AA.auth) {
+                AA.auth.onAuthStateChanged(function(user) {
+                    if (!user) return;
+                    // Use watchSpoonPlan for live sync across devices
+                    AA.watchSpoonPlan(user.uid, function(data) {
+                        if (data && data.tasks) {
+                            renderTodoList(data.tasks);
+                            // Keep localStorage in sync
+                            localStorage.setItem('spoonPlannerTasks', JSON.stringify(data.tasks));
+                        }
+                    });
+                });
+            }
+        }
+        // ── End Spoon Plan loader ──────────────────────────────────────────────
     </script>
     <script>
         // ── Genus Practice Quiz — 2026-02-25 by Claude ────────────────────────

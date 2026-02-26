@@ -705,5 +705,35 @@
       .catch(function (err) { console.warn('[AA] Self network-lead assign failed:', err); });
   }
 
+  /* ── Spoon Plan ──────────────────────────────────────────────
+     Saves/loads the daily spoon plan so it's available on any
+     device or browser the student signs into.
+     Collection: spoonPlans/{uid}
+     Schema: { tasks[], dailySpoons, yesterdayTasks[], updatedAt }
+     Added 2026-02-26 by Claude.
+  ─────────────────────────────────────────────────────────── */
+  window.AA.saveSpoonPlan = function (uid, data) {
+    return db.collection('spoonPlans').doc(uid).set(
+      Object.assign({}, data, {
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }),
+      { merge: true }
+    );
+  };
+
+  window.AA.getSpoonPlan = function (uid) {
+    return db.collection('spoonPlans').doc(uid).get()
+      .then(function (doc) { return doc.exists ? doc.data() : null; });
+  };
+
+  window.AA.watchSpoonPlan = function (uid, callback) {
+    return db.collection('spoonPlans').doc(uid)
+      .onSnapshot(function (doc) {
+        callback(doc.exists ? doc.data() : null);
+      }, function (err) {
+        console.error('[AA] watchSpoonPlan error:', err);
+      });
+  };
+
   console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);
 })();
