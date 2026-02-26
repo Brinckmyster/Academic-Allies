@@ -619,46 +619,6 @@
     });
   };
 
-  /* ── Student Profile helpers ─────────────────────────────────
-     studentProfile lives on the student's user doc:
-       conditions:     string[]  — condition tags (e.g. 'concussion')
-       notes:          string    — freeform context for the support network
-       activeModules:  map       — which app modules are active for this student
-       checkinPrompts: string[]  — custom daily check-in questions
-       updatedAt, updatedBy, updatedByName — audit trail
-     Write access: student or backstage-manager (via owner/admin rule),
-     OR network-lead (via narrow Firestore rule added 2026-02-26).
-     Added 2026-02-26 by Claude.
-  ─────────────────────────────────────────────────────────── */
-
-  window.AA.saveStudentProfile = function (studentUid, profile) {
-    var user = auth.currentUser;
-    if (!user) return Promise.reject(new Error('Must be signed in'));
-    return db.collection('users').doc(studentUid).update({
-      studentProfile: Object.assign({}, profile, {
-        updatedAt:     firebase.firestore.FieldValue.serverTimestamp(),
-        updatedBy:     user.uid,
-        updatedByName: user.displayName || user.email || 'Unknown'
-      })
-    });
-  };
-
-  window.AA.getStudentProfile = function (studentUid) {
-    return db.collection('users').doc(studentUid).get()
-      .then(function (doc) {
-        return doc.exists ? (doc.data().studentProfile || {}) : {};
-      });
-  };
-
-  window.AA.watchStudentProfile = function (studentUid, callback) {
-    return db.collection('users').doc(studentUid)
-      .onSnapshot(function (doc) {
-        callback(doc.exists ? (doc.data().studentProfile || {}) : {});
-      }, function (err) {
-        console.error('[AA] watchStudentProfile error:', err);
-      });
-  };
-
   /* ── 24-hour network-lead timer ──────────────────────────────
      On every sign-in, check if the student's supportNetwork has
      a 'network-lead' slot filled. If not and createdAt > 24 hours ago,

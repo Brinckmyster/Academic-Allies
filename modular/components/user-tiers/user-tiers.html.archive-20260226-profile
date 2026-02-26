@@ -140,38 +140,6 @@
     #redeem-status.ok  { color: #10b981; }
     #redeem-status.err { color: #c0392b; }
 
-    /* ── Student Profile Panel ── Added 2026-02-26 by Claude ── */
-    #profile-section { margin-top: 20px; }
-    .profile-panel { background: #fff; border: 1px solid #e1e5e9; border-radius: 10px; padding: 18px 20px; }
-    .profile-panel h3 { margin: 0 0 16px; font-size: 1rem; color: #4a7f82; }
-    .profile-block { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid #f0f0f0; }
-    .profile-block:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-    .profile-label { display: block; font-weight: 600; font-size: 0.85rem; color: #666; margin-bottom: 8px; }
-    .profile-empty { color: #aaa; font-size: 0.88rem; font-style: italic; }
-    /* Condition tags */
-    .p-tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
-      background: #e8f2f3; color: #4a7f82; border-radius: 20px; font-size: 0.82rem; font-weight: 600; margin: 3px; }
-    .p-tag .p-tag-x { cursor: pointer; margin-left: 2px; }
-    .p-tag.sugg { background: #f8f9fa; color: #888; cursor: pointer; border: 1px dashed #ccc; }
-    .p-tag.sugg:hover { background: #e8f2f3; color: #4a7f82; border-color: #4a7f82; }
-    /* Module toggles */
-    .mod-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-    .mod-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px;
-      border: 1px solid #e1e5e9; border-radius: 8px; font-size: 0.85rem; cursor: pointer;
-      user-select: none; transition: all 0.15s; }
-    .mod-chip.on  { background: #e8f2f3; border-color: #4a7f82; color: #4a7f82; font-weight: 600; }
-    .mod-chip.off { background: #f8f9fa; color: #aaa; }
-    .mod-badge    { padding: 3px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; margin: 2px; }
-    .mod-badge.on { background: #e8f2f3; color: #4a7f82; }
-    .mod-badge.off{ background: #f0f0f0; color: #aaa; text-decoration: line-through; }
-    /* Prompt list */
-    .prompt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .prompt-row input { flex: 1; padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
-    .prompt-row .btn-px { padding: 5px 10px; background: #fff; color: #c0392b; border: 1px solid #e0b4b4; border-radius: 6px; font-size: 12px; cursor: pointer; }
-    /* Notes textarea */
-    #profile-notes-edit { width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid #ccc;
-      border-radius: 6px; font-size: 14px; min-height: 80px; font-family: inherit; resize: vertical; }
-
     /* Pending invites list */
     #pending-section { margin-top: 16px; display: none; }
     #pending-section h3 { margin: 0 0 10px; font-size: 0.95rem; color: #888; }
@@ -290,72 +258,6 @@
       </div>
     </div>
 
-    <!-- Student Profile Panel — Added 2026-02-26 by Claude
-         Shown after network cards for student, network-lead, and backstage-manager.
-         Network Lead can edit via narrow Firestore rule. Others read-only. -->
-    <div id="profile-section" style="display:none;">
-      <div class="profile-panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <h3 style="margin:0;">📋 Student Profile</h3>
-          <div id="profile-header-btns">
-            <button id="profile-edit-btn" onclick="enableProfileEdit()"
-              style="display:none;padding:5px 14px;background:#fff;color:#4a7f82;border:1px solid #b2d4d7;border-radius:6px;font-size:13px;cursor:pointer;">✏️ Edit Profile</button>
-            <span id="profile-save-btns" style="display:none;gap:8px;">
-              <button onclick="saveProfile()" class="btn-save">Save</button>
-              <button onclick="cancelProfileEdit()"
-                style="padding:5px 12px;background:#fff;color:#888;border:1px solid #ddd;border-radius:6px;font-size:13px;cursor:pointer;">Cancel</button>
-            </span>
-          </div>
-        </div>
-
-        <!-- Conditions -->
-        <div class="profile-block">
-          <label class="profile-label">🏷️ Conditions / Context</label>
-          <div id="profile-cond-view"></div>
-          <div id="profile-cond-edit" style="display:none;">
-            <div id="profile-tag-list"></div>
-            <div style="display:flex;gap:8px;margin-top:8px;">
-              <input id="profile-tag-input" type="text" placeholder="Type a condition and press Add"
-                style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;"
-                onkeydown="if(event.key==='Enter')addConditionTag()">
-              <button onclick="addConditionTag()"
-                style="padding:6px 14px;background:#4a7f82;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">+ Add</button>
-            </div>
-            <div id="profile-tag-suggestions" style="margin-top:10px;"></div>
-          </div>
-        </div>
-
-        <!-- Notes -->
-        <div class="profile-block">
-          <label class="profile-label">📝 Notes for Support Network</label>
-          <div id="profile-notes-view"></div>
-          <textarea id="profile-notes-edit" style="display:none;"
-            placeholder="Context about this student's needs, current situation, what the support network should know…"></textarea>
-        </div>
-
-        <!-- Active Modules -->
-        <div class="profile-block">
-          <label class="profile-label">🧩 Active App Modules</label>
-          <div id="profile-mods-view" class="mod-grid"></div>
-          <div id="profile-mods-edit" class="mod-grid" style="display:none;"></div>
-        </div>
-
-        <!-- Custom Check-in Prompts -->
-        <div class="profile-block">
-          <label class="profile-label">✏️ Custom Check-in Prompts</label>
-          <div id="profile-prompts-view"></div>
-          <div id="profile-prompts-edit" style="display:none;">
-            <div id="profile-prompt-list"></div>
-            <button onclick="addPrompt()"
-              style="margin-top:8px;padding:6px 14px;background:#fff;color:#4a7f82;border:1px solid #b2d4d7;border-radius:6px;font-size:13px;cursor:pointer;">+ Add Prompt</button>
-          </div>
-        </div>
-
-        <div id="profile-status" style="font-size:0.85rem;min-height:18px;margin-top:4px;"></div>
-        <div id="profile-updated-by" style="font-size:0.75rem;color:#aaa;margin-top:4px;"></div>
-      </div>
-    </div>
-
   </div>
 
   <!-- Load shared header -->
@@ -386,16 +288,14 @@
     /* Which student's network we're currently viewing/editing */
     var currentStudentUid  = null;
     var currentStudentName = null;
-    var isPlatformAdmin       = false;
-    var isMirrorMode          = false;   // true when viewing someone else's network read-only
-    var isNetworkLeadMode     = false;   // true when network-lead is viewing their student
-    var isViewingOtherStudent = false;   // true when a student is mirroring another student
+    var isPlatformAdmin    = false;
+    var isMirrorMode       = false;   // true when viewing someone else's network read-only
+    var isViewingOtherStudent = false; // true when a student is mirroring another student
 
     /* Non-student, non-admin roles get mirror (read-only) view.
-       network-lead is handled separately (can edit studentProfile).
        Student = sudo (owns their network).
        Admin = can edit on behalf of a student, but student can always override. */
-    var MIRROR_ROLES = ['support', 'family', 'nearby-help'];
+    var MIRROR_ROLES = ['support', 'family', 'nearby-help', 'network-lead'];
 
     /* ── Wait for AA to be ready, then boot ──────────────── */
     function waitForAA(cb, tries) {
@@ -481,15 +381,8 @@
             activateAdminEditBanner(data.displayName || user.displayName || 'You');
             document.getElementById('loading-msg').style.display = 'none';
 
-          } else if (data.role === 'network-lead') {
-            /* Network Lead → mirror for network cards, but CAN edit student profile.
-               Added 2026-02-26 by Claude */
-            isMirrorMode      = true;
-            isNetworkLeadMode = true;
-            activateNetworkLeadMode(data.displayName || user.displayName || 'You');
-
           } else if (MIRROR_ROLES.indexOf(data.role) !== -1) {
-            /* Support / Family / Nearby Help → pure read-only mirror */
+            /* Support / Family / Nearby Help → mirror mode, auto-find their student */
             isMirrorMode = true;
             activateMirrorMode(data.role, data.displayName || user.displayName || 'You');
           }
@@ -500,10 +393,9 @@
     /* ── Mirror mode ─────────────────────────────────────── */
     var MIRROR_LABELS = {
       'backstage-manager': 'Backstage Manager',
-      'network-lead': 'Network Lead',
-      'support':      'Support Member',
-      'family':       'Family Member',
-      'nearby-help':  'Nearby Help'
+      'support':     'Support Member',
+      'family':      'Family Member',
+      'nearby-help': 'Nearby Help'
     };
 
     /* Admin edit mode banner — admin can edit on behalf of student */
@@ -533,53 +425,6 @@
         'You\'re signed in as ' + esc(name) + ' (' + label + ')';
       document.getElementById('mirror-desc').textContent =
         'Students own their support networks. You can view any network but cannot add, remove, or change roles.';
-    }
-
-    /* Network Lead mode: mirror for network cards, profile edit enabled.
-       Added 2026-02-26 by Claude */
-    function activateNetworkLeadMode(name) {
-      /* Distinct green banner — different from purple mirror */
-      document.querySelector('.page-wrap').classList.add('mirror-mode');
-      document.getElementById('page-title').textContent = '🌟 Network Lead View';
-      document.getElementById('page-sub').textContent   =
-        'You can view the support network and edit the student profile. The student controls who is in the network.';
-      var banner = document.getElementById('mirror-banner');
-      banner.style.background   = 'linear-gradient(135deg,#e6f4ea 0%,#f0faf2 100%)';
-      banner.style.borderColor  = '#6abf7b';
-      banner.style.display      = 'block';
-      document.getElementById('mirror-title').style.color = '#2d6a4f';
-      document.getElementById('mirror-desc').style.color  = '#40916c';
-      document.getElementById('mirror-title').textContent = '🌟 Network Lead — ' + esc(name);
-      document.getElementById('mirror-desc').textContent  =
-        'You can read the support network and edit this student\'s profile ' +
-        '(conditions, active modules, check-in prompts). ' +
-        'The student owns the network — they control who is in it.';
-
-      document.getElementById('loading-msg').textContent = 'Finding your student…';
-
-      AA.db.collection('users').get().then(function (snap) {
-        var uid   = AA.auth.currentUser.uid;
-        var found = [];
-        snap.forEach(function (doc) {
-          var d = doc.data();
-          if (d.supportNetwork && d.supportNetwork[uid] === 'network-lead') {
-            found.push({ uid: doc.id, data: d });
-          }
-        });
-
-        if (found.length === 0) {
-          document.getElementById('loading-msg').textContent =
-            'You\'re not yet the Network Lead for any student. Ask the student to invite you via the invite code system.';
-          return;
-        }
-
-        document.getElementById('loading-msg').style.display = 'none';
-        found.forEach(function (s) {
-          loadNetwork(s.uid, s.data.displayName || s.data.email);
-        });
-      }).catch(function (err) {
-        showError('Could not load your student\'s network: ' + err.message);
-      });
     }
 
     /* Full mirror mode: show banner + auto-find which student(s) this person belongs to */
@@ -750,12 +595,6 @@
       var isOwnNetworkEdit = !isMirrorMode && studentUid === AA.auth.currentUser.uid;
       inviteSection.style.display = isOwnNetworkEdit ? 'block' : 'none';
       if (isOwnNetworkEdit) { loadPendingInvites(); }
-
-      /* Profile panel: visible to student, network-lead, and backstage-manager.
-         Editable by student + network-lead + backstage-manager; read-only for others.
-         Added 2026-02-26 by Claude */
-      var canEditProfile = !isMirrorMode || isNetworkLeadMode || isPlatformAdmin;
-      loadProfilePanel(studentUid, canEditProfile);
     }
 
     /* Update the badge color live when tier dropdown changes */
@@ -1082,261 +921,6 @@
       }).catch(function(err) {
         alert('Could not revoke invite: ' + err.message);
       });
-    }
-
-    /* ── Student Profile Panel ─────────────────────────────────────────
-       Added 2026-02-26 by Claude
-    ──────────────────────────────────────────────────────────────────── */
-    var _profileData      = {};
-    var _profileCanEdit   = false;
-    var _currentConditions = [];
-    var _currentPrompts    = [];
-
-    var DEFAULT_MODULES = {
-      spoonPal: { label: 'SpoonPal',    icon: '🥄' },
-      mealPlan: { label: 'Meal Plan',   icon: '🍽️' },
-      checkin:  { label: 'Check-ins',   icon: '📋' },
-      nope:     { label: 'NOPE Mode',   icon: '🛑' },
-      calendar: { label: 'Calendar',    icon: '📅' }
-    };
-
-    var CONDITION_SUGGESTIONS = [
-      'ADHD', 'anxiety', 'autism', 'chronic fatigue', 'chronic pain',
-      'concussion', 'depression', 'dysautonomia', 'EDS', 'fibromyalgia',
-      'gastroparesis', 'IBS', 'migraines', 'POTS', 'PTSD'
-    ];
-
-    function loadProfilePanel(studentUid, canEdit) {
-      _profileCanEdit = canEdit;
-      var section = document.getElementById('profile-section');
-      if (!section) return;
-      section.style.display = 'block';
-
-      AA.getStudentProfile(studentUid).then(function (profile) {
-        _profileData = profile || {};
-        renderProfileView();
-        var editBtn = document.getElementById('profile-edit-btn');
-        if (editBtn) editBtn.style.display = canEdit ? 'inline-block' : 'none';
-      }).catch(function (err) {
-        console.warn('[AA] Could not load student profile:', err.message);
-      });
-    }
-
-    function renderProfileView() {
-      var p = _profileData || {};
-
-      /* Conditions */
-      var cv = document.getElementById('profile-cond-view');
-      if (cv) {
-        var conds = p.conditions || [];
-        cv.innerHTML = conds.length === 0
-          ? '<span class="profile-empty">No conditions listed yet.</span>'
-          : conds.map(function (c) {
-              return '<span class="p-tag">' + esc(c) + '</span>';
-            }).join('');
-      }
-
-      /* Notes */
-      var nv = document.getElementById('profile-notes-view');
-      if (nv) {
-        var notes = p.notes || '';
-        nv.style.cssText = 'font-size:0.9rem;color:' + (notes ? '#555' : '#aaa') + ';line-height:1.5;white-space:pre-wrap;';
-        nv.textContent = notes || 'No notes yet.';
-      }
-
-      /* Modules */
-      var mv = document.getElementById('profile-mods-view');
-      if (mv) {
-        var mods = p.activeModules || {};
-        mv.innerHTML = Object.keys(DEFAULT_MODULES).map(function (k) {
-          var on = mods[k] !== false; /* default ON */
-          return '<span class="mod-badge ' + (on ? 'on' : 'off') + '">' +
-            DEFAULT_MODULES[k].icon + ' ' + DEFAULT_MODULES[k].label + '</span>';
-        }).join('');
-      }
-
-      /* Prompts */
-      var pv = document.getElementById('profile-prompts-view');
-      if (pv) {
-        var prompts = p.checkinPrompts || [];
-        pv.innerHTML = prompts.length === 0
-          ? '<span class="profile-empty">Using default check-in prompts.</span>'
-          : '<ol style="margin:0;padding-left:20px;font-size:0.9rem;color:#555;">' +
-              prompts.map(function (pr) { return '<li style="margin-bottom:4px;">' + esc(pr) + '</li>'; }).join('') +
-            '</ol>';
-      }
-
-      /* Updated-by stamp */
-      var ub = document.getElementById('profile-updated-by');
-      if (ub && p.updatedByName) {
-        var when = p.updatedAt && p.updatedAt.toDate
-          ? p.updatedAt.toDate().toLocaleDateString() : '';
-        ub.textContent = 'Last updated by ' + p.updatedByName + (when ? ' · ' + when : '');
-      }
-    }
-
-    function enableProfileEdit() {
-      if (!_profileCanEdit) return;
-      var p = _profileData || {};
-
-      /* Switch view → edit */
-      document.getElementById('profile-cond-view').style.display   = 'none';
-      document.getElementById('profile-cond-edit').style.display   = 'block';
-      document.getElementById('profile-notes-view').style.display  = 'none';
-      document.getElementById('profile-notes-edit').style.display  = 'block';
-      document.getElementById('profile-mods-view').style.display   = 'none';
-      document.getElementById('profile-mods-edit').style.display   = 'flex';
-      document.getElementById('profile-prompts-view').style.display = 'none';
-      document.getElementById('profile-prompts-edit').style.display = 'block';
-      document.getElementById('profile-edit-btn').style.display    = 'none';
-      document.getElementById('profile-save-btns').style.display   = 'inline-flex';
-
-      /* Populate conditions */
-      _currentConditions = (p.conditions || []).slice();
-      renderConditionTags();
-      renderConditionSuggestions();
-
-      /* Populate notes */
-      var ne = document.getElementById('profile-notes-edit');
-      if (ne) ne.value = p.notes || '';
-
-      /* Populate modules */
-      var me = document.getElementById('profile-mods-edit');
-      var mods = p.activeModules || {};
-      if (me) {
-        me.innerHTML = Object.keys(DEFAULT_MODULES).map(function (k) {
-          var on = mods[k] !== false;
-          return '<div class="mod-chip ' + (on ? 'on' : 'off') + '" id="mod-' + k + '" ' +
-            'onclick="toggleModule(\'' + k + '\')">' +
-            DEFAULT_MODULES[k].icon + ' ' + DEFAULT_MODULES[k].label + '</div>';
-        }).join('');
-      }
-
-      /* Populate prompts */
-      _currentPrompts = (p.checkinPrompts || []).slice();
-      renderPromptList();
-    }
-
-    function cancelProfileEdit() {
-      document.getElementById('profile-cond-view').style.display   = 'block';
-      document.getElementById('profile-cond-edit').style.display   = 'none';
-      document.getElementById('profile-notes-view').style.display  = 'block';
-      document.getElementById('profile-notes-edit').style.display  = 'none';
-      document.getElementById('profile-mods-view').style.display   = 'flex';
-      document.getElementById('profile-mods-edit').style.display   = 'none';
-      document.getElementById('profile-prompts-view').style.display = 'block';
-      document.getElementById('profile-prompts-edit').style.display = 'none';
-      document.getElementById('profile-edit-btn').style.display    = 'inline-block';
-      document.getElementById('profile-save-btns').style.display   = 'none';
-    }
-
-    function saveProfile() {
-      if (!currentStudentUid) { alert('No student selected.'); return; }
-      /* Gather modules state */
-      var activeModules = {};
-      Object.keys(DEFAULT_MODULES).forEach(function (k) {
-        var el = document.getElementById('mod-' + k);
-        activeModules[k] = el ? el.classList.contains('on') : true;
-      });
-      /* Filter blank prompts */
-      var prompts = _currentPrompts.filter(function (pr) { return pr.trim(); });
-      var notes   = (document.getElementById('profile-notes-edit').value || '').trim();
-
-      var profile = {
-        conditions:     _currentConditions,
-        notes:          notes,
-        activeModules:  activeModules,
-        checkinPrompts: prompts
-      };
-
-      var statusEl = document.getElementById('profile-status');
-      if (statusEl) { statusEl.style.color = '#888'; statusEl.textContent = 'Saving…'; }
-
-      AA.saveStudentProfile(currentStudentUid, profile).then(function () {
-        _profileData = profile;
-        cancelProfileEdit();
-        renderProfileView();
-        if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Profile saved!'; }
-        setTimeout(function () { if (statusEl) statusEl.textContent = ''; }, 3000);
-      }).catch(function (err) {
-        if (statusEl) { statusEl.style.color = '#c0392b'; statusEl.textContent = '❌ ' + err.message; }
-      });
-    }
-
-    /* Condition tag helpers */
-    function renderConditionTags() {
-      var list = document.getElementById('profile-tag-list');
-      if (!list) return;
-      list.innerHTML = _currentConditions.map(function (c, i) {
-        return '<span class="p-tag">' + esc(c) +
-          ' <span class="p-tag-x" onclick="removeConditionTag(' + i + ')">×</span></span>';
-      }).join('');
-    }
-
-    function renderConditionSuggestions() {
-      var sugg = document.getElementById('profile-tag-suggestions');
-      if (!sugg) return;
-      sugg.innerHTML = CONDITION_SUGGESTIONS
-        .filter(function (s) { return _currentConditions.indexOf(s) === -1; })
-        .map(function (s) {
-          return '<span class="p-tag sugg" onclick="addConditionTagVal(\'' + esc(s) + '\')">' + esc(s) + '</span>';
-        }).join('');
-    }
-
-    function addConditionTag() {
-      var inp = document.getElementById('profile-tag-input');
-      if (!inp || !inp.value.trim()) return;
-      addConditionTagVal(inp.value.trim());
-      inp.value = '';
-    }
-
-    function addConditionTagVal(val) {
-      if (!val || _currentConditions.indexOf(val) !== -1) return;
-      _currentConditions.push(val);
-      renderConditionTags();
-      renderConditionSuggestions();
-    }
-
-    function removeConditionTag(i) {
-      _currentConditions.splice(i, 1);
-      renderConditionTags();
-      renderConditionSuggestions();
-    }
-
-    /* Module toggle */
-    function toggleModule(key) {
-      var el = document.getElementById('mod-' + key);
-      if (!el) return;
-      el.classList.toggle('on');
-      el.classList.toggle('off');
-    }
-
-    /* Prompt list helpers */
-    function addPrompt() {
-      _currentPrompts.push('');
-      renderPromptList();
-      setTimeout(function () {
-        var inputs = document.querySelectorAll('.prompt-row input');
-        if (inputs.length) inputs[inputs.length - 1].focus();
-      }, 50);
-    }
-
-    function removePrompt(i) {
-      _currentPrompts.splice(i, 1);
-      renderPromptList();
-    }
-
-    function renderPromptList() {
-      var list = document.getElementById('profile-prompt-list');
-      if (!list) return;
-      list.innerHTML = _currentPrompts.map(function (pr, i) {
-        return '<div class="prompt-row">' +
-          '<input type="text" value="' + esc(pr) + '" ' +
-            'placeholder="e.g. How is your head pain today? (1-10)" ' +
-            'oninput="_currentPrompts[' + i + ']=this.value">' +
-          '<button class="btn-px" onclick="removePrompt(' + i + ')">×</button>' +
-        '</div>';
-      }).join('');
     }
 
     /* Boot when AA is ready */
