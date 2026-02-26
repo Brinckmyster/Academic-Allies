@@ -118,23 +118,29 @@
   }
 
   /* Resolve role for a brand-new user doc.
-     Priority: admin email → existing Firestore doc with same email → 'student'.
+     Priority: admin email → existing Firestore doc with same email → 'pending'.
      If another UID already holds this email (duplicate account), inherit its role
      so the user doesn't silently lose a non-student assignment.
-     Added 2026-02-21 by Claude. */
+     Updated 2026-02-26 by Claude — default changed from 'student' to 'pending'
+     so unknown sign-ins (mom, random person, duplicate account) are blocked
+     immediately and must be approved by an admin before getting access. */
   function _resolveRoleForNewUser(email) {
     if (ADMIN_EMAILS.indexOf(email) !== -1) return Promise.resolve('admin');
     return db.collection('users')
       .where('email', '==', email).limit(1).get()
       .then(function (snap) {
         if (!snap.empty) {
-          var inherited = snap.docs[0].data().role || 'student';
+          /* Same email, different UID — inherit the existing role so a
+             duplicate account doesn't silently become pending/student */
+          var inherited = snap.docs[0].data().role || 'pending';
           console.log('[AA] Inheriting role from existing user doc:', email, '→', inherited);
           return inherited;
         }
-        return 'student';
+        /* Completely unknown email → pending until admin approves */
+        console.log('[AA] Unknown email — assigning pending role:', email);
+        return 'pending';
       })
-      .catch(function () { return 'student'; });
+      .catch(function () { return 'pending'; });
   }
 
   /* Create user profile on first sign-in.

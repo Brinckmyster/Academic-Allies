@@ -123,6 +123,41 @@ Your disability accommodations and support network">Your disability accommodatio
         });
       }
 
+      /* ── Access-denied overlay for pending/archived accounts ──
+         Updated: 2026-02-26 by Claude */
+      function _showAccessDenied(reason) {
+        /* Reset sign-in button, hide everything else */
+        if (signinBtn)  { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
+        if (infoWrap)   infoWrap.style.display   = 'none';
+        if (signoutBtn) signoutBtn.style.display  = 'none';
+        if (adminBtn)   adminBtn.style.display    = 'none';
+
+        var msgs = {
+          pending:  '⏳ <strong>Access pending.</strong> Your account is awaiting role assignment. Contact <a href="mailto:brinckmyster@gmail.com">brinckmyster@gmail.com</a> if you think this is an error.',
+          archived: '🔒 <strong>Account archived.</strong> This account is no longer active. Contact your support team for help.'
+        };
+
+        /* Remove any existing message first */
+        var old = document.getElementById('aa-access-msg');
+        if (old) old.parentNode.removeChild(old);
+
+        var el = document.createElement('div');
+        el.id = 'aa-access-msg';
+        el.style.cssText = [
+          'position:fixed;top:70px;right:8px;z-index:1001',
+          'background:#fff3cd;border:2px solid #ffc107;border-radius:8px',
+          'padding:12px 16px;max-width:280px;font-size:13px;color:#856404',
+          'box-shadow:0 2px 8px rgba(0,0,0,.15);line-height:1.5'
+        ].join(';');
+        el.innerHTML = msgs[reason] || msgs.pending;
+        document.body.appendChild(el);
+
+        /* Auto-dismiss after 12 seconds */
+        setTimeout(function () {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }, 12000);
+      }
+
       /* React to every auth state change */
       window.AA.auth.onAuthStateChanged(function (user) {
         if (!user) {
@@ -138,7 +173,20 @@ Your disability accommodations and support network">Your disability accommodatio
         window.AA.db.collection('users').doc(user.uid).get()
           .then(function (doc) {
             var data    = doc.exists ? doc.data() : {};
-            var role    = data.role || 'student';
+            var role    = data.role || 'pending';
+
+            /* ── Archived account: sign out immediately ── */
+            if (data.archived === true) {
+              window.AA.signOut().then(function () { _showAccessDenied('archived'); });
+              return;
+            }
+
+            /* ── Pending account: sign out, show waiting message ── */
+            if (role === 'pending') {
+              window.AA.signOut().then(function () { _showAccessDenied('pending'); });
+              return;
+            }
+
             var isAdmin = (role === 'admin');
             var first   = (user.displayName || user.email || '').split(' ')[0];
 
@@ -171,7 +219,9 @@ Your disability accommodations and support network">Your disability accommodatio
             } catch (e) {}
           })
           .catch(function () {
-            /* Firestore unavailable — show name, student icon as fallback */
+            /* Firestore unavailable — show name, student icon as fallback.
+               Only reached for users who were already authenticated; truly
+               new unknown users will have been caught and signed out above. */
             var first = (user.displayName || user.email || '').split(' ')[0];
             if (signinBtn)  signinBtn.style.display  = 'none';
             if (infoWrap)   infoWrap.style.display   = 'flex';
