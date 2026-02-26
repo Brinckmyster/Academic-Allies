@@ -158,103 +158,6 @@ Your disability accommodations and support network">Your disability accommodatio
         }, 12000);
       }
 
-      /* ── Invite code redemption modal — shown for 'pending' new users ──────────
-         Added 2026-02-26 by Claude
-         Instead of immediately signing the user out, we offer them the chance to
-         redeem an invite code that a student shared with them. If they redeem
-         successfully their role is set and the page reloads. If they skip (or the
-         code fails) we fall through to the normal sign-out + access-denied flow.
-      ──────────────────────────────────────────────────────────────────────────── */
-      function _showInviteCodeModal(user) {
-        /* Remove any stale modal */
-        var old = document.getElementById('aa-invite-modal');
-        if (old) old.parentNode.removeChild(old);
-
-        var modal = document.createElement('div');
-        modal.id = 'aa-invite-modal';
-        modal.style.cssText = [
-          'position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center',
-          'background:rgba(0,0,0,0.55);backdrop-filter:blur(4px)'
-        ].join(';');
-
-        modal.innerHTML = [
-          '<div style="background:#fff;border-radius:16px;padding:32px 28px;max-width:400px;width:90%;',
-                        'box-shadow:0 8px 40px rgba(0,0,0,.25);text-align:center;font-family:Atkinson Hyperlegible,Arial,sans-serif;">',
-            '<div style="font-size:2.5rem;margin-bottom:12px;">👋</div>',
-            '<h2 style="margin:0 0 8px;font-size:1.3rem;color:#4a7f82;">Welcome to Academic Allies!</h2>',
-            '<p style="margin:0 0 20px;font-size:0.92rem;color:#666;line-height:1.5;">',
-              'If a student sent you an invite code, enter it below to join their support network.',
-            '</p>',
-            '<input id="aa-invite-input" type="text" maxlength="8" autocomplete="off" spellcheck="false"',
-                   'placeholder="e.g. XK9P2M"',
-                   'oninput="this.value=this.value.toUpperCase().replace(/[^A-Z2-9]/g,\'\')"',
-                   'onkeydown="if(event.key===\'Enter\')_redeemInviteCode()"',
-                   'style="width:100%;box-sizing:border-box;padding:12px 14px;border:2px solid #b2d4d7;',
-                          'border-radius:8px;font-size:1.5rem;font-family:Courier New,monospace;font-weight:700;',
-                          'text-align:center;letter-spacing:0.15em;color:#4a7f82;margin-bottom:8px;">',
-            '<div id="aa-invite-status" style="min-height:20px;font-size:0.85rem;margin-bottom:14px;"></div>',
-            '<button onclick="_redeemInviteCode()"',
-                    'style="width:100%;padding:11px;background:#6366f1;color:#fff;border:none;border-radius:8px;',
-                           'font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:10px;">',
-              'Redeem Code',
-            '</button>',
-            '<button onclick="_skipInviteCode()"',
-                    'style="width:100%;padding:9px;background:#fff;color:#888;border:1px solid #ddd;',
-                           'border-radius:8px;font-size:0.9rem;cursor:pointer;">',
-              'I don\'t have a code',
-            '</button>',
-          '</div>'
-        ].join('');
-        document.body.appendChild(modal);
-
-        /* Focus the input right away */
-        setTimeout(function () {
-          var inp = document.getElementById('aa-invite-input');
-          if (inp) inp.focus();
-        }, 100);
-      }
-
-      /* Called when user clicks "Redeem Code" */
-      window._redeemInviteCode = function () {
-        var inp    = document.getElementById('aa-invite-input');
-        var status = document.getElementById('aa-invite-status');
-        if (!inp || !status) return;
-        var code = (inp.value || '').trim().toUpperCase();
-        if (!code || code.length < 6) {
-          status.style.color = '#c0392b';
-          status.textContent = 'Please enter a 6-character code.';
-          return;
-        }
-        status.style.color = '#888';
-        status.textContent = 'Checking code…';
-        inp.disabled = true;
-        window.AA.redeemInvite(code).then(function () {
-          status.style.color = '#10b981';
-          status.textContent = '✅ Code accepted! Loading your account…';
-          setTimeout(function () { window.location.reload(); }, 800);
-        }).catch(function (err) {
-          inp.disabled = false;
-          status.style.color = '#c0392b';
-          var msg = err.message || '';
-          if (msg.indexOf('not found') !== -1 || msg.indexOf('No invite') !== -1) {
-            status.textContent = '❌ Code not found. Double-check and try again.';
-          } else if (msg.indexOf('expired') !== -1) {
-            status.textContent = '❌ That code has expired. Ask the student to send a new one.';
-          } else if (msg.indexOf('already been used') !== -1) {
-            status.textContent = '❌ That code has already been used.';
-          } else {
-            status.textContent = '❌ ' + msg;
-          }
-        });
-      };
-
-      /* Called when user clicks "I don't have a code" */
-      window._skipInviteCode = function () {
-        var modal = document.getElementById('aa-invite-modal');
-        if (modal) modal.parentNode.removeChild(modal);
-        window.AA.signOut().then(function () { _showAccessDenied('pending'); });
-      };
-
       /* React to every auth state change */
       window.AA.auth.onAuthStateChanged(function (user) {
         if (!user) {
@@ -278,10 +181,9 @@ Your disability accommodations and support network">Your disability accommodatio
               return;
             }
 
-            /* ── Pending account: offer invite code redemption before signing out ──
-               Added 2026-02-26 by Claude — replaces immediate sign-out with modal prompt */
+            /* ── Pending account: sign out, show waiting message ── */
             if (role === 'pending') {
-              _showInviteCodeModal(user);
+              window.AA.signOut().then(function () { _showAccessDenied('pending'); });
               return;
             }
 

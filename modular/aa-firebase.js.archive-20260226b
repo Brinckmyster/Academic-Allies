@@ -121,11 +121,9 @@
      Priority: admin email → existing Firestore doc with same email → 'pending'.
      If another UID already holds this email (duplicate account), inherit its role
      so the user doesn't silently lose a non-student assignment.
-     Updated 2026-02-26 by Claude — default is 'pending' for the current private
-     development phase (Mary only). The shared-header invite code modal intercepts
-     pending sign-ins and offers invite code redemption before signing them out.
-     TODO (Play Store launch): Change 'pending' → 'student' in this function
-     (see STUDENT-NETWORK-SPEC.md §7 Step 5) so direct downloads auto-become students. */
+     Updated 2026-02-26 by Claude — default changed from 'student' to 'pending'
+     so unknown sign-ins (mom, random person, duplicate account) are blocked
+     immediately and must be approved by an admin before getting access. */
   function _resolveRoleForNewUser(email) {
     if (ADMIN_EMAILS.indexOf(email) !== -1) return Promise.resolve('admin');
     return db.collection('users')
@@ -138,8 +136,7 @@
           console.log('[AA] Inheriting role from existing user doc:', email, '→', inherited);
           return inherited;
         }
-        /* Unknown email → pending (dev phase). Invite code modal handles redemption.
-           Change to 'student' at Play Store launch (STUDENT-NETWORK-SPEC §7 Step 5). */
+        /* Completely unknown email → pending until admin approves */
         console.log('[AA] Unknown email — assigning pending role:', email);
         return 'pending';
       })

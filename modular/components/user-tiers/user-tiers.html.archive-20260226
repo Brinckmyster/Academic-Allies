@@ -75,38 +75,6 @@
 
     /* State messages */
     #loading-msg, #signin-msg { text-align: center; padding: 40px; color: #aaa; font-size: 1rem; }
-
-    /* ── Invite generator (student-only) ── Added 2026-02-26 by Claude ── */
-    #invite-section { margin-top: 16px; }
-    .invite-panel { background: #fff; border: 1px solid #e1e5e9; border-radius: 10px; padding: 18px 20px; }
-    .invite-panel h3 { margin: 0 0 14px; font-size: 1rem; color: #4a7f82; }
-    .invite-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .invite-row select { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: #fff; }
-    .invite-row button { padding: 8px 18px; background: #6366f1; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 600; }
-    .invite-row button:hover { background: #4f46e5; }
-    #invite-result { margin-top: 14px; display: none; }
-    .code-display {
-      font-family: 'Courier New', monospace; font-size: 2rem; font-weight: 700;
-      letter-spacing: 0.18em; color: #4a7f82;
-      background: #f0f8f8; border: 2px dashed #b2d4d7; border-radius: 8px;
-      padding: 12px 20px; display: inline-block; margin-bottom: 10px;
-    }
-    .code-meta { font-size: 0.85rem; color: #888; margin-bottom: 10px; }
-    .btn-copy { padding: 7px 16px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600; margin-right: 8px; }
-    .btn-copy:hover { background: #059669; }
-
-    /* Pending invites list */
-    #pending-section { margin-top: 16px; display: none; }
-    #pending-section h3 { margin: 0 0 10px; font-size: 0.95rem; color: #888; }
-    .pending-card {
-      background: #fff; border: 1px solid #e1e5e9; border-radius: 8px;
-      padding: 12px 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
-    }
-    .pending-code { font-family: 'Courier New', monospace; font-size: 1.2rem; font-weight: 700; letter-spacing: 0.12em; color: #6366f1; flex-shrink: 0; }
-    .pending-info { flex: 1; font-size: 0.85rem; color: #888; }
-    .pending-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; color: #fff; margin-right: 6px; }
-    .btn-revoke { padding: 5px 12px; background: #fff; color: #c0392b; border: 1px solid #e0b4b4; border-radius: 6px; font-size: 12px; cursor: pointer; flex-shrink: 0; }
-    .btn-revoke:hover { background: #fdf2f2; }
   </style>
 </head>
 <body>
@@ -138,9 +106,9 @@
     <!-- Network member cards -->
     <div id="network-list" style="display:none;"></div>
 
-    <!-- Add someone (email lookup — kept for admin or when invitee already has account) -->
+    <!-- Add someone -->
     <div class="add-panel" id="add-panel" style="display:none;">
-      <h3>➕ Add someone (already has an account)</h3>
+      <h3>➕ Add someone to your network</h3>
       <div class="add-row">
         <input type="email" id="add-email" placeholder="their-email@example.com">
         <select id="add-tier">
@@ -153,39 +121,6 @@
       </div>
       <div id="add-status"></div>
     </div>
-
-    <!-- Invite someone new (generates a code — student-only, hidden in mirror mode) -->
-    <!-- Added 2026-02-26 by Claude -->
-    <div id="invite-section" style="display:none;">
-      <div class="invite-panel">
-        <h3>🎫 Invite Someone New</h3>
-        <p style="margin:0 0 12px;font-size:0.88rem;color:#888;">Generate a 7-day invite code. They download the app, sign in, and enter the code — no admin needed.</p>
-        <div class="invite-row">
-          <select id="invite-role">
-            <option value="nearby-help">Nearby Help</option>
-            <option value="family">Family</option>
-            <option value="support">Support</option>
-            <option value="admin">Admin (my network manager)</option>
-          </select>
-          <button onclick="generateInvite()">Generate Code</button>
-        </div>
-        <div id="invite-result">
-          <div style="margin-top:14px;">
-            <div class="code-display" id="invite-code-display"></div>
-          </div>
-          <div class="code-meta" id="invite-code-meta"></div>
-          <button class="btn-copy" onclick="copyCode()">📋 Copy Code</button>
-          <span id="copy-confirm" style="font-size:0.85rem;color:#10b981;display:none;">✓ Copied!</span>
-        </div>
-      </div>
-
-      <!-- Pending invites list -->
-      <div id="pending-section">
-        <h3>⏳ Pending Invites</h3>
-        <div id="pending-list"></div>
-      </div>
-    </div>
-
   </div>
 
   <!-- Load shared header -->
@@ -505,15 +440,10 @@
 
       document.getElementById('loading-msg').style.display  = 'none';
       list.style.display                                      = 'flex';
-      /* Only show Add / Invite panels if the viewer is the student (boss controls) */
+      /* Only show Add panel if the viewer is the student (boss controls) */
       if (!isMirrorMode) {
         document.getElementById('add-panel').style.display = 'block';
       }
-      /* Invite section: only for the student viewing their OWN network */
-      var inviteSection = document.getElementById('invite-section');
-      var isOwnNetworkEdit = !isMirrorMode && studentUid === AA.auth.currentUser.uid;
-      inviteSection.style.display = isOwnNetworkEdit ? 'block' : 'none';
-      if (isOwnNetworkEdit) { loadPendingInvites(); }
     }
 
     /* Update the badge color live when tier dropdown changes */
@@ -615,106 +545,6 @@
       if (!uid || !isPlatformAdmin) return;
       var sel = document.getElementById('student-picker');
       if (sel) { sel.value = uid; switchStudent(uid); }
-    }
-
-    /* ── Invite code generator ──────────────────────────────────────────
-       Added 2026-02-26 by Claude
-    ────────────────────────────────────────────────────────────────── */
-    var _lastGeneratedCode = null;
-
-    function generateInvite() {
-      if (!currentStudentUid) { alert('No student selected.'); return; }
-      var role = document.getElementById('invite-role').value;
-      AA.createInvite(currentStudentUid, role).then(function(invite) {
-        _lastGeneratedCode = invite.code;
-        document.getElementById('invite-code-display').textContent = invite.code;
-        var exp      = invite.expiresAt && invite.expiresAt.toDate
-          ? invite.expiresAt.toDate() : new Date(invite.expiresAt);
-        var daysLeft = Math.ceil((exp - Date.now()) / 86400000);
-        var roleLabel = TIERS[role] ? TIERS[role].label : role;
-        document.getElementById('invite-code-meta').textContent =
-          'For: ' + roleLabel + ' · Expires in ' + daysLeft + ' days · Single use';
-        document.getElementById('invite-result').style.display = 'block';
-        document.getElementById('copy-confirm').style.display  = 'none';
-        loadPendingInvites();
-      }).catch(function(err) {
-        alert('Could not generate invite: ' + err.message);
-      });
-    }
-
-    function copyCode() {
-      if (!_lastGeneratedCode) return;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(_lastGeneratedCode).then(function() {
-          flashCopied();
-        }).catch(fallbackCopy);
-      } else {
-        fallbackCopy();
-      }
-    }
-
-    function fallbackCopy() {
-      var ta = document.createElement('textarea');
-      ta.value = _lastGeneratedCode;
-      ta.style.position = 'fixed';
-      ta.style.opacity  = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      flashCopied();
-    }
-
-    function flashCopied() {
-      var c = document.getElementById('copy-confirm');
-      c.style.display = 'inline';
-      setTimeout(function() { c.style.display = 'none'; }, 2000);
-    }
-
-    function loadPendingInvites() {
-      if (!currentStudentUid) return;
-      AA.getMyInvites(currentStudentUid).then(function(invites) {
-        var section = document.getElementById('pending-section');
-        var list    = document.getElementById('pending-list');
-        if (!invites || invites.length === 0) {
-          section.style.display = 'none';
-          return;
-        }
-        list.innerHTML = '';
-        invites.forEach(function(inv) {
-          var exp      = inv.expiresAt && inv.expiresAt.toDate
-            ? inv.expiresAt.toDate() : new Date(inv.expiresAt);
-          var daysLeft  = Math.ceil((exp - Date.now()) / 86400000);
-          var roleLabel = TIERS[inv.role] ? TIERS[inv.role].label : inv.role;
-          var badgeCls  = TIERS[inv.role] ? TIERS[inv.role].badge : 'badge-support';
-          var card = document.createElement('div');
-          card.className = 'pending-card';
-          card.innerHTML =
-            '<span class="pending-code">' + esc(inv.code) + '</span>' +
-            '<div class="pending-info">' +
-              '<span class="pending-badge ' + badgeCls + '">' + esc(roleLabel) + '</span>' +
-              'Expires in ' + daysLeft + ' day' + (daysLeft === 1 ? '' : 's') +
-            '</div>' +
-            '<button class="btn-revoke" onclick="revokeInviteCode(\'' + esc(inv.code) + '\')">Revoke</button>';
-          list.appendChild(card);
-        });
-        section.style.display = 'block';
-      }).catch(function(err) {
-        console.warn('Could not load pending invites:', err.message);
-      });
-    }
-
-    function revokeInviteCode(code) {
-      if (!confirm('Revoke invite code ' + code + '? It will no longer work.')) return;
-      AA.revokeInvite(code).then(function() {
-        if (_lastGeneratedCode === code) {
-          _lastGeneratedCode = null;
-          document.getElementById('invite-result').style.display = 'none';
-        }
-        loadPendingInvites();
-      }).catch(function(err) {
-        alert('Could not revoke invite: ' + err.message);
-      });
     }
 
     /* Boot when AA is ready */

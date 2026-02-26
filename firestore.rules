@@ -80,6 +80,48 @@ service cloud.firestore {
       allow write: if isOwner(uid) || isAdmin();
     }
 
+    // ── Invites (Amanda sudo — student-generated invite codes) ───
+    // Added 2026-02-26 by Claude
+    //
+    // Document ID = the invite code itself (e.g. "XK9P2M")
+    // Schema: { code, studentUid, studentName, role, createdAt,
+    //           expiresAt, used, usedAt, usedBy }
+    //
+    // CREATE:  only the student who owns the invite (studentUid == caller)
+    // READ:    any signed-in user (they need the code to find it — security
+    //          through obscurity is fine here; codes are short-lived + single-use)
+    // LIST:    student can query their own invites (studentUid == caller)
+    // REDEEM:  any signed-in user can mark used=true + set usedBy/usedAt
+    //          (but cannot change studentUid, role, or code)
+    // REVOKE:  student can delete their own unused invite
+    // ADMIN:   platform admin can read/delete any invite
+    match /invites/{code} {
+      // Anyone signed-in can read a specific invite doc (needed to redeem)
+      allow read: if isSignedIn();
+
+      // Student creates invite for their own uid
+      allow create: if isSignedIn()
+        && request.resource.data.studentUid == request.auth.uid
+        && request.resource.data.used == false
+        && request.resource.data.role in ['family','support','nearby-help','admin'];
+
+      // Redemption: any signed-in user can flip used→true on an unused invite.
+      // They cannot change studentUid, role, code, createdAt, or expiresAt.
+      allow update: if isSignedIn()
+        && resource.data.used == false
+        && request.resource.data.used == true
+        && request.resource.data.usedBy == request.auth.uid
+        && request.resource.data.studentUid == resource.data.studentUid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.code == resource.data.code;
+
+      // Student revokes their own unused invite; admin can delete any
+      allow delete: if isAdmin()
+        || (isSignedIn()
+            && resource.data.studentUid == request.auth.uid
+            && resource.data.used == false);
+    }
+
     // ── Messages ─────────────────────────────────────────────────
     // Thread doc — participants array controls who can access.
     // watchThreads() uses array-contains query which is consistent
