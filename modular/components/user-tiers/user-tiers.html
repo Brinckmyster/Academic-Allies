@@ -297,9 +297,12 @@
       <div class="profile-panel">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <h3 style="margin:0;">📋 Student Profile</h3>
-          <div id="profile-header-btns">
+          <div id="profile-header-btns" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button id="profile-edit-btn" onclick="enableProfileEdit()"
               style="display:none;padding:5px 14px;background:#fff;color:#4a7f82;border:1px solid #b2d4d7;border-radius:6px;font-size:13px;cursor:pointer;">✏️ Edit Profile</button>
+            <button id="profile-ai-btn" onclick="getAISuggestions()"
+              style="display:none;padding:5px 14px;background:#fff;color:#7c5cbf;border:1px solid #c9b8e8;border-radius:6px;font-size:13px;cursor:pointer;">🤖 Get AI Suggestions</button>
+            <span id="profile-ai-copied" style="display:none;font-size:12px;color:#7c5cbf;font-style:italic;">✅ Prompt copied! Paste it in Claude.</span>
             <span id="profile-save-btns" style="display:none;gap:8px;">
               <button onclick="saveProfile()" class="btn-save">Save</button>
               <button onclick="cancelProfileEdit()"
@@ -360,7 +363,7 @@
 
   <!-- Load shared header -->
   <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260220d')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260226b')
       .then(function(r) { return r.text(); })
       .then(function(html) {
         var c = document.getElementById('site-header');
@@ -1117,6 +1120,8 @@
         renderProfileView();
         var editBtn = document.getElementById('profile-edit-btn');
         if (editBtn) editBtn.style.display = canEdit ? 'inline-block' : 'none';
+        var aiBtn = document.getElementById('profile-ai-btn');
+        if (aiBtn) aiBtn.style.display = canEdit ? 'inline-block' : 'none';
       }).catch(function (err) {
         console.warn('[AA] Could not load student profile:', err.message);
       });
@@ -1189,6 +1194,8 @@
       document.getElementById('profile-prompts-view').style.display = 'none';
       document.getElementById('profile-prompts-edit').style.display = 'block';
       document.getElementById('profile-edit-btn').style.display    = 'none';
+      document.getElementById('profile-ai-btn').style.display      = 'none';
+      document.getElementById('profile-ai-copied').style.display   = 'none';
       document.getElementById('profile-save-btns').style.display   = 'inline-flex';
 
       /* Populate conditions */
@@ -1227,6 +1234,7 @@
       document.getElementById('profile-prompts-view').style.display = 'block';
       document.getElementById('profile-prompts-edit').style.display = 'none';
       document.getElementById('profile-edit-btn').style.display    = 'inline-block';
+      document.getElementById('profile-ai-btn').style.display      = 'inline-block';
       document.getElementById('profile-save-btns').style.display   = 'none';
     }
 
@@ -1261,6 +1269,94 @@
       }).catch(function (err) {
         if (statusEl) { statusEl.style.color = '#c0392b'; statusEl.textContent = '❌ ' + err.message; }
       });
+    }
+
+    /* ── AI Suggestions ─────────────────────────────────────────────── */
+    /* Claude-credit: getAISuggestions + buildAIPrompt added by Claude (Anthropic) 2026-02-26 */
+    function buildAIPrompt() {
+      var p    = _profileData || {};
+      var name = currentStudentName || 'the student';
+
+      var parts = [];
+      parts.push('I\'m a supporter for a student using the Academic Allies app. I need your help suggesting updates to their profile.');
+      parts.push('');
+      parts.push('Student first name: ' + name);
+
+      var conds = (p.conditions || []);
+      if (conds.length > 0) {
+        parts.push('Current conditions/context: ' + conds.join(', '));
+      } else {
+        parts.push('Current conditions/context: (none listed yet)');
+      }
+
+      var notes = (p.notes || '').trim();
+      if (notes) {
+        parts.push('Current notes: ' + notes);
+      } else {
+        parts.push('Current notes: (none)');
+      }
+
+      var mods = p.activeModules || {};
+      var activeMods = Object.keys(DEFAULT_MODULES).filter(function (k) { return mods[k]; });
+      var inactiveMods = Object.keys(DEFAULT_MODULES).filter(function (k) { return !mods[k]; });
+      if (activeMods.length > 0) {
+        parts.push('Active app modules: ' + activeMods.map(function(k){ return DEFAULT_MODULES[k]; }).join(', '));
+      }
+      if (inactiveMods.length > 0) {
+        parts.push('Inactive modules (could be enabled): ' + inactiveMods.map(function(k){ return DEFAULT_MODULES[k]; }).join(', '));
+      }
+
+      var prompts = (p.checkinPrompts || []);
+      if (prompts.length > 0) {
+        parts.push('Current custom check-in prompts:');
+        prompts.forEach(function (pr, i) { parts.push('  ' + (i + 1) + '. ' + pr); });
+      } else {
+        parts.push('Current custom check-in prompts: (none)');
+      }
+
+      parts.push('');
+      parts.push('Based on this profile, please suggest:');
+      parts.push('1. Any conditions or context I should add, remove, or update');
+      parts.push('2. Which app modules would be most helpful to enable or disable');
+      parts.push('3. Better or additional check-in prompts tailored to this student\'s situation');
+      parts.push('4. Any notes that would help the support network understand this student\'s current needs');
+      parts.push('');
+      parts.push('Keep suggestions practical and compassionate. The student has a chronic illness or disability.');
+
+      return parts.join('\n');
+    }
+
+    function getAISuggestions() {
+      var prompt   = buildAIPrompt();
+      var copiedEl = document.getElementById('profile-ai-copied');
+
+      /* Copy to clipboard */
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(prompt).then(function () {
+          if (copiedEl) {
+            copiedEl.style.display = 'inline';
+            setTimeout(function () { copiedEl.style.display = 'none'; }, 6000);
+          }
+        }).catch(function () {
+          /* Fallback for clipboard failure */
+          _aiPromptFallback(prompt);
+        });
+      } else {
+        _aiPromptFallback(prompt);
+      }
+
+      /* Open Claude in new tab */
+      window.open('https://claude.ai/new', '_blank');
+    }
+
+    function _aiPromptFallback(prompt) {
+      /* If clipboard API unavailable, show prompt in a textarea for manual copy */
+      var statusEl = document.getElementById('profile-status');
+      if (statusEl) {
+        statusEl.innerHTML = '<textarea style="width:100%;height:100px;font-size:11px;border:1px solid #c9b8e8;border-radius:6px;padding:6px;" readonly onclick="this.select()">' +
+          prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;') +
+          '</textarea><span style="color:#7c5cbf;font-size:12px;">Select all and copy, then paste into Claude.</span>';
+      }
     }
 
     /* Condition tag helpers */
