@@ -123,22 +123,6 @@
     .btn-copy { padding: 7px 16px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600; margin-right: 8px; }
     .btn-copy:hover { background: #059669; }
 
-    /* Redeem invite code (existing users) — Added 2026-02-26 by Claude */
-    #redeem-section { margin-top: 16px; }
-    .redeem-panel { background: #fff; border: 1px solid #e1e5e9; border-radius: 10px; padding: 18px 20px; }
-    .redeem-panel h3 { margin: 0 0 8px; font-size: 1rem; color: #4a7f82; }
-    .redeem-panel p  { margin: 0 0 12px; font-size: 0.88rem; color: #888; }
-    .redeem-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .redeem-row input  { flex: 1; min-width: 140px; padding: 8px 12px; border: 2px solid #b2d4d7;
-      border-radius: 6px; font-size: 1.2rem; font-family: 'Courier New', monospace; font-weight: 700;
-      text-align: center; letter-spacing: 0.12em; color: #4a7f82; text-transform: uppercase; }
-    .redeem-row button { padding: 8px 18px; background: #6366f1; color: #fff; border: none;
-      border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 600; }
-    .redeem-row button:hover { background: #4f46e5; }
-    #redeem-status { margin-top: 10px; font-size: 0.88rem; min-height: 18px; }
-    #redeem-status.ok  { color: #10b981; }
-    #redeem-status.err { color: #c0392b; }
-
     /* Pending invites list */
     #pending-section { margin-top: 16px; display: none; }
     #pending-section h3 { margin: 0 0 10px; font-size: 0.95rem; color: #888; }
@@ -206,23 +190,6 @@
         <button onclick="addMember()">Add</button>
       </div>
       <div id="add-status"></div>
-    </div>
-
-    <!-- Redeem an invite code (any signed-in user, always accessible) -->
-    <!-- Added 2026-02-26 by Claude -->
-    <div id="redeem-section" style="display:none;">
-      <div class="redeem-panel">
-        <h3>🎫 Have an invite code?</h3>
-        <p>A student shared a code with you — enter it here to join their support network.</p>
-        <div class="redeem-row">
-          <input type="text" id="redeem-code-input" maxlength="8" autocomplete="off"
-            placeholder="e.g. XK9P2M"
-            oninput="this.value=this.value.toUpperCase().replace(/[^A-Z2-9]/g,'')"
-            onkeydown="if(event.key==='Enter')redeemCode()">
-          <button onclick="redeemCode()">Redeem</button>
-        </div>
-        <div id="redeem-status"></div>
-      </div>
     </div>
 
     <!-- Invite someone new (generates a code — student-only, hidden in mirror mode) -->
@@ -326,13 +293,6 @@
           if (!doc.exists) { showError('Your profile isn\'t set up yet — try signing out and back in.'); return; }
           var data = doc.data();
           isPlatformAdmin = (data.role === 'admin');
-
-          /* Show redeem-code panel for everyone except platform admin
-             (admin has no need to join a network via invite code).
-             Added 2026-02-26 by Claude */
-          if (!isPlatformAdmin) {
-            document.getElementById('redeem-section').style.display = 'block';
-          }
 
           if (data.role === 'student') {
             /* Student = sudo over their OWN network.
@@ -860,52 +820,6 @@
         section.style.display = 'block';
       }).catch(function(err) {
         console.warn('Could not load pending invites:', err.message);
-      });
-    }
-
-    /* ── Redeem an invite code (existing users) ─────────────────────────
-       Any signed-in user can use this to join a student's network after
-       they're already in the system — e.g. Amanda (already a student)
-       getting a nearby-help code from Mary.
-       Added 2026-02-26 by Claude
-    ──────────────────────────────────────────────────────────────────── */
-    function redeemCode() {
-      var input  = document.getElementById('redeem-code-input');
-      var status = document.getElementById('redeem-status');
-      var code   = (input.value || '').trim().toUpperCase();
-      if (!code || code.length < 6) {
-        status.className   = 'err';
-        status.textContent = 'Please enter a 6-character code.';
-        return;
-      }
-      status.className   = '';
-      status.textContent = 'Checking code…';
-      input.disabled     = true;
-
-      AA.redeemInvite(code).then(function (result) {
-        input.disabled     = false;
-        input.value        = '';
-        status.className   = 'ok';
-        status.textContent = '✅ You\'ve been added to ' +
-          (result.studentName || 'the student') + '\'s network as ' +
-          (result.role || 'a member') + '!';
-        /* Reload the page so the newly-joined network appears in mirror view */
-        setTimeout(function () { window.location.reload(); }, 1400);
-      }).catch(function (err) {
-        input.disabled = false;
-        status.className   = 'err';
-        var msg = err.message || '';
-        if (msg.indexOf('not found') !== -1 || msg.indexOf('No invite') !== -1) {
-          status.textContent = '❌ Code not found — double-check it and try again.';
-        } else if (msg.indexOf('expired') !== -1) {
-          status.textContent = '❌ That code has expired. Ask the student to generate a new one.';
-        } else if (msg.indexOf('already been used') !== -1) {
-          status.textContent = '❌ That code has already been used.';
-        } else if (msg.indexOf('own invite') !== -1) {
-          status.textContent = '❌ You can\'t redeem your own invite code.';
-        } else {
-          status.textContent = '❌ ' + msg;
-        }
       });
     }
 
