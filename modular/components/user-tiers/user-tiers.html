@@ -1095,12 +1095,21 @@
     var _currentConditions = [];
     var _currentPrompts    = [];
 
+    /* Claude-credit: DEFAULT_MODULES expanded + spoonPal restricted to backstage-manager 2026-02-26 */
     var DEFAULT_MODULES = {
-      spoonPal: { label: 'SpoonPal',    icon: '🥄' },
-      mealPlan: { label: 'Meal Plan',   icon: '🍽️' },
-      checkin:  { label: 'Check-ins',   icon: '📋' },
-      nope:     { label: 'NOPE Mode',   icon: '🛑' },
-      calendar: { label: 'Calendar',    icon: '📅' }
+      checkin:       { label: 'Check-ins',     icon: '📋' },
+      spoonPlanner:  { label: 'Spoon Planner', icon: '🥄' },
+      mealPlan:      { label: 'Meal Plan',     icon: '🍽️' },
+      nope:          { label: 'NOPE Mode',     icon: '🛑' },
+      recoveryMode:  { label: 'Recovery Mode', icon: '🛌' },
+      badBrainDay:   { label: 'Bad Brain Day', icon: '🧠' },
+      statusCircle:  { label: 'Status Circle', icon: '🔵' },
+      messages:      { label: 'Messages',      icon: '💬' },
+      calendar:      { label: 'Calendar',      icon: '📅' }
+    };
+    /* SpoonPal is Backstage Manager only — personal tool, not for general use */
+    var BACKSTAGE_ONLY_MODULES = {
+      spoonPal: { label: 'SpoonPal (personal)', icon: '🥄' }
     };
 
     var CONDITION_SUGGESTIONS = [
@@ -1153,10 +1162,12 @@
       var mv = document.getElementById('profile-mods-view');
       if (mv) {
         var mods = p.activeModules || {};
-        mv.innerHTML = Object.keys(DEFAULT_MODULES).map(function (k) {
+        var visibleMods = Object.assign({}, DEFAULT_MODULES,
+          isPlatformAdmin ? BACKSTAGE_ONLY_MODULES : {});
+        mv.innerHTML = Object.keys(visibleMods).map(function (k) {
           var on = mods[k] !== false; /* default ON */
           return '<span class="mod-badge ' + (on ? 'on' : 'off') + '">' +
-            DEFAULT_MODULES[k].icon + ' ' + DEFAULT_MODULES[k].label + '</span>';
+            visibleMods[k].icon + ' ' + visibleMods[k].label + '</span>';
         }).join('');
       }
 
@@ -1211,11 +1222,13 @@
       var me = document.getElementById('profile-mods-edit');
       var mods = p.activeModules || {};
       if (me) {
-        me.innerHTML = Object.keys(DEFAULT_MODULES).map(function (k) {
+        var editableMods = Object.assign({}, DEFAULT_MODULES,
+          isPlatformAdmin ? BACKSTAGE_ONLY_MODULES : {});
+        me.innerHTML = Object.keys(editableMods).map(function (k) {
           var on = mods[k] !== false;
           return '<div class="mod-chip ' + (on ? 'on' : 'off') + '" id="mod-' + k + '" ' +
             'onclick="toggleModule(\'' + k + '\')">' +
-            DEFAULT_MODULES[k].icon + ' ' + DEFAULT_MODULES[k].label + '</div>';
+            editableMods[k].icon + ' ' + editableMods[k].label + '</div>';
         }).join('');
       }
 
@@ -1297,13 +1310,14 @@
       }
 
       var mods = p.activeModules || {};
-      var activeMods = Object.keys(DEFAULT_MODULES).filter(function (k) { return mods[k]; });
-      var inactiveMods = Object.keys(DEFAULT_MODULES).filter(function (k) { return !mods[k]; });
+      var allMods = Object.assign({}, DEFAULT_MODULES, isPlatformAdmin ? BACKSTAGE_ONLY_MODULES : {});
+      var activeMods   = Object.keys(allMods).filter(function (k) { return mods[k]; });
+      var inactiveMods = Object.keys(allMods).filter(function (k) { return !mods[k]; });
       if (activeMods.length > 0) {
-        parts.push('Active app modules: ' + activeMods.map(function(k){ return DEFAULT_MODULES[k]; }).join(', '));
+        parts.push('Active app modules: ' + activeMods.map(function(k){ return allMods[k].label; }).join(', '));
       }
       if (inactiveMods.length > 0) {
-        parts.push('Inactive modules (could be enabled): ' + inactiveMods.map(function(k){ return DEFAULT_MODULES[k]; }).join(', '));
+        parts.push('Inactive modules (could be enabled): ' + inactiveMods.map(function(k){ return allMods[k].label; }).join(', '));
       }
 
       var prompts = (p.checkinPrompts || []);
