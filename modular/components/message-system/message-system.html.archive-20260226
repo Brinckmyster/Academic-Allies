@@ -218,14 +218,12 @@
         var myRole = data.role || 'student';
 
         if (myRole === 'admin') {
-          /* Admins see students only — support/family/nearby-help have no reason
-             to message the platform admin directly; they communicate via the student.
-             Updated 2026-02-26 by Claude */
-          AA.db.collection('users').where('role', '==', 'student').get().then(function(snap) {
+          /* Admins see every registered user */
+          AA.db.collection('users').get().then(function(snap) {
             var contacts = [];
             snap.forEach(function(d) {
               if (d.id !== currentUser.uid) {
-                contacts.push({ uid: d.id, tier: 'student', data: d.data() });
+                contacts.push({ uid: d.id, tier: d.data().role || 'student', data: d.data() });
               }
             });
             renderContacts(contacts);

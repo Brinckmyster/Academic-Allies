@@ -8,13 +8,7 @@ Your disability accommodations and support network">Your disability accommodatio
     <nav aria-label="Main navigation">
       <ul class="nav-list">
         <li><a href="/Academic-Allies/modular/components/calendar/calendar.html" title="Calendar">Calendar</a></li>
-        <!-- Updated 2026-02-26 by Claude — unread badge dot added -->
-        <li style="position:relative;">
-          <a href="/Academic-Allies/modular/components/message-system/message-system.html" title="Messages">Messages</a>
-          <span id="msg-nav-badge" style="display:none;position:absolute;top:1px;right:-4px;
-            background:#dc3545;border-radius:50%;width:9px;height:9px;
-            box-shadow:0 0 0 2px #fff;pointer-events:none;"></span>
-        </li>
+        <li><a href="/Academic-Allies/modular/components/message-system/message-system.html" title="Messages">Messages</a></li>
         <li id="supportNetworkNavLi" style="display:none"><a href="/Academic-Allies/modular/components/user-tiers/user-tiers.html" title="My Support Network">My Support Network</a></li>
         <li><a href="/Academic-Allies/modular/emergency.html" title="Emergency Contact">Emergency Contact</a></li>
         <li><a href="/Academic-Allies/modular/checkin.html" title="Daily Check-In">Daily Check-In</a></li>
@@ -261,35 +255,6 @@ Your disability accommodations and support network">Your disability accommodatio
         window.AA.signOut().then(function () { _showAccessDenied('pending'); });
       };
 
-      /* ── Nav unread-message badge ────────────────────────────────────────
-         Listens to all threads this user participates in. If any thread has
-         lastAt > their stored lastRead timestamp, shows a red dot on the nav
-         Messages link. Clears on sign-out.
-         Added 2026-02-26 by Claude
-      ──────────────────────────────────────────────────────────────────── */
-      var _navUnreadUnsub = null;
-
-      function _watchNavUnread(uid) {
-        if (_navUnreadUnsub) { _navUnreadUnsub(); _navUnreadUnsub = null; }
-        _navUnreadUnsub = window.AA.db.collection('messages')
-          .where('participants', 'array-contains', uid)
-          .onSnapshot(function (snap) {
-            var hasUnread = snap.docs.some(function (doc) {
-              var lastAt   = doc.data().lastAt ? doc.data().lastAt.toMillis() : 0;
-              var lastRead = parseInt(localStorage.getItem('aa-msg-read-' + doc.id) || '0', 10);
-              return lastAt > lastRead;
-            });
-            var badge = document.getElementById('msg-nav-badge');
-            if (badge) badge.style.display = hasUnread ? 'inline-block' : 'none';
-          }, function () { /* permission error — just hide badge */ });
-      }
-
-      function _unwatchNavUnread() {
-        if (_navUnreadUnsub) { _navUnreadUnsub(); _navUnreadUnsub = null; }
-        var badge = document.getElementById('msg-nav-badge');
-        if (badge) badge.style.display = 'none';
-      }
-
       /* React to every auth state change */
       window.AA.auth.onAuthStateChanged(function (user) {
         if (!user) {
@@ -298,7 +263,6 @@ Your disability accommodations and support network">Your disability accommodatio
           if (signoutBtn)    signoutBtn.style.display     = 'none';
           if (adminBtn)      adminBtn.style.display       = 'none';
           if (networkNavLi)  networkNavLi.style.display   = 'none';
-          _unwatchNavUnread(); /* clear unread badge on sign-out */
           return;
         }
 
@@ -331,7 +295,6 @@ Your disability accommodations and support network">Your disability accommodatio
             if (signoutBtn)    signoutBtn.style.display    = 'inline-block';
             if (networkNavLi)  networkNavLi.style.display  = 'list-item'; /* show for all signed-in users incl. admin */
             setTierIcon(role);
-            _watchNavUnread(user.uid); /* start red-dot watcher for unread messages */
 
             /* Show role-specific cards on home page — updated 2026-02-20 by Claude */
             var adminCard       = document.getElementById('adminCard');
