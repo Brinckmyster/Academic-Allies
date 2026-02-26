@@ -2,6 +2,12 @@
    status-circle.js — Academic Allies Status Circle Brain
    Written:  2026-02-19 by Claude
    Updated:  2026-02-21 by Claude — 5-segment ring, day logic, click toggle
+   Updated:  2026-02-25 by Claude — Mary's confirmed 10-point energy scale
+   Updated:  2026-02-26 by Claude — reads new categories object from gateway
+             check-in (mental/physical/school/spiritual/social); legacy field
+             fallback retained for entries saved before gateway rebuild;
+             Spiritual segment now live; thumping flag bumps Mental+Physical;
+             emergency handles both boolean true and legacy string 'yes'
 
    Views (click circle to toggle):
      ring  → colored arc per category (default)
@@ -58,66 +64,162 @@
   }
 
   /* ── Segment color from one check-in entry ─────────────── */
-  /* Returns a color hex string, or null if segment has no data */
+  /* Returns a color hex string, or null if segment has no data.
+     Priority: new categories object → legacy string fields (backward compat) */
   function colorOf(seg, e) {
     if (!e) return null;
-    var emg = (e.emergency === 'yes');
 
+    /* Emergency — new saves boolean, legacy saved string 'yes' */
+    var emg = (e.emergency === true || e.emergency === 'yes');
+    if (emg) return C.red;
+
+    /* Thumping voices flag — bumps Mental + Physical to at least yellow */
+    var thumping = (e.thumping === true);
+
+    /* ── Helper: Mary's 10-point scale → color
+          1-4 green | 5 yellow | 6-7 orange | 8-10 red          */
+    function emojiColor(v) {
+      if (!v || typeof v !== 'number') return null;
+      if (v >= 8) return C.red;
+      if (v >= 6) return C.orange;
+      if (v >= 5) return C.yellow;
+      return C.green;  /* 1-4 */
+    }
+
+    /* ── Helper: raise color to at least yellow if thumping ── */
+    function bump(col) {
+      if (!thumping) return col;
+      if (col === C.green || col === null) return C.yellow;
+      return col;
+    }
+
+    /* ── New format: categories object from gateway check-in ─ */
+    var cats = (e.categories && typeof e.categories === 'object')
+               ? e.categories : null;
+
+    /* ── ACADEMIC ← categories.school ───────────────────────── */
     if (seg === 'Academic') {
-      if (emg)                  return C.red;
-      if (e.planner === 'yes')  return C.green;
-      if (e.planner === 'no')   return C.yellow;
+      if (cats && cats.school) {
+        var sc = cats.school;
+        if (!sc.gateway || sc.gateway === 'skip') return null;
+        var ec = emojiColor(sc.emojiV);
+        if (ec) return ec;
+        if (sc.gateway === 'yes') return C.green;
+        if (sc.gateway === 'no') {
+          var sch = sc.checked || [];
+          /* Hard flags in the No expand → orange */
+          if (sch.indexOf('deadline') !== -1 ||
+              sch.indexOf('overwhelmed') !== -1 ||
+              sch.indexOf('executive') !== -1) return C.orange;
+          return C.yellow;
+        }
+        return null;
+      }
+      /* Legacy fallback: planner was saved as boolean (new compat)
+         or string 'yes'/'no' (very old entries) */
+      if (e.planner === true  || e.planner === 'yes') return C.green;
+      if (e.planner === false || e.planner === 'no')  return C.yellow;
       return null;
     }
 
+    /* ── SOCIAL ← categories.social ─────────────────────────── */
     if (seg === 'Social') {
-      if (emg)                  return C.red;
-      if (e.support === 'yes')  return C.green;
-      if (e.support === 'no')   return C.yellow;
+      if (cats && cats.social) {
+        var so = cats.social;
+        if (!so.gateway || so.gateway === 'skip') return null;
+        var sec = emojiColor(so.emojiV);
+        if (sec) return sec;
+        if (so.gateway === 'yes') return C.green;
+        if (so.gateway === 'no') {
+          var soh = so.checked || [];
+          if (soh.indexOf('isolated') !== -1 ||
+              soh.indexOf('withdrawal') !== -1) return C.orange;
+          return C.yellow;
+        }
+        return null;
+      }
+      /* Legacy fallback: support was boolean or string */
+      if (e.support === true  || e.support === 'yes') return C.green;
+      if (e.support === false || e.support === 'no')  return C.yellow;
       return null;
     }
 
+    /* ── PHYSICAL ← categories.physical ─────────────────────── */
     if (seg === 'Physical') {
-      if (emg) return C.red;
-      var hasSymp  = (e.symptoms === 'yes' || e.symptoms === 'no');
-      var hasSleep = (e.sleep    === 'yes' || e.sleep    === 'no');
-      if (!hasSymp && !hasSleep) return null;
-      var sympYes = (e.symptoms === 'yes');
-      var sleepNo = (e.sleep    === 'no');
+      if (cats && cats.physical) {
+        var ph = cats.physical;
+        if (!ph.gateway || ph.gateway === 'skip') return null;
+        var pec = emojiColor(ph.emojiV);
+        if (pec) return bump(pec);
+        if (ph.gateway === 'yes') return bump(C.green);
+        if (ph.gateway === 'no') {
+          var phh = ph.checked || [];
+          if (phh.indexOf('exhausted') !== -1 ||
+              phh.indexOf('pain_high') !== -1) return bump(C.orange);
+          return bump(C.yellow);
+        }
+        return null;
+      }
+      /* Legacy fallback: symptoms/sleep/symptomList */
+      var hasSymp  = (e.symptoms === true || e.symptoms === 'yes' ||
+                      e.symptoms === false || e.symptoms === 'no');
+      var hasSleep = (e.sleep === 'yes' || e.sleep === 'no');
+      if (!hasSymp && !hasSleep) return thumping ? C.yellow : null;
+      var sympBad = (e.symptoms === true || e.symptoms === 'yes');
+      var sleepNo = (e.sleep === 'no');
       var cnt = Array.isArray(e.symptomList) ? e.symptomList.length : 0;
-      if (sympYes && cnt >= 3)   return C.red;
-      if (sympYes && sleepNo)    return C.orange;
-      if (sympYes || sleepNo)    return C.yellow;
-      return C.green;
+      if (sympBad && cnt >= 3)  return C.red;
+      if (sympBad && sleepNo)   return bump(C.orange);
+      if (sympBad || sleepNo)   return bump(C.yellow);
+      return bump(C.green);
     }
 
+    /* ── MENTAL/EMOTIONAL ← categories.mental ───────────────── */
     if (seg === 'Mental/Emotional') {
-      if (emg) return C.red;
-      var fog = (e.symptoms === 'yes' &&
+      if (cats && cats.mental) {
+        var mn = cats.mental;
+        if (!mn.gateway || mn.gateway === 'skip') return null;
+        var mec = emojiColor(mn.emojiV);
+        if (mec) return bump(mec);
+        if (mn.gateway === 'yes') return bump(C.green);
+        if (mn.gateway === 'no')  return bump(C.yellow);
+        return null;
+      }
+      /* Legacy fallback: energyLevel number (added 2026-02-25)
+         then old 6-label mood string (very old entries) */
+      var fog = (e.symptoms === true &&
                  Array.isArray(e.symptomList) &&
                  e.symptomList.some(function (s) {
                    return /brain.fog|trouble.think/i.test(s);
                  }));
-      /* Updated 2026-02-25 by Claude — Mary's confirmed 10-point energy scale
-         1-4 green | 5 yellow | 6-7 orange | 8-10 red
-         Falls back to old mood string labels for entries saved before this change. */
       var lvl = typeof e.energyLevel === 'number' ? e.energyLevel : 0;
       if (lvl > 0) {
-        if (lvl >= 8) return C.red;
-        if (lvl >= 6) return C.orange;
-        if (lvl >= 5 || fog) return C.yellow;
-        return C.green;
+        if (lvl >= 8)           return bump(C.red);
+        if (lvl >= 6)           return bump(C.orange);
+        if (lvl >= 5 || fog)    return bump(C.yellow);
+        return bump(C.green);
       }
-      /* Legacy fallback — old 6-label mood grid */
       var m = e.mood || '';
-      if (m === 'Struggling')                   return C.red;
-      if (m === 'Anxious')                      return C.orange;
-      if (m === 'Okay' || m === 'Tired' || fog) return C.yellow;
-      if (m === 'Great' || m === 'Good')        return C.green;
-      return null;
+      if (m === 'Struggling')                   return bump(C.red);
+      if (m === 'Anxious')                      return bump(C.orange);
+      if (m === 'Okay' || m === 'Tired' || fog) return bump(C.yellow);
+      if (m === 'Great' || m === 'Good')        return bump(C.green);
+      return thumping ? C.yellow : null;
     }
 
-    if (seg === 'Spiritual') return null; /* not tracked in check-in yet */
+    /* ── SPIRITUAL ← categories.spiritual ───────────────────── */
+    /* Now live! Returns null only if skipped or no data at all. */
+    if (seg === 'Spiritual') {
+      if (cats && cats.spiritual) {
+        var sp = cats.spiritual;
+        if (!sp.gateway || sp.gateway === 'skip') return null;
+        var spec = emojiColor(sp.emojiV);
+        if (spec) return spec;
+        if (sp.gateway === 'yes') return C.green;
+        if (sp.gateway === 'no')  return C.yellow;
+      }
+      return null; /* no data in legacy entries */
+    }
 
     return null;
   }
