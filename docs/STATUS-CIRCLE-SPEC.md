@@ -4,6 +4,7 @@
 **Last confirmed:** February 2026
 **Source:** Perplexity Space thread + user CoT + direct corrections
 **Updated 2026-02-25 by Claude:** Mental/Emotional segment confirmed energy scale; weekend logic confirmed; Bad Brain Day trigger confirmed; no-grey rule confirmed.
+**Updated 2026-02-26 by Claude:** Check-in rebuilt as 5-category gateway (Mental/Physical/School/Spiritual/Social). status-circle.js now reads `categories` object directly; legacy field fallback retained. Spiritual segment is now LIVE. Thumping voices flag bumps Mental+Physical to ≥ yellow. All segment data sources updated below.
 
 ### Confirmed Energy Scale (Mental/Emotional — DO NOT CHANGE)
 | Level | Emoji | Label | Circle Color |
@@ -54,13 +55,14 @@
 
 | Segment | Label | Data Source | Green | Yellow | Orange | Red | Absent (no data) |
 |---------|-------|-------------|-------|--------|--------|-----|------|
-| Mental | Mental | Energy level (check-in) + brain fog from Q-A symptom list | Energy 1–4 (Fully Charged → Doing Okay) | Energy 5 (Neutral) or brain fog | Energy 6–7 (Starting to Tire / Pretty Tired) | Energy 8–10 (Very Exhausted → Completely Depleted) or emergency | No check-in → segment not drawn |
-| Physical | Physical | Q-A symptoms + Q-B sleep | No symptoms, good sleep | Some symptoms OR poor sleep | Symptoms + poor sleep | 3+ symptoms or emergency | No check-in → segment not drawn |
-| Spiritual | Spiritual | **NOT YET TRACKED** | — | — | — | — | Always absent until data source confirmed |
-| Academic | Academic | Q-D planner review | Reviewed planner | Planner not reviewed | — | Emergency | Skipped → segment not drawn |
-| Social | Social | Q-C support connection | Talked to support team | No support contact | — | Emergency | Skipped → segment not drawn |
+| Mental | Mental/Emotional | `categories.mental` gateway + emoji level; thumping bumps to ≥ yellow | Energy 1–4 / gateway Yes + no emoji | Energy 5 / gateway Yes + thumping | Energy 6–7 | Energy 8–10 / gateway Yes + emoji 10 / emergency | Skipped or no check-in |
+| Physical | Physical | `categories.physical` gateway + emoji level; thumping bumps to ≥ yellow | Gateway Yes + energy 1–4 | Gateway Yes + thumping / Gateway No (mild) | Gateway No + exhausted/pain_high checked | Emergency | Skipped or no check-in |
+| Spiritual | Spiritual | ✅ **NOW LIVE** — `categories.spiritual` gateway + emoji level | Gateway Yes + energy 1–4 | Gateway No (mild) | Energy 6–7 | Energy 8–10 / emergency | Skipped or no check-in |
+| Academic | Academic | `categories.school` gateway + emoji level | Gateway Yes + energy 1–4 | Gateway No (mild) | Gateway No + deadline/overwhelmed/executive checked / energy 6–7 | Energy 8–10 / emergency | Skipped or no check-in |
+| Social | Social | `categories.social` gateway + emoji level | Gateway Yes + energy 1–4 | Gateway No (mild) | Gateway No + isolated/withdrawal checked / energy 6–7 | Energy 8–10 / emergency | Skipped or no check-in |
 
-> **Emergency (Q-E = Yes):** Immediately sets ALL segments to red.
+> **Emergency (Safety Check = Yes):** Immediately sets ALL segments to red.
+> **Thumping voices:** If thumping checkbox checked at check-in → Mental and Physical segments cannot show green; minimum yellow.
 
 ---
 
@@ -94,12 +96,12 @@
 
 - ✅ ~~Weekend logic~~ — CONFIRMED (see 1-3)
 - ✅ ~~Bad brain day trigger~~ — CONFIRMED (see 1-5)
+- ✅ ~~Spiritual segment data source~~ — CONFIRMED LIVE (2026-02-26, gateway check-in)
 - ❌ Cognitive scale
 - ❌ Emoji in circle (off by default; enable in Settings)
 - ❌ Alerts for Mary or Mom (unless confirmed)
 - ❌ Any logic based on personal tiredness or bedtime
 - ❌ Nope day / skip day logic (TBD — see nope-day spec when created)
-- ❌ Spiritual segment data source (always absent until confirmed)
 
 ---
 

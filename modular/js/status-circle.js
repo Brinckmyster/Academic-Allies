@@ -42,11 +42,12 @@
   var VIEW_KEY = 'aa-status-view';  /* 'ring' | 'solid' */
 
   /* ── Runtime state ─────────────────────────────────────── */
-  var _view      = 'ring';
-  var _segData   = {};     /* { segmentName: colorHex } */
-  var _nope      = false;
-  var _unsubNope = null;
-  var _unsubDay  = null;
+  var _view         = 'ring';
+  var _segData      = {};     /* { segmentName: colorHex } */
+  var _nope         = false;
+  var _unsubNope    = null;
+  var _unsubDay     = null;
+  var _lastCheckinTs = null;  /* Date | null — timestamp of latest check-in entry */
 
   /* ── Day-of-week → eligible segments (0=Sun … 6=Sat) ───── */
   var DAY_SEGS = [
@@ -227,12 +228,50 @@
   /* ── Build segData from a Firestore/localStorage entries array ── */
   function fromEntries(entries) {
     var entry = (entries && entries.length) ? entries[entries.length - 1] : null;
+
+    /* Capture timestamp from latest entry for the banner */
+    if (entry && entry.timestamp) {
+      /* Firestore Timestamp → JS Date; plain Date objects pass through */
+      _lastCheckinTs = (typeof entry.timestamp.toDate === 'function')
+        ? entry.timestamp.toDate()
+        : new Date(entry.timestamp);
+    } else {
+      _lastCheckinTs = null;
+    }
+
     var out = {};
     eligibleSegs().forEach(function (seg) {
       var c = colorOf(seg, entry);
       if (c !== null) out[seg] = c;
     });
     return out;
+  }
+
+  /* ── Banner: "Showing: [view] · Last check-in: [time]" ─── */
+  /* Spec §8: always visible, non-intrusive, top-right below circle */
+  function renderBanner() {
+    var el = document.getElementById('sc-banner');
+    if (!el) return;
+
+    var viewLabel = (_view === 'ring') ? 'All 5 segments' : 'Overall status';
+    if (_nope) viewLabel = 'NOPE mode';
+
+    var timeLabel;
+    if (!_lastCheckinTs) {
+      timeLabel = 'No check-in today';
+    } else {
+      var now     = new Date();
+      var diffMin = Math.round((now - _lastCheckinTs) / 60000);
+      if (diffMin < 1)       timeLabel = 'just now';
+      else if (diffMin < 60) timeLabel = diffMin + 'm ago';
+      else {
+        timeLabel = _lastCheckinTs.toLocaleTimeString([], {
+          hour: '2-digit', minute: '2-digit', hour12: true
+        });
+      }
+    }
+
+    el.textContent = 'Showing: ' + viewLabel + ' · ' + timeLabel;
   }
 
   /* ── Worst color across all visible segments ───────────── */
@@ -309,6 +348,7 @@
   function render() {
     var el = document.getElementById('status-circle');
     if (!el) return;
+    renderBanner();  /* always update banner alongside circle */
 
     el.style.border     = '';
     el.style.borderTop  = '';
@@ -368,7 +408,7 @@
     el.addEventListener('click', function () {
       _view = (_view === 'ring') ? 'solid' : 'ring';
       try { localStorage.setItem(VIEW_KEY, _view); } catch (e) {}
-      render();
+      render();          /* render() calls renderBanner() internally */
     });
   }
 
