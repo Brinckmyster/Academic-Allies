@@ -595,23 +595,11 @@
         return db.collection('users').doc(inv.studentUid).update(networkUpdate);
       })
       .then(function () {
-        /* Only update invitee's global role if they are still 'pending'
-           (brand-new user going through onboarding). If they already have a
-           real role (student, family, etc.) leave it alone — they just get
-           added to the network. This lets e.g. Amanda (student) be in Mary's
-           supportNetwork as 'nearby-help' without losing her student role.
-           Fixed 2026-02-26 by Claude */
-        return db.collection('users').doc(user.uid).get().then(function (userDoc) {
-          var currentRole = userDoc.exists ? (userDoc.data().role || 'pending') : 'pending';
-          if (currentRole === 'pending') {
-            return db.collection('users').doc(user.uid).update({ role: inv.role });
-          }
-          /* Already has a role — network link is enough, no global role change */
-          return Promise.resolve();
-        });
+        /* Update invitee's own role to match what the student assigned */
+        return db.collection('users').doc(user.uid).update({ role: inv.role });
       })
       .then(function () {
-        console.log('[AA] Invite redeemed:', code, '→ network role:', inv.role, 'for', inv.studentUid);
+        console.log('[AA] Invite redeemed:', code, '→', inv.role, 'for', inv.studentUid);
         return { studentUid: inv.studentUid, role: inv.role, studentName: inv.studentName };
       });
     });
