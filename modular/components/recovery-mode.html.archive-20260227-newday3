@@ -1193,36 +1193,10 @@
         }
 
         function resetSession() {
-            // Archive completed tasks to Firebase before clearing
-            var saved = localStorage.getItem('spoonPlannerTasks');
-            var allTasks = saved ? JSON.parse(saved) : [];
-            var completed = allTasks.filter(function(t) { return t.completed; });
-
-            function _doReset() {
-                // Reset all tasks to uncompleted for the new day
-                if (allTasks.length > 0) {
-                    var fresh = allTasks.map(function(t) {
-                        return Object.assign({}, t, { completed: false });
-                    });
-                    localStorage.setItem('spoonPlannerTasks', JSON.stringify(fresh));
-                }
-                ['energyLevel', 'flowerCount', 'reportedFlowers', 'recoverySessionStart'].forEach(function(k) {
-                    localStorage.removeItem(k);
-                });
-                location.reload();
-            }
-
-            if (completed.length > 0 && window.AA && AA.auth && AA.auth.currentUser) {
-                var dateKey = new Date().toISOString().split('T')[0];
-                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
-                    yesterdayTasks: completed,
-                    yesterdayDate:  dateKey
-                }).catch(function(err) {
-                    console.warn('[AA] Could not archive completed tasks:', err);
-                }).then(_doReset);
-            } else {
-                _doReset();
-            }
+            ['energyLevel', 'flowerCount', 'reportedFlowers', 'recoverySessionStart'].forEach(function(k) {
+                localStorage.removeItem(k);
+            });
+            location.reload();
         }
 
         function initSession() {
