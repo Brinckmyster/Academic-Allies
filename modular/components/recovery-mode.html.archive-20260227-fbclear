@@ -1214,18 +1214,14 @@
                 location.reload();
             }
 
-            if (window.AA && AA.auth && AA.auth.currentUser) {
-                // Claude: always clear Firebase tasks on new day — 2026-02-27
-                var patch = { tasks: [] };
-                if (completed.length > 0) {
-                    patch.yesterdayTasks = completed;
-                    patch.yesterdayDate  = new Date().toISOString().split('T')[0];
-                }
-                AA.saveSpoonPlan(AA.auth.currentUser.uid, patch)
-                    .catch(function(err) {
-                        console.warn('[AA] Could not reset spoon plan:', err);
-                    })
-                    .then(_doReset);
+            if (completed.length > 0 && window.AA && AA.auth && AA.auth.currentUser) {
+                var dateKey = new Date().toISOString().split('T')[0];
+                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
+                    yesterdayTasks: completed,
+                    yesterdayDate:  dateKey
+                }).catch(function(err) {
+                    console.warn('[AA] Could not archive completed tasks:', err);
+                }).then(_doReset);
             } else {
                 _doReset();
             }
