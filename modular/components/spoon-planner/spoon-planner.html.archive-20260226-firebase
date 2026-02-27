@@ -144,24 +144,6 @@
             border-color: #6CA0A3;
         }
 
-        .task-item.task-completed {
-            opacity: 0.6;
-            background: #f5f5f5;
-        }
-
-        .task-item.task-completed .task-name {
-            text-decoration: line-through;
-            color: #888;
-        }
-
-        .task-check {
-            margin-right: 10px;
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-
         .drag-handle {
             font-size: 20pt;
             margin-right: 12px;
@@ -510,64 +492,40 @@
     </div>
 
     <script>
-        /* Claude-credit: Firebase sync added 2026-02-26 by Claude */
         // State Management
         let tasks = [];
         let totalSpoons = 10;
         let editingTaskIndex = -1;
         let originalTasks = []; // For cancel functionality
 
-        // Load saved data — localStorage first (fast), then Firebase if signed in
+        // Load saved data
         function loadSavedData() {
             const saved = localStorage.getItem('spoonPlannerTasks');
             if (saved) {
                 originalTasks = JSON.parse(saved);
-                tasks = JSON.parse(JSON.stringify(originalTasks));
+                tasks = JSON.parse(JSON.stringify(originalTasks)); // Deep copy
             }
-            const savedSpoons = localStorage.getItem('dailySpoons');
-            if (savedSpoons) totalSpoons = parseInt(savedSpoons);
-            renderTasks();
 
-            // Then try Firebase — overrides localStorage if data is fresher
-            if (window.AA && AA.auth) {
-                AA.auth.onAuthStateChanged(function(user) {
-                    if (!user) return;
-                    AA.getSpoonPlan(user.uid).then(function(data) {
-                        if (!data) return;
-                        if (data.tasks)       { tasks = data.tasks; originalTasks = JSON.parse(JSON.stringify(tasks)); }
-                        if (data.dailySpoons) { totalSpoons = data.dailySpoons; }
-                        renderTasks();
-                    }).catch(function(err) {
-                        console.warn('[AA] Could not load spoon plan from Firebase:', err.message);
-                    });
-                });
+            const savedSpoons = localStorage.getItem('dailySpoons');
+            if (savedSpoons) {
+                totalSpoons = parseInt(savedSpoons);
             }
         }
 
-        // Save data — always localStorage, also Firebase if signed in
+        // Save data
         function saveTasks() {
             localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
-            if (window.AA && AA.auth && AA.auth.currentUser) {
-                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
-                    tasks: tasks,
-                    dailySpoons: totalSpoons
-                }).catch(function(err) {
-                    console.warn('[AA] Could not save spoon plan to Firebase:', err.message);
-                });
-            }
         }
 
         // Update spoon counter
         function updateSpoonCounter() {
             const planned = tasks.reduce((sum, task) => sum + task.spoons, 0);
-            const completed = tasks.filter(t => t.completed).reduce((sum, t) => sum + t.spoons, 0);
-            const remaining = totalSpoons - completed;
-            const leftover = totalSpoons - planned;
+            const remaining = totalSpoons - planned;
 
             document.getElementById('total-spoons').textContent = totalSpoons;
             document.getElementById('planned-spoons').textContent = planned.toFixed(1);
-            document.getElementById('remaining-spoons').textContent = remaining.toFixed(1);
-            document.getElementById('leftover-spoons').textContent = leftover.toFixed(1);
+            document.getElementById('remaining-spoons').textContent = totalSpoons;
+            document.getElementById('leftover-spoons').textContent = remaining.toFixed(1);
         }
 
         // Render task list
@@ -590,11 +548,8 @@
                 li.draggable = true;
                 li.dataset.index = index;
 
-                if (task.completed) li.classList.add('task-completed');
-
                 li.innerHTML = `
                     <span class="drag-handle">☰</span>
-                    <input type="checkbox" class="task-check" ${task.completed ? 'checked' : ''} onchange="toggleComplete(${index})" aria-label="Mark complete">
                     <div class="task-content">
                         <div class="task-name">${task.name}</div>
                         <div class="task-meta">${task.time ? task.time + ' • ' : ''}${task.priority} Priority</div>
@@ -616,13 +571,6 @@
             });
 
             updateSpoonCounter();
-        }
-
-        // Toggle task completion
-        function toggleComplete(index) {
-            tasks[index].completed = !tasks[index].completed;
-            saveTasks();
-            renderTasks();
         }
 
         // Add new task
@@ -708,15 +656,6 @@
             if (yesterday) {
                 tasks = JSON.parse(yesterday);
                 renderTasks();
-            } else if (window.AA && AA.auth && AA.auth.currentUser) {
-                AA.getSpoonPlan(AA.auth.currentUser.uid).then(function(data) {
-                    if (data && data.yesterdayTasks && data.yesterdayTasks.length > 0) {
-                        tasks = data.yesterdayTasks;
-                        renderTasks();
-                    } else {
-                        alert('No tasks from yesterday to duplicate.');
-                    }
-                });
             } else {
                 alert('No tasks from yesterday to duplicate.');
             }
@@ -765,21 +704,16 @@
         function confirmPlan() {
             // Save to localStorage
             saveTasks();
+            
+            // Save as yesterday for duplication
             localStorage.setItem('yesterdayTasks', JSON.stringify(tasks));
+            
+            // Update the original tasks (so cancel has new baseline)
             originalTasks = JSON.parse(JSON.stringify(tasks));
-
-            // Also save yesterdayTasks to Firebase
-            if (window.AA && AA.auth && AA.auth.currentUser) {
-                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
-                    tasks: tasks,
-                    dailySpoons: totalSpoons,
-                    yesterdayTasks: tasks
-                }).catch(function(err) {
-                    console.warn('[AA] Firebase confirm save failed:', err.message);
-                });
-            }
-
+            
             alert('✅ Plan confirmed! Your tasks are ready in Recovery Mode.');
+            
+            // Return to Recovery Mode
             window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
         }
 
@@ -816,14 +750,7 @@
             });
         });
     </script>
-    <!-- Firebase compat CDN — for cross-device spoon plan sync -->
-    <!-- Claude-credit: moved inside </body> 2026-02-26 (was incorrectly placed after </html>) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="/Academic-Allies/modular/aa-firebase.js?v=20260226e"></script>
-<!-- Cache bust #3: 2026-02-18 Bruise - Grok assisted - fixed history expansion -->
-<!-- Cache bust #4: 2026-02-18 Bruise - Grok assisted - cleaned DOCTYPE & remnant -->
-<!-- Cache bust #5: 2026-02-26 Claude - Firebase sync added -->
 </body>
 </html>
+<!-- Cache bust #3: 2026-02-18 Bruise - Grok assisted - fixed history expansion -->
+<!-- Cache bust #4: 2026-02-18 Bruise - Grok assisted - cleaned DOCTYPE & remnant -->

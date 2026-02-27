@@ -1,0 +1,188 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'brinckmyster@gmail.com';
+    }
+
+    // ── Users ────────────────────────────────────────────────────
+    // Any signed-in user reads (needed for lookupByEmail, getAllStudents,
+    // support network scanning in aa-mirror). Owner or admin writes.
+    // Special narrow update rules allow invite redemption and isSupporter flag.
+    // Updated 2026-02-26 by Claude — invite redemption permissions fix.
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid) || isAdmin();
+
+      // Invite redemption: a signed-in user may add ONLY their own uid key to
+      // another user's supportNetwork, and only with a valid tier value.
+      // The invite code is the real security gate; this rule limits raw API abuse
+      // by restricting writes to self-keyed entries with valid tiers only.
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['supportNetwork'])
+        && request.resource.data.supportNetwork.diff(
+             resource.data.get('supportNetwork', {})
+           ).affectedKeys().hasOnly([request.auth.uid])
+        && request.resource.data.supportNetwork[request.auth.uid]
+             in ['family', 'support', 'nearby-help', 'network-lead'];
+
+      // isSupporter flag: any signed-in user may set/clear ONLY the isSupporter
+      // field on another user's doc (set by setNetworkMember when adding to network).
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['isSupporter']);
+
+      // Network Lead edit: a network-lead member may update only the studentProfile
+      // field on a student's doc (conditions, notes, customizations for that student).
+      // Verified by checking the student's own supportNetwork map.
+      // Added 2026-02-26 by Claude.
+      allow update: if isSignedIn()
+        && resource.data.role == 'student'
+        && resource.data.get('supportNetwork', {})[request.auth.uid] == 'network-lead'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['studentProfile']);
+    }
+
+    // ── Pending pre-registrations — admin only ───────────────────
+    // Non-admins intentionally get PERMISSION_DENIED here on first sign-in;
+    // aa-firebase.js catches the error and falls through to default role.
+    match /pendingUsers/{email} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── Nope mode ────────────────────────────────────────────────
+    match /nope/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid);
+
+      match /logs/{logId} {
+        allow read: if isSignedIn();
+        allow create: if isOwner(uid);
+        allow update, delete: if false;
+      }
+    }
+
+    // ── Flower quiz ───────────────────────────────────────────────
+    match /flowerQuiz/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid);
+    }
+
+    // ── Check-ins ────────────────────────────────────────────────
+    match /checkins/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid);
+
+      match /days/{dateKey} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(uid);
+      }
+    }
+
+    // ── Meal plans (base plan) ───────────────────────────────────
+    match /mealPlans/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // ── Meal logs (daily actuals) ────────────────────────────────
+    match /mealLogs/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid) || isAdmin();
+
+      match /days/{dateKey} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(uid) || isAdmin();
+      }
+    }
+
+    // ── SpoonPal ─────────────────────────────────────────────────
+    match /spoonPal/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // ── Invites (Amanda sudo — student-generated invite codes) ───
+    // Added 2026-02-26 by Claude
+    //
+    // Document ID = the invite code itself (e.g. "XK9P2M")
+    // Schema: { code, studentUid, studentName, role, createdAt,
+    //           expiresAt, used, usedAt, usedBy }
+    //
+    // CREATE:  only the student who owns the invite (studentUid == caller)
+    // READ:    any signed-in user (they need the code to find it — security
+    //          through obscurity is fine here; codes are short-lived + single-use)
+    // LIST:    student can query their own invites (studentUid == caller)
+    // REDEEM:  any signed-in user can mark used=true + set usedBy/usedAt
+    //          (but cannot change studentUid, role, or code)
+    // REVOKE:  student can delete their own unused invite
+    // ADMIN:   platform admin can read/delete any invite
+    match /invites/{code} {
+      // Anyone signed-in can read a specific invite doc (needed to redeem)
+      allow read: if isSignedIn();
+
+      // Student creates invite for their own uid
+      allow create: if isSignedIn()
+        && request.resource.data.studentUid == request.auth.uid
+        && request.resource.data.used == false
+        && request.resource.data.role in ['family','support','nearby-help','network-lead'];
+
+      // Redemption: any signed-in user can flip used→true on an unused invite.
+      // They cannot change studentUid, role, code, createdAt, or expiresAt.
+      allow update: if isSignedIn()
+        && resource.data.used == false
+        && request.resource.data.used == true
+        && request.resource.data.usedBy == request.auth.uid
+        && request.resource.data.studentUid == resource.data.studentUid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.code == resource.data.code;
+
+      // Student revokes their own unused invite; admin can delete any
+      allow delete: if isAdmin()
+        || (isSignedIn()
+            && resource.data.studentUid == request.auth.uid
+            && resource.data.used == false);
+    }
+
+    // ── Messages ─────────────────────────────────────────────────
+    // Thread doc — participants array controls who can access.
+    // watchThreads() uses array-contains query which is consistent
+    // with the read rule, so Firestore allows the query.
+    match /messages/{threadId} {
+      allow read: if isSignedIn()
+        && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn()
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.participants.size() == 2;
+      allow update: if isSignedIn()
+        && request.auth.uid in resource.data.participants;
+      allow delete: if false;
+
+      // Individual messages
+      // !exists() handles the race condition on first send: the thread doc
+      // set() and msgs add() happen back-to-back; the server may not have
+      // committed the thread doc yet when the msgs rule fires on first message.
+      match /msgs/{msgId} {
+        allow read: if isSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/messages/$(threadId)).data.participants;
+        allow create: if isSignedIn()
+          && request.auth.uid == request.resource.data.senderUid
+          && (
+            !exists(/databases/$(database)/documents/messages/$(threadId))
+            || request.auth.uid in get(/databases/$(database)/documents/messages/$(threadId)).data.participants
+          );
+        allow update, delete: if false;
+      }
+    }
+
+  }
+}
