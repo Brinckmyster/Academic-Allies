@@ -340,23 +340,12 @@ function parseUTC() {
     if (raw.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)) {
       d = new Date(raw.endsWith('Z') ? raw : raw + 'Z');
     }
-    // Try "HH:MM UTC" or "HH:MM:SS UTC" (today, 24-hour)
+    // Try "HH:MM UTC" or "HH:MM:SS UTC" (today)
     else if (raw.match(/^\d{1,2}:\d{2}/)) {
       var today = new Date().toISOString().split('T')[0];
       var timeOnly = raw.replace(/\s*UTC\s*/i, '').trim();
       if (!timeOnly.match(/:\d{2}:\d{2}$/)) timeOnly += ':00';
       d = new Date(today + 'T' + timeOnly + 'Z');
-    }
-    // Try "11pm", "11:30am", "11:30 PM UTC" (12-hour format)
-    else if (raw.match(/^\d{1,2}(:\d{2})?\s*(am|pm)/i)) {
-      var m12 = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
-      var h = parseInt(m12[1], 10);
-      var min = m12[2] ? parseInt(m12[2], 10) : 0;
-      var ampm = m12[3].toLowerCase();
-      if (ampm === 'pm' && h !== 12) h += 12;
-      if (ampm === 'am' && h === 12) h = 0;
-      var today2 = new Date().toISOString().split('T')[0];
-      d = new Date(today2 + 'T' + String(h).padStart(2,'0') + ':' + String(min).padStart(2,'0') + ':00Z');
     } else {
       d = new Date(raw);
     }
@@ -371,7 +360,7 @@ function parseUTC() {
     document.getElementById('utc-value').textContent = local + ' (your local time)';
     document.getElementById('utc-result').style.display = 'block';
   } catch(e) {
-    alert('Could not parse that time string. Try: 2026-02-25T18:30:00Z, 18:30 UTC, or 11pm / 11:30am');
+    alert('Could not parse that time string. Try: 2026-02-25T18:30:00Z or 18:30 UTC');
   }
 }
 
