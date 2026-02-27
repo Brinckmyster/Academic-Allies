@@ -526,6 +526,9 @@ function pickEnergy(el) {
 
     /* Add entry to session log */
     addLogEntry(em + ' ' + lbl);
+
+    /* Save to Firebase silently — Claude 2026-02-26 */
+    bbdSaveEnergy(v, lbl);
 }
 
 function skipCheckin() {
@@ -611,6 +614,65 @@ function applyDyslexicFont(on) {
     update(mq);
     if (mq.addEventListener) mq.addEventListener('change', update);
 })();
+
+/* ── Firebase sync — Claude 2026-02-26 ─────────────────────────────────────
+   Saves energy check-ins to Firestore so they persist across devices/browsers.
+   Works silently in the background — Bad Brain Day works fully without sign-in.
+─────────────────────────────────────────────────────────────────────────── */
+function _bbdDateKey() {
+    var d = new Date();
+    return d.getFullYear() + '-'
+        + String(d.getMonth() + 1).padStart(2, '0') + '-'
+        + String(d.getDate()).padStart(2, '0');
+}
+
+/* Called from pickEnergy() — save the pick to Firebase if signed in */
+function bbdSaveEnergy(value, label) {
+    if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
+    var uid = AA.auth.currentUser.uid;
+    AA.saveCheckin(uid, _bbdDateKey(), {
+        badBrainDayEnergy: value,
+        badBrainDayLabel:  label,
+        savedAt:           new Date().toISOString()
+    }).catch(function(err) {
+        console.warn('[AA] Bad Brain Day energy save failed (non-critical):', err.message);
+    });
+}
+
+/* On load — restore today's energy pick from Firebase if not already selected */
+document.addEventListener('DOMContentLoaded', function() {
+    if (!window.AA || !AA.auth) return;
+    AA.auth.onAuthStateChanged(function(user) {
+        if (!user) return;
+        /* Only restore if the user hasn't already picked something this session */
+        if (document.querySelector('.energy-item.selected')) return;
+        AA.getRecentCheckins(user.uid, 1).then(function(docs) {
+            if (docs.empty) return;
+            var data = docs.docs[0].data();
+            if (data.badBrainDayEnergy) {
+                var el = document.querySelector('.energy-item[data-v="' + data.badBrainDayEnergy + '"]');
+                if (el) {
+                    el.classList.add('selected');
+                    el.setAttribute('aria-selected', 'true');
+                    var logged = document.getElementById('checkin-logged');
+                    if (logged) {
+                        logged.style.display = 'block';
+                        logged.textContent = 'Restored: ' + el.querySelector('.energy-emoji').textContent + ' ' + data.badBrainDayLabel;
+                    }
+                }
+            }
+        }).catch(function(err) {
+            console.warn('[AA] Bad Brain Day restore failed (non-critical):', err.message);
+        });
+    });
+});
 </script>
+
+    <!-- Firebase compat CDN — silent background sync for check-in persistence -->
+    <!-- Claude-credit: added 2026-02-26 — bad-brain-day was the only page missing Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="/Academic-Allies/modular/aa-firebase.js?v=20260226f"></script>
 </body>
 </html>

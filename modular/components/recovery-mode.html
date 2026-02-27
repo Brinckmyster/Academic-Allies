@@ -239,7 +239,8 @@
         </div>
         <!-- Emergency Support -->
         <div class="card">
-            <button class="btn btn-emergency" onclick="window.location.href='https://brinckmyster.github.io/Aestas/Academic%20Allies/Modular/components/emergency.html'">
+            <!-- Claude-credit: fixed broken Aestas dev URL → production path 2026-02-26 -->
+            <button class="btn btn-emergency" onclick="window.location.href='/Academic-Allies/modular/emergency.html'">
                 🆘 I Need Help Now
             </button>
         </div>
@@ -487,7 +488,8 @@
             }
         }
         function showSpoonPlanner() {
-            alert('Spoon Planner coming soon! This will let you plan your entire day with spoon costs.');
+            /* Claude-credit: was a placeholder alert — now navigates to actual page 2026-02-26 */
+            window.location.href = '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html';
         }
         // Flower Quiz — shuffle-deck so every flower appears equally before repeating
         let flowers = [];
@@ -874,12 +876,16 @@
     </script>
     <script>
         // ── Spoon Plan loader — Claude 2026-02-26 ──────────────────────────────
-        // Renders the todo-list from tasks array.
+        // Renders the todo-list from planTasks array.
+        // Also updates the global `tasks` so completeTask() deducts the right spoon cost.
         // Falls back to a default "Check in with myself" task if no plan exists.
-        function renderTodoList(tasks) {
+        // Claude-credit: renamed param planTasks (was tasks) to avoid shadowing global 2026-02-26
+        function renderTodoList(planTasks) {
             var list = document.getElementById('todo-list');
             if (!list) return;
-            if (!tasks || tasks.length === 0) {
+            if (!planTasks || planTasks.length === 0) {
+                // Reset global tasks to default so completeTask() works correctly
+                tasks = [{ name: 'Check in with myself', text: 'Check in with myself', spoons: 1, completed: false }];
                 list.innerHTML =
                     '<div class="todo-item">' +
                         '<input type="checkbox" class="todo-checkbox" onchange="completeTask(0, this.checked)">' +
@@ -888,12 +894,14 @@
                     '</div>';
                 return;
             }
-            list.innerHTML = tasks.map(function(task, i) {
+            // Update global so completeTask() uses the real spoon costs
+            tasks = planTasks.slice();
+            list.innerHTML = planTasks.map(function(task, i) {
                 return '<div class="todo-item">' +
                     '<input type="checkbox" class="todo-checkbox"' +
                         (task.completed ? ' checked' : '') +
                         ' onchange="completeTask(' + i + ', this.checked)">' +
-                    '<span class="todo-text">' + (task.name || '') +
+                    '<span class="todo-text">' + (task.name || task.text || '') +
                         (task.time ? ' <span style="font-size:13pt;color:#999;">(' + task.time + ')</span>' : '') +
                     '</span>' +
                     '<span class="todo-spoons">' + (task.spoons || 1) + '🥄</span>' +
