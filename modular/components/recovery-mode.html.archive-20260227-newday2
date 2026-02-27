@@ -245,16 +245,16 @@
             padding: 4px 8px;
             margin-left: 6px;
         }
-        .new-day-btn {
+        .new-day-banner {
+            display: none;
             background: #fff8e1;
-            border: 1px solid #ffca28;
-            border-radius: 8px;
-            padding: 4px 10px;
-            font-size: 13pt;
-            font-family: inherit;
-            color: #8a6800;
-            cursor: pointer;
+            border: 2px solid #ffca28;
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 16px;
+            text-align: center;
         }
+        .new-day-banner p { margin-bottom: 14px; font-size: 16pt; }
     </style>
 </head>
 <body>
@@ -292,12 +292,19 @@
         <!-- Session timestamp — Claude 2026-02-27 -->
         <div class="session-bar" id="session-bar">
             <span>🕐 Session started: <span id="session-start-display">—</span></span>
-            <button class="new-day-btn" onclick="resetSession()">🌅 Start New Day</button>
             <button class="session-tz-btn" onclick="toggleTZPicker()">Change timezone</button>
         </div>
         <div class="tz-picker-row" id="tz-picker-row">
             <label for="tz-select">Timezone:</label>
             <select id="tz-select" onchange="saveTZ(this.value)"></select>
+        </div>
+
+        <!-- New day banner — Claude 2026-02-27 -->
+        <div class="new-day-banner" id="new-day-banner">
+            <p>🌅 It looks like it's a new day! Ready to start fresh?</p>
+            <button class="btn" onclick="resetSession()">✨ Yes, start a new session</button>
+            <br>
+            <button class="btn" style="background:#aaa;margin-top:8px;" onclick="dismissNewDay()">Continue from yesterday</button>
         </div>
 
         <!-- Emergency Support -->
@@ -1158,6 +1165,10 @@
             return localStorage.getItem('recoveryTZ') || Intl.DateTimeFormat().resolvedOptions().timeZone;
         }
 
+        function todayInTZ(tz) {
+            return new Date().toLocaleDateString('en-CA', { timeZone: tz }); // YYYY-MM-DD
+        }
+
         function formatSessionStart(isoStr, tz) {
             return new Date(isoStr).toLocaleString('en-US', {
                 timeZone: tz,
@@ -1190,22 +1201,43 @@
             localStorage.setItem('recoveryTZ', tz);
             var stored = localStorage.getItem('recoverySessionStart');
             updateSessionDisplay(stored, tz);
+            // Re-check new day with new timezone
+            var storedDate = localStorage.getItem('recoverySessionDate');
+            var banner = document.getElementById('new-day-banner');
+            if (storedDate && storedDate !== todayInTZ(tz)) {
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
         }
 
         function resetSession() {
-            ['energyLevel', 'flowerCount', 'reportedFlowers', 'recoverySessionStart'].forEach(function(k) {
+            ['energyLevel', 'flowerCount', 'reportedFlowers',
+             'recoverySessionStart', 'recoverySessionDate'].forEach(function(k) {
                 localStorage.removeItem(k);
             });
             location.reload();
         }
 
+        function dismissNewDay() {
+            localStorage.setItem('recoverySessionDate', todayInTZ(getStoredTZ()));
+            document.getElementById('new-day-banner').style.display = 'none';
+        }
+
         function initSession() {
             var tz = getStoredTZ();
+            var today = todayInTZ(tz);
             var stored = localStorage.getItem('recoverySessionStart');
+            var storedDate = localStorage.getItem('recoverySessionDate');
+
             if (!stored) {
                 stored = new Date().toISOString();
                 localStorage.setItem('recoverySessionStart', stored);
+                localStorage.setItem('recoverySessionDate', today);
+            } else if (storedDate && storedDate !== today) {
+                document.getElementById('new-day-banner').style.display = 'block';
             }
+
             updateSessionDisplay(stored, tz);
             populateTZSelect(tz);
         }
