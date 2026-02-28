@@ -64,6 +64,14 @@
     return DAY_SEGS[new Date().getDay()];
   }
 
+  /* Claude: local date key — avoids UTC-day mismatch for users behind UTC — 2026-02-28 */
+  function _localDateKey() {
+    var d = new Date();
+    return d.getFullYear() + '-' +
+           String(d.getMonth() + 1).padStart(2, '0') + '-' +
+           String(d.getDate()).padStart(2, '0');
+  }
+
   /* ── Segment color from one check-in entry ─────────────── */
   /* Returns a color hex string, or null if segment has no data.
      Priority: new categories object → legacy string fields (backward compat) */
@@ -420,7 +428,7 @@
 
   function localData() {
     try {
-      var k   = new Date().toISOString().split('T')[0];
+      var k   = _localDateKey();
       var raw = localStorage.getItem('checkins_' + k);
       return fromEntries(raw ? JSON.parse(raw) : []);
     } catch (e) { return {}; }
@@ -428,7 +436,15 @@
 
   function startWatching(user) {
     var uid     = window.AA_MIRROR_UID || user.uid;  /* mirror UID if active */
-    var dateKey = new Date().toISOString().split('T')[0];
+    var dateKey = _localDateKey();
+
+    /* Claude: hide sc-banner for student role — support/admin see it, student doesn't — 2026-02-28 */
+    window.AA.getUserDoc(user.uid).then(function(doc) {
+      var role     = (doc.exists && doc.data().role) || 'student';
+      var bannerEl = document.getElementById('sc-banner');
+      if (bannerEl) bannerEl.style.display = (role === 'student') ? 'none' : '';
+    }).catch(function() {});
+
     teardown();
 
     _unsubNope = window.AA.db.collection('nope').doc(uid)
