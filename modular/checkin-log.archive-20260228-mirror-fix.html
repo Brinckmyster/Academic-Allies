@@ -2,12 +2,10 @@
 <!-- ============================================================
      checkin-log.html — Academic Allies Check-In History Log
      Created: 2026-02-28 by Claude
-     Updated: 2026-02-28 by Claude — backstage-manager now auto-scans
-       for student UID so admin sees student log, not their own.
      Shows the last 30 days of check-in entries for the signed-in
      student (or the mirrored student in mirror/boss mode).
-     Support network members see the student's log via AA_MIRROR_UID.
-     Backstage-manager sees the student's log via Firestore scan.
+     Support network members see Mary's log automatically via
+     window.AA_MIRROR_UID set by aa-mirror.js.
      ============================================================ -->
 <html lang="en">
 <head>
@@ -172,17 +170,11 @@
 
   <div class="log-controls" id="log-controls" style="display:none">
     <label for="days-select">Show:</label>
-    <!-- Updated 2026-02-28 by Claude: extended to full-semester and all-time options -->
     <select id="days-select" onchange="loadLog()">
       <option value="7">Last 7 days</option>
       <option value="14">Last 14 days</option>
       <option value="30" selected>Last 30 days</option>
       <option value="60">Last 60 days</option>
-      <option value="90">Last 90 days (semester)</option>
-      <option value="120">Last 120 days</option>
-      <option value="180">Last 180 days (6 months)</option>
-      <option value="365">Last year</option>
-      <option value="9999">All time</option>
     </select>
     <button id="refresh-btn" onclick="loadLog()">↻ Refresh</button>
   </div>
@@ -324,7 +316,6 @@ function show(id) {
   });
 }
 
-/* Updated 2026-02-28 by Claude: supports unlimited "all time" option */
 function loadLog() {
   if (!_currentUid) return;
   var days = parseInt(document.getElementById('days-select').value, 10) || 30;
@@ -332,14 +323,10 @@ function loadLog() {
   if (_unsubLog) { _unsubLog(); _unsubLog = null; }
   show('log-loading');
 
-  var query = AA.db.collection('checkins').doc(_currentUid)
+  _unsubLog = AA.db.collection('checkins').doc(_currentUid)
     .collection('days')
-    .orderBy('date', 'desc');
-
-  /* "All time" (9999) = no limit; otherwise cap to selected days */
-  if (days < 9999) { query = query.limit(days); }
-
-  _unsubLog = query
+    .orderBy('date', 'desc')
+    .limit(days)
     .onSnapshot(function(snap) {
       if (snap.empty) { show('log-empty'); return; }
       var html = snap.docs.map(function(d) { return renderDayCard(d.data()); }).join('');
@@ -351,106 +338,41 @@ function loadLog() {
     });
 }
 
-/* ── Helpers ────────────────────────────────────────────────────────────── */
-function waitForAA(cb, n) {
-  n = n || 0;
-  if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-  if (n > 40) return;
-  setTimeout(function() { waitForAA(cb, n + 1); }, 200);
-}
-
-function showMirrorBanner(name) {
-  var notice = document.getElementById('mirror-notice');
-  var mname  = document.getElementById('mirror-name');
-  if (notice) notice.style.display = 'block';
-  if (mname)  mname.textContent = name || 'student';
-  document.getElementById('log-student-name').textContent = name || 'student';
-}
-
-/* Scan all users for the first student doc (admin fallback) */
-/* Updated 2026-02-28 by Claude — gives backstage-manager a student target */
-function findFirstStudent(cb) {
-  AA.db.collection('users').get()
-    .then(function(snap) {
-      var found = null;
-      snap.forEach(function(doc) {
-        if (found) return;
-        var d = doc.data();
-        if (d.role === 'student') {
-          found = { uid: doc.id, name: d.displayName || d.name || d.email || 'Student' };
-        }
-      });
-      cb(found ? found.uid : null, found ? found.name : null);
-    })
-    .catch(function(e) {
-      console.warn('[AA] checkin-log findFirstStudent:', e);
-      cb(null, null);
-    });
-}
-
 /* ── Auth boot ──────────────────────────────────────────────────────────── */
-/* Updated 2026-02-28 by Claude — backstage-manager now auto-scans for
-   student so admin sees student log, not their own empty log.              */
-waitForAA(function() {
-  AA.auth.onAuthStateChanged(function(user) {
-    var authGate = document.getElementById('auth-gate');
-    var controls = document.getElementById('log-controls');
+AA.auth.onAuthStateChanged(function(user) {
+  var authGate = document.getElementById('auth-gate');
+  var controls = document.getElementById('log-controls');
 
-    if (!user) {
-      authGate.style.display = 'block';
-      show('log-loading');
-      document.getElementById('log-student-name').textContent = '—';
-      return;
-    }
+  if (!user) {
+    authGate.style.display = 'block';
+    show('log-loading');
+    document.getElementById('log-student-name').textContent = '—';
+    return;
+  }
 
-    authGate.style.display = 'none';
-    controls.style.display = 'flex';
+  authGate.style.display = 'none';
+  controls.style.display = 'flex';
 
-    /* Case 1: support-role mirror already set by aa-mirror.js */
-    if (window.AA_MIRROR_UID) {
-      _currentUid = window.AA_MIRROR_UID;
-      AA.db.collection('users').doc(window.AA_MIRROR_UID).get()
-        .then(function(doc) {
-          var name = (doc.exists && (doc.data().displayName || doc.data().name)) || 'student';
-          showMirrorBanner(name);
-        }).catch(function() { showMirrorBanner('student'); });
-      loadLog();
-      return;
-    }
+  _currentUid = window.AA_MIRROR_UID || user.uid;
 
-    /* Case 2: read own role to determine display target */
-    AA.db.collection('users').doc(user.uid).get()
-      .then(function(myDoc) {
-        var myRole = myDoc.exists ? (myDoc.data().role || 'student') : 'student';
+  /* Mirror mode notice */
+  var mirrorNotice = document.getElementById('mirror-notice');
+  var mirrorName   = document.getElementById('mirror-name');
+  if (window.AA_MIRROR_UID) {
+    mirrorNotice.style.display = 'block';
+    /* Try to get the student's display name from their user doc */
+    AA.db.collection('users').doc(window.AA_MIRROR_UID).get()
+      .then(function(doc) {
+        var name = (doc.exists && (doc.data().displayName || doc.data().name)) || 'student';
+        mirrorName.textContent = name;
+        document.getElementById('log-student-name').textContent = name;
+      }).catch(function() {});
+  } else {
+    var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
+    document.getElementById('log-student-name').textContent = firstName || 'you';
+  }
 
-        if (myRole === 'backstage-manager') {
-          /* Admin: scan for the student and show their log */
-          findFirstStudent(function(studentUid, studentName) {
-            if (studentUid) {
-              _currentUid = studentUid;
-              showMirrorBanner(studentName);
-            } else {
-              /* No student found — fall back to own UID */
-              _currentUid = user.uid;
-              var fn = (user.displayName || user.email || '').split(/[\s@]/)[0];
-              document.getElementById('log-student-name').textContent = fn || 'you';
-            }
-            loadLog();
-          });
-        } else {
-          /* Regular student — own log */
-          _currentUid = user.uid;
-          var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
-          document.getElementById('log-student-name').textContent = firstName || 'you';
-          loadLog();
-        }
-      })
-      .catch(function(err) {
-        console.error('[AA] checkin-log auth role read:', err);
-        _currentUid = user.uid;
-        loadLog();
-      });
-  });
+  loadLog();
 });
 </script>
 
