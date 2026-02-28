@@ -390,12 +390,28 @@ function copyUTCResult() {
 }
 </script>
 
-<!-- Shared header loader -->
+<!-- Shared header loader — full script re-execution so Firebase/auth initialise.
+     Updated 2026-02-28 by Claude — was using innerHTML only (scripts never ran). -->
 <script>
-fetch('/Academic-Allies/modular/shared-header.html?v=20260225d')
+fetch('/Academic-Allies/modular/shared-header.html?v=20260228a')
   .then(function(r){ return r.text(); })
-  .then(function(html){ document.getElementById('shared-header').innerHTML = html; })
-  .catch(function(){ /* header optional */ });
+  .then(function(html){
+    var container = document.getElementById('shared-header');
+    container.innerHTML = html;
+    /* Re-execute every <script> so Firebase + AA auth actually initialise */
+    container.querySelectorAll('script').forEach(function(old) {
+      var s = document.createElement('script');
+      Array.from(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      s.textContent = old.textContent;
+      old.replaceWith(s);
+    });
+    /* Draggable header */
+    var drag = document.createElement('script');
+    drag.src = '/Academic-Allies/modular/js/draggable.js';
+    drag.onload = function(){ if (typeof initDrag === 'function') initDrag(); };
+    document.body.appendChild(drag);
+  })
+  .catch(function(){ /* header optional on static utility pages */ });
 </script>
 
 </body>
