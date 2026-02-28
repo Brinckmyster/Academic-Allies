@@ -923,7 +923,15 @@
       if (entries.length === 0) {
         dot.className      = 'live-dot unknown';
         status.textContent = '📋 No check-in yet today';
-        detail.textContent = 'Updates live when ' + (studentName || 'student') + ' submits a check-in.';
+        // Show reach-out even when no check-in exists yet — Updated 2026-02-28 by Claude
+        var noCheckReach = '';
+        if (ciData && ciData.reachedOutAt) {
+          var rat0 = ciData.reachedOutAt;
+          var rat0Date = (typeof rat0.toDate === 'function') ? rat0.toDate() : new Date(rat0);
+          noCheckReach = ' · 📨 Reached out at ' +
+            rat0Date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+        }
+        detail.textContent = 'Updates live when ' + (studentName || 'student') + ' submits a check-in.' + noCheckReach;
         return;
       }
 
@@ -952,8 +960,19 @@
       };
       dot.className      = 'live-dot ' + worst;
       status.textContent = statusLabels[worst] || '🟢 Checked in';
+
+      // ── Reached-out indicator ── Added 2026-02-28 by Claude
+      // Shows when student sent a message to their support network today.
+      var reachStr = '';
+      if (ciData && ciData.reachedOutAt) {
+        var rat = ciData.reachedOutAt;
+        var ratDate = (typeof rat.toDate === 'function') ? rat.toDate() : new Date(rat);
+        reachStr = ' · 📨 Reached out at ' +
+          ratDate.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      }
+
       detail.textContent = entries.length + ' check-in' + (entries.length === 1 ? '' : 's') +
-                           ' today' + (lastTime ? ' · last at ' + lastTime : '');
+                           ' today' + (lastTime ? ' · last at ' + lastTime : '') + reachStr;
     }
 
     function loadStudentStatus(studentUid, studentName) {

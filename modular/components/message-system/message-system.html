@@ -160,9 +160,9 @@
 
   <script>
     /* ── Constants ───────────────────────────────────────── */
-    // Updated 2026-02-28 by Claude — added network-lead icon (was missing, fell through to student fallback)
+    // Updated 2026-02-28 by Claude — icon swap: badge-admin-yellow-center→backstage-manager, icon-user-admin→network-lead
     var TIER_ICONS = {
-      'backstage-manager': '/Academic-Allies/modular/icons/icon-user-admin.png',
+      'backstage-manager': '/Academic-Allies/modular/icons/badge-admin-yellow-center.png',
       'network-lead':      '/Academic-Allies/modular/icons/icon-user-admin.png',
       'student':     '/Academic-Allies/modular/icons/icon-user-student.png',
       'support':     '/Academic-Allies/modular/icons/icon-user-support.png',
@@ -176,11 +176,12 @@
     };
 
     /* ── State ───────────────────────────────────────────── */
-    var currentUser     = null;
-    var activeContact   = null;   // { uid, name, tier }
-    var activeThreadId  = null;
-    var unsubMessages   = null;   // Firestore listener unsub fn for active thread
-    var unsubThreads    = null;   // Firestore listener for sidebar real-time updates
+    var currentUser       = null;
+    var _currentUserRole  = null;  // set in loadContacts — used by sendMessage to tag reachedOutAt
+    var activeContact     = null;   // { uid, name, tier }
+    var activeThreadId    = null;
+    var unsubMessages     = null;   // Firestore listener unsub fn for active thread
+    var unsubThreads      = null;   // Firestore listener for sidebar real-time updates
 
     /* ── Helpers ─────────────────────────────────────────── */
     function threadId(uid1, uid2) {
@@ -222,6 +223,7 @@
         if (!doc.exists) { document.getElementById('msg-loading').textContent = 'Profile not found.'; return; }
         var data   = doc.data();
         var myRole = data.role || 'student';
+        _currentUserRole = myRole; // store so sendMessage() can check it
 
         if (myRole === 'backstage-manager') {
           /* Backstage Manager sees students only — support/family/nearby-help have no reason
@@ -436,6 +438,17 @@
         _draftClear(activeThreadId);
         btn.disabled = false;
         textarea.focus();
+
+        // ── If sender is a student, record reachedOutAt in today's check-in ──
+        // Added 2026-02-28 by Claude — support network status panel reads this
+        // to show "📨 Student reached out at [time]" in real time.
+        if (_currentUserRole === 'student') {
+          var dateKey = new Date().toISOString().split('T')[0];
+          AA.db.collection('checkins').doc(currentUser.uid)
+            .collection('days').doc(dateKey)
+            .set({ reachedOutAt: AA.FieldValue.serverTimestamp() }, { merge: true })
+            .catch(function(e) { console.warn('[AA] reachedOutAt write:', e); });
+        }
       }).catch(function(err) {
         alert('Send failed: ' + err.message);
         btn.disabled = false;

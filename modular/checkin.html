@@ -560,22 +560,17 @@
 
 </div><!-- /page-wrap -->
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<!-- Firebase compat SDK 10.7.1 — Updated 2026-02-28 by Claude: was 9.22.2 + no auth; now matches rest of app -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="/Academic-Allies/modular/aa-firebase.js"></script>
+<script src="/Academic-Allies/modular/js/aa-mirror.js"></script>
 
 <script>
-// ── Firebase init ──
-var firebaseConfig = {
-  apiKey: "AIzaSyC9o6gCSmGiFiXeXsYU-3mAd72EB3h3wjM",
-  authDomain: "academicalliesapp.firebaseapp.com",
-  projectId: "academicalliesapp",
-  storageBucket: "academicalliesapp.appspot.com",
-  messagingSenderId: "263432768518",
-  appId: "1:263432768518:web:e5e63a73b1e35c22b9c1cc"
-};
-if (!firebase.apps || !firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-var db = firebase.firestore();
+// ── Firebase init: aa-firebase.js owns initialisation; db set after AA is ready ──
+// Updated 2026-02-28 by Claude — removed duplicate inline initializeApp(); aa-firebase.js handles it.
+var db = null; // set in waitForAA below
 
 // ── Mary's confirmed 10-point energy scale (DO NOT CHANGE) ──
 var EMOJIS = [
@@ -854,12 +849,16 @@ function saveCheckin() {
     localStorage.setItem('checkins_' + dateKey, JSON.stringify(existing));
   } catch (e) {}
 
-  // ── Save to Firestore at checkins/{uid}/days/{date} ──────────────────
-  // Uses AA.saveCheckin (aa-firebase.js) so the path matches what
+  // ── Save to Firestore via AA.saveCheckin ─────────────────────────────
+  // Updated 2026-02-28 by Claude: now uses waitForAA to ensure aa-firebase.js
+  // is ready before writing. Path: checkins/{uid}/days/{date} matches what
   // status-circle.js and loadStudentStatus() both read from.
-  // Previously this page used db.collection('checkins').add(entry) which
-  // wrote to a flat root collection nobody was reading. Fixed 2026-02-28 by Claude.
-  if (window.AA && AA.auth && AA.auth.currentUser) {
+  function doFirestoreSave() {
+    if (!AA.auth.currentUser) {
+      status.textContent = '✅ Saved locally! Sign in to sync with your support network. 💛';
+      btn.disabled = false;
+      return;
+    }
     AA.saveCheckin(AA.auth.currentUser.uid, dateKey, entry)
       .then(function () {
         status.textContent = '✅ Check-in saved! Great job showing up today. 💛';
@@ -867,14 +866,25 @@ function saveCheckin() {
       })
       .catch(function (err) {
         console.error('[AA] checkin save error:', err);
-        status.textContent = '⚠️ Saved locally — Firebase sync failed, please try again.';
+        status.textContent = '⚠️ Saved locally — sync failed. Try again. ' + err.message;
         btn.disabled = false;
       });
-  } else {
-    // Not signed in — localStorage only (circle still works from cache)
-    status.textContent = '✅ Check-in saved locally! Sign in to sync to your support network. 💛';
-    btn.disabled = false;
   }
+
+  waitForAA(doFirestoreSave, function() {
+    // AA never became available — localStorage-only fallback
+    status.textContent = '✅ Saved locally! Connect to the internet to sync. 💛';
+    btn.disabled = false;
+  });
+}
+
+// ── waitForAA: poll until window.AA is ready, then call cb. ─────────────
+// Added 2026-02-28 by Claude — needed because aa-firebase.js loads async.
+function waitForAA(cb, fallback, tries) {
+  tries = tries || 0;
+  if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+  if (tries > 30) { if (fallback) fallback(); return; }
+  setTimeout(function() { waitForAA(cb, fallback, tries + 1); }, 200);
 }
 
 // ── Reset ──
@@ -932,12 +942,41 @@ function resetForm() {
 }
 </script>
 
-<!-- Shared header loader -->
+<!-- Shared header loader — Updated 2026-02-28 by Claude: re-executes scripts so Firebase auth initialises -->
 <script>
-fetch('/Academic-Allies/modular/shared-header.html?v=20260225d')
+fetch('/Academic-Allies/modular/shared-header.html?v=20260228b')
   .then(function(r){ return r.text(); })
-  .then(function(html){ document.getElementById('shared-header').innerHTML = html; })
+  .then(function(html){
+    var container = document.getElementById('shared-header');
+    container.innerHTML = html;
+    container.querySelectorAll('script').forEach(function(old) {
+      var s = document.createElement('script');
+      Array.from(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      s.textContent = old.textContent;
+      old.replaceWith(s);
+    });
+  })
   .catch(function(){ /* header optional */ });
+
+// ── Mirror mode guard — Updated 2026-02-28 by Claude ──────────────────
+// If a support network member lands on this page, block the form and
+// show a read-only notice. Check-in is for the student, not the viewer.
+(function checkMirrorOnLoad() {
+  // AA_MIRROR_UID is set synchronously by aa-mirror.js if viewer is support role
+  if (!window.AA_MIRROR_UID) return; // student or admin — form is fine
+
+  // Hide the form, show a notice
+  var wrap = document.querySelector('.page-wrap');
+  if (!wrap) return;
+  wrap.innerHTML =
+    '<h1>Daily Check-In</h1>' +
+    '<div style="background:#e8eeff;border:2px solid #a5b4fc;border-radius:12px;padding:1.25rem 1.5rem;margin-top:1rem;">' +
+      '<p style="font-weight:700;color:#4338ca;margin-bottom:.5rem;">👁 Mirror mode — read-only</p>' +
+      '<p style="font-size:.95rem;color:#5b5ea6;">The check-in form is for the student, not the support network. ' +
+      'You can see their status in <a href="/Academic-Allies/modular/components/user-tiers/user-tiers.html" ' +
+      'style="color:#4338ca;">the support network page</a>.</p>' +
+    '</div>';
+})();
 </script>
 
 </body>

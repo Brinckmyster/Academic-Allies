@@ -413,25 +413,31 @@ AA.auth.onAuthStateChanged(function(user) {
       }).catch(function() { show('mirror-notice'); });
   }
 
-  /* Check if current user can edit (network-lead in this student's network or admin) */
+  /* Check if current user can edit:
+     - backstage-manager: always
+     - student on own page (no AA_MIRROR_UID): yes — students own their contacts
+     - network-lead in student's network (mirror mode): yes
+     Updated 2026-02-28 by Claude: was false for students on own page; now true. */
   var isAdmin = (typeof window.AA_ROLE !== 'undefined' && window.AA_ROLE === 'backstage-manager');
-  if (window.AA_MIRROR_UID && !isAdmin) {
-    /* Check if user is network-lead for this student */
+
+  if (isAdmin) {
+    _canEdit = true;
+    showEditSection();
+  } else if (!window.AA_MIRROR_UID) {
+    /* Student viewing their own emergency contacts — can edit */
+    _canEdit = true;
+    showEditSection();
+  } else {
+    /* Support network member in mirror mode — check if network-lead */
     AA.db.collection('users').doc(_studentUid).get()
       .then(function(doc) {
         if (!doc.exists) return;
         var network = doc.data().supportNetwork || {};
         var myRole  = network[user.uid];
-        _canEdit = (myRole === 'network-lead' || isAdmin);
+        _canEdit = (myRole === 'network-lead');
         if (_canEdit) showEditSection();
       }).catch(function() {});
-  } else if (!window.AA_MIRROR_UID) {
-    /* Student viewing their own page — can see but not edit via this UI
-       (contacts are managed by their network lead) */
-    _canEdit = false;
   }
-
-  if (isAdmin) { _canEdit = true; showEditSection(); }
 
   /* Real-time listener */
   if (_unsubContacts) _unsubContacts();
