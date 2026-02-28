@@ -403,9 +403,11 @@
 
   <script>
     // ── Section links ──────────────────────────────────────
+    // meals URL defaults to generic planner; swapped to Mary's personal planner on auth.
+    // Updated 2026-02-28 by Claude — fix broken link + dynamic per-student routing.
     var SECTIONS = {
       checkin:   { label: '📋 Daily Check-In',     url: '/Academic-Allies/modular/checkin.html' },
-      meals:     { label: '🍽️ My Meal Plan',        url: '/Academic-Allies/modular/components/meal-planner-mary/meal-planner.html' },
+      meals:     { label: '🍽️ My Meal Plan',        url: '/Academic-Allies/modular/components/meal-planner/meal-planner.html' },
       spoons:    { label: '🥄 Spoon Planner',       url: '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html' },
       calendar:  { label: '📅 My Calendar',         url: '/Academic-Allies/modular/components/calendar/calendar.html' },
       messages:  { label: '💬 Messages',            url: '/Academic-Allies/modular/messages.html' },
@@ -438,6 +440,18 @@
     AA.auth.onAuthStateChanged(function (user) {
       if (user) {
         currentUid = window.AA_MIRROR_UID || user.uid;
+        // ── Route meal plan to the right planner per student ──
+        // Mary (mbrinck90) has her personal gastroparesis-specific planner.
+        // Everyone else uses the generic uid-based planner.
+        // studentProfile.mealPlannerUrl can also override for future students.
+        // Added 2026-02-28 by Claude.
+        if (user.email === 'mbrinck90@gmail.com') {
+          SECTIONS.meals.url = '/Academic-Allies/modular/components/meal-planner-mary/index.html';
+        } else {
+          AA.getStudentProfile(currentUid).then(function(p) {
+            if (p && p.mealPlannerUrl) SECTIONS.meals.url = p.mealPlannerUrl;
+          }).catch(function() {});
+        }
         showAuthGate(false);
         subscribeToNope();
       } else {

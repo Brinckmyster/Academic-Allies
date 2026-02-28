@@ -647,8 +647,8 @@
             "Heavenly Father knows your heart. He sees your efforts.",
             "You are a daughter of God. Your worth is infinite."
         ];
-        // Mary-safe meal options
-        const mealOptions = {
+        // Mary's gastroparesis-safe meal options — DO NOT CHANGE
+        const maryMealOptions = {
             breakfast: [
                 "Post Fruity Pebbles with Lactaid 2% milk",
                 "Pop-Tarts (Frosted Cherry)",
@@ -678,6 +678,40 @@
                 "Great Value Distilled Water"
             ]
         };
+        // Generic low-effort meal options for other students — Added 2026-02-28 by Claude
+        const genericMealOptions = {
+            breakfast: [
+                "Toast with peanut butter or jam",
+                "Instant oatmeal (microwave, 2 min)",
+                "Cereal with milk or dairy-free milk",
+                "Yogurt with granola",
+                "Scrambled eggs (microwave 90 sec)"
+            ],
+            lunch: [
+                "Grilled cheese sandwich",
+                "Cup noodles or instant ramen",
+                "Peanut butter & honey wrap",
+                "Canned soup (heat & eat)",
+                "Crackers with cheese or nut butter"
+            ],
+            dinner: [
+                "Frozen meal or microwave entrée",
+                "Pasta with jarred sauce (10 min)",
+                "Rice with butter or soy sauce",
+                "Quesadilla (tortilla + cheese, microwave)",
+                "Canned soup with bread"
+            ],
+            liquids: [
+                "Water or sparkling water",
+                "Gatorade or Pedialyte",
+                "Herbal tea (no prep needed)",
+                "Apple juice or orange juice",
+                "Broth (instant or carton)"
+            ]
+        };
+        // Default to Mary's options; swapped to generic after auth if not Mary.
+        // See onAuthStateChanged below. Added 2026-02-28 by Claude.
+        let mealOptions = maryMealOptions;
         let reportedFlowers = JSON.parse(localStorage.getItem('reportedFlowers') || '[]');
         function viewReports() {
             if (reportedFlowers.length === 0) {
@@ -934,6 +968,13 @@
                         var nameEl = document.getElementById('rm-user-name');
                         if (nameEl) nameEl.textContent = firstName;
                         document.title = 'Recovery Mode \u2014 ' + firstName + '\u2019s Safe Space';
+                    }
+                    // ── Swap meal options for non-Mary students ──────────
+                    // Mary (mbrinck90) keeps her gastroparesis-specific brands.
+                    // Everyone else gets the generic low-effort options.
+                    // Added 2026-02-28 by Claude.
+                    if (user.email !== 'mbrinck90@gmail.com') {
+                        mealOptions = genericMealOptions;
                     }
                     var quizUid = (window.AA_flower_uid ? window.AA_flower_uid(user.uid, user.email) : user.uid);
                     AA.getFlowerQuiz(quizUid).then(function(doc) {
