@@ -258,15 +258,6 @@
         /* Claude: task completion styling — 2026-02-27 */
         .todo-item.todo-completed { opacity: 0.6; background: #f5f5f5; border-radius: 8px; }
         .todo-item.todo-completed .todo-text { text-decoration: line-through; color: #888; }
-        /* Claude: journal card — 2026-02-27 */
-        .journal-textarea {
-            width: 100%; box-sizing: border-box;
-            font-family: inherit; font-size: 16pt; line-height: 1.5;
-            border: 1px solid #c5dfe1; border-radius: 10px;
-            padding: 10px 14px; resize: vertical; min-height: 90px;
-            background: #fafffe; color: #333; margin-top: 10px;
-        }
-        .journal-textarea:focus { outline: 2px solid #6CA0A3; border-color: transparent; }
     </style>
 </head>
 <body>
@@ -511,19 +502,6 @@
             <button class="btn" onclick="showNewMessage()">
                 💌 Show Me Another
             </button>
-        </div>
-        <!-- Claude: Gentle journal prompts — 2026-02-27 -->
-        <div class="card">
-            <h2>📓 A Gentle Moment</h2>
-            <p style="font-size:14pt;color:#888;margin-bottom:14px;">No pressure. Just a thought to sit with, if you'd like.</p>
-            <div id="journal-prompt" style="background:#f0f7f8;border-left:4px solid #6CA0A3;border-radius:0 10px 10px 0;padding:14px 16px;font-size:16pt;color:#444;line-height:1.6;margin-bottom:4px;"></div>
-            <textarea id="journal-textarea" class="journal-textarea" rows="4" placeholder="Write here if you'd like… or just sit with the thought 💚"></textarea>
-            <div style="margin-top:10px;">
-                <button onclick="journalNext()" style="background:#f0f7f8;color:#6CA0A3;border:1px solid #c5dfe1;border-radius:8px;padding:6px 14px;font-size:14pt;font-family:inherit;cursor:pointer;">🔄 Different prompt</button>
-            </div>
-            <!-- Claude: auto-save status — 2026-02-27 -->
-            <div id="journal-saved" style="display:none;font-size:13pt;color:#aaa;text-align:right;margin-top:6px;font-style:italic;"></div>
-            <p id="journal-signin-msg" style="display:none;font-size:13pt;color:#aaa;text-align:center;margin-top:8px;font-style:italic;">Sign in to save your response.</p>
         </div>
     </div>
 
@@ -1266,93 +1244,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', initSession);
-    </script>
-
-    <script>
-        /* Claude: Gentle journal prompts — 2026-02-27 */
-        var JOURNAL_PROMPTS = [
-            "What's one small thing that felt okay today, even if tiny?",
-            "What does your body need most right now?",
-            "What would feel like enough for today?",
-            "Is there anything you're proud of yourself for, however small?",
-            "What would you tell a dear friend who was having a day like this?",
-            "What's one thing that helped you get through today?",
-            "What are you looking forward to, even something very small?",
-            "What's something gentle you could do for yourself in the next hour?",
-            "What feelings are present for you right now? No need to fix them.",
-            "What does rest look like for you today?",
-            "Is there something you need to let yourself off the hook for today?",
-            "What's one kind thought you could offer yourself right now?"
-        ];
-
-        var _jIdx = Math.floor(Math.random() * JOURNAL_PROMPTS.length);
-
-        function journalShowPrompt() {
-            var el = document.getElementById('journal-prompt');
-            if (el) el.textContent = JOURNAL_PROMPTS[_jIdx];
-        }
-
-        function journalNext() {
-            _jIdx = (_jIdx + 1) % JOURNAL_PROMPTS.length;
-            journalShowPrompt();
-            document.getElementById('journal-saved').style.display = 'none';
-        }
-
-        /* Claude: auto-save with 2s debounce — 2026-02-27 */
-        var _journalSaveTimer = null;
-        var _journalSessionId = Date.now().toString(36) + Math.random().toString(36).slice(2);
-
-        function _journalAutoSave() {
-            if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
-            var text = (document.getElementById('journal-textarea').value || '').trim();
-            if (!text) return;
-            var statusEl = document.getElementById('journal-saved');
-            if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.style.display = 'block'; }
-            var entry = {
-                uid: AA.auth.currentUser.uid,
-                prompt: JOURNAL_PROMPTS[_jIdx],
-                response: text,
-                savedAt: new Date().toISOString()
-            };
-            AA.db.collection('recoveryJournal').doc(_journalSessionId).set(entry)
-                .then(function() {
-                    if (statusEl) {
-                        statusEl.textContent = '✓ Saved';
-                        setTimeout(function() { statusEl.style.display = 'none'; }, 3000);
-                    }
-                })
-                .catch(function(err) {
-                    console.warn('[AA] journal auto-save:', err);
-                    if (statusEl) statusEl.style.display = 'none';
-                });
-        }
-
-        /* Claude: show sign-in message when signed out — 2026-02-27 */
-        function _journalUpdateAuth(user) {
-            var msg = document.getElementById('journal-signin-msg');
-            if (msg) msg.style.display = user ? 'none' : 'block';
-            if (!user) {
-                var statusEl = document.getElementById('journal-saved');
-                if (statusEl) statusEl.style.display = 'none';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            journalShowPrompt();
-            var ta = document.getElementById('journal-textarea');
-            if (ta) {
-                ta.addEventListener('input', function() {
-                    clearTimeout(_journalSaveTimer);
-                    _journalSaveTimer = setTimeout(_journalAutoSave, 2000);
-                });
-            }
-            if (window.AA && AA.auth) {
-                AA.auth.onAuthStateChanged(_journalUpdateAuth);
-            } else {
-                _journalUpdateAuth(null);
-            }
-        });
-        if (document.readyState !== 'loading') { journalShowPrompt(); }
     </script>
 </body>
 </html>

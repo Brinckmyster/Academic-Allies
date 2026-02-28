@@ -518,12 +518,11 @@
             <p style="font-size:14pt;color:#888;margin-bottom:14px;">No pressure. Just a thought to sit with, if you'd like.</p>
             <div id="journal-prompt" style="background:#f0f7f8;border-left:4px solid #6CA0A3;border-radius:0 10px 10px 0;padding:14px 16px;font-size:16pt;color:#444;line-height:1.6;margin-bottom:4px;"></div>
             <textarea id="journal-textarea" class="journal-textarea" rows="4" placeholder="Write here if you'd like… or just sit with the thought 💚"></textarea>
-            <div style="margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px;flex-wrap:wrap;">
                 <button onclick="journalNext()" style="background:#f0f7f8;color:#6CA0A3;border:1px solid #c5dfe1;border-radius:8px;padding:6px 14px;font-size:14pt;font-family:inherit;cursor:pointer;">🔄 Different prompt</button>
+                <button onclick="journalSave()" style="background:#6CA0A3;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:14pt;font-family:inherit;cursor:pointer;">💾 Save response</button>
             </div>
-            <!-- Claude: auto-save status — 2026-02-27 -->
-            <div id="journal-saved" style="display:none;font-size:13pt;color:#aaa;text-align:right;margin-top:6px;font-style:italic;"></div>
-            <p id="journal-signin-msg" style="display:none;font-size:13pt;color:#aaa;text-align:center;margin-top:8px;font-style:italic;">Sign in to save your response.</p>
+            <div id="journal-saved" style="display:none;font-size:13pt;color:#6CA0A3;text-align:center;margin-top:8px;">✓ Saved</div>
         </div>
     </div>
 
@@ -1298,60 +1297,22 @@
             document.getElementById('journal-saved').style.display = 'none';
         }
 
-        /* Claude: auto-save with 2s debounce — 2026-02-27 */
-        var _journalSaveTimer = null;
-        var _journalSessionId = Date.now().toString(36) + Math.random().toString(36).slice(2);
-
-        function _journalAutoSave() {
-            if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
+        function journalSave() {
             var text = (document.getElementById('journal-textarea').value || '').trim();
             if (!text) return;
-            var statusEl = document.getElementById('journal-saved');
-            if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.style.display = 'block'; }
-            var entry = {
-                uid: AA.auth.currentUser.uid,
-                prompt: JOURNAL_PROMPTS[_jIdx],
-                response: text,
-                savedAt: new Date().toISOString()
-            };
-            AA.db.collection('recoveryJournal').doc(_journalSessionId).set(entry)
-                .then(function() {
-                    if (statusEl) {
-                        statusEl.textContent = '✓ Saved';
-                        setTimeout(function() { statusEl.style.display = 'none'; }, 3000);
-                    }
-                })
-                .catch(function(err) {
-                    console.warn('[AA] journal auto-save:', err);
-                    if (statusEl) statusEl.style.display = 'none';
-                });
+            var entry = { prompt: JOURNAL_PROMPTS[_jIdx], response: text, savedAt: new Date().toISOString() };
+            if (window.AA && AA.auth && AA.auth.currentUser && AA.db) {
+                AA.db.collection('recoveryJournal').add(
+                    Object.assign({ uid: AA.auth.currentUser.uid }, entry)
+                ).catch(function(err) { console.warn('[AA] journal save:', err); });
+            }
+            document.getElementById('journal-textarea').value = '';
+            var savedEl = document.getElementById('journal-saved');
+            savedEl.style.display = 'block';
+            setTimeout(function() { savedEl.style.display = 'none'; }, 3000);
         }
 
-        /* Claude: show sign-in message when signed out — 2026-02-27 */
-        function _journalUpdateAuth(user) {
-            var msg = document.getElementById('journal-signin-msg');
-            if (msg) msg.style.display = user ? 'none' : 'block';
-            if (!user) {
-                var statusEl = document.getElementById('journal-saved');
-                if (statusEl) statusEl.style.display = 'none';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            journalShowPrompt();
-            var ta = document.getElementById('journal-textarea');
-            if (ta) {
-                ta.addEventListener('input', function() {
-                    clearTimeout(_journalSaveTimer);
-                    _journalSaveTimer = setTimeout(_journalAutoSave, 2000);
-                });
-            }
-            if (window.AA && AA.auth) {
-                AA.auth.onAuthStateChanged(_journalUpdateAuth);
-            } else {
-                _journalUpdateAuth(null);
-            }
-        });
+        document.addEventListener('DOMContentLoaded', journalShowPrompt);
         if (document.readyState !== 'loading') { journalShowPrompt(); }
     </script>
 </body>
