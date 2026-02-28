@@ -876,83 +876,119 @@
     }
 
     /* ── Student live-status panel (mirror mode) ────────────────────────
-       Reads the student's NOPE status and today's check-in from Firestore
-       and populates the #student-status-panel shown in mirror mode.
-       Added 2026-02-26 by Claude
+       Real-time listeners for NOPE status and today's check-in.
+       Both use onSnapshot so the panel updates the moment Mary submits
+       a check-in or toggles NOPE — no page refresh needed.
+       Originally Added 2026-02-26 by Claude.
+       Rewritten to real-time 2026-02-28 by Claude — was one-shot .get().
     ──────────────────────────────────────────────────────────────────── */
+    function _teardownStatusPanel() {
+      if (_unsubStatusNope)    { _unsubStatusNope();    _unsubStatusNope    = null; }
+      if (_unsubStatusCheckin) { _unsubStatusCheckin(); _unsubStatusCheckin = null; }
+    }
+
+    /* Shared renderer — called by both NOPE and check-in snapshots */
+    var _statusState = { nope: null, checkin: null };  /* latest snapshot data */
+
+    function _renderStatusPanel(studentName) {
+      var dot    = document.getElementById('ssp-dot');
+      var status = document.getElementById('ssp-status');
+      var detail = document.getElementById('ssp-detail');
+      if (!dot || !status || !detail) return;
+
+      var nope    = _statusState.nope;
+      var ciData  = _statusState.checkin;
+
+      /* NOPE overrides everything */
+      if (nope && nope.mode === 'nope') {
+        dot.className      = 'live-dot nope';
+        status.textContent = '⛔ NOPE mode is active — ' + (studentName || 'student') + ' has opted out for now';
+        detail.textContent = nope.updatedAt && nope.updatedAt.toDate
+          ? 'Since ' + nope.updatedAt.toDate().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
+          : '';
+        return;
+      }
+      if (nope && nope.mode === 'semi-nope') {
+        dot.className      = 'live-dot yellow';
+        status.textContent = '🟡 Semi-Nope mode — limited availability';
+        detail.textContent = nope.updatedAt && nope.updatedAt.toDate
+          ? 'Since ' + nope.updatedAt.toDate().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
+          : '';
+        return;
+      }
+
+      /* Check-in: use latestFlag saved by AA.saveCheckin (most reliable).
+         Fall back to scanning entries[].flag for older entries. */
+      var entries = (ciData && Array.isArray(ciData.entries)) ? ciData.entries : [];
+      if (entries.length === 0) {
+        dot.className      = 'live-dot unknown';
+        status.textContent = '📋 No check-in yet today';
+        detail.textContent = 'Updates live when ' + (studentName || 'student') + ' submits a check-in.';
+        return;
+      }
+
+      var worst = ciData.latestFlag || 'green';
+      /* If latestFlag missing (old entry), scan entries for worst flag */
+      if (!ciData.latestFlag) {
+        var RANK = ['green','yellow','orange','red'];
+        entries.forEach(function(e) {
+          if (e.flag && RANK.indexOf(e.flag) > RANK.indexOf(worst)) worst = e.flag;
+        });
+      }
+
+      var lastEntry = entries[entries.length - 1];
+      var lastTime  = '';
+      if (lastEntry && lastEntry.timestamp) {
+        var ts = typeof lastEntry.timestamp.toDate === 'function'
+          ? lastEntry.timestamp.toDate() : new Date(lastEntry.timestamp);
+        lastTime = ts.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      }
+
+      var statusLabels = {
+        red:    '🔴 Red flag — immediate attention may be needed',
+        orange: '🟠 Orange flag — worth checking in',
+        yellow: '🟡 Yellow flag — slight concern',
+        green:  '🟢 All clear — last check-in looks good'
+      };
+      dot.className      = 'live-dot ' + worst;
+      status.textContent = statusLabels[worst] || '🟢 Checked in';
+      detail.textContent = entries.length + ' check-in' + (entries.length === 1 ? '' : 's') +
+                           ' today' + (lastTime ? ' · last at ' + lastTime : '');
+    }
+
     function loadStudentStatus(studentUid, studentName) {
       var panel = document.getElementById('student-status-panel');
       if (!panel) return;
       document.getElementById('ssp-student-name').textContent = studentName || 'Student';
       panel.style.display = 'block';
 
+      /* Tear down any previous student's listeners */
+      _teardownStatusPanel();
+      _statusState.nope    = null;
+      _statusState.checkin = null;
+
       var today = new Date().toISOString().split('T')[0];
 
-      var nopeP    = AA.db.collection('nope').doc(studentUid).get();
-      var checkinP = AA.db.collection('checkins').doc(studentUid)
-        .collection('days').doc(today).get();
-
-      Promise.all([nopeP, checkinP]).then(function (results) {
-        var nopeDoc    = results[0];
-        var checkinDoc = results[1];
-        var dot    = document.getElementById('ssp-dot');
-        var status = document.getElementById('ssp-status');
-        var detail = document.getElementById('ssp-detail');
-
-        /* NOPE mode overrides everything */
-        var nope = nopeDoc.exists ? nopeDoc.data() : null;
-        if (nope && nope.mode === 'nope') {
-          dot.className    = 'live-dot nope';
-          // Updated 2026-02-28 by Claude — use dynamic student name instead of hardcoded 'Mary'
-          status.textContent = '⛔ NOPE mode is active — ' + (studentName || 'student') + ' has opted out for now';
-          detail.textContent = nope.updatedAt && nope.updatedAt.toDate
-            ? 'Since ' + nope.updatedAt.toDate().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
-            : '';
-          return;
-        }
-        if (nope && nope.mode === 'semi-nope') {
-          dot.className    = 'live-dot yellow';
-          status.textContent = '🟡 Semi-Nope mode — limited availability';
-          detail.textContent = nope.updatedAt && nope.updatedAt.toDate
-            ? 'Since ' + nope.updatedAt.toDate().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
-            : '';
-          return;
-        }
-
-        /* Check-in data for today */
-        var entries = checkinDoc.exists ? (checkinDoc.data().entries || []) : [];
-        if (entries.length === 0) {
-          dot.className    = 'live-dot unknown';
-          status.textContent = '📋 No check-in yet today';
-          detail.textContent = 'Page refreshes automatically when a check-in is submitted.';
-          return;
-        }
-
-        var worst = 'green';
-        entries.forEach(function (e) {
-          if (e.flag === 'red') worst = 'red';
-          else if (e.flag === 'orange' && worst !== 'red') worst = 'orange';
-          else if (e.flag === 'yellow' && worst === 'green') worst = 'yellow';
+      /* ── Real-time NOPE listener ─────────────────────── */
+      _unsubStatusNope = AA.db.collection('nope').doc(studentUid)
+        .onSnapshot(function(doc) {
+          _statusState.nope = doc.exists ? doc.data() : null;
+          _renderStatusPanel(studentName);
+        }, function() {
+          _statusState.nope = null;
+          _renderStatusPanel(studentName);
         });
 
-        var lastEntry = entries[entries.length - 1];
-        var lastTime  = lastEntry && lastEntry.savedAt
-          ? new Date(lastEntry.savedAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
-          : '';
-
-        var statusLabels = {
-          red:    '🔴 Red flag — immediate attention may be needed',
-          orange: '🟠 Orange flag — worth checking in',
-          yellow: '🟡 Yellow flag — slight concern',
-          green:  '🟢 All clear — last check-in looks good'
-        };
-        dot.className      = 'live-dot ' + worst;
-        status.textContent = statusLabels[worst] || '🟢 Checked in';
-        detail.textContent = entries.length + ' check-in' + (entries.length === 1 ? '' : 's') +
-                             ' today' + (lastTime ? ' · last at ' + lastTime : '');
-      }).catch(function () {
-        document.getElementById('ssp-status').textContent = 'Status unavailable';
-      });
+      /* ── Real-time check-in listener ─────────────────── */
+      _unsubStatusCheckin = AA.db.collection('checkins').doc(studentUid)
+        .collection('days').doc(today)
+        .onSnapshot(function(doc) {
+          _statusState.checkin = doc.exists ? doc.data() : null;
+          _renderStatusPanel(studentName);
+        }, function() {
+          _statusState.checkin = null;
+          _renderStatusPanel(studentName);
+        });
     }
 
     /* ── Invite code generator ──────────────────────────────────────────
@@ -1108,6 +1144,11 @@
     var _profileCanEdit   = false;
     var _currentConditions = [];
     var _currentPrompts    = [];
+    // Real-time unsub handles for the student status panel.
+    // Torn down each time loadStudentStatus() switches to a new student.
+    // Added 2026-02-28 by Claude.
+    var _unsubStatusNope    = null;
+    var _unsubStatusCheckin = null;
 
     /* Claude-credit: DEFAULT_MODULES expanded + spoonPal restricted to backstage-manager 2026-02-26 */
     var DEFAULT_MODULES = {

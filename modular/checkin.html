@@ -597,6 +597,9 @@ var catEmoji   = {};   // { 'mental-yes': 3, 'physical-no': 7, ... }
 var catMood    = {};   // { mental: 'Pretty Good', ... }  (label string)
 var bbdActive  = false;
 var emergencyYes = false;
+// Tracks the most recent computed flag so saveCheckin() can persist it.
+// Updated by showFlag(). Added 2026-02-28 by Claude.
+var _savedFlag = 'g';
 
 // ── Build emoji rows on load ──
 var emojiTargets = [
@@ -741,6 +744,7 @@ function setFlag(cur, next) {
 }
 
 function showFlag(f) {
+  _savedFlag = f; // capture for saveCheckin() — Added 2026-02-28 by Claude
   var bar = document.getElementById('flag-bar');
   bar.className = 'flag-bar show flag-' + f;
   var msgs = {
@@ -837,16 +841,40 @@ function saveCheckin() {
     planner:      (schoolCat.checked || []).indexOf('planner') !== -1
   };
 
-  db.collection('checkins').add(entry)
-    .then(function() {
-      status.textContent = '✅ Check-in saved! Great job showing up today. 💛';
-      btn.disabled = false;
-    })
-    .catch(function(err) {
-      console.error('Save error:', err);
-      status.textContent = '⚠️ Save failed — please try again.';
-      btn.disabled = false;
-    });
+  // ── Add the computed flag to the entry so support network can read it ──
+  // Short codes: g=green y=yellow o=orange r=red. Added 2026-02-28 by Claude.
+  var FLAG_FULL = { g: 'green', y: 'yellow', o: 'orange', r: 'red' };
+  entry.flag = FLAG_FULL[_savedFlag] || 'green';
+
+  // ── Cache in localStorage (format status-circle.js expects) ──────────
+  var dateKey = new Date().toISOString().split('T')[0];
+  try {
+    var existing = JSON.parse(localStorage.getItem('checkins_' + dateKey) || '[]');
+    existing.push(entry);
+    localStorage.setItem('checkins_' + dateKey, JSON.stringify(existing));
+  } catch (e) {}
+
+  // ── Save to Firestore at checkins/{uid}/days/{date} ──────────────────
+  // Uses AA.saveCheckin (aa-firebase.js) so the path matches what
+  // status-circle.js and loadStudentStatus() both read from.
+  // Previously this page used db.collection('checkins').add(entry) which
+  // wrote to a flat root collection nobody was reading. Fixed 2026-02-28 by Claude.
+  if (window.AA && AA.auth && AA.auth.currentUser) {
+    AA.saveCheckin(AA.auth.currentUser.uid, dateKey, entry)
+      .then(function () {
+        status.textContent = '✅ Check-in saved! Great job showing up today. 💛';
+        btn.disabled = false;
+      })
+      .catch(function (err) {
+        console.error('[AA] checkin save error:', err);
+        status.textContent = '⚠️ Saved locally — Firebase sync failed, please try again.';
+        btn.disabled = false;
+      });
+  } else {
+    // Not signed in — localStorage only (circle still works from cache)
+    status.textContent = '✅ Check-in saved locally! Sign in to sync to your support network. 💛';
+    btn.disabled = false;
+  }
 }
 
 // ── Reset ──
