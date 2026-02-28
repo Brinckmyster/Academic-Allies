@@ -87,15 +87,8 @@
 
   /* ── Banner ───────────────────────────────────────────────── */
 
-  /* Claude: DOM-readiness guard lives inside showBanner so every
-     call path is safe — fixes race when onAuthStateChanged fires
-     before DOMContentLoaded (fast cached-auth pages) — 2026-02-27 */
   function showBanner(name) {
     if (inPath(NO_BANNER)) return;
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function () { showBanner(name); });
-      return;
-    }
     if (document.getElementById('aa-mirror-banner')) return;
     var b = document.createElement('div');
     b.id = 'aa-mirror-banner';
@@ -114,7 +107,13 @@
   }
 
   if (window.AA_MIRROR_UID) {
-    showBanner((_cache && _cache.studentName) || 'student');
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () {
+        showBanner((_cache && _cache.studentName) || 'student');
+      });
+    } else {
+      showBanner((_cache && _cache.studentName) || 'student');
+    }
   }
 
   /* ── Firebase watcher ─────────────────────────────────────── */
