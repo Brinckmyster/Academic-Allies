@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recovery Mode - Mary's Safe Space</title>
+    <title>Recovery Mode — Your Safe Space</title>
     <link rel="icon" href="../icons/mode-recovery.png">
     <style>
         * {
@@ -295,7 +295,7 @@
             <img src="../icons/mode-recovery.png"
                  alt="Recovery Mode"
                  style="max-width:240px;width:100%;margin-bottom:14px;display:block;margin-left:auto;margin-right:auto;">
-            <p>You're safe here, Mary. Take it one step at a time.</p>
+            <p>You're safe here, <span id="rm-user-name">friend</span>. Take it one step at a time.</p>
         </div>
         <!-- Spoon Counter - Always Visible -->
         <div class="spoon-counter">
@@ -395,7 +395,7 @@
         </div>
         <!-- Simple Meal Suggestions -->
         <div class="card">
-            <h2>🍽️ Easy Meal Ideas (Mary-Safe)</h2>
+            <h2>🍽️ Easy Meal Ideas</h2>
             <div class="gentle-reminder">
                 Remember: Solids before 5pm, liquids only after 5pm
             </div>
@@ -919,13 +919,21 @@
             // ── Firebase background sync (non-blocking) ──────────
             // Recovery mode works fully without sign-in (localStorage).
             // When signed in, Firebase loads the latest data and keeps
-            // it in sync across all of Mary's devices.
+            // it in sync across the student's devices.
             if (window.AA && AA.auth) {
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) {
                         // Not signed in — load from localStorage only
                         loadSpoonPlanFromStorage();
                         return;
+                    }
+                    // ── Personalise greeting with signed-in user's name ──
+                    // Added 2026-02-28 by Claude — replace hardcoded 'Mary' with real name
+                    var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
+                    if (firstName) {
+                        var nameEl = document.getElementById('rm-user-name');
+                        if (nameEl) nameEl.textContent = firstName;
+                        document.title = 'Recovery Mode \u2014 ' + firstName + '\u2019s Safe Space';
                     }
                     var quizUid = (window.AA_flower_uid ? window.AA_flower_uid(user.uid, user.email) : user.uid);
                     AA.getFlowerQuiz(quizUid).then(function(doc) {

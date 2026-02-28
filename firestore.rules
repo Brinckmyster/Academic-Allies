@@ -120,6 +120,23 @@ service cloud.firestore {
       allow write: if isOwner(uid) || isAdmin();
     }
 
+    // ── Recovery Journal ─────────────────────────────────────────
+    // Auto-saved journal entries from recovery-mode.html.
+    // Doc ID is a random session key (not uid); uid is stored inside the doc.
+    // Owner reads/writes their own entries; admin can read all.
+    // Added 2026-02-28 by Claude.
+    match /recoveryJournal/{sessionId} {
+      allow read: if isSignedIn()
+        && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn()
+        && (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
     // ── Invites (Amanda sudo — student-generated invite codes) ───
     // Added 2026-02-26 by Claude
     //
