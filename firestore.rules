@@ -77,6 +77,21 @@ service cloud.firestore {
       allow write: if isOwner(uid);
     }
 
+    // ── Emergency Contacts ───────────────────────────────────────
+    // Private per-student contact list. Readable only by the student
+    // themselves, their network-lead(s), and the backstage-manager.
+    // Network leads and admin can also write (they fill in contacts).
+    // Added 2026-02-28 by Claude.
+    function isNetworkLead(studentUid) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(studentUid))
+          .data.get('supportNetwork', {})[request.auth.uid] == 'network-lead';
+    }
+    match /emergencyContacts/{uid} {
+      allow read:  if isOwner(uid) || isNetworkLead(uid) || isAdmin();
+      allow write: if isNetworkLead(uid) || isAdmin();
+    }
+
     // ── Check-ins ────────────────────────────────────────────────
     match /checkins/{uid} {
       allow read: if isSignedIn();

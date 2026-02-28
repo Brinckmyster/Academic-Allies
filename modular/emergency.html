@@ -1,96 +1,475 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     emergency.html — Academic Allies Emergency Contacts
+     Created: (original page)
+     Rebuilt: 2026-02-28 by Claude
+     Emergency contacts are now stored privately in Firestore
+     at emergencyContacts/{uid}. Only the student, their
+     network leads, and the backstage-manager can read them.
+     Network leads can add/edit contacts for their students.
+     No contact data is ever hardcoded in this file.
+     ============================================================ -->
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Emergency Contacts - Academic Allies</title>
-  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emergency Contacts — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico" />
   <style>
-    body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
-    p, h1, h2, h3 { text-align: center; }
-    a { color: #0066cc; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    img { border-radius: 8px; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red:     #dc3545;
+      --red-lt:  #fde8ea;
+      --orange:  #fd7e14;
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg); color: var(--text);
+      padding-bottom: 3rem;
+    }
+    #site-header { min-height: 56px; }
+    .page-wrap { max-width: 680px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+
+    h1 { font-size: 1.5rem; color: var(--red); margin: 1rem 0 .25rem; }
+    .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 1.5rem; }
+
+    /* ── Auth gate ── */
+    #auth-gate {
+      display: none; text-align: center; padding: 3rem 1rem; color: var(--muted);
+    }
+    #auth-gate button {
+      margin-top: 1rem; padding: .6rem 1.4rem;
+      background: var(--teal); color: #fff; border: none;
+      border-radius: 8px; font-size: 1rem; cursor: pointer;
+    }
+
+    /* ── Mirror notice ── */
+    #mirror-notice {
+      display: none; background: #e8f2f3; border: 1px solid var(--teal);
+      border-radius: 8px; padding: .6rem 1rem; margin-bottom: 1rem;
+      font-size: .88rem; color: var(--teal-dk);
+    }
+
+    /* ── Section headers ── */
+    .section-title {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: 1.1rem; font-weight: 700; color: var(--red);
+      margin: 1.5rem 0 .75rem;
+    }
+
+    /* ── Contact cards ── */
+    .contact-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 1rem 1.1rem; margin-bottom: .75rem;
+      display: flex; gap: 1rem; align-items: flex-start;
+    }
+    .contact-photo {
+      width: 64px; height: 64px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0; background: #eee;
+    }
+    .contact-info { flex: 1; }
+    .contact-name { font-weight: 700; font-size: 1rem; }
+    .contact-rel  { font-size: .82rem; color: var(--muted); margin-bottom: .4rem; }
+    .contact-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .5rem; }
+    .contact-actions a, .contact-actions button {
+      display: inline-flex; align-items: center; gap: .3rem;
+      padding: .35rem .8rem; border-radius: 6px; font-size: .85rem;
+      text-decoration: none; border: none; cursor: pointer; font-family: inherit;
+    }
+    .btn-call  { background: #e8f5ee; color: #2e6b4f; }
+    .btn-email { background: #e8f2ff; color: #1a4fa0; }
+    .contact-msg {
+      font-size: .85rem; color: #555; font-style: italic;
+      border-left: 3px solid var(--border); padding: .3rem .6rem;
+      margin-top: .5rem;
+    }
+
+    /* ── Empty / loading states ── */
+    #ec-loading { text-align: center; padding: 2rem; color: var(--muted); }
+    #ec-empty   { display: none; }
+    .empty-box  {
+      background: var(--card); border: 1.5px dashed var(--border);
+      border-radius: var(--radius); padding: 2rem; text-align: center;
+      color: var(--muted); font-size: .9rem;
+    }
+
+    /* ── Edit mode (network lead / admin) ── */
+    #edit-section { display: none; margin-top: 2rem; }
+    #edit-section h2 {
+      font-size: 1rem; color: var(--teal-dk);
+      margin-bottom: .75rem;
+    }
+    .edit-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.1rem;
+      margin-bottom: .75rem;
+    }
+    .edit-card label {
+      display: block; font-size: .82rem; color: var(--muted);
+      margin: .6rem 0 .2rem;
+    }
+    .edit-card label:first-child { margin-top: 0; }
+    .edit-card input, .edit-card select, .edit-card textarea {
+      width: 100%; padding: .45rem .7rem; border-radius: 6px;
+      border: 1px solid var(--border); font-size: .9rem;
+      font-family: inherit; background: #fff;
+    }
+    .edit-card textarea { resize: vertical; min-height: 60px; }
+    .edit-card-actions {
+      display: flex; gap: .5rem; margin-top: .75rem; flex-wrap: wrap;
+    }
+    .btn-save   { background: var(--teal); color: #fff; border: none; border-radius: 6px; padding: .4rem .9rem; cursor: pointer; font-size: .85rem; }
+    .btn-delete { background: var(--red-lt); color: var(--red); border: 1px solid #f5c6cb; border-radius: 6px; padding: .4rem .9rem; cursor: pointer; font-size: .85rem; }
+    #add-contact-btn {
+      display: none; background: var(--teal); color: #fff;
+      border: none; border-radius: 8px; padding: .5rem 1.1rem;
+      cursor: pointer; font-size: .9rem; margin-bottom: 1rem;
+    }
+    #save-status { font-size: .85rem; color: var(--teal-dk); margin-top: .4rem; min-height: 1.2em; }
   </style>
 </head>
 <body>
-  <div id="site-header"></div>
-  <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260220d')
-      .then(response => response.text())
-      .then(html => {
-        const container = document.getElementById('site-header');
-        container.innerHTML = html;
-        const scripts = container.querySelectorAll('script');
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-          newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
-        });
-        const dragScript = document.createElement('script');
-        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
-        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
-        document.body.appendChild(dragScript);
-      });
-  </script>
-<!-- Emergency Contacts -->
-<h1 style="color:rgb(255,0,0);"><sub><img src="/Academic-Allies/modular/icons/icon-user-emergency-contact.png" height="40" width="40"></sub> Emergency Contacts <sub><img src="/Academic-Allies/modular/icons/icon-user-emergency-contact.png" height="40" width="40"></sub></h1>
 
-<h2>Mom</h2>
-<p><a href="tel:661-400-2545"><img src="/Academic-Allies/modular/icons/Dorothy-Brinck.JPEG" height="180" width="180"> <br>(661) 400-2545</a></p>
+<div id="site-header"></div>
 
-<p><a href="mailto:Dorothy.brinck@gmail.com">Dorothy.brinck@gmail.com</a></p>
+<div class="page-wrap">
+  <h1>
+    <img src="/Academic-Allies/modular/icons/icon-user-emergency-contact.png"
+         height="32" width="32" alt="" style="vertical-align:middle;margin-right:.4rem">
+    Emergency Contacts
+  </h1>
+  <p class="subtitle" id="ec-subtitle">Your private emergency contacts — only you and your network leads can see these.</p>
 
-<p>Help! I'm overwhelmed. Please call me when you get the chance.</p>
+  <div id="auth-gate">
+    <p>Sign in to see emergency contacts.</p>
+    <button onclick="AA.signInWithGoogle()">Sign in with Google</button>
+  </div>
 
-<br><br>
+  <div id="mirror-notice">👁 Viewing <strong id="mirror-name">student</strong>'s emergency contacts in read-only mode.</div>
 
-<h2>Dad</h2>
-<p><a href="tel:661-878-2414"><img src="/Academic-Allies/modular/icons/Brian-Brinck.JPEG" height="180" width="180"> <br>(661) 878-2414</a></p>
-<p><a href="mailto:Brian.e.brinck@gmail.com">Brian.e.brinck@gmail.com</a></p>
+  <div id="ec-loading">Loading contacts…</div>
 
-<p>Help! I'm overwhelmed. Please call me when you get the chance.</p>
+  <div id="ec-view" style="display:none">
+    <div id="ec-empty">
+      <div class="empty-box">
+        No emergency contacts have been added yet.<br>
+        <span id="empty-hint" style="display:none">A network lead can add contacts using the section below.</span>
+      </div>
+    </div>
+    <div id="ec-emergency-section" style="display:none">
+      <div class="section-title">
+        🆘 Emergency Contacts
+      </div>
+      <div id="ec-emergency-list"></div>
+    </div>
+    <div id="ec-nearby-section" style="display:none">
+      <div class="section-title">
+        🏠 Nearby Help
+      </div>
+      <div id="ec-nearby-list"></div>
+    </div>
+  </div>
 
-<hr>
-<!-- Nearby Help -->
-<h1 style="color:rgb(162, 88, 42);"><sub><img src="/Academic-Allies/modular/icons/icon-user-nearby-help.png" height="40" width="30"></sub> Nearby Help <sub><img src="/Academic-Allies/modular/icons/icon-user-nearby-help.png" height="40" width="30"></sub></h1>
-<h3>Relief Society President</h3>
-<p><img src="/Academic-Allies/modular/icons/relief_society_seal.jpeg" height="130" width="130"><br>
-<strong>Susan Gleason</strong><br>
-<a href="tel:+18035484296">+1 (803) 548-4296</a></p>
+  <!-- Edit section — visible to network leads and backstage-manager -->
+  <div id="edit-section">
+    <h2>✏️ Edit Contacts <span style="font-size:.8rem;color:var(--muted);font-weight:400">(network lead / backstage-manager only)</span></h2>
+    <button id="add-contact-btn" onclick="addContactForm()">+ Add Contact</button>
+    <div id="edit-forms"></div>
+    <div id="save-status"></div>
+  </div>
+</div>
 
+<!-- Firebase CDN -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="/Academic-Allies/modular/aa-firebase.js"></script>
+<script src="/Academic-Allies/modular/js/aa-mirror.js"></script>
 
+<script>
+/* ── State ───────────────────────────────────────────────────────────────── */
+var _studentUid  = null;
+var _contacts    = [];   /* current contacts array */
+var _canEdit     = false;
+var _unsubContacts = null;
 
-<hr>
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
-<!-- Teachers -->
-<h1 style="color:rgb(25, 107, 38);"><sub><img src="/Academic-Allies/modular/icons/icon-user-support.png" height="35" width="35"></sub> Teachers <sub><img src="/Academic-Allies/modular/icons/icon-user-support.png" height="35" width="35"></sub></h1>
+function show(id) { var el=document.getElementById(id); if(el) el.style.display='block'; }
+function hide(id) { var el=document.getElementById(id); if(el) el.style.display='none'; }
 
+/* ── Render contacts (view mode) ─────────────────────────────────────────── */
+function renderContactCard(c) {
+  var photoHtml = c.photo
+    ? '<img class="contact-photo" src="' + esc(c.photo) + '" alt="' + esc(c.name) + '">'
+    : '<div class="contact-photo" style="display:flex;align-items:center;justify-content:center;font-size:1.8rem;">👤</div>';
 
-<hr>
+  var actions = '';
+  if (c.phone) {
+    actions += '<a class="btn-call" href="tel:' + esc(c.phone) + '">📞 ' + esc(c.phone) + '</a>';
+  }
+  if (c.email) {
+    actions += '<a class="btn-email" href="mailto:' + esc(c.email) + '">✉️ ' + esc(c.email) + '</a>';
+  }
 
-<!-- Designated Classmates -->
-<h1 style="color:rgb(162, 88, 42);"><sub><img src="/Academic-Allies/modular/icons/icon-user-nearby-help.png" height="40" width="30"></sub> Designated Classmates <sub><img src="/Academic-Allies/modular/icons/icon-user-nearby-help.png" height="40" width="30"></sub></h1>
+  var msgHtml = c.message
+    ? '<div class="contact-msg">"' + esc(c.message) + '"</div>'
+    : '';
 
+  return '<div class="contact-card">' +
+    photoHtml +
+    '<div class="contact-info">' +
+      '<div class="contact-name">' + esc(c.name || 'Unnamed') + '</div>' +
+      '<div class="contact-rel">'  + esc(c.relationship || '') + '</div>' +
+      '<div class="contact-actions">' + actions + '</div>' +
+      msgHtml +
+    '</div>' +
+  '</div>';
+}
 
-<hr>
+function renderContacts(contacts) {
+  hide('ec-loading');
+  show('ec-view');
 
-<!-- Admin -->
-<h1 id="Ad" style="color:rgb(38, 50, 186);"><sub><img src="/Academic-Allies/modular/icons/icon-user-admin.png" height="50" width="50"></sub> Admins <sub><img src="/Academic-Allies/modular/icons/icon-user-admin.png" height="50" width="50"></sub></h1>
+  var emergency = contacts.filter(function(c){ return c.type !== 'nearby'; });
+  var nearby    = contacts.filter(function(c){ return c.type === 'nearby'; });
 
-<h2>Karen</h2>
-<p><a href="tel:661-429-7477"><img src="/Academic-Allies/modular/icons/Goose-ADmin.JPEG" height="130" width="220"><br>(661) 429-7477</a></p>
-<p><a href="mailto:brinckmyster@gmail.com">brinckmyster@gmail.com</a></p>
+  if (contacts.length === 0) {
+    show('ec-empty');
+    if (_canEdit) show('empty-hint');
+    hide('ec-emergency-section');
+    hide('ec-nearby-section');
+    return;
+  }
 
-<p>My app broke. Help!</p>
+  hide('ec-empty');
 
-<hr>
-<!-- Family -->
+  if (emergency.length > 0) {
+    show('ec-emergency-section');
+    document.getElementById('ec-emergency-list').innerHTML =
+      emergency.map(renderContactCard).join('');
+  } else hide('ec-emergency-section');
 
+  if (nearby.length > 0) {
+    show('ec-nearby-section');
+    document.getElementById('ec-nearby-list').innerHTML =
+      nearby.map(renderContactCard).join('');
+  } else hide('ec-nearby-section');
+}
 
-<!-- Services -->
-<h1 style="color:rgb(25, 107, 38);"><sub><img src="/Academic-Allies/modular/icons/icon-user-support.png" height="35" width="35"></sub> Services <sub><img src="/Academic-Allies/modular/icons/icon-user-support.png" height="35" width="35"></sub></h1>
+/* ── Edit mode ───────────────────────────────────────────────────────────── */
+function showEditSection() {
+  show('edit-section');
+  document.getElementById('add-contact-btn').style.display = 'inline-block';
+  renderEditForms();
+}
+
+function renderEditForms() {
+  var container = document.getElementById('edit-forms');
+  if (_contacts.length === 0) {
+    container.innerHTML = '<p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">No contacts yet — add one below.</p>';
+    return;
+  }
+  container.innerHTML = _contacts.map(function(c, i) {
+    var photoPreview = c.photo
+      ? '<img src="' + esc(c.photo) + '" style="width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:.4rem;display:block">'
+      : '';
+    return '<div class="edit-card" data-idx="' + i + '">' +
+      '<label>Name</label>' +
+      '<input type="text" name="name" value="' + esc(c.name || '') + '">' +
+      '<label>Relationship</label>' +
+      '<input type="text" name="relationship" value="' + esc(c.relationship || '') + '" placeholder="e.g. Mom, Dad, Bishop, RA…">' +
+      '<label>Type</label>' +
+      '<select name="type">' +
+        '<option value="emergency"' + (c.type !== 'nearby' ? ' selected' : '') + '>🆘 Emergency Contact</option>' +
+        '<option value="nearby"'   + (c.type === 'nearby'  ? ' selected' : '') + '>🏠 Nearby Help</option>' +
+      '</select>' +
+      '<label>Phone</label>' +
+      '<input type="tel" name="phone" value="' + esc(c.phone || '') + '">' +
+      '<label>Email</label>' +
+      '<input type="email" name="email" value="' + esc(c.email || '') + '">' +
+      '<label>Pre-written message (optional)</label>' +
+      '<textarea name="message">' + esc(c.message || '') + '</textarea>' +
+      '<label>Photo (stored privately in Firebase — not in the public repo)</label>' +
+      photoPreview +
+      '<input type="file" name="photo-file" accept="image/*" style="font-size:.82rem" onchange="uploadContactPhoto(this,' + i + ')">' +
+      '<div id="photo-status-' + i + '" style="font-size:.78rem;color:var(--teal-dk);min-height:1em;margin-top:.2rem"></div>' +
+      '<div class="edit-card-actions">' +
+        '<button class="btn-save" onclick="saveContact(' + i + ',this)">💾 Save</button>' +
+        '<button class="btn-delete" onclick="deleteContact(' + i + ')">🗑 Remove</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ── Firebase Storage photo upload ──────────────────────────────────────── */
+// Uploads a contact photo to Firebase Storage and stores the download URL.
+// Added 2026-02-28 by Claude — photos stored privately, not in the public repo.
+function uploadContactPhoto(input, idx) {
+  var file = input.files[0];
+  if (!file || !_studentUid) return;
+  var statusEl = document.getElementById('photo-status-' + idx);
+  if (statusEl) statusEl.textContent = 'Uploading…';
+
+  var storage  = firebase.storage();
+  var path     = 'emergencyContactPhotos/' + _studentUid + '/' + Date.now() + '_' + file.name;
+  var storageRef = storage.ref(path);
+
+  storageRef.put(file)
+    .then(function(snap) { return snap.ref.getDownloadURL(); })
+    .then(function(url) {
+      _contacts[idx].photo = url;
+      if (statusEl) statusEl.textContent = '✓ Photo uploaded';
+      /* Re-render so preview appears */
+      renderEditForms();
+    })
+    .catch(function(err) {
+      console.error('[AA] photo upload:', err);
+      if (statusEl) statusEl.textContent = '⚠️ Upload failed — ' + err.message;
+    });
+}
+
+function addContactForm() {
+  _contacts.push({ name:'', relationship:'', type:'emergency', phone:'', email:'', message:'' });
+  renderEditForms();
+  /* Scroll to new form */
+  var cards = document.querySelectorAll('.edit-card');
+  if (cards.length) cards[cards.length-1].scrollIntoView({ behavior:'smooth' });
+}
+
+function readCardData(card) {
+  return {
+    name:         (card.querySelector('[name=name]').value         || '').trim(),
+    relationship: (card.querySelector('[name=relationship]').value || '').trim(),
+    type:         (card.querySelector('[name=type]').value         || 'emergency'),
+    phone:        (card.querySelector('[name=phone]').value        || '').trim(),
+    email:        (card.querySelector('[name=email]').value        || '').trim(),
+    message:      (card.querySelector('[name=message]').value      || '').trim()
+  };
+}
+
+function saveContact(idx, btn) {
+  var card = btn.closest('.edit-card');
+  _contacts[idx] = readCardData(card);
+  persistContacts();
+}
+
+function deleteContact(idx) {
+  if (!confirm('Remove this contact?')) return;
+  _contacts.splice(idx, 1);
+  persistContacts();
+}
+
+function persistContacts() {
+  var status = document.getElementById('save-status');
+  status.textContent = 'Saving…';
+  AA.db.collection('emergencyContacts').doc(_studentUid).set({
+    contacts:  _contacts,
+    updatedBy: AA.auth.currentUser ? AA.auth.currentUser.uid : '',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  })
+  .then(function() {
+    status.textContent = '✓ Saved';
+    renderEditForms();
+    setTimeout(function(){ status.textContent = ''; }, 3000);
+  })
+  .catch(function(err) {
+    console.error('[AA] emergencyContacts save:', err);
+    status.textContent = '⚠️ Save failed — please try again.';
+  });
+}
+
+/* ── Auth boot ───────────────────────────────────────────────────────────── */
+AA.auth.onAuthStateChanged(function(user) {
+  if (!user) {
+    hide('ec-loading');
+    show('auth-gate');
+    return;
+  }
+
+  _studentUid = window.AA_MIRROR_UID || user.uid;
+
+  /* Mirror mode notice */
+  if (window.AA_MIRROR_UID) {
+    AA.db.collection('users').doc(window.AA_MIRROR_UID).get()
+      .then(function(doc) {
+        var name = (doc.exists && (doc.data().displayName || doc.data().name)) || 'student';
+        document.getElementById('mirror-name').textContent = name;
+        show('mirror-notice');
+      }).catch(function() { show('mirror-notice'); });
+  }
+
+  /* Check if current user can edit (network-lead in this student's network or admin) */
+  var isAdmin = (typeof window.AA_ROLE !== 'undefined' && window.AA_ROLE === 'backstage-manager');
+  if (window.AA_MIRROR_UID && !isAdmin) {
+    /* Check if user is network-lead for this student */
+    AA.db.collection('users').doc(_studentUid).get()
+      .then(function(doc) {
+        if (!doc.exists) return;
+        var network = doc.data().supportNetwork || {};
+        var myRole  = network[user.uid];
+        _canEdit = (myRole === 'network-lead' || isAdmin);
+        if (_canEdit) showEditSection();
+      }).catch(function() {});
+  } else if (!window.AA_MIRROR_UID) {
+    /* Student viewing their own page — can see but not edit via this UI
+       (contacts are managed by their network lead) */
+    _canEdit = false;
+  }
+
+  if (isAdmin) { _canEdit = true; showEditSection(); }
+
+  /* Real-time listener */
+  if (_unsubContacts) _unsubContacts();
+  _unsubContacts = AA.db.collection('emergencyContacts').doc(_studentUid)
+    .onSnapshot(function(doc) {
+      _contacts = (doc.exists && Array.isArray(doc.data().contacts))
+        ? doc.data().contacts : [];
+      renderContacts(_contacts);
+      if (_canEdit) renderEditForms();
+    }, function(err) {
+      console.error('[AA] emergencyContacts read:', err);
+      hide('ec-loading');
+      document.getElementById('ec-subtitle').textContent =
+        'Could not load contacts — check permissions or try again.';
+    });
+});
+</script>
+
+<!-- Shared header loader -->
+<script>
+fetch('/Academic-Allies/modular/shared-header.html?v=20260228a')
+  .then(function(r){ return r.text(); })
+  .then(function(html){
+    var container = document.getElementById('site-header');
+    container.innerHTML = html;
+    container.querySelectorAll('script').forEach(function(old) {
+      var s = document.createElement('script');
+      Array.from(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      s.textContent = old.textContent;
+      old.replaceWith(s);
+    });
+    var drag = document.createElement('script');
+    drag.src = '/Academic-Allies/modular/js/draggable.js';
+    drag.onload = function(){ if (typeof initDrag === 'function') initDrag(); };
+    document.body.appendChild(drag);
+  })
+  .catch(function(){});
+</script>
 
 </body>
 </html>

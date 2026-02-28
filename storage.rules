@@ -1,0 +1,37 @@
+// ============================================================
+// storage.rules — Academic Allies Firebase Storage
+// Created: 2026-02-28 by Claude
+//
+// emergencyContactPhotos/{studentUid}/{filename}
+//   read:  signed in (network leads viewing a student's contacts)
+//   write: signed in (network lead uploads for their student)
+//   delete: signed in
+//
+// Note: finer-grained "is this caller a network-lead for studentUid?"
+// cannot be checked in Storage rules without Firestore cross-reads
+// (not supported). UI-level restrictions + Firestore rules on the
+// contact data doc provide the primary access control layer.
+// ============================================================
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Emergency contact photos — private, signed-in only
+    match /emergencyContactPhotos/{studentUid}/{filename} {
+      allow read:   if request.auth != null;
+      allow write:  if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Meal photos (existing, meal-planner-mary)
+    match /meal-photos/{filename} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Deny everything else by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
