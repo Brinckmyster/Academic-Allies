@@ -313,9 +313,8 @@
               </select>
               <button onclick="getAISuggestions()" style="padding:5px 14px;background:#fff;color:#7c5cbf;border:1px solid #c9b8e8;border-radius:6px;font-size:13px;cursor:pointer;">🤖 Get AI Suggestions</button>
             </span>
-            <!-- Claude: paste hint + open button — 2026-02-27 -->
+            <!-- Claude: paste hint — 2026-02-27 -->
             <span id="profile-ai-copied" style="display:none;font-size:13px;color:#7c5cbf;font-weight:600;">✅ Prompt copied! Just paste it (Ctrl+V) when the AI tab opens.</span>
-            <button id="profile-ai-open-btn" onclick="_openAITab()" style="display:none;padding:5px 14px;background:#7c5cbf;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;"></button>
             <span id="profile-save-btns" style="display:none;gap:8px;">
               <button onclick="saveProfile()" class="btn-save">Save</button>
               <button onclick="cancelProfileEdit()"
@@ -1353,37 +1352,31 @@
       return parts.join('\n');
     }
 
-    /* Claude: store URL for _openAITab — 2026-02-27 */
-    var _pendingAIUrl = '';
-
     function getAISuggestions() {
       var prompt   = buildAIPrompt();
       var copiedEl = document.getElementById('profile-ai-copied');
-      var openBtn  = document.getElementById('profile-ai-open-btn');
-      var sel      = document.getElementById('profile-ai-select');
-      var aiName   = sel ? sel.options[sel.selectedIndex].text : 'AI';
-      _pendingAIUrl = sel ? sel.value : 'https://claude.ai/new';
+
+      /* Claude: show paste hint immediately, before tab opens — 2026-02-27 */
+      if (copiedEl) {
+        copiedEl.style.display = 'inline';
+        setTimeout(function () { copiedEl.style.display = 'none'; }, 8000);
+      }
 
       /* Copy to clipboard */
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(prompt).catch(function () {
+          /* Fallback for clipboard failure */
           _aiPromptFallback(prompt);
         });
       } else {
         _aiPromptFallback(prompt);
       }
 
-      /* Claude: show paste hint + open button; user controls when tab opens — 2026-02-27 */
-      if (copiedEl) copiedEl.style.display = 'inline';
-      if (openBtn)  { openBtn.textContent = 'Open ' + aiName + ' \u2192'; openBtn.style.display = 'inline'; }
-    }
-
-    function _openAITab() {
-      var openBtn = document.getElementById('profile-ai-open-btn');
-      var copiedEl = document.getElementById('profile-ai-copied');
-      if (openBtn)  openBtn.style.display = 'none';
-      if (copiedEl) copiedEl.style.display = 'none';
-      window.open(_pendingAIUrl, '_blank');
+      /* Claude: 500ms delay so user sees paste hint before tab opens — 2026-02-27 */
+      var sel = document.getElementById('profile-ai-select');
+      var url = sel ? sel.value : 'https://claude.ai/new';
+      /* Claude: 2500ms delay so user sees paste hint before tab opens — 2026-02-27 */
+      setTimeout(function () { window.open(url, '_blank'); }, 2500);
     }
 
     function _aiPromptFallback(prompt) {
