@@ -137,8 +137,6 @@
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
         <button class="btn-send" id="btn-send" onclick="sendMessage()">Send</button>
       </div>
-      <!-- Claude: draft status — 2026-02-27 -->
-      <div id="draft-status" style="display:none;font-size:11px;color:#aaa;text-align:right;padding:2px 16px 6px;font-style:italic;"></div>
     </div>
   </div>
 
@@ -354,7 +352,6 @@
       document.getElementById('thread-header').style.display      = 'flex';
       document.getElementById('messages-area').style.display      = 'flex';
       document.getElementById('compose-area').style.display       = 'flex';
-      _draftLoad(activeThreadId);
       document.getElementById('thread-avatar').src  = icon;
       document.getElementById('thread-name').textContent = name;
       document.getElementById('thread-tier').textContent = TIER_LABELS[tier] || tier;
@@ -431,7 +428,6 @@
         timestamp:   AA.FieldValue.serverTimestamp()
       }).then(function() {
         textarea.value = '';
-        _draftClear(activeThreadId);
         btn.disabled = false;
         textarea.focus();
       }).catch(function(err) {
@@ -505,69 +501,6 @@
         badge.remove();
       }
     }
-
-    /* ── Draft saving — Claude: 2026-02-27 ──────────────────────
-       Firestore path: messageDrafts/{uid}_{threadId}
-       Debounced 2s on input; restored on openThread; cleared on send. */
-    var _draftTimer = null;
-
-    function _draftRef(tid) {
-      return AA.db.collection('messageDrafts').doc(currentUser.uid + '_' + tid);
-    }
-
-    function _draftSave() {
-      if (!currentUser || !activeThreadId) return;
-      var text = document.getElementById('compose-text').value;
-      var statusEl = document.getElementById('draft-status');
-      if (!text.trim()) {
-        _draftRef(activeThreadId).delete().catch(function() {});
-        if (statusEl) statusEl.style.display = 'none';
-        return;
-      }
-      if (statusEl) { statusEl.textContent = 'Saving draft…'; statusEl.style.display = 'block'; }
-      _draftRef(activeThreadId).set({ text: text, savedAt: new Date().toISOString() })
-        .then(function() {
-          if (statusEl) {
-            statusEl.textContent = 'Draft saved';
-            setTimeout(function() { statusEl.style.display = 'none'; }, 2000);
-          }
-        })
-        .catch(function(err) {
-          console.warn('[AA] draft save:', err);
-          if (statusEl) statusEl.style.display = 'none';
-        });
-    }
-
-    function _draftLoad(tid) {
-      var ta = document.getElementById('compose-text');
-      var statusEl = document.getElementById('draft-status');
-      ta.value = '';
-      if (statusEl) statusEl.style.display = 'none';
-      if (!currentUser) return;
-      _draftRef(tid).get().then(function(doc) {
-        if (doc.exists && doc.data().text) {
-          ta.value = doc.data().text;
-          if (statusEl) {
-            statusEl.textContent = 'Draft restored';
-            statusEl.style.display = 'block';
-            setTimeout(function() { statusEl.style.display = 'none'; }, 2000);
-          }
-        }
-      }).catch(function() {});
-    }
-
-    function _draftClear(tid) {
-      if (!currentUser) return;
-      _draftRef(tid).delete().catch(function() {});
-      var statusEl = document.getElementById('draft-status');
-      if (statusEl) statusEl.style.display = 'none';
-    }
-
-    /* Attach debounce listener once — safe since textarea is always in DOM */
-    document.getElementById('compose-text').addEventListener('input', function() {
-      clearTimeout(_draftTimer);
-      _draftTimer = setTimeout(_draftSave, 2000);
-    });
 
     waitForAA(boot);
   </script>
