@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<!-- ============================================================
+     checkin-log.html — Academic Allies Check-In History Log
+     Created: 2026-02-28 by Claude
+     Shows the last 30 days of check-in entries for the signed-in
+     student (or the mirrored student in mirror/boss mode).
+     Support network members see Mary's log automatically via
+     window.AA_MIRROR_UID set by aa-mirror.js.
+     ============================================================ -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Check-In Log — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --green:   #28a745;
+      --yellow:  #ffc107;
+      --orange:  #fd7e14;
+      --red:     #dc3545;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 3rem;
+    }
+    #site-header { min-height: 56px; }
+    .page-wrap { max-width: 760px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+
+    /* ── Page header ── */
+    .log-header { margin: 1rem 0 1.5rem; }
+    .log-header h1 { font-size: 1.5rem; color: var(--teal-dk); }
+    .log-header .subtitle { color: var(--muted); font-size: .9rem; margin-top: .25rem; }
+    #log-student-name { font-weight: 700; }
+
+    /* ── Controls ── */
+    .log-controls {
+      display: flex; gap: .6rem; align-items: center;
+      margin-bottom: 1.25rem; flex-wrap: wrap;
+    }
+    .log-controls label { font-size: .85rem; color: var(--muted); }
+    .log-controls select {
+      padding: .4rem .7rem; border-radius: 6px;
+      border: 1px solid var(--border); font-size: .9rem;
+      background: var(--card); color: var(--text); cursor: pointer;
+    }
+    #refresh-btn {
+      margin-left: auto; padding: .4rem .9rem; font-size: .85rem;
+      background: var(--teal); color: #fff; border: none;
+      border-radius: 6px; cursor: pointer;
+    }
+    #refresh-btn:hover { background: var(--teal-dk); }
+
+    /* ── Day cards ── */
+    .day-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      margin-bottom: .85rem; overflow: hidden;
+    }
+    .day-header {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .75rem 1rem; cursor: pointer;
+      user-select: none;
+    }
+    .day-header:hover { background: #f4f9f9; }
+    .flag-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .flag-dot.green  { background: var(--green); }
+    .flag-dot.yellow { background: var(--yellow); }
+    .flag-dot.orange { background: var(--orange); }
+    .flag-dot.red    { background: var(--red); }
+    .flag-dot.none   { background: #ccc; }
+    .day-date { font-weight: 700; font-size: 1rem; color: var(--teal-dk); }
+    .day-summary { font-size: .85rem; color: var(--muted); margin-left: .25rem; }
+    .day-chevron { margin-left: auto; color: var(--muted); font-size: .8rem; transition: transform .2s; }
+    .day-card.open .day-chevron { transform: rotate(180deg); }
+
+    /* ── Entry detail ── */
+    .day-detail { display: none; padding: .75rem 1rem 1rem; border-top: 1px solid var(--border); }
+    .day-card.open .day-detail { display: block; }
+
+    .entry-block { margin-bottom: 1rem; }
+    .entry-block:last-child { margin-bottom: 0; }
+    .entry-time { font-size: .78rem; color: var(--muted); margin-bottom: .4rem; }
+
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: .4rem; margin-bottom: .5rem;
+    }
+    .cat-pill {
+      display: flex; align-items: center; gap: .4rem;
+      background: #f0f7f4; border-radius: 6px;
+      padding: .3rem .6rem; font-size: .82rem;
+    }
+    .cat-pill .cpflag { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .cat-pill .cpflag.green  { background: var(--green); }
+    .cat-pill .cpflag.yellow { background: var(--yellow); }
+    .cat-pill .cpflag.orange { background: var(--orange); }
+    .cat-pill .cpflag.red    { background: var(--red); }
+    .cat-pill .cpflag.skip   { background: #ccc; }
+
+    .entry-note {
+      font-size: .85rem; color: #444; background: #fafafa;
+      border-left: 3px solid var(--border);
+      padding: .4rem .7rem; border-radius: 0 6px 6px 0;
+      margin-top: .35rem;
+    }
+    .thumping-badge {
+      display: inline-block; font-size: .75rem; background: #fff3e0;
+      color: #7a3e00; border-radius: 5px; padding: .15rem .5rem;
+      margin-left: .4rem;
+    }
+    .emergency-badge {
+      display: inline-block; font-size: .75rem; background: #fde8ea;
+      color: #721c24; border-radius: 5px; padding: .15rem .5rem;
+      margin-left: .4rem;
+    }
+
+    /* ── States ── */
+    #log-loading, #log-empty, #log-error, #auth-gate {
+      text-align: center; padding: 3rem 1rem; color: var(--muted);
+    }
+    #auth-gate { display: none; }
+    #auth-gate button {
+      margin-top: 1rem; padding: .6rem 1.4rem;
+      background: var(--teal); color: #fff; border: none;
+      border-radius: 8px; font-size: 1rem; cursor: pointer;
+    }
+
+    /* ── Mirror banner ── */
+    #mirror-notice {
+      display: none; background: #e8f2f3; border: 1px solid var(--teal);
+      border-radius: 8px; padding: .6rem 1rem; margin-bottom: 1rem;
+      font-size: .88rem; color: var(--teal-dk);
+    }
+  </style>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<div class="page-wrap">
+
+  <div class="log-header">
+    <h1>📋 Check-In Log</h1>
+    <p class="subtitle">Showing check-ins for <span id="log-student-name">…</span></p>
+  </div>
+
+  <div id="mirror-notice">👁 Viewing in read-only mirror mode — you're seeing <strong id="mirror-name">a student</strong>'s log.</div>
+
+  <div id="auth-gate">
+    <p>Sign in to see check-in history.</p>
+    <button onclick="AA.signInWithGoogle()">Sign in with Google</button>
+  </div>
+
+  <div class="log-controls" id="log-controls" style="display:none">
+    <label for="days-select">Show:</label>
+    <select id="days-select" onchange="loadLog()">
+      <option value="7">Last 7 days</option>
+      <option value="14">Last 14 days</option>
+      <option value="30" selected>Last 30 days</option>
+      <option value="60">Last 60 days</option>
+    </select>
+    <button id="refresh-btn" onclick="loadLog()">↻ Refresh</button>
+  </div>
+
+  <div id="log-loading">Loading check-in history…</div>
+  <div id="log-empty"   style="display:none">No check-ins found for this period.</div>
+  <div id="log-error"   style="display:none">Could not load check-in history. Please try again.</div>
+  <div id="log-list"></div>
+
+</div><!-- /page-wrap -->
+
+<!-- Firebase CDN -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="/Academic-Allies/modular/aa-firebase.js"></script>
+<script src="/Academic-Allies/modular/js/aa-mirror.js"></script>
+
+<script>
+/* ── Constants ──────────────────────────────────────────────────────────── */
+var CAT_LABELS = {
+  mental:   '🧠 Mental',
+  physical: '💪 Physical',
+  school:   '📚 School',
+  spiritual:'✨ Spiritual',
+  social:   '💬 Social'
+};
+
+var FLAG_COLORS = { green: 'green', yellow: 'yellow', orange: 'orange', red: 'red' };
+
+/* Derive a single color from a category object (mirrors status-circle.js logic) */
+function catColor(cat, data) {
+  if (!data || !data.gateway || data.gateway === 'skip') return 'skip';
+  var v = data.emojiV || 0;
+  if (v >= 8) return 'red';
+  if (v >= 6) return 'orange';
+  if (v >= 5) return 'yellow';
+  if (v >  0) return 'green';
+  if (data.gateway === 'yes')  return 'green';
+  if (data.gateway === 'no')   return 'yellow';
+  return 'skip';
+}
+
+/* ── Rendering ──────────────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderEntry(entry, idx) {
+  var cats = entry.categories || {};
+  var ts   = '';
+  if (entry.timestamp) {
+    var d = typeof entry.timestamp.toDate === 'function'
+      ? entry.timestamp.toDate() : new Date(entry.timestamp);
+    ts = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  var badges = '';
+  if (entry.emergency === true || entry.emergency === 'yes') {
+    badges += '<span class="emergency-badge">🆘 Emergency flagged</span>';
+  }
+  if (entry.thumping) {
+    badges += '<span class="thumping-badge">🔔 Thumping voices</span>';
+  }
+
+  var catPills = Object.keys(CAT_LABELS).map(function(k) {
+    var data  = cats[k];
+    var color = catColor(k, data);
+    var label = CAT_LABELS[k];
+    var gwLabel = data && data.gateway ? data.gateway : '—';
+    return '<div class="cat-pill">' +
+      '<span class="cpflag ' + color + '"></span>' +
+      '<span>' + label + ' <span style="color:#888;font-size:.75rem">(' + esc(gwLabel) + ')</span></span>' +
+    '</div>';
+  }).join('');
+
+  var noteHtml = '';
+  if (entry.finalNote && entry.finalNote.trim()) {
+    noteHtml = '<div class="entry-note">' + esc(entry.finalNote) + '</div>';
+  }
+
+  return '<div class="entry-block">' +
+    '<div class="entry-time">' +
+      (ts ? '🕐 ' + ts : 'Time unknown') + badges +
+    '</div>' +
+    '<div class="cat-grid">' + catPills + '</div>' +
+    noteHtml +
+  '</div>';
+}
+
+function renderDayCard(dayData) {
+  var flag     = dayData.latestFlag || 'none';
+  var entries  = Array.isArray(dayData.entries) ? dayData.entries : [];
+  var date     = dayData.date || '';
+
+  /* Format date nicely */
+  var dateLabel = date;
+  try {
+    var d = new Date(date + 'T12:00:00'); /* noon avoids TZ day-shift */
+    dateLabel = d.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
+  } catch(e) {}
+
+  var flagLabels = {
+    green:  'All clear',
+    yellow: 'Some concerns',
+    orange: 'Worth checking in',
+    red:    'Red flag',
+    none:   'No data'
+  };
+  var summary = entries.length + ' check-in' + (entries.length === 1 ? '' : 's') +
+                ' · ' + (flagLabels[flag] || flag);
+
+  var entriesHtml = entries.length
+    ? entries.map(renderEntry).join('<hr style="border:none;border-top:1px solid #eee;margin:.75rem 0">')
+    : '<p style="color:#999;font-size:.85rem">No entries recorded.</p>';
+
+  return '<div class="day-card" onclick="toggleDay(this)">' +
+    '<div class="day-header">' +
+      '<span class="flag-dot ' + esc(flag) + '"></span>' +
+      '<span class="day-date">' + esc(dateLabel) + '</span>' +
+      '<span class="day-summary">' + esc(summary) + '</span>' +
+      '<span class="day-chevron">▼</span>' +
+    '</div>' +
+    '<div class="day-detail">' + entriesHtml + '</div>' +
+  '</div>';
+}
+
+function toggleDay(card) {
+  card.classList.toggle('open');
+}
+
+/* ── Data loading ───────────────────────────────────────────────────────── */
+var _currentUid = null;
+var _unsubLog   = null;
+
+function show(id) {
+  ['log-loading','log-empty','log-error','log-list'].forEach(function(i) {
+    document.getElementById(i).style.display = (i === id ? 'block' : 'none');
+  });
+}
+
+function loadLog() {
+  if (!_currentUid) return;
+  var days = parseInt(document.getElementById('days-select').value, 10) || 30;
+
+  if (_unsubLog) { _unsubLog(); _unsubLog = null; }
+  show('log-loading');
+
+  _unsubLog = AA.db.collection('checkins').doc(_currentUid)
+    .collection('days')
+    .orderBy('date', 'desc')
+    .limit(days)
+    .onSnapshot(function(snap) {
+      if (snap.empty) { show('log-empty'); return; }
+      var html = snap.docs.map(function(d) { return renderDayCard(d.data()); }).join('');
+      document.getElementById('log-list').innerHTML = html;
+      show('log-list');
+    }, function(err) {
+      console.error('[AA] checkin-log error:', err);
+      show('log-error');
+    });
+}
+
+/* ── Auth boot ──────────────────────────────────────────────────────────── */
+AA.auth.onAuthStateChanged(function(user) {
+  var authGate = document.getElementById('auth-gate');
+  var controls = document.getElementById('log-controls');
+
+  if (!user) {
+    authGate.style.display = 'block';
+    show('log-loading');
+    document.getElementById('log-student-name').textContent = '—';
+    return;
+  }
+
+  authGate.style.display = 'none';
+  controls.style.display = 'flex';
+
+  _currentUid = window.AA_MIRROR_UID || user.uid;
+
+  /* Mirror mode notice */
+  var mirrorNotice = document.getElementById('mirror-notice');
+  var mirrorName   = document.getElementById('mirror-name');
+  if (window.AA_MIRROR_UID) {
+    mirrorNotice.style.display = 'block';
+    /* Try to get the student's display name from their user doc */
+    AA.db.collection('users').doc(window.AA_MIRROR_UID).get()
+      .then(function(doc) {
+        var name = (doc.exists && (doc.data().displayName || doc.data().name)) || 'student';
+        mirrorName.textContent = name;
+        document.getElementById('log-student-name').textContent = name;
+      }).catch(function() {});
+  } else {
+    var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
+    document.getElementById('log-student-name').textContent = firstName || 'you';
+  }
+
+  loadLog();
+});
+</script>
+
+<!-- Shared header loader (full script re-execution so Firebase/auth initialise) -->
+<script>
+fetch('/Academic-Allies/modular/shared-header.html?v=20260228a')
+  .then(function(r){ return r.text(); })
+  .then(function(html){
+    var container = document.getElementById('site-header');
+    container.innerHTML = html;
+    container.querySelectorAll('script').forEach(function(old) {
+      var s = document.createElement('script');
+      Array.from(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      s.textContent = old.textContent;
+      old.replaceWith(s);
+    });
+    var drag = document.createElement('script');
+    drag.src = '/Academic-Allies/modular/js/draggable.js';
+    drag.onload = function(){ if (typeof initDrag === 'function') initDrag(); };
+    document.body.appendChild(drag);
+  })
+  .catch(function(){});
+</script>
+
+</body>
+</html>
