@@ -976,7 +976,10 @@
                     if (user.email !== 'mbrinck90@gmail.com') {
                         mealOptions = genericMealOptions;
                     }
-                    var quizUid = (window.AA_flower_uid ? window.AA_flower_uid(user.uid, user.email) : user.uid);
+                    /* Claude: use student UID in mirror mode — 2026-02-28 */
+                    var _readUid = window.AA_MIRROR_UID || user.uid;
+                    var quizUid  = (window.AA_flower_uid && !window.AA_MIRROR_UID)
+                        ? window.AA_flower_uid(user.uid, user.email) : _readUid;
                     AA.getFlowerQuiz(quizUid).then(function(doc) {
                         if (!doc.exists) return; // first time — nothing to load yet
                         var data = doc.data();
@@ -1064,7 +1067,8 @@
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) return;
                     // Claude: one-time load — no live sync to avoid fighting reset — 2026-02-27
-                    AA.getSpoonPlan(user.uid).then(function(data) {
+                    // Claude: use student UID in mirror mode — 2026-02-28
+                    AA.getSpoonPlan(window.AA_MIRROR_UID || user.uid).then(function(data) {
                         if (data && data.tasks && data.tasks.length > 0) {
                             renderTodoList(data.tasks);
                             localStorage.setItem('spoonPlannerTasks', JSON.stringify(data.tasks));
