@@ -986,20 +986,19 @@
         }
 
         function loadSpoonPlan() {
-            // Show localStorage immediately (fast)
+            // Show localStorage immediately (fast), Firebase will overwrite if fresher
             loadSpoonPlanFromStorage();
 
             if (window.AA && AA.auth) {
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) return;
-                    // Claude: one-time load — no live sync to avoid fighting reset — 2026-02-27
-                    AA.getSpoonPlan(user.uid).then(function(data) {
-                        if (data && data.tasks && data.tasks.length > 0) {
+                    // Use watchSpoonPlan for live sync across devices
+                    AA.watchSpoonPlan(user.uid, function(data) {
+                        if (data && data.tasks) {
                             renderTodoList(data.tasks);
+                            // Keep localStorage in sync
                             localStorage.setItem('spoonPlannerTasks', JSON.stringify(data.tasks));
                         }
-                    }).catch(function(err) {
-                        console.warn('[AA] Could not load spoon plan:', err);
                     });
                 });
             }
