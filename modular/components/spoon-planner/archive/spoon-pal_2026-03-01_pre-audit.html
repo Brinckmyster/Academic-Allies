@@ -23,7 +23,7 @@
       background: #FAFAF9;
       color: #333;
       min-height: 100vh;
-      padding: 20px 16px 60px;
+      padding: 20px 16px 60px; /* bottom pad for attribution footer */
     }
 
     .container {
@@ -90,10 +90,7 @@
     button { cursor: pointer; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; background: #1a73e8; color: white; transition: background-color 0.3s ease; font-size: 14px; }
     button:hover { background: #155ab6; }
     button:disabled { background: #a6c8f3; cursor: not-allowed; }
-    .btn-row { text-align: center; margin-top: 1rem; }
-    .btn-row button { display: inline-block; margin: 0 0.4rem; }
-    #loadDayBtn { background: #28a745; }
-    #loadDayBtn:hover { background: #218838; }
+    #addTaskBtn, #manageTemplatesBtn { display: block; margin: 1rem auto 0; max-width: 180px; }
 
     /* ── Modals ─────────────────────────────────────── */
     .modal { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); overflow-y: auto; }
@@ -107,9 +104,7 @@
     .modal-actions { margin-top: 1.25rem; display: flex; gap: 1rem; }
     .modal-actions button { flex: 1; padding: 0.65rem 0; }
     #templateList { max-height: 300px; overflow-y: auto; margin-top: 1rem; }
-    .template-item { border-bottom: 1px solid #eee; padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-    .template-item span { flex: 1; font-size: 14px; }
-    .emoji-preview { font-size: 1.5em; min-height: 1.8em; margin-top: 0.4rem; padding: 0.25rem 0; }
+    .template-item { border-bottom: 1px solid #eee; padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; }
   </style>
 </head>
 <body>
@@ -192,12 +187,8 @@
     </tbody>
   </table>
 
-  <!-- Fix #1: Load Day button added alongside existing buttons -->
-  <div class="btn-row">
-    <button id="addTaskBtn" type="button" aria-label="Add new task">Add Task</button>
-    <button id="loadDayBtn" type="button" aria-label="Load a full-day template">Load Day</button>
-    <button id="manageTemplatesBtn" type="button" aria-label="Manage editable templates">Manage Templates</button>
-  </div>
+  <button id="addTaskBtn" type="button" aria-label="Add new task">Add Task</button>
+  <button id="manageTemplatesBtn" type="button" aria-label="Manage editable templates">Manage Templates</button>
 
   <!-- Task Edit Modal -->
   <div id="taskModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
@@ -208,17 +199,16 @@
         <label for="taskTemplateSelect">Apply Template (optional)</label>
         <select id="taskTemplateSelect">
           <option value="">None</option>
-          <!-- Populated dynamically — task-type only (Fix #1) -->
+          <!-- Populated dynamically -->
         </select>
         <label for="taskTime">Time</label>
         <input type="text" id="taskTime" name="taskTime" placeholder="8:30 AM" autocomplete="off" required />
         <label for="taskLmj">LMJ Code</label>
         <input type="text" id="taskLmj" name="taskLmj" readonly aria-readonly="true" />
-        <!-- Claude: Emoji input field removed (Fix #3) — emoji derived at render time -->
+        <label for="taskEmoji">Emoji</label>
+        <input type="text" id="taskEmoji" name="taskEmoji" readonly aria-readonly="true" />
         <label for="taskDescription">Description</label>
         <input type="text" id="taskDescription" name="taskDescription" required />
-        <!-- Fix #2: Auto-emoji preview (read-only, updates on description input) -->
-        <div class="emoji-preview" id="emojiPreview" aria-label="Auto-detected emoji" title="Emoji auto-detected from description"></div>
         <label for="taskSpoon">Spoon Cost</label>
         <input type="number" id="taskSpoon" name="taskSpoon" step="0.5" min="0" max="20" required />
         <label for="taskPriority">Priority</label>
@@ -258,7 +248,7 @@
     <div class="modal-content">
       <button class="modal-close" id="templateModalClose" aria-label="Close modal">&times;</button>
       <h2 id="templateModalTitle">Manage Templates</h2>
-      <button id="addTemplateBtn" type="button" style="margin-bottom: 1rem;">Add New Task Template</button>
+      <button id="addTemplateBtn" type="button" style="margin-bottom: 1rem;">Add New Template</button>
       <div id="templateList" aria-label="List of editable templates">
         <!-- Populated dynamically -->
       </div>
@@ -299,88 +289,40 @@
     </div>
   </div>
 
-  <!-- Fix #1: Load Day Modal -->
-  <div id="loadDayModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loadDayModalTitle">
-    <div class="modal-content">
-      <button class="modal-close" id="loadDayModalClose" aria-label="Close modal">&times;</button>
-      <h2 id="loadDayModalTitle">Load Day Template</h2>
-      <label for="dayTemplateSelect">Choose a Day Template</label>
-      <select id="dayTemplateSelect" aria-label="Select day template to load"></select>
-      <p style="margin-top: 0.75rem; font-size: 0.9em; color: #666;">⚠️ This will replace your current timeline.</p>
-      <div class="modal-actions">
-        <button type="button" id="confirmLoadDayBtn">Load Day</button>
-        <button type="button" id="cancelLoadDayBtn" style="background: #6c757d;">Cancel</button>
-      </div>
-    </div>
-  </div>
-
 <script>
 (() => {
   'use strict';
 
-  // Claude: Audit fixes applied — full-day templates, auto-emoji, emoji field removal,
-  // Normal Day template, ZZ rollover + stale-data detection. Archive: spoon-pal_2026-03-01_pre-audit.html
-
-  // ── Fix #2: Keyword→Emoji map ─────────────────────────────────────────────────
-  const KEYWORD_EMOJI_MAP = {
-    shower: '🚿', walk: '🚶', meds: '💊', eat: '🍽️', sleep: '😴',
-    rest: '😌', bath: '🛁', brush: '🪥', call: '📞', write: '✏️',
-    read: '📖', cook: '🍳', drink: '💧', stretch: '🤸', dress: '👗'
-  };
-
   // Constants and locked protocol data (corrected: B🍽️, S🤟, ZZ📵, C🔗 Word Connect, I🎨 NightCafe, all streak savers)
   const LOCKED_LMJ_ORDER = ['A', 'V', 'B', 'C', 'D', 'S', 'L', 'I', 'G', 'N', 'ME', 'H', 'CC', 'DD', 'EE', 'FF', 'ZZ'];
   const LOCKED_LMJ_META = {
-    A:  {emoji: '💊',  desc: 'Morning Medications',           defaultCost: 2, fixed: true},
-    V:  {emoji: '🦾',  desc: 'CPAP Prep / Wrist Brace',       defaultCost: 1, fixed: true},
-    B:  {emoji: '🍽️', desc: 'Family Scriptures / Breakfast',  defaultCost: 2, fixed: false},
-    C:  {emoji: '🔗',  desc: 'Word Connect Streak Saver',      defaultCost: 1, fixed: false},
-    D:  {emoji: '🦉',  desc: 'Duolingo Streak Saver',          defaultCost: 1, fixed: false},
-    S:  {emoji: '🤟',  desc: 'ASL Streak Saver',               defaultCost: 1, fixed: false},
-    L:  {emoji: '🦙',  desc: 'Lingo Legend Streak Saver',      defaultCost: 1, fixed: false},
-    I:  {emoji: '🎨',  desc: 'NightCafe Streak Saver',         defaultCost: 1, fixed: false},
-    G:  {emoji: '🐣',  desc: 'Gosling Time',                   defaultCost: 1, fixed: false},
-    N:  {emoji: '📰',  desc: 'News with Mom',                  defaultCost: 1, fixed: false},
-    ME: {emoji: '🙂',  desc: 'Me Time',                        defaultCost: 1, fixed: false},
-    H:  {emoji: '🧺',  desc: 'Hamper (Clothes / Bedtime)',     defaultCost: 1, fixed: false},
-    CC: {emoji: '🛏️', desc: 'In Bed',                         defaultCost: 0, fixed: true},
-    DD: {emoji: '🌬️', desc: 'Breathe (Recovery)',             defaultCost: 0, fixed: true},
-    EE: {emoji: '😷',  desc: 'CPAP Mask On',                   defaultCost: 0, fixed: true},
-    FF: {emoji: '🛡️', desc: 'Wrist Brace (Night)',            defaultCost: 0, fixed: true},
-    ZZ: {emoji: '📵',  desc: 'Device Off / Crash',             defaultCost: 0, fixed: true}
+    A: {emoji: '💊', desc: 'Morning Medications', defaultCost: 2, fixed: true},
+    V: {emoji: '🦾', desc: 'CPAP Prep / Wrist Brace', defaultCost: 1, fixed: true},
+    B: {emoji: '🍽️', desc: 'Family Scriptures / Breakfast', defaultCost: 2, fixed: false},
+    C: {emoji: '🔗', desc: 'Word Connect Streak Saver', defaultCost: 1, fixed: false},
+    D: {emoji: '🦉', desc: 'Duolingo Streak Saver', defaultCost: 1, fixed: false},
+    S: {emoji: '🤟', desc: 'ASL Streak Saver', defaultCost: 1, fixed: false},
+    L: {emoji: '🦙', desc: 'Lingo Legend Streak Saver', defaultCost: 1, fixed: false},
+    I: {emoji: '🎨', desc: 'NightCafe Streak Saver', defaultCost: 1, fixed: false},
+    G: {emoji: '🐣', desc: 'Gosling Time', defaultCost: 1, fixed: false},
+    N: {emoji: '📰', desc: 'News with Mom', defaultCost: 1, fixed: false},
+    ME: {emoji: '🙂', desc: 'Me Time', defaultCost: 1, fixed: false},
+    H: {emoji: '🧺', desc: 'Hamper (Clothes / Bedtime)', defaultCost: 1, fixed: false},
+    CC: {emoji: '🛏️', desc: 'In Bed', defaultCost: 0, fixed: true},
+    DD: {emoji: '🌬️', desc: 'Breathe (Recovery)', defaultCost: 0, fixed: true},
+    EE: {emoji: '😷', desc: 'CPAP Mask On', defaultCost: 0, fixed: true},
+    FF: {emoji: '🛡️', desc: 'Wrist Brace (Night)', defaultCost: 0, fixed: true},
+    ZZ: {emoji: '📵', desc: 'Device Off / Crash', defaultCost: 0, fixed: true}
   };
-
-  // ── Fix #4: Protected Normal Day template (constant — not stored, not deletable) ───
-  const NORMAL_DAY_TIMES = {
-    A: '8:30 AM',  V: '8:45 AM',  B: '9:00 AM',  C: '9:30 AM',
-    D: '10:00 AM', S: '10:30 AM', L: '11:00 AM', I: '11:30 AM',
-    G: '12:00 PM', N: '1:00 PM',  ME: '2:00 PM', H:  '3:00 PM',
-    CC: '9:00 PM', DD: '9:15 PM', EE: '9:30 PM', FF: '9:45 PM',
-    ZZ: '10:00 PM'
-  };
-  const NORMAL_DAY_TEMPLATE = {
-    name: 'Normal Day',
-    type: 'day',
-    locked: true,
-    tasks: LOCKED_LMJ_ORDER.map(lmj => {
-      const meta = LOCKED_LMJ_META[lmj];
-      return {
-        time: NORMAL_DAY_TIMES[lmj] || '8:30 AM',
-        lmj,
-        description: meta.desc,
-        spoon: meta.defaultCost,
-        priority: 'High',
-        fixed: meta.fixed,
-        status: 'incomplete',
-        notes: ''
-      };
-    })
-  };
-
   const STATUS_ORDER = ['incomplete', 'partial', 'progress', 'complete', 'interrupted', 'skipped', 'rescheduled'];
   const STATUS_ICONS = {
-    incomplete: '⬜', partial: '⏳', progress: '🛠️', complete: '✅',
-    interrupted: '🚧', skipped: '❌', rescheduled: '🔄'
+    incomplete: '⬜',
+    partial: '⏳',
+    progress: '🛠️',
+    complete: '✅',
+    interrupted: '🚧',
+    skipped: '❌',
+    rescheduled: '🔄'
   };
 
   // Variables
@@ -393,29 +335,25 @@
   let selectedIndex = null;
   let currentUid = null;  // set by Firebase auth
   let templates = {
-    'Word Connect':  {type: 'task', emoji: '🔗', desc: 'Word Connect Streak Saver',  defaultCost: 1, priority: 'High', fixed: false},
-    'NightCafe':     {type: 'task', emoji: '🎨', desc: 'NightCafe Streak Saver',      defaultCost: 1, priority: 'High', fixed: false},
-    'Duolingo':      {type: 'task', emoji: '🦉', desc: 'Duolingo Streak Saver',       defaultCost: 1, priority: 'High', fixed: false},
-    'ASL':           {type: 'task', emoji: '🤟', desc: 'ASL Streak Saver',            defaultCost: 1, priority: 'High', fixed: false},
-    'Lingo Legend':  {type: 'task', emoji: '🦙', desc: 'Lingo Legend Streak Saver',   defaultCost: 1, priority: 'High', fixed: false},
-    'Monday': {type: 'day', tasks: [
-      {time: '8:30 AM', lmj: 'A',  description: 'Bathroom/CPAP cleaning',      spoon: 1, priority: 'High', fixed: true,  status: 'incomplete', notes: 'Essential start, sanitize CPAP'},
-      {time: '9:00 AM', lmj: 'B',  description: 'Family scriptures & breakfast', spoon: 1, priority: 'High', fixed: true,  status: 'incomplete', notes: 'PB/fruit, hydrate with meal'},
-      {time: '9:30 AM', lmj: 'C',  description: 'Bathroom break',               spoon: 0, priority: 'High', fixed: false, status: 'incomplete', notes: 'Standalone'},
-      {time: '10:00 AM',lmj: 'D',  description: 'Clean kitchen counters',       spoon: 1, priority: 'High', fixed: false, status: 'incomplete', notes: 'Microtask, quick win'},
-      {time: '10:00 PM',lmj: 'ZZ', description: 'Device off, crash',            spoon: 0, priority: 'High', fixed: true,  status: 'incomplete', notes: 'Sleep initiation'}
-    ]}
+    'Word Connect': {emoji: '🔗', desc: 'Word Connect Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'NightCafe': {emoji: '🎨', desc: 'NightCafe Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'Duolingo': {emoji: '🦉', desc: 'Duolingo Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'ASL': {emoji: '🤟', desc: 'ASL Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'Lingo Legend': {emoji: '🦙', desc: 'Lingo Legend Streak Saver', defaultCost: 1, priority: 'High', fixed: false},
+    'Monday': {tasks: [ // Full Monday template from your provided data
+      {time: '8:30 ☀️🔒', lmj: 'A', emoji: '🛁', description: 'Bathroom/CPAP cleaning (High)', spoon: 1, priority: 'High', fixed: true, status: 'incomplete', notes: 'Essential start, sanitize CPAP'},
+      {time: '9:00 ☀️🔒', lmj: 'B', emoji: '📖', description: 'Family scriptures & breakfast (High)', spoon: 1, priority: 'High', fixed: true, status: 'incomplete', notes: 'PB/fruit, hydrate with meal'},
+      {time: '9:30 ☀️↕️', lmj: 'C', emoji: '🚽', description: 'Bathroom break (High)', spoon: 0, priority: 'High', fixed: false, status: 'incomplete', notes: 'Standalone'},
+      {time: '10:00 ☀️↕️', lmj: 'D', emoji: '🧽', description: 'Clean kitchen counters (High)', spoon: 1, priority: 'High', fixed: false, status: 'incomplete', notes: 'Microtask, quick win'},
+      // ... add the rest of Monday tasks from your provided Monday template ...
+      {time: '[actual]', lmj: 'ZZ', emoji: '📵', description: 'Device off, crash (High)', spoon: 0, priority: 'High', fixed: true, status: 'incomplete', notes: 'Sleep initiation'}
+    ]},
+    // Add Tuesday, Thursday, Friday templates similarly from your provided data
   };
   let selectedTemplateKey = null;
 
-  // ── Utilities ─────────────────────────────────────────────────────────────────
+  // Utility functions (same as before)
   function pad(n) { return n.toString().padStart(2, '0'); }
-
-  // Fix #5: Get today's date key (YYYY-MM-DD)
-  function getTodayKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  }
 
   function parseTime(tstr) {
     const m = tstr.match(/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/i);
@@ -453,28 +391,11 @@
     return 'XX';
   }
 
-  // ── Fix #3: Derive emoji at render time (priority: locked meta > keyword > fallback) ──
-  function deriveEmoji(task) {
-    // 1. LOCKED_LMJ_META emoji if task has a known LMJ code
-    if (LOCKED_LMJ_META[task.lmj]) return LOCKED_LMJ_META[task.lmj].emoji;
-    // 2. Keyword match from KEYWORD_EMOJI_MAP (case-insensitive)
-    const desc = (task.description || '').toLowerCase();
-    for (const kw in KEYWORD_EMOJI_MAP) {
-      if (desc.includes(kw)) return KEYWORD_EMOJI_MAP[kw];
-    }
-    // 3. Fallback
-    return '🧩';
+  function assignEmoji(lmj) {
+    return LOCKED_LMJ_META[lmj]?.emoji || '🧩';
   }
 
-  // ── Fix #2: Update emoji preview in task modal ────────────────────────────────
-  function updateEmojiPreview() {
-    const lmj = document.getElementById('taskLmj').value;
-    const desc = document.getElementById('taskDescription').value;
-    const emoji = deriveEmoji({ lmj, description: desc });
-    document.getElementById('emojiPreview').textContent = emoji;
-  }
-
-  // ── Spoon calculations ────────────────────────────────────────────────────────
+  // Spoon calculations
   function calculateSpoons() {
     let base = 20;
     base -= Math.max(0, checkIn.pain - 5);
@@ -525,7 +446,7 @@
     }
   }
 
-  // ── Timeline rendering ────────────────────────────────────────────────────────
+  // Timeline rendering
   function renderTimeline() {
     const tbody = document.getElementById('timelineBody');
     tbody.innerHTML = '';
@@ -538,7 +459,7 @@
     });
     // Enforce H after ME
     const idxME = timeline.findIndex(t => t.lmj === 'ME');
-    const idxH  = timeline.findIndex(t => t.lmj === 'H');
+    const idxH = timeline.findIndex(t => t.lmj === 'H');
     if (idxME !== -1 && idxH !== -1) {
       if (parseTime(timeline[idxH].time) <= parseTime(timeline[idxME].time)) {
         timeline[idxH].time = formatTime(parseTime(timeline[idxME].time) + 30);
@@ -559,8 +480,7 @@
       tr.appendChild(timeTd);
 
       const lmjTd = document.createElement('td');
-      // Fix #3: Use deriveEmoji — no stored emoji
-      lmjTd.textContent = `${t.lmj}${deriveEmoji(t)}`;
+      lmjTd.textContent = `${t.lmj}${t.emoji || assignEmoji(t.lmj)}`;
       tr.appendChild(lmjTd);
 
       const descTd = document.createElement('td');
@@ -593,7 +513,7 @@
       editBtn.onclick = (e) => { e.stopPropagation(); openTaskModal(i); };
       actionTd.appendChild(editBtn);
       const cloneBtn = document.createElement('button');
-      cloneBtn.textContent = 'Clone';
+      cloneBtn.textContent = 'Clone Template';
       cloneBtn.style.background = '#28a745';
       cloneBtn.onclick = (e) => { e.stopPropagation(); addFromTemplate(t); };
       actionTd.appendChild(cloneBtn);
@@ -608,18 +528,16 @@
     }
   }
 
-  // ── Task Modal functions ──────────────────────────────────────────────────────
+  // Task Modal functions
   function openTaskModal(index) {
     selectedIndex = index;
     const task = timeline[index];
-    // Fix #1: populate only task-type templates in the select
     populateTemplateSelect('taskTemplateSelect');
     document.getElementById('taskTemplateSelect').value = '';
     document.getElementById('taskTime').value = task.time;
     document.getElementById('taskLmj').value = task.lmj;
-    // Fix #3: no emoji field — show derived emoji as preview
+    document.getElementById('taskEmoji').value = task.emoji || assignEmoji(task.lmj);
     document.getElementById('taskDescription').value = task.description;
-    updateEmojiPreview();
     document.getElementById('taskSpoon').value = task.spoon;
     document.getElementById('taskPriority').value = task.priority;
     document.getElementById('taskFixed').value = task.fixed ? 'true' : 'false';
@@ -649,22 +567,18 @@
     t.fixed = document.getElementById('taskFixed').value === 'true';
     t.status = document.getElementById('taskStatus').value;
     t.notes = document.getElementById('taskNotes').value.trim();
-    // Fix #3: emoji not saved — derived at render time
+    t.emoji = document.getElementById('taskEmoji').value;
     calculateSpoons();
     renderTimeline();
     saveData();
     closeTaskModal();
   }
 
-  // ── Template functions ────────────────────────────────────────────────────────
-  // Fix #1: Only show task-type templates (not day templates) in task modal select
+  // Template functions
   function populateTemplateSelect(selectId) {
     const select = document.getElementById(selectId);
     select.innerHTML = '<option value="">None</option>';
     for (const key in templates) {
-      const temp = templates[key];
-      // Skip day templates
-      if (temp.type === 'day' || temp.tasks) continue;
       const opt = document.createElement('option');
       opt.value = key;
       opt.textContent = key;
@@ -674,12 +588,12 @@
 
   function applyTemplate(key) {
     const temp = templates[key];
-    if (!temp || temp.tasks || temp.type === 'day') return; // skip day templates
+    if (!temp) return;
+    document.getElementById('taskEmoji').value = temp.emoji || '';
     document.getElementById('taskDescription').value = temp.desc;
     document.getElementById('taskSpoon').value = temp.defaultCost;
     document.getElementById('taskPriority').value = temp.priority;
     document.getElementById('taskFixed').value = temp.fixed ? 'true' : 'false';
-    updateEmojiPreview();
   }
 
   function openTemplateModal() {
@@ -694,50 +608,16 @@
   function renderTemplateList() {
     const list = document.getElementById('templateList');
     list.innerHTML = '';
-
-    // Fix #4: Show protected Normal Day template first (no delete, copy only)
-    const ndItem = document.createElement('div');
-    ndItem.classList.add('template-item');
-    ndItem.innerHTML = `<span>🔒 <strong>Normal Day</strong> — Day template (protected)</span>`;
-    const ndCopyBtn = document.createElement('button');
-    ndCopyBtn.textContent = 'Duplicate';
-    ndCopyBtn.style.background = '#28a745';
-    ndCopyBtn.onclick = () => duplicateNormalDay();
-    ndItem.appendChild(ndCopyBtn);
-    list.appendChild(ndItem);
-
-    // User templates
     for (const key in templates) {
-      const temp = templates[key];
-      const isDay = temp.type === 'day' || !!temp.tasks;
       const item = document.createElement('div');
       item.classList.add('template-item');
-      const label = isDay
-        ? `📅 ${key} — Day template (${(temp.tasks || []).length} tasks)`
-        : `${key}: ${temp.desc || ''} (${temp.defaultCost} spoons)`;
-      item.innerHTML = `<span>${label}</span>`;
-      if (!isDay) {
-        const editBtn = document.createElement('button');
-        editBtn.textContent = 'Edit';
-        editBtn.onclick = () => openTemplateEdit(key);
-        item.appendChild(editBtn);
-      }
+      item.innerHTML = `<span>${key}: ${templates[key].desc} (${templates[key].defaultCost} spoons)</span>`;
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = () => openTemplateEdit(key);
+      item.appendChild(editBtn);
       list.appendChild(item);
     }
-  }
-
-  // Fix #4: Duplicate Normal Day into user-editable copy
-  function duplicateNormalDay() {
-    let newKey = 'Normal Day (Copy)';
-    let i = 2;
-    while (templates[newKey]) { newKey = `Normal Day (Copy ${i++})`; }
-    templates[newKey] = {
-      type: 'day',
-      tasks: NORMAL_DAY_TEMPLATE.tasks.map(t => ({ ...t, status: 'incomplete' }))
-    };
-    saveData();
-    renderTemplateList();
-    alert(`"${newKey}" created — you can now edit it in the timeline.`);
   }
 
   function openTemplateEdit(key) {
@@ -747,7 +627,7 @@
     document.getElementById('templateEmoji').value = temp.emoji || '';
     document.getElementById('templateDesc').value = temp.desc || '';
     document.getElementById('templateCost').value = temp.defaultCost;
-    document.getElementById('templatePriority').value = temp.priority || 'High';
+    document.getElementById('templatePriority').value = temp.priority;
     document.getElementById('templateFixed').value = temp.fixed ? 'true' : 'false';
     document.getElementById('templateEditModal').style.display = 'block';
   }
@@ -760,12 +640,14 @@
   function saveTemplate(e) {
     e.preventDefault();
     const name = document.getElementById('templateName').value.trim();
-    if (!name) { alert('Template name required'); return; }
+    if (!name) {
+      alert('Template name required');
+      return;
+    }
     if (selectedTemplateKey && selectedTemplateKey !== name) {
       delete templates[selectedTemplateKey];
     }
     templates[name] = {
-      type: 'task',
       emoji: document.getElementById('templateEmoji').value.trim(),
       desc: document.getElementById('templateDesc').value.trim(),
       defaultCost: parseFloat(document.getElementById('templateCost').value) || 0,
@@ -791,20 +673,20 @@
     timeline.push({
       time: task.time,
       lmj,
+      emoji: task.emoji,
       description: task.description,
       spoon: task.spoon,
       priority: task.priority,
       fixed: task.fixed,
       status: 'incomplete',
       notes: task.notes
-      // Fix #3: emoji not stored
     });
     calculateSpoons();
     renderTimeline();
     saveData();
   }
 
-  // ── Add task ──────────────────────────────────────────────────────────────────
+  // Add task
   function addTask() {
     const lmj = uniqueLMJ();
     const startMinutes = dayStart * 60;
@@ -812,13 +694,13 @@
     timeline.push({
       time,
       lmj,
+      emoji: assignEmoji(lmj),
       description: LOCKED_LMJ_META[lmj]?.desc || '',
       spoon: LOCKED_LMJ_META[lmj]?.defaultCost || 1,
       priority: 'High',
       fixed: LOCKED_LMJ_META[lmj]?.fixed || false,
       status: 'incomplete',
       notes: ''
-      // Fix #3: emoji not stored
     });
     openTaskModal(timeline.length - 1);
     populateTemplateSelect('taskTemplateSelect');
@@ -832,7 +714,7 @@
     renderTimeline();
   }
 
-  // ── Fix #5: Toggle status — triggers ZZ rollover when ZZ marked complete ──────
+  // Toggle status
   function toggleStatus(index) {
     if (index < 0 || index >= timeline.length) return;
     let s = timeline[index].status;
@@ -842,91 +724,9 @@
     calculateSpoons();
     renderTimeline();
     saveData();
-    // Fix #5: ZZ rollover trigger
-    if (timeline[index] && timeline[index].lmj === 'ZZ' && timeline[index].status === 'complete') {
-      rolloverDay();
-    }
   }
 
-  // ── Fix #1: Load Day Modal ────────────────────────────────────────────────────
-  function openLoadDayModal() {
-    const select = document.getElementById('dayTemplateSelect');
-    select.innerHTML = '';
-    // Normal Day always first
-    const ndOpt = document.createElement('option');
-    ndOpt.value = '__NORMAL_DAY__';
-    ndOpt.textContent = 'Normal Day (Standard Protocol)';
-    select.appendChild(ndOpt);
-    // User day templates
-    for (const key in templates) {
-      if (templates[key].type === 'day' || templates[key].tasks) {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = key;
-        select.appendChild(opt);
-      }
-    }
-    document.getElementById('loadDayModal').style.display = 'block';
-  }
-
-  function closeLoadDayModal() {
-    document.getElementById('loadDayModal').style.display = 'none';
-  }
-
-  // Fix #1: applyDayTemplate — confirms before replacing timeline
-  function applyDayTemplate() {
-    const key = document.getElementById('dayTemplateSelect').value;
-    if (!key) return;
-    if (!confirm('This will replace your current timeline with the selected day template. Continue?')) return;
-    let sourceTasks;
-    if (key === '__NORMAL_DAY__') {
-      sourceTasks = NORMAL_DAY_TEMPLATE.tasks;
-    } else {
-      const temp = templates[key];
-      if (!temp || !temp.tasks) { alert('Day template not found.'); return; }
-      sourceTasks = temp.tasks;
-    }
-    timeline = sourceTasks.map(t => ({
-      time: t.time,
-      lmj: t.lmj,
-      description: t.description,
-      spoon: t.spoon,
-      priority: t.priority,
-      fixed: t.fixed,
-      status: 'incomplete',
-      notes: t.notes || ''
-      // Fix #3: emoji not stored
-    }));
-    calculateSpoons();
-    renderTimeline();
-    saveData();
-    closeLoadDayModal();
-  }
-
-  // ── Fix #5: Day rollover ──────────────────────────────────────────────────────
-  function rolloverDay() {
-    const dateKey = getTodayKey();
-    // Archive current day to Firestore subcollection spoonPal/{uid}/days/{dateKey}
-    if (window.AA && window.AA.db && currentUid) {
-      window.AA.db.collection('spoonPal').doc(currentUid).collection('days').doc(dateKey).set({
-        timeline,
-        checkIn,
-        spoonDebtHistory,
-        archivedAt: new Date().toISOString()
-      }).catch(err => console.error('[SpoonPal] Rollover archive error:', err));
-    }
-    // Reset for new day
-    timeline = [];
-    calculateSpoons();
-    renderTimeline();
-    saveData();
-    // Prompt to load tomorrow's template
-    if (confirm('Day complete! 🎉 Load tomorrow\'s template?')) {
-      openLoadDayModal();
-    }
-  }
-
-  // ── Save/load — Firestore-backed (Claude / aa-firebase.js integration) ─────────
+  // Save/load — Firestore-backed (Claude / aa-firebase.js integration)
   function saveData() {
     const obj = {
       timeline,
@@ -936,7 +736,6 @@
       dayEnd,
       weather,
       templates,
-      dateKey: getTodayKey(), // Fix #5: stale-data detection
       savedAt: new Date().toISOString()
     };
     if (window.AA && window.AA.db && currentUid) {
@@ -958,18 +757,6 @@
             dayEnd = obj.dayEnd || 25;
             weather = obj.weather || { desc: 'Loading...', impact: -1 };
             templates = obj.templates || templates;
-            // Fix #5: stale-data detection
-            const storedDateKey = obj.dateKey || null;
-            const todayKey = getTodayKey();
-            if (storedDateKey && storedDateKey < todayKey) {
-              if (callback) callback();
-              setTimeout(() => {
-                if (confirm(`Old data detected from ${storedDateKey}. Archive it and start fresh for today?`)) {
-                  rolloverDay();
-                }
-              }, 500);
-              return;
-            }
           }
           if (callback) callback();
         })
@@ -1035,8 +822,9 @@
     setTimeout(function() { waitForAA(cb); }, 100);
   }
 
-  // ── Initialize ────────────────────────────────────────────────────────────────
+  // Initialize
   window.onload = () => {
+    // Render immediately with defaults (Firestore data will overwrite once loaded)
     fetchWeather();
     calculateSpoons();
     renderTimeline();
@@ -1046,24 +834,17 @@
 
     // Event listeners
     document.getElementById('addTaskBtn').onclick = addTask;
-    document.getElementById('loadDayBtn').onclick = openLoadDayModal;
     document.getElementById('manageTemplatesBtn').onclick = openTemplateModal;
     document.getElementById('refreshWeather').onclick = fetchWeather;
     document.getElementById('taskModalClose').onclick = closeTaskModal;
     document.getElementById('templateModalClose').onclick = closeTemplateModal;
     document.getElementById('templateEditClose').onclick = closeTemplateEdit;
-    document.getElementById('loadDayModalClose').onclick = closeLoadDayModal;
     document.getElementById('taskForm').onsubmit = saveTask;
     document.getElementById('templateForm').onsubmit = saveTemplate;
     document.getElementById('addTemplateBtn').onclick = () => openTemplateEdit(null);
     document.getElementById('deleteTemplateBtn').onclick = deleteTemplate;
     document.getElementById('deleteTaskBtn').onclick = () => deleteTask(selectedIndex);
     document.getElementById('taskTemplateSelect').onchange = (e) => applyTemplate(e.target.value);
-    document.getElementById('confirmLoadDayBtn').onclick = applyDayTemplate;
-    document.getElementById('cancelLoadDayBtn').onclick = closeLoadDayModal;
-    // Fix #2: auto-emoji preview updates as user types description
-    document.getElementById('taskDescription').addEventListener('input', updateEmojiPreview);
-    document.getElementById('taskLmj').addEventListener('change', updateEmojiPreview);
     ['painLevel', 'fatigueLevel', 'sleepHours', 'moodLevel'].forEach(id =>
       document.getElementById(id).addEventListener('change', updateCheckIn)
     );
@@ -1087,4 +868,3 @@
 </html>
 <!-- Cache bust #5: 2026-02-18 Bruise - Grok assisted - SpoonPal full recovery from backup -->
 <!-- Cache bust #6: 2026-02-20 Claude - localStorage → Firestore migration for spoonPal collection -->
-<!-- Cache bust #7: 2026-03-01 Claude - Audit fixes: full-day templates, auto-emoji, emoji field removal, Normal Day template, ZZ rollover -->
