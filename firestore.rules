@@ -90,30 +90,20 @@ service cloud.firestore {
     }
 
     // ── Emergency Contacts ───────────────────────────────────────
-    // Private per-student contact list. Readable only by the student
-    // themselves, their network-lead(s), and the backstage-manager.
-    // Network leads and admin can also write (they fill in contacts).
+    // Private per-student contact list. Readable by the student,
+    // their network-lead (network admin), and Backstage Manager (platform admin).
     // Added 2026-02-28 by Claude.
     function isNetworkLead(studentUid) {
       return isSignedIn() &&
         get(/databases/$(database)/documents/users/$(studentUid))
           .data.get('supportNetwork', {})[request.auth.uid] == 'network-lead';
     }
-    // Any member of the student's support network (family, nearby-help, support,
-    // network-lead) — not just leads — can read and write emergency contacts.
-    // This lets whoever IS nearby help update contacts when admin is remote.
-    // Added 2026-03-01 by Claude.
-    function isNetworkMember(studentUid) {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/users/$(studentUid))
-          .data.get('supportNetwork', {})[request.auth.uid] != null;
-    }
     match /emergencyContacts/{uid} {
-      allow read:  if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
-      // Any network member (family, nearby-help, support, network-lead) or admin
-      // can write — so whoever is physically present can update contacts.
-      // Updated 2026-03-01 by Claude.
-      allow write: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+      allow read:  if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
+      // Student can self-manage; network-lead (network admin) and Backstage Manager
+      // (platform admin) can also write.
+      // Updated 2026-03-01 by Claude: reverted unauthorized isNetworkMember change.
+      allow write: if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
     }
 
     // ── Check-ins ────────────────────────────────────────────────
