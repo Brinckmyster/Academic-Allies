@@ -2,7 +2,6 @@
    aa-mirror.js — Academic Allies Support Mirror
    Created: 2026-02-21 by Claude
    Updated: 2026-02-26 by Claude — renamed 'admin' → 'backstage-manager' + added 'network-lead' to SUPPORT_ROLES
-   Updated: 2026-02-28 by Claude — added 'backstage-manager' to SUPPORT_ROLES (header switcher + mirror)
    Updated: 2026-02-28 by Claude — multi-student support: findStudents() returns all,
      allStudents stored in cache, AA_SWITCH_STUDENT() to swap active student,
      renderSwitcher() injects header dropdown when multiple students found.
@@ -30,7 +29,7 @@
   'use strict';
 
   var CACHE_KEY     = 'aa-mirror';
-  var SUPPORT_ROLES = ['support', 'family', 'nearby-help', 'network-lead', 'backstage-manager'];
+  var SUPPORT_ROLES = ['support', 'family', 'nearby-help', 'network-lead'];
   var FLOWER_EXEMPT = 'dorothy.brinck@gmail.com';
 
   /* Pages where mirroring is suppressed entirely */
