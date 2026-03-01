@@ -130,7 +130,6 @@
     }
     .btn-save   { background: var(--teal); color: #fff; border: none; border-radius: 6px; padding: .4rem .9rem; cursor: pointer; font-size: .85rem; }
     .btn-delete { background: var(--red-lt); color: var(--red); border: 1px solid #f5c6cb; border-radius: 6px; padding: .4rem .9rem; cursor: pointer; font-size: .85rem; }
-    .btn-byui   { background: #1a2a4a; color: #a8c4e0; border: 1px solid #2a4a7a; border-radius: 6px; padding: .3rem .7rem; cursor: pointer; font-size: .8rem; }
     #add-contact-btn {
       display: none; background: var(--teal); color: #fff;
       border: none; border-radius: 8px; padding: .5rem 1.1rem;
@@ -183,21 +182,8 @@
 
   <!-- Edit section — visible to network leads and backstage-manager -->
   <div id="edit-section">
-    <h2>✏️ Edit Contacts</h2>
+    <h2>✏️ Edit Contacts <span style="font-size:.8rem;color:var(--muted);font-weight:400">(network lead / backstage-manager only)</span></h2>
     <button id="add-contact-btn" onclick="addContactForm()">+ Add Contact</button>
-    <details style="margin:.75rem 0;font-size:.85rem;">
-      <summary style="cursor:pointer;color:var(--teal-dk);font-weight:600;">🏫 Quick-add BYU-Idaho Resources</summary>
-      <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;">
-        <button class="btn-byui" onclick="addByuiContact('Accessibility & Disability Services','campus','(208) 496-9210','accessibility@byui.edu')">♿ Accessibility</button>
-        <button class="btn-byui" onclick="addByuiContact('Campus Counseling Center','campus','(208) 496-9370','counseling@byui.edu')">🧠 Counseling</button>
-        <button class="btn-byui" onclick="addByuiContact('Student Health Center','campus','(208) 496-9330','')">🏥 Health Center</button>
-        <button class="btn-byui" onclick="addByuiContact('Campus Safety','campus','(208) 496-9500','')">🚨 Campus Safety</button>
-        <button class="btn-byui" onclick="addByuiContact('Testing Center','campus','(208) 496-9325','')">📝 Testing Center</button>
-        <button class="btn-byui" onclick="addByuiContact('Academic Advising','campus','(208) 496-1411','')">🎓 Advising</button>
-        <button class="btn-byui" onclick="addByuiContact('Crisis Line (988)','emergency','988','')">🆘 988 Crisis</button>
-        <button class="btn-byui" onclick="addByuiContact('Crisis Text Line','emergency','741741','')">💬 Text 741741</button>
-      </div>
-    </details>
     <div id="edit-forms"></div>
     <div id="save-status"></div>
   </div>
@@ -217,7 +203,6 @@ var _studentUid  = null;
 var _contacts    = [];   /* current contacts array */
 var _canEdit     = false;
 var _unsubContacts = null;
-var _initialLoadDone = false; /* prevent onSnapshot from wiping unsaved edit forms */
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 function esc(s) {
@@ -260,8 +245,8 @@ function renderContacts(contacts) {
   hide('ec-loading');
   show('ec-view');
 
-  var nearby    = contacts.filter(function(c){ return c.type === 'nearby' || c.type === 'campus'; });
-  var emergency = contacts.filter(function(c){ return c.type !== 'nearby' && c.type !== 'campus'; });
+  var emergency = contacts.filter(function(c){ return c.type !== 'nearby'; });
+  var nearby    = contacts.filter(function(c){ return c.type === 'nearby'; });
 
   if (contacts.length === 0) {
     show('ec-empty');
@@ -310,12 +295,8 @@ function renderEditForms() {
       '<input type="text" name="relationship" value="' + esc(c.relationship || '') + '" placeholder="e.g. Mom, Dad, Bishop, RA…">' +
       '<label>Type</label>' +
       '<select name="type">' +
-        '<option value="emergency"' + (c.type === 'emergency' ? ' selected' : '') + '>🆘 Emergency Contact</option>' +
-        '<option value="family"'    + (c.type === 'family'    ? ' selected' : '') + '>👨‍👩‍👧 Family Member</option>' +
-        '<option value="support"'   + (c.type === 'support'   ? ' selected' : '') + '>💙 Support Professional</option>' +
-        '<option value="nearby"'    + (c.type === 'nearby'    ? ' selected' : '') + '>🏠 Nearby Help</option>' +
-        '<option value="campus"'    + (c.type === 'campus'    ? ' selected' : '') + '>🏫 Campus Resource</option>' +
-        '<option value="spiritual"' + (c.type === 'spiritual' ? ' selected' : '') + '>⛪ Spiritual / Bishop</option>' +
+        '<option value="emergency"' + (c.type !== 'nearby' ? ' selected' : '') + '>🆘 Emergency Contact</option>' +
+        '<option value="nearby"'   + (c.type === 'nearby'  ? ' selected' : '') + '>🏠 Nearby Help</option>' +
       '</select>' +
       '<label>Phone</label>' +
       '<input type="tel" name="phone" value="' + esc(c.phone || '') + '">' +
@@ -363,7 +344,7 @@ function uploadContactPhoto(input, idx) {
 }
 
 function addContactForm() {
-  _contacts.push({ name:'', relationship:'', type:'emergency', phone:'', email:'', message:'', photo:'' });
+  _contacts.push({ name:'', relationship:'', type:'emergency', phone:'', email:'', message:'' });
   renderEditForms();
   /* Scroll to new form */
   var cards = document.querySelectorAll('.edit-card');
@@ -371,24 +352,14 @@ function addContactForm() {
 }
 
 function readCardData(card) {
-  var idx = parseInt(card.getAttribute('data-idx'), 10);
   return {
     name:         (card.querySelector('[name=name]').value         || '').trim(),
     relationship: (card.querySelector('[name=relationship]').value || '').trim(),
     type:         (card.querySelector('[name=type]').value         || 'emergency'),
     phone:        (card.querySelector('[name=phone]').value        || '').trim(),
     email:        (card.querySelector('[name=email]').value        || '').trim(),
-    message:      (card.querySelector('[name=message]').value      || '').trim(),
-    photo:        (_contacts[idx] && _contacts[idx].photo) ? _contacts[idx].photo : ''
+    message:      (card.querySelector('[name=message]').value      || '').trim()
   };
-}
-
-function addByuiContact(name, type, phone, email) {
-  _contacts.push({ name: name, relationship: 'BYU-Idaho', type: type, phone: phone, email: email, message: '', photo: '' });
-  renderEditForms();
-  var cards = document.querySelectorAll('.edit-card');
-  if (cards.length) cards[cards.length-1].scrollIntoView({ behavior:'smooth' });
-  persistContacts();
 }
 
 function saveContact(idx, btn) {
@@ -475,13 +446,7 @@ AA.auth.onAuthStateChanged(function(user) {
       _contacts = (doc.exists && Array.isArray(doc.data().contacts))
         ? doc.data().contacts : [];
       renderContacts(_contacts);
-      /* Only render edit forms on first load — after that, explicit user
-         actions (add/save/delete) re-render. Prevents onSnapshot from
-         wiping unsaved contact forms mid-edit. Fixed 2026-03-01 by Claude. */
-      if (_canEdit && !_initialLoadDone) {
-        renderEditForms();
-        _initialLoadDone = true;
-      }
+      if (_canEdit) renderEditForms();
     }, function(err) {
       console.error('[AA] emergencyContacts read:', err);
       hide('ec-loading');
@@ -493,7 +458,7 @@ AA.auth.onAuthStateChanged(function(user) {
 
 <!-- Shared header loader -->
 <script>
-fetch('/Academic-Allies/modular/shared-header.html?v=20260301a')
+fetch('/Academic-Allies/modular/shared-header.html?v=20260228a')
   .then(function(r){ return r.text(); })
   .then(function(html){
     var container = document.getElementById('site-header');

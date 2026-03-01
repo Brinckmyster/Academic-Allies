@@ -1,46 +1,162 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     resources.html — Academic Allies Resource Center
+     Created: (original page, content by Bruise)
+     Updated: 2026-03-01 by Claude — applied AA standard page template:
+       shared header, teal color scheme, page-wrap layout,
+       viewport meta, Firebase scripts, cache-bust version bump.
+     Static content: BYUI campus resources and tech tools.
+     ============================================================ -->
 <html lang="en">
 <head>
-<link rel="icon" href="favicon.ico">
-<link rel="icon" href="favicon.ico">
-  <meta charset="UTF-8">
-  <title>Resources</title>
-  <link rel="stylesheet" href="/Academic-Allies/modular/styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resource Center — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
+
+  <!-- Firebase compat SDK — needed for shared header auth awareness -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js"></script>
+  <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260301a"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 3rem;
+    }
+    #site-header { min-height: 56px; }
+    .page-wrap { max-width: 680px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+
+    h1 {
+      font-size: 1.6rem;
+      color: var(--teal-dk);
+      margin: 1rem 0 .25rem;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-bottom: 1.75rem;
+    }
+
+    /* ── Resource card ── */
+    .res-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+    .res-section h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--teal-dk);
+      margin-bottom: .75rem;
+      padding-bottom: .5rem;
+      border-bottom: 2px solid var(--border);
+    }
+    .res-section ul { list-style: none; padding: 0; }
+    .res-section ul li {
+      padding: .6rem 0;
+      border-bottom: 1px solid #f0f4f4;
+      font-size: .95rem;
+    }
+    .res-section ul li:last-child { border-bottom: none; }
+    .res-item-name { font-weight: 700; color: var(--text); display: block; margin-bottom: .15rem; }
+    .res-item-detail { color: var(--muted); font-size: .88rem; }
+    a { color: var(--teal-dk); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
   <div id="site-header"></div>
-  <script>fetch("/Academic-Allies/modular/shared-header.html?v=20260220d").then(r=>r.text()).then(html=>{const c=document.getElementById("site-header");c.innerHTML=html;const s=c.querySelectorAll("script");s.forEach(o=>{const n=document.createElement("script");Array.from(o.attributes).forEach(a=>n.setAttribute(a.name,a.value));n.textContent=o.textContent;o.replaceWith(n);});});</script>
-  <h1>Resource Center</h1>
-  <section>
-    <h2>Emergency Contacts</h2>
-    <ul>
-      <li>
-        <strong>Accessibility Services</strong><br>
-        <a href="tel:2084969210">(208) 496-9210</a><br>
-        <a href="mailto:accessibility@byui.edu">accessibility@byui.edu</a>
-      </li>
-      <li>
-        <strong>Testing Center</strong><br>
-        <a href="tel:2084961750">(208) 496-1750</a><br>
-        <a href="mailto:testcenter@byui.edu">testcenter@byui.edu</a>
-      </li>
-      <li>
-        <strong>Counseling Center</strong><br>
-        <a href="tel:2084969370">(208) 496-9370</a>
-      </li>
-      <li>
-        <strong>Academic Advising</strong><br>
-        <a href="tel:2084961411">(208) 496-1411</a>
-      </li>
-    </ul>
-  </section>
-  <section>
-    <h2>Technology Tools</h2>
-    <ul>
-      <li>Kurzweil 3000 – Text-to-speech, reading support (MCK 290 Lab)</li>
-      <li>Camera HRV Apps – Heart rate monitoring</li>
-      <li>KeyStrokeCare – Typing pattern browser extension</li>
-    </ul>
-  </section>
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260301a')
+      .then(function(r){ return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var n = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a){ n.setAttribute(a.name, a.value); });
+          n.textContent = old.textContent;
+          old.replaceWith(n);
+        });
+      });
+  </script>
+
+  <div class="page-wrap">
+    <h1>Resource Center</h1>
+    <p class="subtitle">BYUI campus resources and accessibility tools</p>
+
+    <div class="res-section">
+      <h2>Campus Offices</h2>
+      <ul>
+        <li>
+          <span class="res-item-name">Accessibility Services</span>
+          <span class="res-item-detail">
+            <a href="tel:2084969210">(208) 496-9210</a> ·
+            <a href="mailto:accessibility@byui.edu">accessibility@byui.edu</a>
+          </span>
+        </li>
+        <li>
+          <span class="res-item-name">Testing Center</span>
+          <span class="res-item-detail">
+            <a href="tel:2084961750">(208) 496-1750</a> ·
+            <a href="mailto:testcenter@byui.edu">testcenter@byui.edu</a>
+          </span>
+        </li>
+        <li>
+          <span class="res-item-name">Counseling Center</span>
+          <span class="res-item-detail">
+            <a href="tel:2084969370">(208) 496-9370</a>
+          </span>
+        </li>
+        <li>
+          <span class="res-item-name">Academic Advising</span>
+          <span class="res-item-detail">
+            <a href="tel:2084961411">(208) 496-1411</a>
+          </span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="res-section">
+      <h2>Technology Tools</h2>
+      <ul>
+        <li>
+          <span class="res-item-name">Kurzweil 3000</span>
+          <span class="res-item-detail">Text-to-speech and reading support — available in MCK 290 Lab</span>
+        </li>
+        <li>
+          <span class="res-item-name">Camera HRV Apps</span>
+          <span class="res-item-detail">Heart rate monitoring via camera</span>
+        </li>
+        <li>
+          <span class="res-item-name">KeyStrokeCare</span>
+          <span class="res-item-detail">Typing pattern browser extension</span>
+        </li>
+      </ul>
+    </div>
+  </div>
 </body>
 </html>

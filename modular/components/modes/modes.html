@@ -1,171 +1,194 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     modes/modes.html — Academic Allies Mode Switcher
+     Created: (original)
+     Updated: 2026-03-01 by Claude — fixed tile navigation:
+       clicking a mode tile now navigates to the corresponding page
+       in addition to saving to localStorage and dispatching event.
+       Applied AA standard page template (teal theme, page-wrap).
+     Mode pages:
+       Normal         → /Academic-Allies/
+       Recovery       → /Academic-Allies/modular/components/recovery-mode.html
+       Bad Brain Day  → /Academic-Allies/modular/components/bad-brain-day.html
+       Semi-Nope      → /Academic-Allies/modular/nope-mode.html (no dedicated page)
+       Nope           → /Academic-Allies/modular/nope-mode.html
+     ============================================================ -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Academic Allies - Modes</title>
+  <title>Mode Switcher — Academic Allies</title>
   <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
+
+  <!-- Firebase compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js"></script>
+  <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260301a"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 3rem;
+    }
+    #site-header { min-height: 56px; }
+    .page-wrap { max-width: 680px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+
+    h1 { font-size: 1.5rem; color: var(--teal-dk); margin: 1rem 0 .25rem; }
+    .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 1.75rem; }
+
+    /* ── Modes grid ── */
+    .modes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .mode-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      padding: 1.25rem 1rem;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text);
+      transition: border-color .15s, background .15s, transform .1s;
+      text-align: center;
+    }
+    .mode-tile:hover {
+      border-color: var(--teal);
+      background: #f0f8f8;
+      transform: translateY(-2px);
+    }
+    .mode-tile:active { transform: translateY(0); }
+    .mode-tile.active-mode {
+      border-color: var(--teal);
+      background: #e8f2f3;
+    }
+    .mode-tile .mode-icon { font-size: 2rem; line-height: 1; }
+    .mode-tile .mode-name {
+      font-weight: 700;
+      font-size: .95rem;
+      color: var(--teal-dk);
+    }
+    .mode-tile .mode-desc {
+      font-size: .78rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+  </style>
 </head>
 <body>
   <div id="site-header"></div>
   <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260220d')
-      .then(response => response.text())
-      .then(html => {
-        const container = document.getElementById('site-header');
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260301a')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
         container.innerHTML = html;
-        const scripts = container.querySelectorAll('script');
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        container.querySelectorAll('script').forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(function(attr) {
+            newScript.setAttribute(attr.name, attr.value);
+          });
           newScript.textContent = oldScript.textContent;
           oldScript.replaceWith(newScript);
         });
-        const dragScript = document.createElement('script');
-        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
-        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
-        document.body.appendChild(dragScript);
       });
   </script>
-<!-- Modes Component for Academic Allies -->
-<!-- Place this file in components/modes/modes.html -->
 
-<section id="modes-switcher" class="modes-switcher" aria-label="App Mode Switcher">
-  <h2 class="visually-hidden">Switch App Mode</h2>
-  <div class="modes-group" role="radiogroup" aria-labelledby="modes-label">
-    <span id="modes-label" class="visually-hidden">Select application mode</span>
-    <label class="mode-option" tabindex="0">
-      <input type="radio" name="appMode" value="normal" checked aria-checked="true" aria-label="Normal Mode" />
-      <span class="mode-label">Normal</span>
-    </label>
-    <label class="mode-option" tabindex="0">
-      <input type="radio" name="appMode" value="recovery" aria-checked="false" aria-label="Recovery Mode" />
-      <span class="mode-label">Recovery</span>
-    </label>
-    <label class="mode-option" tabindex="0">
-      <input type="radio" name="appMode" value="bad-brain-day" aria-checked="false" aria-label="Bad Brain Day Mode" />
-      <span class="mode-label">Bad Brain Day</span>
-    </label>
-    <label class="mode-option" tabindex="0">
-      <input type="radio" name="appMode" value="semi-nope" aria-checked="false" aria-label="Semi-Nope Mode" />
-      <span class="mode-label">Semi-Nope</span>
-    </label>
-    <label class="mode-option" tabindex="0">
-      <input type="radio" name="appMode" value="nope" aria-checked="false" aria-label="Nope Mode" />
-      <span class="mode-label">Nope</span>
-    </label>
+  <div class="page-wrap">
+    <h1>Switch Mode</h1>
+    <p class="subtitle">Choose how Academic Allies works for you today. Click a tile to go there.</p>
+
+    <section id="modes-switcher" aria-label="App Mode Switcher">
+      <div class="modes-grid" role="list">
+
+        <a class="mode-tile" href="/Academic-Allies/" data-mode="normal"
+           role="listitem" title="Normal Mode">
+          <span class="mode-icon">🌿</span>
+          <span class="mode-name">Normal</span>
+          <span class="mode-desc">Standard app experience</span>
+        </a>
+
+        <a class="mode-tile" href="/Academic-Allies/modular/components/recovery-mode.html"
+           data-mode="recovery" role="listitem" title="Recovery Mode">
+          <span class="mode-icon">🛌</span>
+          <span class="mode-name">Recovery</span>
+          <span class="mode-desc">Rest &amp; healing focus</span>
+        </a>
+
+        <a class="mode-tile" href="/Academic-Allies/modular/components/bad-brain-day.html"
+           data-mode="bad-brain-day" role="listitem" title="Bad Brain Day Mode">
+          <span class="mode-icon">🌧️</span>
+          <span class="mode-name">Bad Brain Day</span>
+          <span class="mode-desc">Low energy, simplified view</span>
+        </a>
+
+        <a class="mode-tile" href="/Academic-Allies/modular/nope-mode.html"
+           data-mode="semi-nope" role="listitem" title="Semi-Nope Mode">
+          <span class="mode-icon">😶</span>
+          <span class="mode-name">Semi-Nope</span>
+          <span class="mode-desc">Minimal — almost nope</span>
+        </a>
+
+        <a class="mode-tile" href="/Academic-Allies/modular/nope-mode.html"
+           data-mode="nope" role="listitem" title="Nope Mode">
+          <span class="mode-icon">🚫</span>
+          <span class="mode-name">Nope Day</span>
+          <span class="mode-desc">Full rest — not today</span>
+        </a>
+
+      </div>
+    </section>
   </div>
-</section>
 
-<style>
-/* Modes Component Styles */
-.modes-switcher {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 1.5rem 0;
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: 1rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-  max-width: 400px;
-}
+  <script>
+  // Modes tile logic — Updated 2026-03-01 by Claude
+  // Marks the currently active mode tile; navigation handled by <a href>.
+  (function() {
+    var savedMode = localStorage.getItem('appMode') || 'normal';
 
-.modes-group {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.mode-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  border: 2px solid #bdbdbd;
-  border-radius: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: #fff;
-  transition: border 0.2s, background 0.2s;
-  min-width: 80px;
-  outline: none;
-}
-
-.mode-option:focus-within,
-.mode-option:focus {
-  border-color: #3b82f6;
-  background: #e0e7ff;
-}
-
-.mode-option input[type="radio"] {
-  accent-color: #3b82f6;
-  width: 1.2em;
-  height: 1.2em;
-  margin-bottom: 0.25em;
-}
-
-.mode-label {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #22223b;
-  margin-top: 0.25em;
-}
-
-.visually-hidden {
-  position: absolute !important;
-  height: 1px; width: 1px;
-  overflow: hidden;
-  clip: rect(1px, 1px, 1px, 1px);
-  white-space: nowrap;
-  border: 0;
-}
-</style>
-
-<script>
-// Modes Component Logic
-// This script manages mode switching and ARIA attributes for accessibility.
-
-document.addEventListener('DOMContentLoaded', function () {
-  const modeRadios = document.querySelectorAll('input[name="appMode"]');
-  const modeOptions = document.querySelectorAll('.mode-option');
-
-  // Restore mode from localStorage if set
-  const savedMode = localStorage.getItem('appMode');
-  if (savedMode) {
-    modeRadios.forEach(radio => {
-      if (radio.value === savedMode) {
-        radio.checked = true;
-        radio.setAttribute('aria-checked', 'true');
-      } else {
-        radio.checked = false;
-        radio.setAttribute('aria-checked', 'false');
+    document.querySelectorAll('.mode-tile').forEach(function(tile) {
+      // Highlight active mode
+      if (tile.getAttribute('data-mode') === savedMode) {
+        tile.classList.add('active-mode');
       }
+      // On click: save mode and dispatch event before navigating
+      tile.addEventListener('click', function() {
+        var mode = tile.getAttribute('data-mode');
+        localStorage.setItem('appMode', mode);
+        document.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: mode } }));
+        // Navigation proceeds via the <a href> — no preventDefault needed
+      });
     });
-  }
+  })();
+  </script>
 
-  // Mode switch handler
-  modeRadios.forEach(radio => {
-    radio.addEventListener('change', function () {
-      modeRadios.forEach(r => r.setAttribute('aria-checked', 'false'));
-      this.setAttribute('aria-checked', 'true');
-      localStorage.setItem('appMode', this.value);
-
-      // Dispatch a custom event for app-wide mode changes
-      const modeEvent = new CustomEvent('modeChange', { detail: { mode: this.value } });
-      document.dispatchEvent(modeEvent);
-    });
-  });
-
-  // Keyboard navigation for accessibility
-  modeOptions.forEach(option => {
-    option.addEventListener('keydown', function (e) {
-      if (e.key === ' ' || e.key === 'Enter') {
-        const radio = option.querySelector('input[type="radio"]');
-        radio.checked = true;
-        radio.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-  });
-});
-</script>
+</body>
+</html>
