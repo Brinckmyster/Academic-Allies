@@ -282,26 +282,18 @@
     el.textContent = 'Showing: ' + viewLabel + ' · ' + timeLabel;
   }
 
-  /* ── Weighted-average color across all visible segments ─── */
-  /* Claude: 2026-02-28 — replaced worst-only with weighted avg.
-     green=1, yellow=2, orange=3, red=4; map avg back to color:
-     1.0-1.7→green, 1.8-2.4→yellow, 2.5-3.2→orange, 3.3-4→red */
-  var SCORE = {};
-  SCORE[C.green]  = 1;
-  SCORE[C.yellow] = 2;
-  SCORE[C.orange] = 3;
-  SCORE[C.red]    = 4;
+  /* ── Worst color across all visible segments ───────────── */
+  var RANK = [C.green, C.yellow, C.orange, C.red];
 
-  function avgColor(sd) {
+  function worstColor(sd) {
     var keys = Object.keys(sd);
     if (!keys.length) return null;
-    var total = 0;
-    keys.forEach(function (k) { total += (SCORE[sd[k]] || 1); });
-    var avg = total / keys.length;
-    if (avg >= 3.3) return C.red;
-    if (avg >= 2.5) return C.orange;
-    if (avg >= 1.8) return C.yellow;
-    return C.green;
+    var r = 0;
+    keys.forEach(function (k) {
+      var ri = RANK.indexOf(sd[k]);
+      if (ri > r) r = ri;
+    });
+    return RANK[r];
   }
 
   /* ── SVG donut ring builder ────────────────────────────── */
@@ -383,7 +375,7 @@
     if (_view === 'ring') {
       el.innerHTML = makeSVG(_segData);
       var keys = Object.keys(_segData);
-      var w    = avgColor(_segData);
+      var w    = worstColor(_segData);
       var lbl  = keys.length
         ? keys.join(', ') + ' — ' + (STATUS_LABEL[w] || 'all clear')
         : 'No check-in yet';
@@ -391,7 +383,7 @@
       el.title = lbl + ' · click for overall view · double-click to reset position';
     } else {
       /* Solid overall view */
-      var color = avgColor(_segData);
+      var color = worstColor(_segData);
       if (color) {
         el.style.background = color;
         el.setAttribute('aria-label', 'Status: ' + (SOLID_LABEL[color] || ''));
