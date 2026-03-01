@@ -98,13 +98,6 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(studentUid))
           .data.get('supportNetwork', {})[request.auth.uid] == 'network-lead';
     }
-    // Any member of the student's support network (any role value = string).
-    // Added 2026-03-01 by Claude — used by networkChat rules.
-    function isNetworkMember(studentUid) {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/users/$(studentUid))
-          .data.get('supportNetwork', {})[request.auth.uid] is string;
-    }
     match /emergencyContacts/{uid} {
       allow read:  if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
       // Student can self-manage; network-lead (network admin) and Backstage Manager
@@ -213,37 +206,6 @@ service cloud.firestore {
         || (isSignedIn()
             && resource.data.studentUid == request.auth.uid
             && resource.data.used == false);
-    }
-
-    // ── Network Chat ─────────────────────────────────────────────
-    // Group thread and supporter-to-supporter DMs scoped to a student's network.
-    // Students are not in any supportNetwork so isNetworkMember() naturally
-    // excludes them — no explicit student check needed.
-    // Added 2026-03-01 by Claude.
-    match /networkChat/{studentUid} {
-      // Root meta doc (lastGroupAt, lastGroupMsg)
-      allow read, write: if isNetworkMember(studentUid) || isBackstageManager();
-
-      // Group thread messages
-      match /group/{msgId} {
-        allow read: if isNetworkMember(studentUid) || isBackstageManager();
-        allow create: if (isNetworkMember(studentUid) || isBackstageManager())
-          && request.resource.data.senderUid == request.auth.uid;
-        allow update, delete: if false;
-      }
-
-      // DM threads between network members
-      match /dms/{threadId} {
-        // Thread meta doc (participants, lastAt, lastMsg)
-        allow read, write: if isNetworkMember(studentUid) || isBackstageManager();
-
-        match /msgs/{msgId} {
-          allow read: if isNetworkMember(studentUid) || isBackstageManager();
-          allow create: if (isNetworkMember(studentUid) || isBackstageManager())
-            && request.resource.data.senderUid == request.auth.uid;
-          allow update, delete: if false;
-        }
-      }
     }
 
     // ── Messages ─────────────────────────────────────────────────
