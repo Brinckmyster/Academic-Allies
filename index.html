@@ -572,19 +572,22 @@
       if (!user) return;
       window.AA.db.collection('users').doc(user.uid).get().then(function (doc) {
         if (!doc.exists) return;
-        var role = doc.data().role || 'pending';
-        if (SUPPORT_ROLES.indexOf(role) === -1) return; /* student/admin: normal view */
+        var data        = doc.data();
+        var role        = data.role || 'pending';
+        /* Claude: 2026-02-28 — isSupporter students see My Students (read-only, no mirror) */
+        var isStudentSupporter = (role === 'student' && data.isSupporter === true);
+        if (SUPPORT_ROLES.indexOf(role) === -1 && !isStudentSupporter) return;
 
         /* Find students in this user's network */
         window.AA.db.collection('users').where('role', '==', 'student').get()
           .then(function (snap) {
             var myStudents = [];
             snap.forEach(function (d) {
-              var data = d.data();
+              var sd = d.data();
               /* Backstage-manager sees all students; others only see their network */
-              var inNetwork = data.supportNetwork && data.supportNetwork[user.uid];
+              var inNetwork = sd.supportNetwork && sd.supportNetwork[user.uid];
               if (role === 'backstage-manager' || inNetwork) {
-                myStudents.push({ uid: d.id, name: data.displayName || data.email || d.id });
+                myStudents.push({ uid: d.id, name: sd.displayName || sd.email || d.id });
               }
             });
 
@@ -656,11 +659,18 @@
                 item.innerHTML =
                   '<span class="ssc-dot ' + s.dot + '"></span>' +
                   '<span>' + esc(s.name) + '</span>';
-                item.addEventListener('click', function () {
-                  if (typeof window.AA_SWITCH_STUDENT === 'function') {
-                    window.AA_SWITCH_STUDENT(s.uid, s.name);
-                  }
-                });
+                /* Claude: 2026-02-28 — isStudentSupporter sees peers read-only;
+                   full support roles switch mirror on click */
+                if (!isStudentSupporter) {
+                  item.addEventListener('click', function () {
+                    if (typeof window.AA_SWITCH_STUDENT === 'function') {
+                      window.AA_SWITCH_STUDENT(s.uid, s.name);
+                    }
+                  });
+                } else {
+                  item.style.cursor = 'default';
+                  item.title = s.name + ' — status overview';
+                }
                 grid.appendChild(item);
               });
             });

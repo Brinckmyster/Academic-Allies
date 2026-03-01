@@ -5,17 +5,18 @@
    Updated: 2026-02-28 by Claude — multi-student support: findStudents() returns all,
      allStudents stored in cache, AA_SWITCH_STUDENT() to swap active student,
      renderSwitcher() injects header dropdown when multiple students found.
-   Updated: 2026-02-28 by Claude — 3 fixes:
-     (1) console.log + backfill missing allStudents without reload;
-     (2) student+isSupporter: honor explicit cache, no auto-mirror;
-     (3) renderSwitcher debug log.
 
    When a support-role user (support / family / nearby-help / network-lead) is
    signed in, every page except admin.html and user-tiers.html
    mirrors the student's data.
 
-   Student+isSupporter: mirror only when they explicitly call AA_SWITCH_STUDENT.
-   No auto-mirror on login.
+   Strategy:
+     1. Read sessionStorage synchronously at load time → set
+        window.AA_MIRROR_UID *before* any onAuthStateChanged fires.
+     2. On first load as a support user, findStudents() scans
+        Firestore and stores ALL matching students in sessionStorage,
+        defaulting to the first one, then calls location.reload() so
+        the synchronous path above fires.
 
    Exposes:
      window.AA_MIRROR_UID          — active student UID (string) or null
@@ -90,7 +91,7 @@
   };
 
   /* Switch active student and reload.
-     Works for support roles AND student+isSupporter. */
+     Works whether the cache exists already or not. */
   window.AA_SWITCH_STUDENT = function (uid, name) {
     var cached = readCache() || {};
     cached.studentUid  = uid;
@@ -103,18 +104,11 @@
 
   function renderSwitcher() {
     var cache = readCache();
-    /* Claude: 2026-02-28 — debug log to trace dropdown failures */
-    console.log('[aa-mirror] renderSwitcher: cache=', !!cache,
-      'allStudents=', cache && cache.allStudents ? cache.allStudents.length : 'missing');
-
     if (!cache || !cache.allStudents || cache.allStudents.length < 2) return;
     if (inPath(NO_BANNER)) return;
 
     var wrap = document.getElementById('aa-student-switcher');
-    if (!wrap) {
-      console.log('[aa-mirror] renderSwitcher: #aa-student-switcher not found in DOM');
-      return;
-    }
+    if (!wrap) return;
 
     var students = cache.allStudents;
     var current  = cache.studentName || cache.studentUid || 'Student';
@@ -231,37 +225,9 @@
       AA.db.collection('users').doc(user.uid).get()
         .then(function (doc) {
           if (!doc.exists) return;
-          var data        = doc.data();
-          var role        = data.role || 'student';
-          var isSupporter = (data.isSupporter === true);
+          var role = doc.data().role || 'student';
 
-          /* ── Student peer-supporter: honor explicit cache, never auto-mirror ──
-             Claude: 2026-02-28 — students who peer-support can use AA_SWITCH_STUDENT
-             to explicitly view a peer, but we never auto-set up mirror on their behalf. */
-          if (role === 'student' && isSupporter) {
-            var peerCache = readCache();
-            if (peerCache && peerCache.viewerUid === user.uid && peerCache.studentUid) {
-              /* They explicitly switched — honor the cache */
-              if (!window.AA_MIRROR_UID) {
-                window.AA_MIRROR_UID = peerCache.studentUid;
-                window.AA_MIRROR     = peerCache;
-              }
-              showBanner(peerCache.studentName || 'peer');
-              if (peerCache.allStudents) {
-                renderSwitcher();
-              } else {
-                findStudents(user.uid, function (students) {
-                  peerCache.allStudents = students;
-                  writeCache(peerCache);
-                  renderSwitcher();
-                });
-              }
-            }
-            /* Else: no explicit switch — student sees their own data, no mirror */
-            return;
-          }
-
-          /* ── Not a support role — clear any stale mirror state ── */
+          /* Not a support role — clear any stale mirror state. */
           if (SUPPORT_ROLES.indexOf(role) === -1) {
             var wasMirroring = !!window.AA_MIRROR_UID;
             clearCache();
@@ -271,7 +237,7 @@
             return;
           }
 
-          /* ── Support role: cache still valid for this viewer ── */
+          /* Cache still valid for this viewer */
           var cached = readCache();
           if (cached && cached.viewerUid === user.uid && cached.studentUid) {
             if (!window.AA_MIRROR_UID) {
@@ -279,22 +245,11 @@
               window.AA_MIRROR     = cached;
             }
             showBanner(cached.studentName || 'student');
-
-            /* Claude: 2026-02-28 — if allStudents missing (old cache), backfill
-               without reloading so the switcher can render correctly. */
-            if (cached.allStudents) {
-              renderSwitcher();
-            } else {
-              findStudents(user.uid, function (students) {
-                cached.allStudents = students;
-                writeCache(cached);
-                renderSwitcher();
-              });
-            }
+            renderSwitcher(); /* safe — DOM is ready by the time auth fires */
             return;
           }
 
-          /* ── First time as support user on this session — find ALL students ── */
+          /* First time as support user on this session — find ALL students */
           findStudents(user.uid, function (students) {
             if (!students || students.length === 0) return;
             var entry = {
