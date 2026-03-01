@@ -2,9 +2,6 @@
    aa-mirror.js — Academic Allies Support Mirror
    Created: 2026-02-21 by Claude
    Updated: 2026-02-26 by Claude — renamed 'admin' → 'backstage-manager' + added 'network-lead' to SUPPORT_ROLES
-   Updated: 2026-02-28 by Claude — multi-student support: findStudents() returns all,
-     allStudents stored in cache, AA_SWITCH_STUDENT() to swap active student,
-     renderSwitcher() injects header dropdown when multiple students found.
 
    When a support-role user (support / family / nearby-help / network-lead) is
    signed in, every page except admin.html and user-tiers.html
@@ -13,17 +10,15 @@
    Strategy:
      1. Read sessionStorage synchronously at load time → set
         window.AA_MIRROR_UID *before* any onAuthStateChanged fires.
-     2. On first load as a support user, findStudents() scans
-        Firestore and stores ALL matching students in sessionStorage,
-        defaulting to the first one, then calls location.reload() so
-        the synchronous path above fires.
+     2. On first load as a support user, findStudent() scans
+        Firestore and stores the result in sessionStorage, then
+        calls location.reload() so the synchronous path above fires.
 
    Exposes:
-     window.AA_MIRROR_UID          — active student UID (string) or null
-     window.AA_MIRROR              — full cache object or null
-     window.AA_uid(realUid)        — mirror UID if active, else realUid
+     window.AA_MIRROR_UID  — student UID (string) or null
+     window.AA_MIRROR      — full cache object or null
+     window.AA_uid(realUid)         — mirror UID if active, else realUid
      window.AA_flower_uid(uid, email) — realUid for dorothy, else AA_uid()
-     window.AA_SWITCH_STUDENT(uid, name) — switch active student + reload
    ============================================================ */
 
 (function () {
@@ -90,85 +85,6 @@
     return window.AA_uid(realUid);
   };
 
-  /* Switch active student and reload.
-     Works whether the cache exists already or not. */
-  window.AA_SWITCH_STUDENT = function (uid, name) {
-    var cached = readCache() || {};
-    cached.studentUid  = uid;
-    cached.studentName = name;
-    writeCache(cached);
-    window.location.reload();
-  };
-
-  /* ── Header student-switcher dropdown ─────────────────────── */
-
-  function renderSwitcher() {
-    var cache = readCache();
-    if (!cache || !cache.allStudents || cache.allStudents.length < 2) return;
-    if (inPath(NO_BANNER)) return;
-
-    var wrap = document.getElementById('aa-student-switcher');
-    if (!wrap) return;
-
-    var students = cache.allStudents;
-    var current  = cache.studentName || cache.studentUid || 'Student';
-
-    wrap.style.cssText =
-      'display:inline-block;position:relative;font-family:inherit;vertical-align:middle;';
-
-    wrap.innerHTML =
-      '<button id="aa-switcher-btn" style="' +
-        'padding:5px 11px;background:#e8eeff;color:#4338ca;' +
-        'border:1px solid #a5b4fc;border-radius:6px;' +
-        'font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;' +
-        'line-height:1.4;' +
-      '">' +
-        'Viewing: ' + esc(current) + ' &#9660;' +
-      '</button>' +
-      '<ul id="aa-switcher-menu" style="' +
-        'display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:9999;' +
-        'background:#fff;border:1px solid #a5b4fc;border-radius:8px;' +
-        'box-shadow:0 4px 16px rgba(0,0,0,0.12);list-style:none;' +
-        'margin:0;padding:4px 0;min-width:170px;' +
-      '">' +
-      students.map(function (s) {
-        var isCurrent = (s.uid === cache.studentUid);
-        return (
-          '<li><button ' +
-            'onclick="window.AA_SWITCH_STUDENT(\'' +
-              s.uid.replace(/'/g, "\\'") + '\',\'' +
-              s.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\')" ' +
-            'style="width:100%;text-align:left;padding:8px 14px;' +
-              'background:' + (isCurrent ? '#f0f4ff' : '#fff') + ';' +
-              'border:none;cursor:pointer;font-size:13px;color:#333;' +
-              'font-weight:' + (isCurrent ? '700' : '400') + ';">' +
-            esc(s.name) + (isCurrent ? ' &#10003;' : '') +
-          '</button></li>'
-        );
-      }).join('') +
-      '</ul>';
-
-    var btn  = document.getElementById('aa-switcher-btn');
-    var menu = document.getElementById('aa-switcher-menu');
-
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      menu.style.display = (menu.style.display === 'none') ? 'block' : 'none';
-    });
-
-    document.addEventListener('click', function () {
-      if (menu) menu.style.display = 'none';
-    });
-  }
-
-  function renderSwitcherWhenReady() {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', renderSwitcher);
-    } else {
-      renderSwitcher();
-    }
-  }
-
   /* ── Banner ───────────────────────────────────────────────── */
 
   /* Claude: DOM-readiness guard lives inside showBanner so every
@@ -199,7 +115,6 @@
 
   if (window.AA_MIRROR_UID) {
     showBanner((_cache && _cache.studentName) || 'student');
-    renderSwitcherWhenReady();
   }
 
   /* ── Firebase watcher ─────────────────────────────────────── */
@@ -227,7 +142,10 @@
           if (!doc.exists) return;
           var role = doc.data().role || 'student';
 
-          /* Not a support role — clear any stale mirror state. */
+          /* Not a support role — clear any stale mirror state.
+             If AA_MIRROR_UID was already set from a stale sessionStorage cache
+             (e.g. support user → logout → student login, same session), reload
+             so the page re-initialises without the stale mirror UID. */
           if (SUPPORT_ROLES.indexOf(role) === -1) {
             var wasMirroring = !!window.AA_MIRROR_UID;
             clearCache();
@@ -245,18 +163,16 @@
               window.AA_MIRROR     = cached;
             }
             showBanner(cached.studentName || 'student');
-            renderSwitcher(); /* safe — DOM is ready by the time auth fires */
             return;
           }
 
-          /* First time as support user on this session — find ALL students */
-          findStudents(user.uid, function (students) {
-            if (!students || students.length === 0) return;
+          /* First time as support user on this session — find the student */
+          findStudent(user.uid, function (studentUid, studentName) {
+            if (!studentUid) return; /* no student found */
             var entry = {
               viewerUid:   user.uid,
-              studentUid:  students[0].uid,
-              studentName: students[0].name,
-              allStudents: students
+              studentUid:  studentUid,
+              studentName: studentName
             };
             writeCache(entry);
             window.location.reload();
@@ -266,25 +182,25 @@
     });
   });
 
-  /* Scan all users — return array of every student whose
-     supportNetwork includes viewerUid */
-  function findStudents(viewerUid, cb) {
+  /* Scan all users to find the student whose supportNetwork includes viewerUid */
+  function findStudent(viewerUid, cb) {
     AA.db.collection('users').get()
       .then(function (snap) {
-        var found = [];
+        var found = null;
         snap.forEach(function (doc) {
+          if (found) return;
           var d = doc.data();
           if (d.role === 'student' &&
               d.supportNetwork &&
               d.supportNetwork[viewerUid]) {
-            found.push({ uid: doc.id, name: d.displayName || d.email || 'Student' });
+            found = { uid: doc.id, name: d.displayName || d.email || 'Student' };
           }
         });
-        cb(found);
+        cb(found ? found.uid : null, found ? found.name : null);
       })
       .catch(function (e) {
-        console.warn('[aa-mirror] findStudents:', e);
-        cb([]);
+        console.warn('[aa-mirror] findStudent:', e);
+        cb(null, null);
       });
   }
 

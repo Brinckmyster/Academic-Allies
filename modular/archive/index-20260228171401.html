@@ -176,46 +176,42 @@
     }
     .resource-link .ricon { font-size: 18pt; }
 
-    /* ── Support view: My Students compact grid ──────── */
-    /* Added 2026-02-26 by Claude; reworked 2026-02-28 by Claude — compact, sorted, switch-mirror */
+    /* ── Support view: student status cards ─────────── */
+    /* Added 2026-02-26 by Claude */
+    .student-status-card {
+      background: #fff;
+      border: 1px solid #e1e5e9;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .student-status-card:hover { border-color: #6CA0A3; box-shadow: 0 3px 10px rgba(108,160,163,0.2); }
     .ssc-dot {
       width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
       box-shadow: 0 0 0 3px rgba(0,0,0,0.08);
     }
-    .ssc-dot.nope    { background: #dc3545; animation: pulse-dot 1.4s ease-in-out infinite; }
-    .ssc-dot.red     { background: #dc3545; }
-    .ssc-dot.orange  { background: #fd7e14; }
-    .ssc-dot.yellow  { background: #ffc107; }
-    .ssc-dot.green   { background: #28a745; }
+    .ssc-dot.nope   { background: #dc3545; animation: pulse-dot 1.4s ease-in-out infinite; }
+    .ssc-dot.red    { background: #dc3545; }
+    .ssc-dot.orange { background: #fd7e14; }
+    .ssc-dot.yellow { background: #ffc107; }
+    .ssc-dot.green  { background: #28a745; }
     .ssc-dot.unknown { background: #ccc; }
     @keyframes pulse-dot {
       0%, 100% { box-shadow: 0 0 0 3px rgba(220,53,69,0.2); }
       50%       { box-shadow: 0 0 0 7px rgba(220,53,69,0.1); }
     }
-    .my-students-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .msc-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: #fff;
-      border: 1px solid #e1e5e9;
-      border-radius: 10px;
-      padding: 12px 18px;
-      cursor: pointer;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #222;
-      min-width: 160px;
-    }
-    .msc-item:hover {
-      border-color: #6CA0A3;
-      box-shadow: 0 2px 8px rgba(108,160,163,0.15);
-    }
+    .ssc-info { flex: 1; min-width: 0; }
+    .ssc-name { font-weight: 700; font-size: 1rem; color: #222; }
+    .ssc-status { font-size: 0.85rem; color: #666; margin-top: 3px; }
+    .ssc-time   { font-size: 0.78rem; color: #aaa; margin-top: 2px; }
+    .ssc-link   { font-size: 0.8rem; color: #4a7f82; font-weight: 600; flex-shrink: 0; }
 
     /* ── Footer ─────────────────────────────────────── */
     .site-footer {
@@ -407,12 +403,12 @@
     </div>
   </div>
 
-  <!-- Support view: shown for support-role signed-in users -->
-  <!-- Added 2026-02-26 by Claude; reworked 2026-02-28 by Claude — My Students compact grid -->
+  <!-- Support view: shown for non-student signed-in users -->
+  <!-- Added 2026-02-26 by Claude -->
   <div id="support-view" style="display:none;">
-    <div class="section-label">My Students</div>
-    <div id="my-students-grid" class="my-students-grid">
-      <p style="color:#aaa;font-size:0.9rem;padding:10px 0;">Loading…</p>
+    <div class="section-label">👁 Students You Support</div>
+    <div id="support-status-cards">
+      <p style="color:#aaa;font-size:0.9rem;padding:10px 0;">Loading student status…</p>
     </div>
   </div>
 
@@ -539,22 +535,17 @@
 })();
 </script>
 
-<!-- ── Support view: My Students compact grid ─────────────────────────────────
-     Added 2026-02-26 by Claude; reworked 2026-02-28 by Claude
-     For support/family/nearby-help/network-lead: finds connected students,
-     fetches NOPE + today's check-in for each in parallel, sorts by urgency
-     (red → orange → yellow → green → unknown), renders compact dot+name cards.
-     Clicking a card calls AA_SWITCH_STUDENT to mirror that student.
+<!-- ── Support view: show student status cards for non-student roles ───────────
+     Added 2026-02-26 by Claude
+     For support/family/nearby-help/admin: finds students they're connected to,
+     reads each student's NOPE status and today's check-in flag from Firestore,
+     then renders a live status card for each one on the home page.
 ──────────────────────────────────────────────────────────────────────────── -->
 <script>
 (function () {
   'use strict';
 
-  /* Backstage-manager is excluded — they use the admin panel */
-  var SUPPORT_ROLES = ['support', 'family', 'nearby-help', 'network-lead'];
-
-  /* Urgency sort: lower = more urgent. nope/red=0, orange=1, yellow=2, green=3, unknown=4 */
-  var URGENCY = { nope: 0, red: 0, orange: 1, yellow: 2, green: 3, unknown: 4 };
+  var SUPPORT_ROLES = ['support', 'family', 'nearby-help', 'network-lead', 'backstage-manager'];
 
   function waitForAA(cb, tries) {
     tries = tries || 0;
@@ -573,23 +564,23 @@
       window.AA.db.collection('users').doc(user.uid).get().then(function (doc) {
         if (!doc.exists) return;
         var role = doc.data().role || 'pending';
-        if (SUPPORT_ROLES.indexOf(role) === -1) return; /* student/admin: normal view */
+        if (SUPPORT_ROLES.indexOf(role) === -1) return; /* student: normal view */
 
-        /* Find students in this user's network */
+        /* ── Find which students this user is connected to ── */
         window.AA.db.collection('users').where('role', '==', 'student').get()
           .then(function (snap) {
             var myStudents = [];
             snap.forEach(function (d) {
               var data = d.data();
-              if (data.supportNetwork && data.supportNetwork[user.uid]) {
+              /* Admin sees ALL students; support roles only see students who added them */
+              var inNetwork = data.supportNetwork && data.supportNetwork[user.uid];
+              if (role === 'backstage-manager' || inNetwork) {
                 myStudents.push({ uid: d.id, name: data.displayName || data.email || d.id });
               }
             });
 
-            var grid = document.getElementById('my-students-grid');
-
             if (myStudents.length === 0) {
-              grid.innerHTML =
+              document.getElementById('support-status-cards').innerHTML =
                 '<p style="color:#aaa;font-size:0.9rem;padding:10px 0;">You\'re not in any student\'s support network yet. ' +
                 'Ask your student to add you from their <a href="/Academic-Allies/modular/components/user-tiers/user-tiers.html" ' +
                 'style="color:#4a7f82;">Support Network</a> page.</p>';
@@ -597,69 +588,106 @@
               return;
             }
 
-            /* Hide student-only UI */
-            var nopeBanner    = document.getElementById('nopeBanner');
+            /* ── Hide student-only UI elements ── */
+            var nopeBanner   = document.getElementById('nopeBanner');
             var checkinPrompt = document.getElementById('checkinPrompt');
             var todaySnapshot = document.getElementById('todaySnapshot');
             if (nopeBanner)    nopeBanner.style.display    = 'none';
             if (checkinPrompt) checkinPrompt.style.display = 'none';
             if (todaySnapshot) todaySnapshot.style.display = 'none';
-            document.querySelectorAll('.section-label').forEach(function (el) {
+            /* Hide student-only section labels (check-ins/snapshot label) */
+            var labels = document.querySelectorAll('.section-label');
+            labels.forEach(function (el) {
               if (el.nextElementSibling && el.nextElementSibling.id === 'todaySnapshot') {
                 el.style.display = 'none';
               }
             });
 
             document.getElementById('support-view').style.display = 'block';
-            grid.innerHTML = '';
+            var container = document.getElementById('support-status-cards');
+            container.innerHTML = '';
 
             var today = new Date().toISOString().split('T')[0];
 
-            /* Fetch all statuses in parallel, then sort and render */
-            Promise.all(myStudents.map(function (s) {
-              return Promise.all([
-                window.AA.db.collection('nope').doc(s.uid).get(),
-                window.AA.db.collection('checkins').doc(s.uid).collection('days').doc(today).get()
-              ]).then(function (res) {
-                var nopeData = res[0].exists ? res[0].data() : null;
-                var isNope   = nopeData && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope');
+            myStudents.forEach(function (s) {
+              /* Create card placeholder immediately */
+              var card = document.createElement('a');
+              card.className = 'student-status-card';
+              card.href = '/Academic-Allies/modular/components/user-tiers/user-tiers.html?student=' + s.uid;
+              card.title = 'View ' + s.name + '\'s network';
+              card.innerHTML =
+                '<span class="ssc-dot unknown" id="dot-' + s.uid + '"></span>' +
+                '<div class="ssc-info">' +
+                  '<div class="ssc-name">' + esc(s.name) + '</div>' +
+                  '<div class="ssc-status" id="status-' + s.uid + '">Loading…</div>' +
+                  '<div class="ssc-time"  id="time-'   + s.uid + '"></div>' +
+                '</div>' +
+                '<span class="ssc-link">View network →</span>';
+              container.appendChild(card);
 
-                var dot = 'unknown';
-                if (isNope) {
-                  dot = 'nope';
-                } else {
-                  var entries = res[1].exists ? (res[1].data().entries || []) : [];
-                  if (entries.length > 0) {
-                    dot = 'green';
-                    entries.forEach(function (e) {
-                      if (e.flag === 'red')                        dot = 'red';
-                      else if (e.flag === 'orange' && dot !== 'red')  dot = 'orange';
-                      else if (e.flag === 'yellow' && dot === 'green') dot = 'yellow';
-                    });
+              /* Fetch NOPE status and today's check-in in parallel */
+              var nopePromise    = window.AA.db.collection('nope').doc(s.uid).get();
+              var checkinPromise = window.AA.db.collection('checkins').doc(s.uid)
+                .collection('days').doc(today).get();
+
+              Promise.all([nopePromise, checkinPromise]).then(function (results) {
+                var nopeDoc    = results[0];
+                var checkinDoc = results[1];
+
+                var dot    = document.getElementById('dot-'    + s.uid);
+                var status = document.getElementById('status-' + s.uid);
+                var time   = document.getElementById('time-'   + s.uid);
+
+                /* NOPE mode overrides everything */
+                var nopeData = nopeDoc.exists ? nopeDoc.data() : null;
+                if (nopeData && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope')) {
+                  var modeLabel = nopeData.mode === 'nope' ? '⛔ NOPE mode is active' : '🟡 Semi-Nope mode is active';
+                  dot.className    = 'ssc-dot nope';
+                  status.textContent = modeLabel;
+                  if (nopeData.updatedAt && nopeData.updatedAt.toDate) {
+                    time.textContent = 'Since ' + nopeData.updatedAt.toDate().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
                   }
+                  return;
                 }
 
-                return { uid: s.uid, name: s.name, dot: dot, urgency: URGENCY[dot] };
-              }).catch(function () {
-                return { uid: s.uid, name: s.name, dot: 'unknown', urgency: 4 };
-              });
-            })).then(function (results) {
-              /* Sort: most urgent first */
-              results.sort(function (a, b) { return a.urgency - b.urgency; });
+                /* Check-in flag for today */
+                var entries = checkinDoc.exists ? (checkinDoc.data().entries || []) : [];
+                if (entries.length === 0) {
+                  dot.className    = 'ssc-dot unknown';
+                  status.textContent = '📋 No check-in today yet';
+                  time.textContent   = '';
+                  return;
+                }
 
-              results.forEach(function (s) {
-                var item = document.createElement('div');
-                item.className = 'msc-item';
-                item.title     = 'Switch mirror to ' + s.name;
-                item.innerHTML =
-                  '<span class="ssc-dot ' + s.dot + '"></span>' +
-                  '<span>' + esc(s.name) + '</span>';
-                item.addEventListener('click', function () {
-                  if (typeof window.AA_SWITCH_STUDENT === 'function') {
-                    window.AA_SWITCH_STUDENT(s.uid, s.name);
-                  }
+                /* Find worst flag */
+                var worst = 'green';
+                entries.forEach(function (e) {
+                  if (e.flag === 'red') worst = 'red';
+                  else if (e.flag === 'orange' && worst !== 'red') worst = 'orange';
+                  else if (e.flag === 'yellow' && worst === 'green') worst = 'yellow';
                 });
-                grid.appendChild(item);
+
+                var lastEntry = entries[entries.length - 1];
+                var lastTime  = '';
+                if (lastEntry.savedAt) {
+                  lastTime = new Date(lastEntry.savedAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+                }
+
+                var labels = {
+                  red:    '🔴 Red flag — needs attention',
+                  orange: '🟠 Orange flag — check in',
+                  yellow: '🟡 Yellow flag — heads up',
+                  green:  '🟢 Checked in — all clear'
+                };
+
+                dot.className      = 'ssc-dot ' + worst;
+                status.textContent = labels[worst] || '🟢 Checked in';
+                time.textContent   = entries.length + ' check-in' + (entries.length === 1 ? '' : 's') + ' today' +
+                                     (lastTime ? ' · last at ' + lastTime : '');
+
+              }).catch(function () {
+                var status = document.getElementById('status-' + s.uid);
+                if (status) status.textContent = 'Status unavailable';
               });
             });
           });
