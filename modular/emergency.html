@@ -137,6 +137,18 @@
       cursor: pointer; font-size: .9rem; margin-bottom: 1rem;
     }
     #save-status { font-size: .85rem; color: var(--teal-dk); margin-top: .4rem; min-height: 1.2em; }
+
+    /* ── Seed defaults button (backstage-manager only) ── */
+    #seed-defaults-btn {
+      display: none; background: #fff3cd; color: #856404;
+      border: 1px solid #ffc107; border-radius: 8px;
+      padding: .45rem 1rem; cursor: pointer; font-size: .85rem;
+      margin-bottom: .75rem;
+    }
+    #seed-defaults-btn:hover { background: #ffe083; }
+
+    /* ── Network picker ── */
+    #network-picker-body { margin-top: .6rem; }
   </style>
 </head>
 <body>
@@ -184,7 +196,16 @@
   <!-- Edit section — visible to network leads and backstage-manager -->
   <div id="edit-section">
     <h2>✏️ Edit Contacts</h2>
+    <!-- Seed defaults button: backstage-manager only. Added 2026-03-01 by Claude -->
+    <button id="seed-defaults-btn" onclick="seedDefaultContacts()">🌱 Seed Default Contacts (Mom + Dad)</button>
     <button id="add-contact-btn" onclick="addContactForm()">+ Add Contact</button>
+    <!-- Pick from support network. Added 2026-03-01 by Claude -->
+    <details style="margin:.75rem 0;font-size:.85rem;" id="network-picker-details" ontoggle="if(this.open) loadSupportNetwork();">
+      <summary style="cursor:pointer;color:var(--teal-dk);font-weight:600;">👥 Pick from Support Network</summary>
+      <div id="network-picker-body" style="margin-top:.6rem;">
+        <em style="color:var(--muted);font-size:.85rem">Open to load network members…</em>
+      </div>
+    </details>
     <details style="margin:.75rem 0;font-size:.85rem;">
       <summary style="cursor:pointer;color:var(--teal-dk);font-weight:600;">🏫 Quick-add BYU-Idaho Resources</summary>
       <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;">
@@ -290,6 +311,14 @@ function renderContacts(contacts) {
 function showEditSection() {
   show('edit-section');
   document.getElementById('add-contact-btn').style.display = 'inline-block';
+  /* Seed defaults button: only for backstage-manager. Added 2026-03-01 by Claude */
+  if (typeof window.AA_ROLE !== 'undefined' && window.AA_ROLE === 'backstage-manager') {
+    document.getElementById('seed-defaults-btn').style.display = 'inline-block';
+  }
+  /* Network picker is useful for any editor — always shown when edit section opens.
+     Added 2026-03-01 by Claude */
+  var picker = document.getElementById('network-picker-details');
+  if (picker) picker.style.display = '';
   renderEditForms();
 }
 
@@ -420,6 +449,115 @@ function persistContacts() {
     console.error('[AA] emergencyContacts save:', err);
     status.textContent = '⚠️ Save failed — please try again.';
   });
+}
+
+/* ── Seed default contacts (backstage-manager only) ─────────────────────── */
+// Added 2026-03-01 by Claude: seeds Dorothy (Mom) and Brian (Dad) for Mary.
+// Seeds contacts that do not already exist by name (case-insensitive).
+function seedDefaultContacts() {
+  var defaults = [
+    { name: 'Dorothy Brinck', relationship: 'Mom', type: 'family',
+      phone: '', email: 'dorothy.brinck@gmail.com', message: '', photo: '' },
+    { name: 'Brian Brinck',   relationship: 'Dad', type: 'family',
+      phone: '', email: '',                          message: '', photo: '' }
+  ];
+  var existingNames = _contacts.map(function(c){ return (c.name || '').trim().toLowerCase(); });
+  var added = 0;
+  defaults.forEach(function(d) {
+    if (existingNames.indexOf(d.name.toLowerCase()) === -1) {
+      _contacts.push(d);
+      added++;
+    }
+  });
+  if (added === 0) {
+    document.getElementById('save-status').textContent = '⚠️ Default contacts already present.';
+    return;
+  }
+  persistContacts();
+}
+
+/* ── Pick from support network ───────────────────────────────────────────── */
+// Added 2026-03-01 by Claude: reads users/{studentUid}.supportNetwork,
+// fetches each member's Firestore doc, and pre-fills a new contact form.
+var _networkUsers = []; // cached array of { uid, name, email, role }
+
+function loadSupportNetwork() {
+  var body = document.getElementById('network-picker-body');
+  if (!body) return;
+  if (_networkUsers.length > 0) { renderNetworkPicker(); return; }
+  body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">Loading network…</em>';
+
+  /* AA is guaranteed ready here — loadSupportNetwork() only fires after auth
+     completes and _studentUid is set. No waitForAA wrapper needed. */
+  AA.db.collection('users').doc(_studentUid).get()
+      .then(function(doc) {
+        if (!doc.exists) {
+          body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">No support network found.</em>';
+          return Promise.resolve([]);
+        }
+        var network = doc.data().supportNetwork || {};
+        var uids = Object.keys(network);
+        if (uids.length === 0) {
+          body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">Support network is empty.</em>';
+          return Promise.resolve([]);
+        }
+        return Promise.all(uids.map(function(uid) {
+          return AA.db.collection('users').doc(uid).get()
+            .then(function(udoc) {
+              var d = udoc.exists ? udoc.data() : {};
+              return {
+                uid:   uid,
+                name:  d.displayName || d.name || uid,
+                email: d.email || '',
+                role:  (doc.data().supportNetwork)[uid] || 'member'
+              };
+            });
+        }));
+      })
+      .then(function(users) {
+        if (!users || users.length === 0) return;
+        _networkUsers = users;
+        renderNetworkPicker();
+      })
+      .catch(function(err) {
+        console.error('[AA] loadSupportNetwork:', err);
+        body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">Error loading network.</em>';
+      });
+}
+
+function renderNetworkPicker() {
+  var body = document.getElementById('network-picker-body');
+  if (!body || _networkUsers.length === 0) return;
+  var opts = _networkUsers.map(function(u, i) {
+    var label = esc(u.name) + ' (' + esc(u.role) + ')';
+    if (u.email) label += ' — ' + esc(u.email);
+    return '<option value="' + i + '">' + label + '</option>';
+  }).join('');
+  body.innerHTML =
+    '<select id="network-user-select" style="width:100%;padding:.4rem .6rem;border-radius:6px;border:1px solid var(--border);font-size:.85rem;font-family:inherit;margin-bottom:.5rem">' +
+      '<option value="">— Select a network member —</option>' +
+      opts +
+    '</select>' +
+    '<button class="btn-save" onclick="pickFromNetwork()" style="font-size:.82rem;padding:.35rem .8rem">+ Add as Contact</button>';
+}
+
+function pickFromNetwork() {
+  var sel = document.getElementById('network-user-select');
+  if (!sel || sel.value === '') return;
+  var u = _networkUsers[parseInt(sel.value, 10)];
+  if (!u) return;
+  _contacts.push({
+    name:         u.name,
+    relationship: u.role === 'network-lead' ? 'Network Lead' : 'Support Network',
+    type:         'support',
+    phone:        '',
+    email:        u.email,
+    message:      '',
+    photo:        ''
+  });
+  renderEditForms();
+  var cards = document.querySelectorAll('.edit-card');
+  if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth' });
 }
 
 /* ── Auth boot ───────────────────────────────────────────────────────────── */
