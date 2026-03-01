@@ -246,38 +246,19 @@
 
         } else {
           /* Non-admins: own support network + platform admins + students who have
-             this user in THEIR support network (reverse lookup so Karen can see Mary)
-             + all other members of shared student networks (peer-to-peer).
-             Updated 2026-03-01 by Claude: added Step 1b for peer-to-peer support messaging. */
+             this user in THEIR support network (reverse lookup so Karen can see Mary) */
           var network = data.supportNetwork || {};
 
-          /* Step 1: reverse lookup — find students who list this user in their network.
-             Step 1b: also add all OTHER members of those students' networks (peer-to-peer). */
+          /* Step 1: reverse lookup — find students who list this user in their network */
           AA.db.collection('users').get().then(function(snap) {
-            var allDocs = [];
-            snap.forEach(function(doc) { allDocs.push({ id: doc.id, data: doc.data() }); });
-
-            /* Step 1: find connected students */
-            var connectedStudents = {};
-            allDocs.forEach(function(doc) {
-              var d = doc.data;
+            snap.forEach(function(doc) {
+              var d = doc.data();
               if (doc.id !== currentUser.uid &&
                   d.role === 'student' &&
                   d.supportNetwork && d.supportNetwork[currentUser.uid] &&
                   !network[doc.id]) {
                 network[doc.id] = d.supportNetwork[currentUser.uid];
-                connectedStudents[doc.id] = d.supportNetwork;
               }
-            });
-
-            /* Step 1b: add peer members from those students' networks */
-            Object.keys(connectedStudents).forEach(function(studentUid) {
-              var sNetwork = connectedStudents[studentUid];
-              Object.keys(sNetwork).forEach(function(peerUid) {
-                if (peerUid !== currentUser.uid && !network[peerUid]) {
-                  network[peerUid] = sNetwork[peerUid]; /* use their tier in that network */
-                }
-              });
             });
 
             var uids = Object.keys(network);
