@@ -1,5 +1,4 @@
 <!-- Updated 2026-02-26 by Claude — renamed 'admin' role → 'backstage-manager', tier 'admin' → 'backstage-manager' -->
-<!-- Updated 2026-03-01 by Claude — Network Chat tab: group thread + supporter DMs, hidden from student role -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -107,38 +106,11 @@
       .contact-name, .contact-tier, #contacts-empty { display: none; }
       .contact-avatar { width: 40px; height: 40px; }
     }
-
-    /* ── Page tabs (hidden for students) ── */
-    #msg-tabs {
-      max-width: 960px; margin: 8px auto 0; display: none;
-      background: #f8fafc; border: 1px solid #e1e5e9; border-bottom: none;
-      border-radius: 12px 12px 0 0; padding: 0 4px;
-    }
-    .msg-tab {
-      padding: 10px 22px; border: none; border-bottom: 2px solid transparent;
-      background: none; font-size: 0.88rem; font-weight: 600;
-      cursor: pointer; color: #777; transition: color 0.15s;
-    }
-    .msg-tab:hover { color: #4a7f82; }
-    .msg-tab.active { color: #4a7f82; border-bottom-color: #4a7f82; }
-
-    /* ── NC group chat icon ── */
-    .nc-group-icon {
-      width: 36px; height: 36px; border-radius: 50%; background: #d4edef;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 17px; flex-shrink: 0; border: 2px solid #b0d8da;
-    }
   </style>
 </head>
 <body>
   <div id="site-header"></div>
   <div id="msg-loading">Loading messages…</div>
-
-  <!-- Tab bar — shown for non-student roles only -->
-  <div id="msg-tabs">
-    <button class="msg-tab active" id="tab-mymsg" onclick="switchTab('mymsg')">💬 My Messages</button>
-    <button class="msg-tab" id="tab-nc" onclick="switchTab('nc')">🌐 Network Chat</button>
-  </div>
 
   <div class="msg-layout" id="msg-layout" style="display:none; margin-top:8px;">
     <!-- Contacts -->
@@ -167,33 +139,6 @@
       </div>
       <!-- Claude: draft status — 2026-02-27 -->
       <div id="draft-status" style="display:none;font-size:11px;color:#aaa;text-align:right;padding:2px 16px 6px;font-style:italic;"></div>
-    </div>
-  </div>
-
-  <!-- Network Chat panel — shown for non-student roles only -->
-  <div class="msg-layout" id="nc-layout" style="display:none; margin-top:0; border-radius:0 0 12px 12px;">
-    <!-- NC contacts -->
-    <div class="contacts-panel">
-      <div class="contacts-header">🌐 Network Chat</div>
-      <div class="contact-list" id="nc-contact-list">
-        <div style="padding:20px 14px;font-size:0.85rem;color:#aaa;">Loading…</div>
-      </div>
-    </div>
-    <!-- NC thread -->
-    <div class="thread-panel">
-      <div id="nc-thread-placeholder" style="flex:1;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:0.95rem;text-align:center;padding:30px;">← Select a thread to start chatting</div>
-      <div class="thread-header" id="nc-thread-header" style="display:none;">
-        <div>
-          <div class="thread-header-name" id="nc-thread-name"></div>
-          <div class="thread-header-tier" id="nc-thread-tier"></div>
-        </div>
-      </div>
-      <div class="messages-area" id="nc-messages-area" style="display:none;"></div>
-      <div class="compose-area" id="nc-compose-area">
-        <textarea id="nc-compose-text" placeholder="Type a message…" rows="1"
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendNcMessage();}"></textarea>
-        <button class="btn-send" id="nc-btn-send" onclick="sendNcMessage()">Send</button>
-      </div>
     </div>
   </div>
 
@@ -238,13 +183,6 @@
     var unsubMessages     = null;   // Firestore listener unsub fn for active thread
     var unsubThreads      = null;   // Firestore listener for sidebar real-time updates
 
-    /* Network Chat */
-    var ncStudentUid    = null;   // student whose network we're chatting in
-    var ncActiveThread  = null;   // 'group' or DM threadId
-    var ncActiveIsGroup = false;
-    var ncActivePeerUid = null;   // other participant uid for DMs
-    var unsubNcMessages = null;
-
     /* ── Helpers ─────────────────────────────────────────── */
     function threadId(uid1, uid2) {
       return [uid1, uid2].sort().join('_');
@@ -286,7 +224,6 @@
         var data   = doc.data();
         var myRole = data.role || 'student';
         _currentUserRole = myRole; // store so sendMessage() can check it
-        setupTabs(myRole);
 
         if (myRole === 'backstage-manager') {
           /* Backstage Manager sees students only — support/family/nearby-help have no reason
@@ -303,7 +240,6 @@
             watchThreads();
             document.getElementById('msg-loading').style.display = 'none';
             document.getElementById('msg-layout').style.display  = 'flex';
-            loadNetworkChat();
           }).catch(function(err) {
             document.getElementById('msg-loading').textContent = 'Error loading users: ' + err.message;
           });
@@ -373,7 +309,6 @@
                 watchThreads();
                 document.getElementById('msg-loading').style.display = 'none';
                 document.getElementById('msg-layout').style.display  = 'flex';
-                loadNetworkChat();
               });
             });
           }).catch(function(err) {
@@ -667,187 +602,6 @@
       clearTimeout(_draftTimer);
       _draftTimer = setTimeout(_draftSave, 2000);
     });
-
-    /* ─────────────────────────────────────────────────────────
-       Network Chat — Claude: 2026-03-01
-       ───────────────────────────────────────────────────────── */
-
-    /* Show tab bar for non-student roles; adjust layout border-radius */
-    function setupTabs(myRole) {
-      if (myRole === 'student') return;
-      document.getElementById('msg-tabs').style.display = 'flex';
-      document.getElementById('msg-layout').style.marginTop    = '0';
-      document.getElementById('msg-layout').style.borderRadius = '0 0 12px 12px';
-    }
-
-    /* Switch between My Messages and Network Chat panels */
-    function switchTab(tab) {
-      document.querySelectorAll('.msg-tab').forEach(function(t) { t.classList.remove('active'); });
-      document.getElementById('tab-' + tab).classList.add('active');
-      var showMy = (tab === 'mymsg');
-      document.getElementById('msg-layout').style.display = showMy ? 'flex' : 'none';
-      document.getElementById('nc-layout').style.display  = showMy ? 'none' : 'flex';
-    }
-
-    /* Load Network Chat contacts for the active student's network */
-    function loadNetworkChat() {
-      /* Read student UID from mirror session cache */
-      var mirrorCache = null;
-      try { mirrorCache = JSON.parse(sessionStorage.getItem('aa-mirror') || 'null'); } catch (e) {}
-      ncStudentUid = (mirrorCache && mirrorCache.studentUid) || window.AA_MIRROR_UID || null;
-
-      var ncList = document.getElementById('nc-contact-list');
-      if (!ncStudentUid) {
-        ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">No student selected.<br>Use the header dropdown to pick a student first.</div>';
-        return;
-      }
-
-      ncList.innerHTML = '';
-
-      /* Group Chat entry — always first */
-      var groupItem = document.createElement('div');
-      groupItem.className = 'contact-item';
-      groupItem.id = 'nc-group-item';
-      groupItem.innerHTML =
-        '<div class="nc-group-icon">👥</div>' +
-        '<div class="contact-info">' +
-          '<div class="contact-name">Group Chat</div>' +
-          '<div class="contact-tier" style="color:#4a7f82;">All network members</div>' +
-        '</div>';
-      groupItem.addEventListener('click', function () {
-        openNcThread('group', 'Group Chat', 'All network members', groupItem, true);
-      });
-      ncList.appendChild(groupItem);
-
-      /* Fetch the student's supportNetwork for DM contacts */
-      AA.getUserDoc(ncStudentUid).then(function (doc) {
-        if (!doc.exists) return;
-        var network  = doc.data().supportNetwork || {};
-        var peerUids = Object.keys(network).filter(function (uid) { return uid !== currentUser.uid; });
-        if (!peerUids.length) return;
-
-        var fetches = peerUids.map(function (uid) {
-          return AA.getUserDoc(uid).then(function (d) {
-            return d.exists ? { uid: uid, tier: network[uid], data: d.data() } : null;
-          });
-        });
-
-        Promise.all(fetches).then(function (peers) {
-          peers.filter(Boolean).forEach(function (p) {
-            var name = p.data.displayName || p.data.email || 'Unknown';
-            var tier = p.tier || 'support';
-            var dmId = [currentUser.uid, p.uid].sort().join('_');
-            var item = document.createElement('div');
-            item.className   = 'contact-item';
-            item.dataset.uid = p.uid;
-            item.innerHTML =
-              '<img class="contact-avatar" src="' + tierIcon(tier) + '" alt="" ' +
-                   'onerror="this.src=\'/Academic-Allies/modular/icons/icon-user-support.png\'">' +
-              '<div class="contact-info">' +
-                '<div class="contact-name">' + esc(name) + '</div>' +
-                '<div class="contact-tier tier-' + tier + '">' + (TIER_LABELS[tier] || tier) + '</div>' +
-              '</div>';
-            item.addEventListener('click', function () {
-              ncActivePeerUid = p.uid;
-              openNcThread(dmId, name, TIER_LABELS[tier] || tier, item, false);
-            });
-            ncList.appendChild(item);
-          });
-        });
-      });
-    }
-
-    /* Open a Network Chat thread (group or DM) */
-    function openNcThread(tid, name, sub, el, isGroup) {
-      if (unsubNcMessages) { unsubNcMessages(); unsubNcMessages = null; }
-      ncActiveThread  = tid;
-      ncActiveIsGroup = isGroup;
-
-      document.querySelectorAll('#nc-contact-list .contact-item').forEach(function (i) { i.classList.remove('active'); });
-      if (el) el.classList.add('active');
-
-      document.getElementById('nc-thread-placeholder').style.display = 'none';
-      document.getElementById('nc-thread-header').style.display      = 'flex';
-      document.getElementById('nc-messages-area').style.display      = 'flex';
-      document.getElementById('nc-compose-area').style.display       = 'flex';
-      document.getElementById('nc-thread-name').textContent = name;
-      document.getElementById('nc-thread-tier').textContent = sub;
-
-      var msgColl = isGroup
-        ? AA.db.collection('networkChat').doc(ncStudentUid).collection('group')
-        : AA.db.collection('networkChat').doc(ncStudentUid).collection('dms').doc(tid).collection('msgs');
-
-      unsubNcMessages = msgColl.orderBy('timestamp', 'asc').onSnapshot(function (snap) {
-        renderNcMessages(snap.docs);
-      }, function (err) { console.error('[AA networkChat]', err); });
-    }
-
-    /* Render Network Chat messages */
-    function renderNcMessages(docs) {
-      var area = document.getElementById('nc-messages-area');
-      area.innerHTML = '';
-      if (!docs.length) {
-        area.innerHTML = '<div style="text-align:center;color:#bbb;padding:30px;font-size:0.9rem;">No messages yet — say hello!</div>';
-        return;
-      }
-      docs.forEach(function (doc) {
-        var d    = doc.data();
-        var mine = (d.senderUid === currentUser.uid);
-        var b    = document.createElement('div');
-        b.className = 'msg-bubble ' + (mine ? 'mine' : 'theirs');
-        b.innerHTML =
-          '<div>' + esc(d.text || '') + '</div>' +
-          '<div class="msg-meta">' +
-            (mine ? '' : esc(d.senderName || '') + ' · ') +
-            fmtTime(d.timestamp) +
-          '</div>';
-        area.appendChild(b);
-      });
-      area.scrollTop = area.scrollHeight;
-    }
-
-    /* Send a Network Chat message */
-    function sendNcMessage() {
-      if (!ncStudentUid || !ncActiveThread) return;
-      var ta   = document.getElementById('nc-compose-text');
-      var text = ta.value.trim();
-      if (!text) return;
-
-      var btn = document.getElementById('nc-btn-send');
-      btn.disabled = true;
-
-      var msgData = {
-        text:       text,
-        senderUid:  currentUser.uid,
-        senderName: currentUser.displayName || currentUser.email,
-        timestamp:  AA.FieldValue.serverTimestamp()
-      };
-
-      var msgColl;
-      if (ncActiveIsGroup) {
-        msgColl = AA.db.collection('networkChat').doc(ncStudentUid).collection('group');
-        AA.db.collection('networkChat').doc(ncStudentUid)
-          .set({ lastGroupAt: AA.FieldValue.serverTimestamp(), lastGroupMsg: text }, { merge: true });
-      } else {
-        var dmRef = AA.db.collection('networkChat').doc(ncStudentUid)
-          .collection('dms').doc(ncActiveThread);
-        msgColl = dmRef.collection('msgs');
-        dmRef.set({
-          participants: [currentUser.uid, ncActivePeerUid].filter(Boolean),
-          lastAt:  AA.FieldValue.serverTimestamp(),
-          lastMsg: text
-        }, { merge: true });
-      }
-
-      msgColl.add(msgData).then(function () {
-        ta.value     = '';
-        btn.disabled = false;
-        ta.focus();
-      }).catch(function (err) {
-        alert('Send failed: ' + err.message);
-        btn.disabled = false;
-      });
-    }
 
     waitForAA(boot);
   </script>
