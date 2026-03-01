@@ -9,7 +9,9 @@ service cloud.firestore {
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
-    function isAdmin() {
+    // "Admin" is the legacy name — this role is now called Backstage Manager.
+    // Updated 2026-03-01 by Claude.
+    function isBackstageManager() {
       return isSignedIn() && request.auth.token.email == 'brinckmyster@gmail.com';
     }
 
@@ -20,7 +22,7 @@ service cloud.firestore {
     // Updated 2026-02-26 by Claude — invite redemption permissions fix.
     match /users/{uid} {
       allow read: if isSignedIn();
-      allow write: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isBackstageManager();
 
       // Invite redemption: a signed-in user may add ONLY their own uid key to
       // another user's supportNetwork, and only with a valid tier value.
@@ -66,7 +68,7 @@ service cloud.firestore {
     // Non-admins intentionally get PERMISSION_DENIED here on first sign-in;
     // aa-firebase.js catches the error and falls through to default role.
     match /pendingUsers/{email} {
-      allow read, write: if isAdmin();
+      allow read, write: if isBackstageManager();
     }
 
     // ── Nope mode ────────────────────────────────────────────────
@@ -97,11 +99,21 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(studentUid))
           .data.get('supportNetwork', {})[request.auth.uid] == 'network-lead';
     }
+    // Any member of the student's support network (family, nearby-help, support,
+    // network-lead) — not just leads — can read and write emergency contacts.
+    // This lets whoever IS nearby help update contacts when admin is remote.
+    // Added 2026-03-01 by Claude.
+    function isNetworkMember(studentUid) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(studentUid))
+          .data.get('supportNetwork', {})[request.auth.uid] != null;
+    }
     match /emergencyContacts/{uid} {
-      allow read:  if isOwner(uid) || isNetworkLead(uid) || isAdmin();
-      // Students can write their own contacts + network-lead + admin.
-      // Updated 2026-02-28 by Claude: added isOwner(uid) so student can self-manage.
-      allow write: if isOwner(uid) || isNetworkLead(uid) || isAdmin();
+      allow read:  if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+      // Any network member (family, nearby-help, support, network-lead) or admin
+      // can write — so whoever is physically present can update contacts.
+      // Updated 2026-03-01 by Claude.
+      allow write: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
     }
 
     // ── Check-ins ────────────────────────────────────────────────
@@ -118,24 +130,24 @@ service cloud.firestore {
     // ── Meal plans (base plan) ───────────────────────────────────
     match /mealPlans/{uid} {
       allow read: if isSignedIn();
-      allow write: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isBackstageManager();
     }
 
     // ── Meal logs (daily actuals) ────────────────────────────────
     match /mealLogs/{uid} {
       allow read: if isSignedIn();
-      allow write: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isBackstageManager();
 
       match /days/{dateKey} {
         allow read: if isSignedIn();
-        allow write: if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid) || isBackstageManager();
       }
     }
 
     // ── SpoonPal ─────────────────────────────────────────────────
     match /spoonPal/{uid} {
       allow read: if isSignedIn();
-      allow write: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isBackstageManager();
     }
 
     // ── Spoon Plan ───────────────────────────────────────────────
@@ -144,7 +156,7 @@ service cloud.firestore {
     // Added 2026-02-26 by Claude.
     match /spoonPlans/{uid} {
       allow read: if isSignedIn();
-      allow write: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isBackstageManager();
     }
 
     // ── Recovery Journal ─────────────────────────────────────────
@@ -154,14 +166,14 @@ service cloud.firestore {
     // Added 2026-02-28 by Claude.
     match /recoveryJournal/{sessionId} {
       allow read: if isSignedIn()
-        && (resource.data.uid == request.auth.uid || isAdmin());
+        && (resource.data.uid == request.auth.uid || isBackstageManager());
       allow create: if isSignedIn()
         && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn()
         && resource.data.uid == request.auth.uid
         && request.resource.data.uid == request.auth.uid;
       allow delete: if isSignedIn()
-        && (resource.data.uid == request.auth.uid || isAdmin());
+        && (resource.data.uid == request.auth.uid || isBackstageManager());
     }
 
     // ── Invites (Amanda sudo — student-generated invite codes) ───
@@ -200,7 +212,7 @@ service cloud.firestore {
         && request.resource.data.code == resource.data.code;
 
       // Student revokes their own unused invite; admin can delete any
-      allow delete: if isAdmin()
+      allow delete: if isBackstageManager()
         || (isSignedIn()
             && resource.data.studentUid == request.auth.uid
             && resource.data.used == false);
