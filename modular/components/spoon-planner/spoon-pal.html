@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SpoonPal - Academic Allies</title>
   <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
+
+  <!-- Firebase compat SDK — Added 2026-03-02 by Claude: was completely missing, causing
+       waitForAA() to poll forever and all Firestore save/load to silently no-op.
+       This is the root cause of SpoonPal data not persisting through refresh or new browser. -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js"></script>
+  <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260301a"></script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1036,8 +1046,11 @@
   }
 
   // ── Initialize ────────────────────────────────────────────────────────────────
+  // fetchWeather() is intentionally NOT called here at top-level anymore.
+  // Moved inside loadData() callback (2026-03-02 by Claude) to prevent a race
+  // condition where weather's saveData() call could overwrite Firestore data
+  // with blank defaults before loadData() had a chance to restore saved state.
   window.onload = () => {
-    fetchWeather();
     calculateSpoons();
     renderTimeline();
     renderLegend();
@@ -1069,14 +1082,17 @@
     );
 
     // Boot Firestore — load saved data once user is confirmed
+    // Updated 2026-03-02 by Claude: fetchWeather() moved here so it fires AFTER
+    // loadData() restores saved state, preventing the save-before-load race condition.
     waitForAA(function() {
       window.AA.auth.onAuthStateChanged(function(user) {
         if (!user) return;
-        currentUid = user.uid;
+        currentUid = window.AA_MIRROR_UID || user.uid; // mirror-aware
         loadData(function() {
-          // Re-render with Firestore data
+          // Re-render with Firestore data, then fetch weather
           calculateSpoons();
           renderTimeline();
+          fetchWeather(); // safe to fetch now — Firestore data is already loaded
         });
       });
     });

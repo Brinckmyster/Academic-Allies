@@ -12,11 +12,13 @@ git add modular/shared-header.html \
         "modular/shared-header.html.archive-20260302-abs-url" \
         modular/checkin.html \
         "modular/checkin.html.archive-20260302-custom-prompts" \
+        "modular/components/spoon-planner/spoon-pal.html" \
+        "modular/components/spoon-planner/spoon-pal.html.archive-20260302-no-firebase" \
         AUDIT-2026-03-02.md \
         NIGHTLY-SUMMARY-2026-03-02.md \
         do-commit.sh
 
-git commit -m "Nightly 2026-03-02: audit pass, FIX-1 (shared-header URL), Priority-3 checkin prompts
+git commit -m "Nightly 2026-03-02: audit, shared-header URL fix, checkin prompts, SpoonPal persistence fix
 
 AUDIT — no FAILs found; one WARNING resolved:
   FIX-1: shared-header.html — badge-admin-icon.png was loading from an
@@ -31,6 +33,18 @@ FEATURE — checkin.html: custom check-in prompts (Priority 3)
   social in that order). Partial arrays are safe. Falls back silently to
   defaults on any error. Mirror-aware (uses AA_MIRROR_UID when present).
   Archived: checkin.html.archive-20260302-custom-prompts
+
+BUG FIX — spoon-pal.html: SpoonPal data not persisting through refresh/new browser
+  Root cause: Firebase SDK scripts (firebase-app-compat.js, firebase-auth-compat.js,
+    firebase-firestore-compat.js) and aa-firebase.js were completely absent from
+    <head>. waitForAA() polled forever, currentUid was never set, and every
+    saveData()/loadData() call silently exited through the null-check guard.
+    Nothing was ever read from or written to Firestore.
+  Fix 1: Added all 4 Firebase scripts + aa-mirror.js to <head>.
+  Fix 2: Moved fetchWeather() inside loadData() callback to eliminate a race
+    condition where weather's saveData() could overwrite Firestore with blank
+    defaults before loadData() restored the saved state.
+  Archived: spoon-pal.html.archive-20260302-no-firebase
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
