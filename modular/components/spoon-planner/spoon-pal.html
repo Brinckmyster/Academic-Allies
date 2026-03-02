@@ -72,10 +72,22 @@
     }
 
     .section.spoon-summary { font-size: 15px; line-height: 1.8; }
-    .section.checkin { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
-    .section.checkin label { font-weight: 600; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
-    .section.checkin input,
-    .section.checkin select { font-size: 15px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; width: 90px; }
+
+    /* ── Quick-entry check-in — Updated 2026-03-02 by Claude ── */
+    .section.checkin { display: flex; flex-direction: column; gap: 12px; }
+    .qe-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .qe-label { font-weight: 600; font-size: 13px; color: #555; min-width: 72px; }
+    .qe-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .qe-btn {
+      padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
+      border: 2px solid #ddd; background: #f8f9fa; color: #333;
+      cursor: pointer; transition: all .15s; line-height: 1.4;
+    }
+    .qe-btn:hover { border-color: #aaa; background: #eee; }
+    .qe-btn.selected[data-color="green"]  { background: #d4edda; border-color: #28a745; color: #155724; }
+    .qe-btn.selected[data-color="yellow"] { background: #fff3cd; border-color: #ffc107; color: #856404; }
+    .qe-btn.selected[data-color="orange"] { background: #ffe5cc; border-color: #fd7e14; color: #7d3800; }
+    .qe-btn.selected[data-color="red"]    { background: #f8d7da; border-color: #dc3545; color: #721c24; }
     .section.weather { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #555; }
 
     #legend {
@@ -160,25 +172,46 @@
     <strong>Consecutive Debt Days:</strong> <span id="consecutiveDebt">0</span></div>
   </section>
 
+  <!-- Check-in quick-entry — Updated 2026-03-02 by Claude:
+       Replaced 1-10 number scales with tap-to-pick buttons. No scales. -->
   <section class="section checkin" aria-label="User daily check-in metrics">
-    <label for="painLevel">Pain (1-10)
-      <input type="number" id="painLevel" min="1" max="10" value="7" />
-    </label>
-    <label for="fatigueLevel">Fatigue (1-10)
-      <input type="number" id="fatigueLevel" min="1" max="10" value="5" />
-    </label>
-    <label for="sleepHours">Sleep (hours)
-      <input type="number" id="sleepHours" step="0.25" min="0" max="24" value="8.33" />
-    </label>
-    <label for="moodLevel">Mood
-      <select id="moodLevel" aria-label="Select your current mood">
-        <option value="excellent">Excellent</option>
-        <option value="good">Good</option>
-        <option value="okay">Okay</option>
-        <option value="poor" selected>Poor</option>
-        <option value="terrible">Terrible</option>
-      </select>
-    </label>
+    <div class="qe-group">
+      <span class="qe-label">Pain</span>
+      <div class="qe-btns" id="painBtns" role="group" aria-label="Pain level">
+        <button type="button" class="qe-btn" data-field="pain" data-val="1" data-color="green">🟢 None</button>
+        <button type="button" class="qe-btn" data-field="pain" data-val="3" data-color="yellow">🟡 Low</button>
+        <button type="button" class="qe-btn" data-field="pain" data-val="6" data-color="orange">🟠 Medium</button>
+        <button type="button" class="qe-btn" data-field="pain" data-val="9" data-color="red">🔴 High</button>
+      </div>
+    </div>
+    <div class="qe-group">
+      <span class="qe-label">Fatigue</span>
+      <div class="qe-btns" id="fatigueBtns" role="group" aria-label="Fatigue level">
+        <button type="button" class="qe-btn" data-field="fatigue" data-val="1" data-color="green">🟢 None</button>
+        <button type="button" class="qe-btn" data-field="fatigue" data-val="3" data-color="yellow">🟡 Low</button>
+        <button type="button" class="qe-btn" data-field="fatigue" data-val="6" data-color="orange">🟠 Medium</button>
+        <button type="button" class="qe-btn" data-field="fatigue" data-val="9" data-color="red">🔴 High</button>
+      </div>
+    </div>
+    <div class="qe-group">
+      <span class="qe-label">Sleep (hrs)</span>
+      <input type="number" id="sleepHours" step="0.25" min="0" max="24" value="8.33"
+             style="width:80px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:15px;" />
+    </div>
+    <div class="qe-group">
+      <span class="qe-label">Mood</span>
+      <div class="qe-btns" id="moodBtns" role="group" aria-label="Mood level">
+        <button type="button" class="qe-btn" data-field="mood" data-val="excellent" data-color="green">🌟 Great</button>
+        <button type="button" class="qe-btn" data-field="mood" data-val="good" data-color="green">😊 Good</button>
+        <button type="button" class="qe-btn" data-field="mood" data-val="okay" data-color="yellow">😐 Okay</button>
+        <button type="button" class="qe-btn" data-field="mood" data-val="poor" data-color="orange">😔 Poor</button>
+        <button type="button" class="qe-btn" data-field="mood" data-val="terrible" data-color="red">😞 Rough</button>
+      </div>
+    </div>
+    <!-- Hidden inputs keep compatibility with updateCheckIn() reading these IDs -->
+    <input type="hidden" id="painLevel" value="6" />
+    <input type="hidden" id="fatigueLevel" value="5" />
+    <input type="hidden" id="moodLevel" value="poor" />
   </section>
 
   <section class="section weather" aria-label="Weather information and controls">
@@ -1002,31 +1035,87 @@
     saveData();
   }
 
-  // Weather fetch (Grand Junction, CO)
+  // Weather fetch — Updated 2026-03-02 by Claude: uses browser geolocation instead of
+  // hardcoded Grand Junction, CO coords. Falls back to "unavailable" if permission denied.
+  async function fetchWeatherAt(lat, lon) {
+    const header = { 'User-Agent': 'SpoonPalApp (brinckmyster@gmail.com)' };
+    const pointsResp = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`, { headers: header });
+    if (!pointsResp.ok) throw new Error('NWS points API error');
+    const pointsData = await pointsResp.json();
+    const forecastUrl = pointsData.properties.forecast;
+    const forecastResp = await fetch(forecastUrl, { headers: header });
+    if (!forecastResp.ok) throw new Error('NWS forecast API error');
+    const forecastData = await forecastResp.json();
+    const currentPeriod = forecastData.properties.periods.find(p => p.isDaytime) || forecastData.properties.periods[0];
+    const temp = currentPeriod.temperature;
+    const desc = currentPeriod.shortForecast;
+    let impact = -1; // Communal cold penalty
+    if (temp < 50) impact -= 2;
+    else if (temp > 85) impact -= 1;
+    weather = { desc: `${temp}°F - ${desc}`, impact };
+    document.getElementById('weatherInfo').textContent = `Weather: ${weather.desc}`;
+    calculateSpoons();
+    saveData();
+  }
+
   async function fetchWeather() {
-    try {
-      const lat = 39.0639, lon = -108.5506;
-      const header = { 'User-Agent': 'SpoonPalApp (contact@example.com)' };
-      const pointsResp = await fetch(`https://api.weather.gov/points/${lat},${lon}`, { headers: header });
-      if (!pointsResp.ok) throw new Error('NWS points API error');
-      const pointsData = await pointsResp.json();
-      const forecastUrl = pointsData.properties.forecast;
-      const forecastResp = await fetch(forecastUrl, { headers: header });
-      if (!forecastResp.ok) throw new Error('NWS forecast API error');
-      const forecastData = await forecastResp.json();
-      const currentPeriod = forecastData.properties.periods.find(p => p.isDaytime) || forecastData.properties.periods[0];
-      const temp = currentPeriod.temperature;
-      const desc = currentPeriod.shortForecast;
-      let impact = -1; // Communal cold penalty
-      if (temp < 50) impact -= 2;
-      else if (temp > 85) impact -= 1;
-      weather = { desc: `${temp}°F - ${desc}`, impact };
-      document.getElementById('weatherInfo').textContent = `Weather: ${weather.desc}`;
-      calculateSpoons();
-      saveData();
-    } catch (e) {
-      document.getElementById('weatherInfo').textContent = 'Weather data unavailable';
+    const el = document.getElementById('weatherInfo');
+    el.textContent = 'Getting location…';
+    if (!navigator.geolocation) {
+      el.textContent = 'Geolocation not supported by this browser';
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      async function(pos) {
+        try {
+          await fetchWeatherAt(pos.coords.latitude, pos.coords.longitude);
+        } catch (e) {
+          el.textContent = 'Weather data unavailable';
+        }
+      },
+      function(err) {
+        el.textContent = 'Location access denied — weather unavailable';
+      },
+      { timeout: 8000 }
+    );
+  }
+
+  // ── Quick-entry button logic — Updated 2026-03-02 by Claude ──────────────────
+  // Replaces 1-10 scale inputs. Tapping a button selects it, updates hidden input,
+  // and recalculates spoons. Pain and fatigue map to internal numbers silently.
+  function initQuickEntry() {
+    document.querySelectorAll('.qe-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var field = btn.getAttribute('data-field');
+        var val   = btn.getAttribute('data-val');
+        // Deselect siblings in the same group
+        btn.closest('.qe-btns').querySelectorAll('.qe-btn').forEach(function(b) {
+          b.classList.remove('selected');
+        });
+        btn.classList.add('selected');
+        // Update hidden input so updateCheckIn() still works
+        var hiddenId = field === 'mood' ? 'moodLevel' : field + 'Level';
+        document.getElementById(hiddenId).value = val;
+        updateCheckIn();
+      });
+    });
+  }
+
+  // Restore quick-entry button selection state from checkIn object
+  function restoreQuickEntry() {
+    var painVal    = String(checkIn.pain);
+    var fatigueVal = String(checkIn.fatigue);
+    var moodVal    = String(checkIn.mood);
+    document.querySelectorAll('.qe-btn').forEach(function(btn) {
+      var field = btn.getAttribute('data-field');
+      var val   = btn.getAttribute('data-val');
+      btn.classList.remove('selected');
+      if ((field === 'pain'    && val === painVal)    ||
+          (field === 'fatigue' && val === fatigueVal) ||
+          (field === 'mood'    && val === moodVal)) {
+        btn.classList.add('selected');
+      }
+    });
   }
 
   // Render legend
@@ -1077,22 +1166,28 @@
     // Fix #2: auto-emoji preview updates as user types description
     document.getElementById('taskDescription').addEventListener('input', updateEmojiPreview);
     document.getElementById('taskLmj').addEventListener('change', updateEmojiPreview);
-    ['painLevel', 'fatigueLevel', 'sleepHours', 'moodLevel'].forEach(id =>
-      document.getElementById(id).addEventListener('change', updateCheckIn)
-    );
+    // Sleep hours is the only remaining manual input — pain/fatigue/mood use qe-btn clicks
+    document.getElementById('sleepHours').addEventListener('change', updateCheckIn);
+
+    // Init quick-entry buttons (before auth — UI should be interactive immediately)
+    initQuickEntry();
 
     // Boot Firestore — load saved data once user is confirmed
-    // Updated 2026-03-02 by Claude: fetchWeather() moved here so it fires AFTER
-    // loadData() restores saved state, preventing the save-before-load race condition.
+    // Updated 2026-03-02 by Claude:
+    //   - currentUid always uses user.uid, NEVER AA_MIRROR_UID.
+    //     SpoonPal is the viewer's OWN personal planner; mirror must not bleed in.
+    //   - fetchWeather() moved inside callback to prevent race with saveData().
+    //   - autofillFromCheckin() removed — SpoonPal is not the student planner;
+    //     quick-entry buttons handle pain/fatigue/mood input directly.
     waitForAA(function() {
       window.AA.auth.onAuthStateChanged(function(user) {
         if (!user) return;
-        currentUid = window.AA_MIRROR_UID || user.uid; // mirror-aware
+        currentUid = user.uid; // always the signed-in user's own data — no mirror
         loadData(function() {
-          // Re-render with Firestore data, then fetch weather
           calculateSpoons();
           renderTimeline();
-          fetchWeather(); // safe to fetch now — Firestore data is already loaded
+          restoreQuickEntry(); // reflect loaded checkIn state in the buttons
+          fetchWeather();      // safe to fetch now — Firestore data already loaded
         });
       });
     });

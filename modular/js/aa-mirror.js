@@ -34,7 +34,9 @@
   var FLOWER_EXEMPT = 'dorothy.brinck@gmail.com';
 
   /* Pages where mirroring is suppressed entirely */
-  var NO_MIRROR = ['admin.html', 'user-tiers', 'message-system'];
+  /* Updated 2026-03-02 by Claude: added spoon-pal — it is the viewer's OWN personal planner,
+     never a student's. Mirror UID must never bleed in here. */
+  var NO_MIRROR = ['admin.html', 'user-tiers', 'message-system', 'spoon-pal'];
 
   /* Pages where the banner is suppressed (support-dashboard has its own) */
   var NO_BANNER = ['support-dashboard'].concat(NO_MIRROR);
