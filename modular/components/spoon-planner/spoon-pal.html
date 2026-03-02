@@ -497,16 +497,25 @@
   }
 
   // ── Fix #3: Derive emoji at render time (priority: locked meta > keyword > fallback) ──
+  // Updated 2026-03-02 by Claude: keyword matching changed from substring to whole-word
+  // to prevent false matches (e.g. 'eat' ghosting inside 'Breakfast', 'rest' in 'Wrist').
   function deriveEmoji(task) {
     // 1. LOCKED_LMJ_META emoji if task has a known LMJ code
     if (LOCKED_LMJ_META[task.lmj]) return LOCKED_LMJ_META[task.lmj].emoji;
-    // 2. Keyword match from KEYWORD_EMOJI_MAP (case-insensitive)
-    const desc = (task.description || '').toLowerCase();
+    // 2. Whole-word keyword match from KEYWORD_EMOJI_MAP (case-insensitive)
+    const words = (task.description || '').toLowerCase().split(/\W+/);
     for (const kw in KEYWORD_EMOJI_MAP) {
-      if (desc.includes(kw)) return KEYWORD_EMOJI_MAP[kw];
+      if (words.indexOf(kw) !== -1) return KEYWORD_EMOJI_MAP[kw];
     }
     // 3. Fallback
     return '🧩';
+  }
+
+  // Strip any leading emoji chars from a description string.
+  // Prevents duplicate emoji when old saved data has emoji baked into description text
+  // and the LMJ column also derives the same emoji. (Added 2026-03-02 by Claude)
+  function stripLeadingEmoji(str) {
+    return (str || '').replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u, '').trim();
   }
 
   // ── Fix #2: Update emoji preview in task modal ────────────────────────────────
@@ -607,7 +616,9 @@
       tr.appendChild(lmjTd);
 
       const descTd = document.createElement('td');
-      descTd.textContent = `${t.description} (${t.priority})`;
+      // stripLeadingEmoji: old Firestore data may have emoji baked into description;
+      // deriveEmoji() already adds the emoji in the LMJ column, so strip it here. (2026-03-02 by Claude)
+      descTd.textContent = `${stripLeadingEmoji(t.description)} (${t.priority})`;
       descTd.classList.add('clickable');
       descTd.onclick = () => openTaskModal(i);
       tr.appendChild(descTd);
