@@ -365,10 +365,29 @@
   // Normal Day template, ZZ rollover + stale-data detection. Archive: spoon-pal_2026-03-01_pre-audit.html
 
   // ── Fix #2: Keyword→Emoji map ─────────────────────────────────────────────────
+  // Claude: BUG #3 FIX — Expanded KEYWORD_EMOJI_MAP with comprehensive task keywords
   const KEYWORD_EMOJI_MAP = {
-    shower: '🚿', walk: '🚶', meds: '💊', eat: '🍽️', sleep: '😴',
-    rest: '😌', bath: '🛁', brush: '🪥', call: '📞', write: '✏️',
-    read: '📖', cook: '🍳', drink: '💧', stretch: '🤸', dress: '👗'
+    lunch: '🍽️', eat: '🍽️', food: '🍽️', meal: '🍽️', breakfast: '🍽️', dinner: '🍽️',
+    jobs: '💼', apply: '💼', work: '💼', career: '💼', resume: '💼',
+    news: '📰', read: '📰', article: '📰', blog: '📰',
+    walk: '🚶', steps: '🚶', outside: '🚶',
+    meds: '💊', medication: '💊', pills: '💊', vitamins: '💊',
+    sleep: '😴', rest: '😴', nap: '😴', bed: '😴',
+    shower: '🚿', bath: '🚿', hygiene: '🚿', groom: '🚿',
+    brush: '🪥', teeth: '🪥', dental: '🪥',
+    call: '📞', phone: '📞', meeting: '📞', zoom: '📞',
+    write: '✏️', journal: '✏️', notes: '✏️', plan: '✏️',
+    cook: '🍳', prep: '🍳', kitchen: '🍳',
+    drink: '💧', water: '💧', hydrate: '💧',
+    stretch: '🤸', yoga: '🤸', exercise: '🤸', gym: '🤸',
+    dress: '👗', clothes: '👗', outfit: '👗',
+    conference: '🎪', event: '🎪', rootstech: '🎪', expo: '🎪',
+    therapy: '🏥', counseling: '🏥', appointment: '🏥',
+    music: '🎵', listen: '🎵', podcast: '🎵',
+    clean: '🧺', laundry: '🧺', tidy: '🧺', dishes: '🧺',
+    family: '👨‍👩‍👧', kids: '👨‍👩‍👧', parent: '👨‍👩‍👧',
+    travel: '🚗', drive: '🚗', commute: '🚗',
+    shop: '🛒', grocery: '🛒', errand: '🛒'
   };
 
   // Constants and locked protocol data (corrected: B🍽️, S🤟, ZZ📵, C🔗 Word Connect, I🎨 NightCafe, all streak savers)
@@ -394,12 +413,13 @@
   };
 
   // ── Fix #4: Protected Normal Day template (constant — not stored, not deletable) ───
+  // Claude: BUG #4 FIX — Corrected all times to match canonical schedule
   const NORMAL_DAY_TIMES = {
-    A: '8:30 AM',  V: '8:45 AM',  B: '9:00 AM',  C: '9:30 AM',
-    D: '10:00 AM', S: '10:30 AM', L: '11:00 AM', I: '11:30 AM',
-    G: '12:00 PM', N: '1:00 PM',  ME: '2:00 PM', H:  '3:00 PM',
-    CC: '9:00 PM', DD: '9:15 PM', EE: '9:30 PM', FF: '9:45 PM',
-    ZZ: '10:00 PM'
+    A: '9:00 AM',   V: '9:15 AM',   B: '9:30 AM',   C: '11:00 AM',
+    D: '11:30 AM',  S: '12:00 PM',  L: '12:30 PM',  I: '1:00 PM',
+    G: '2:00 PM',   N: '7:00 PM',   ME: '8:00 PM',  H: '8:30 PM',
+    CC: '9:00 PM',  DD: '9:30 PM',  EE: '9:45 PM',  FF: '10:00 PM',
+    ZZ: '10:30 PM'
   };
   const NORMAL_DAY_TEMPLATE = {
     name: 'Normal Day',
@@ -435,6 +455,8 @@
   let weather = {desc: 'Loading...', impact: -1}; // Communal cold penalty
   let selectedIndex = null;
   let currentUid = null;  // set by Firebase auth
+  // Claude: BUG #1 FIX — flag to prevent auto-save during initial load cycle
+  let isInitialLoad = true;
   let templates = {
     'Word Connect':  {type: 'task', emoji: '🔗', desc: 'Word Connect Streak Saver',  defaultCost: 1, priority: 'High', fixed: false},
     'NightCafe':     {type: 'task', emoji: '🎨', desc: 'NightCafe Streak Saver',      defaultCost: 1, priority: 'High', fixed: false},
@@ -745,6 +767,7 @@
     document.getElementById('templateModal').style.display = 'none';
   }
 
+  // Claude: BUG #5 FIX — template picker now shows ONLY day templates
   function renderTemplateList() {
     const list = document.getElementById('templateList');
     list.innerHTML = '';
@@ -760,22 +783,18 @@
     ndItem.appendChild(ndCopyBtn);
     list.appendChild(ndItem);
 
-    // User templates
+    // User day templates only (filter out individual task templates)
     for (const key in templates) {
       const temp = templates[key];
       const isDay = temp.type === 'day' || !!temp.tasks;
+
+      // Claude: BUG #5 — skip individual task templates, only show day templates
+      if (!isDay) continue;
+
       const item = document.createElement('div');
       item.classList.add('template-item');
-      const label = isDay
-        ? `📅 ${key} — Day template (${(temp.tasks || []).length} tasks)`
-        : `${key}: ${temp.desc || ''} (${temp.defaultCost} spoons)`;
+      const label = `📅 ${key} — Day template (${(temp.tasks || []).length} tasks)`;
       item.innerHTML = `<span>${label}</span>`;
-      if (!isDay) {
-        const editBtn = document.createElement('button');
-        editBtn.textContent = 'Edit';
-        editBtn.onclick = () => openTemplateEdit(key);
-        item.appendChild(editBtn);
-      }
       list.appendChild(item);
     }
   }
@@ -811,24 +830,28 @@
     selectedTemplateKey = null;
   }
 
+  // Claude: BUG #5 FIX — removed individual task template saving
+  // Templates are now day-only. This function archived for reference.
   function saveTemplate(e) {
     e.preventDefault();
-    const name = document.getElementById('templateName').value.trim();
-    if (!name) { alert('Template name required'); return; }
-    if (selectedTemplateKey && selectedTemplateKey !== name) {
-      delete templates[selectedTemplateKey];
-    }
-    templates[name] = {
-      type: 'task',
-      emoji: document.getElementById('templateEmoji').value.trim(),
-      desc: document.getElementById('templateDesc').value.trim(),
-      defaultCost: parseFloat(document.getElementById('templateCost').value) || 0,
-      priority: document.getElementById('templatePriority').value,
-      fixed: document.getElementById('templateFixed').value === 'true'
-    };
-    saveData();
-    renderTemplateList();
+    alert('Individual task templates are no longer supported. Only day templates can be saved.');
     closeTemplateEdit();
+    // Claude: Individual task template save logic archived here for reference:
+    // const name = document.getElementById('templateName').value.trim();
+    // if (!name) { alert('Template name required'); return; }
+    // if (selectedTemplateKey && selectedTemplateKey !== name) {
+    //   delete templates[selectedTemplateKey];
+    // }
+    // templates[name] = {
+    //   type: 'task',
+    //   emoji: document.getElementById('templateEmoji').value.trim(),
+    //   desc: document.getElementById('templateDesc').value.trim(),
+    //   defaultCost: parseFloat(document.getElementById('templateCost').value) || 0,
+    //   priority: document.getElementById('templatePriority').value,
+    //   fixed: document.getElementById('templateFixed').value === 'true'
+    // };
+    // saveData();
+    // renderTemplateList();
   }
 
   function deleteTemplate() {
@@ -981,7 +1004,15 @@
   }
 
   // ── Save/load — Firestore-backed (Claude / aa-firebase.js integration) ─────────
+  // Claude: BUG #1 FIX — timestamp-aware save to prevent last-write-wins from page refresh
   function saveData() {
+    // Skip save during initial load to prevent overwriting remote data
+    if (isInitialLoad) {
+      console.log('[SpoonPal] Skipping save during initial load cycle');
+      return;
+    }
+
+    const incomingTimestamp = new Date();
     const obj = {
       timeline,
       checkIn,
@@ -991,14 +1022,37 @@
       weather,
       templates,
       dateKey: getTodayKey(), // Fix #5: stale-data detection
-      savedAt: new Date().toISOString()
+      savedAt: incomingTimestamp.toISOString()
     };
     if (window.AA && window.AA.db && currentUid) {
-      window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
-        .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
+      // Get current remote data to compare timestamps
+      window.AA.db.collection('spoonPal').doc(currentUid).get()
+        .then(function(doc) {
+          if (doc.exists) {
+            const remoteData = doc.data();
+            const remoteSavedAt = remoteData.savedAt ? new Date(remoteData.savedAt) : null;
+            const incomingTs = incomingTimestamp.getTime();
+            const remoteTs = remoteSavedAt ? remoteSavedAt.getTime() : 0;
+
+            // Only write if incoming timestamp is NEWER than remote
+            if (incomingTs > remoteTs) {
+              window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
+                .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
+            } else {
+              console.log('[SpoonPal] Remote data is newer; skipping local write');
+            }
+          } else {
+            // Document doesn't exist yet, write it
+            window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
+              .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
+          }
+        })
+        .catch(function(err) { console.error('[SpoonPal] Error comparing timestamps:', err); });
     }
   }
 
+  // Claude: BUG #1 FIX — timestamp-aware load with isInitialLoad flag
+  // Claude: BUG #5 FIX — filter out individual task templates on load
   function loadData(callback) {
     if (window.AA && window.AA.db && currentUid) {
       window.AA.db.collection('spoonPal').doc(currentUid).get()
@@ -1011,11 +1065,21 @@
             dayStart = obj.dayStart || 8;
             dayEnd = obj.dayEnd || 25;
             weather = obj.weather || { desc: 'Loading...', impact: -1 };
-            templates = obj.templates || templates;
+            // Claude: BUG #5 — only load day templates (type === 'day' or has tasks array)
+            const loadedTemplates = obj.templates || templates;
+            templates = {};
+            for (const key in loadedTemplates) {
+              const temp = loadedTemplates[key];
+              if (temp.type === 'day' || temp.tasks) {
+                templates[key] = temp;
+              }
+            }
             // Fix #5: stale-data detection
             const storedDateKey = obj.dateKey || null;
             const todayKey = getTodayKey();
             if (storedDateKey && storedDateKey < todayKey) {
+              // Clear isInitialLoad so we can save the rollover action
+              isInitialLoad = false;
               if (callback) callback();
               setTimeout(() => {
                 if (confirm(`Old data detected from ${storedDateKey}. Archive it and start fresh for today?`)) {
@@ -1025,13 +1089,17 @@
               return;
             }
           }
+          // Mark end of initial load — saveData() can proceed from here on
+          isInitialLoad = false;
           if (callback) callback();
         })
         .catch(function(err) {
           console.error('[SpoonPal] Firestore load error:', err);
+          isInitialLoad = false;
           if (callback) callback();
         });
     } else {
+      isInitialLoad = false;
       if (callback) callback();
     }
   }
