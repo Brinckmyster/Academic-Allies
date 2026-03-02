@@ -888,6 +888,40 @@ function waitForAA(cb, fallback, tries) {
   setTimeout(function() { waitForAA(cb, fallback, tries + 1); }, 200);
 }
 
+// ── Custom check-in prompts ───────────────────────────────────────────────
+// Added 2026-03-02 by Claude — Priority 3 feature.
+// Reads studentProfile.checkinPrompts (string[]) from Firestore and, if set,
+// replaces the default gateway-q paragraph text for each category.
+// Categories in order: mental, physical, school, spiritual, social.
+// Safe with partial arrays: categories beyond the array length keep defaults.
+(function applyCustomPrompts() {
+  var CATS = ['mental', 'physical', 'school', 'spiritual', 'social'];
+
+  waitForAA(function() {
+    AA.auth.onAuthStateChanged(function(user) {
+      if (!user) return;
+      var uid = window.AA_MIRROR_UID || user.uid;
+      AA.getStudentProfile(uid)
+        .then(function(profile) {
+          var prompts = profile && Array.isArray(profile.checkinPrompts) ? profile.checkinPrompts : [];
+          if (!prompts.length) return; // no custom prompts — use defaults
+          CATS.forEach(function(cat, i) {
+            if (!prompts[i]) return; // no override for this category
+            var card = document.getElementById('cat-' + cat);
+            if (!card) return;
+            var gwQ = card.querySelector('.gateway-q');
+            if (!gwQ) return;
+            gwQ.textContent = prompts[i];
+          });
+        })
+        .catch(function(err) {
+          // Non-fatal: defaults remain in place
+          console.warn('[AA checkin] custom prompts load failed:', err);
+        });
+    });
+  });
+})();
+
 // ── Reset ──
 function resetForm() {
   if (!confirm('Start over? Your current check-in will be lost.')) return;
