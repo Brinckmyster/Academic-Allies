@@ -18,11 +18,6 @@ service cloud.firestore {
     // ── Users ────────────────────────────────────────────────────
     // Any signed-in user reads (needed for lookupByEmail, getAllStudents,
     // support network scanning in aa-mirror). Owner or admin writes.
-    // Claude: 2026-03-03 — intentionally kept open for functional reasons (name
-    // lookups, invite redemption, network scanning). User docs contain role +
-    // display name but NOT health data — health data lives in scoped collections
-    // below. Tighter scoping here requires denormalizing the network graph and
-    // is deferred to a future compliance sprint.
     // Special narrow update rules allow invite redemption and isSupporter flag.
     // Updated 2026-02-26 by Claude — invite redemption permissions fix.
     match /users/{uid} {
@@ -77,23 +72,20 @@ service cloud.firestore {
     }
 
     // ── Nope mode ────────────────────────────────────────────────
-    // Claude: 2026-03-03 compliance fix — scoped to owner + network + admin.
-    // Crisis mode status is sensitive health data; not readable by all users.
     match /nope/{uid} {
-      allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+      allow read: if isSignedIn();
       allow write: if isOwner(uid);
 
       match /logs/{logId} {
-        allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+        allow read: if isSignedIn();
         allow create: if isOwner(uid);
         allow update, delete: if false;
       }
     }
 
     // ── Flower quiz ───────────────────────────────────────────────
-    // Claude: 2026-03-03 compliance fix — personal data, owner + admin only.
     match /flowerQuiz/{uid} {
-      allow read: if isOwner(uid) || isBackstageManager();
+      allow read: if isSignedIn();
       allow write: if isOwner(uid);
     }
 
@@ -122,49 +114,45 @@ service cloud.firestore {
     }
 
     // ── Check-ins ────────────────────────────────────────────────
-    // Claude: 2026-03-03 compliance fix — sensitive health data (mental/physical/mood).
-    // Scoped to owner + assigned network members + admin only.
     match /checkins/{uid} {
-      allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+      allow read: if isSignedIn();
       allow write: if isOwner(uid);
 
       match /days/{dateKey} {
-        allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+        allow read: if isSignedIn();
         allow write: if isOwner(uid);
       }
     }
 
     // ── Meal plans (base plan) ───────────────────────────────────
-    // Claude: 2026-03-03 compliance fix — dietary/health data, network-scoped.
     match /mealPlans/{uid} {
-      allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+      allow read: if isSignedIn();
       allow write: if isOwner(uid) || isBackstageManager();
     }
 
     // ── Meal logs (daily actuals) ────────────────────────────────
-    // Claude: 2026-03-03 compliance fix — network-scoped.
     match /mealLogs/{uid} {
-      allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+      allow read: if isSignedIn();
       allow write: if isOwner(uid) || isBackstageManager();
 
       match /days/{dateKey} {
-        allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+        allow read: if isSignedIn();
         allow write: if isOwner(uid) || isBackstageManager();
       }
     }
 
     // ── SpoonPal ─────────────────────────────────────────────────
-    // Claude: 2026-03-03 compliance fix — SpoonPal is owner-private (Bruise only).
-    // No network read — this is a personal tool, not shared with support network.
     match /spoonPal/{uid} {
-      allow read: if isOwner(uid) || isBackstageManager();
+      allow read: if isSignedIn();
       allow write: if isOwner(uid) || isBackstageManager();
     }
 
     // ── Spoon Plan ───────────────────────────────────────────────
-    // Claude: 2026-03-03 compliance fix — network-scoped (support can see day plan).
+    // Student writes their own plan. Support network can read
+    // (so Network Lead/supporters can see the student's day plan).
+    // Added 2026-02-26 by Claude.
     match /spoonPlans/{uid} {
-      allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+      allow read: if isSignedIn();
       allow write: if isOwner(uid) || isBackstageManager();
     }
 
