@@ -109,15 +109,12 @@
   };
 
   /* ── Internal: write user profile doc ──────────────────── */
-  // Claude: BUG #2 FIX — support network-lead role for scoped admin control
   function createUserDoc(user, role) {
     return db.collection('users').doc(user.uid).set({
       displayName:    user.displayName || user.email,
       email:          user.email,
       role:           role,
       supportNetwork: {},   // map of uid → tier; student controls this
-      // Claude: BUG #2 — network-lead field to track their assigned student (if applicable)
-      linkedStudentId: null,  // set only if role === 'network-lead', points to their assigned student
       createdAt:      firebase.firestore.FieldValue.serverTimestamp()
     });
   }
@@ -660,33 +657,6 @@
       }, function (err) {
         console.error('[AA] watchStudentProfile error:', err);
       });
-  };
-
-  /* ── Claude: BUG #2 FIX — Check if current user is network-lead for a student ──
-     Network Lead role grants admin control (edit profile, toggle components, manage templates)
-     but ONLY for the student they are assigned to.
-     Returns true if currentUser is assigned as network-lead for the given student. ──────── */
-  window.AA.isNetworkLeadFor = function (studentUid) {
-    var user = auth.currentUser;
-    if (!user) return false;
-    return db.collection('users').doc(studentUid).get()
-      .then(function (doc) {
-        if (!doc.exists) return false;
-        var network = doc.data().supportNetwork || {};
-        return network[user.uid] === 'network-lead';
-      })
-      .catch(function () { return false; });
-  };
-
-  /* ── Claude: BUG #2 FIX — Check if current user can edit student profile ──
-     Allowed if: backstage-manager OR network-lead for that student.
-     Used in user-tiers.html to gate edit/save buttons. ──────── */
-  window.AA.canEditStudentProfile = function (studentUid) {
-    var user = auth.currentUser;
-    if (!user) return Promise.resolve(false);
-    if (window.AA.isAdmin()) return Promise.resolve(true); // backstage-manager
-    // Check if network-lead for this student
-    return window.AA.isNetworkLeadFor(studentUid);
   };
 
   /* ── 24-hour network-lead timer ──────────────────────────────
