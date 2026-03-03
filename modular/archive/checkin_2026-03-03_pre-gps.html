@@ -567,8 +567,6 @@
 <script src="/Academic-Allies/modular/aa-firebase.js"></script>
 <!-- Updated 2026-03-01 by Claude: added cache-bust version string to match shared-header.html reference -->
 <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260301a"></script>
-<!-- Claude: GPS social inference — 2026-03-03 -->
-<script src="/Academic-Allies/modular/js/gps-social.js"></script>
 
 <script>
 // ── Firebase init: aa-firebase.js owns initialisation; db set after AA is ready ──
@@ -977,82 +975,6 @@ function resetForm() {
   // Reset basics
   document.querySelectorAll('[name=basics]').forEach(function(cb) { cb.checked = false; });
 }
-
-// Claude: GPS Social inference — if no movement detected, pre-suggest Social = No
-function applyGPSSocialHint() {
-  if (!window.AA_GPS) return;
-  var result = window.AA_GPS.analyzeMovement();
-  if (result !== 'no_movement') return; // only act on clear no-movement signal
-
-  // Pre-select Social gateway as 'no' — but only if user hasn't already answered it
-  var gwNo = document.getElementById('gw-social-no');
-  var gwYes = document.getElementById('gw-social-yes');
-  if (!gwNo) return;
-  // Don't override if user already made a selection
-  if (gwNo.classList.contains('sel-no') || (gwYes && gwYes.classList.contains('sel-yes'))) return;
-
-  // Trigger the 'no' gateway selection
-  selectGW('social', 'no');
-
-  // Pre-check 'isolated' checkbox if it exists
-  var isoCheckbox = document.querySelector('input[name="social_no"][value="isolated"]');
-  if (isoCheckbox) isoCheckbox.checked = true;
-
-  // Show a gentle non-blocking hint banner above the Social card
-  var card = document.getElementById('cat-social');
-  if (card) {
-    var hint = document.createElement('div');
-    hint.id = 'gps-social-hint';
-    hint.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;border-radius:6px;' +
-                         'padding:8px 12px;margin-bottom:10px;font-size:.85rem;color:#856404;';
-    hint.innerHTML = '📍 <strong>Gentle note:</strong> It looks like you may not have gone out today — ' +
-                     'Social has been pre-filled as a suggestion. Feel free to change it.';
-    // Insert before card content, not before card itself
-    card.insertBefore(hint, card.firstChild);
-  }
-}
-
-// Claude: request GPS permission once at check-in — this is the consent moment
-// Subsequent snapshots happen silently from shared-header.js
-(function requestGPSOnce() {
-  if (!navigator.geolocation) return;
-  var PERM_KEY = 'aa_gps_permission_asked';
-  try {
-    if (localStorage.getItem(PERM_KEY)) return; // already asked
-    localStorage.setItem(PERM_KEY, '1');
-  } catch(e) {}
-  // Prompt with explanation first (not just a raw browser prompt)
-  var msg = document.createElement('div');
-  msg.id = 'gps-permission-banner';
-  msg.style.cssText = 'background:#e8f4fd;border:1px solid #4a9eff;border-radius:8px;' +
-                      'padding:12px 16px;margin-bottom:16px;font-size:.9rem;';
-  // Claude: improved GPS consent language — explicitly health context, server storage disclaimer, privacy link
-  msg.innerHTML = '<strong>📍 Optional: Location check</strong><br>' +
-                  'Academic Allies can use your device location to gently notice if you haven\'t left home today — ' +
-                  'this may be used to suggest how your Social wellbeing check-in is pre-filled. ' +
-                  '<strong>Your location never leaves your device</strong> and is not stored on any server. ' +
-                  'This is optional — tap "No thanks" and everything still works. ' +
-                  '<br><small style="color:#666">This is covered in our <a href="/Academic-Allies/modular/privacy.html" target="_blank">Privacy Policy</a>, Section 4.</small>' +
-                  '<br><br><button id="gps-allow-btn" style="padding:6px 12px;cursor:pointer;background:#4a9eff;color:#fff;border:none;border-radius:4px;">Allow location check</button>' +
-                  '<button id="gps-skip-btn" style="margin-left:8px;padding:6px 12px;cursor:pointer;background:#f0f0f0;border:1px solid #ccc;border-radius:4px;">No thanks</button>';
-  var container = document.querySelector('.container') || document.querySelector('.page-wrap') || document.body;
-  container.insertBefore(msg, container.firstChild);
-
-  document.getElementById('gps-allow-btn').onclick = function() {
-    navigator.geolocation.getCurrentPosition(function(pos) {
-      // Store first snapshot immediately on permission grant
-      try {
-        var d = new Date();
-        var dk = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-        var snaps = JSON.parse(localStorage.getItem('aa_gps_' + dk) || '[]');
-        snaps.push({ lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now() });
-        localStorage.setItem('aa_gps_' + dk, JSON.stringify(snaps));
-      } catch(e) {}
-    }, function() {});
-    msg.remove();
-  };
-  document.getElementById('gps-skip-btn').onclick = function() { msg.remove(); };
-})();
 </script>
 
 <!-- Shared header loader — Updated 2026-02-28 by Claude: re-executes scripts so Firebase auth initialises -->
@@ -1090,12 +1012,6 @@ fetch('/Academic-Allies/modular/shared-header.html?v=20260301a')
       'style="color:#4338ca;">the support network page</a>.</p>' +
     '</div>';
 })();
-
-// Claude: Apply GPS social hint after page fully loads
-// Schedule this to run after the DOM is fully settled and any existing check-in data is restored
-setTimeout(function() {
-  applyGPSSocialHint();
-}, 500);
 </script>
 
 </body>

@@ -22,8 +22,6 @@ Your disability accommodations and support network">Your disability accommodatio
         <li><a href="/Academic-Allies/modular/static/utc-converter.html" title="UTC Time Converter">UTC Clock</a></li>
         <li><a href="/Academic-Allies/modular/icon-gallery.html" title="Icon Gallery">Icon Gallery</a></li>
         <li><a href="/Academic-Allies/modular/static/sitemap.html" title="Site Map">Site Map</a></li>
-        <!-- Claude: privacy policy link — compliance 2026-03-03 -->
-        <li><a href="/Academic-Allies/modular/privacy.html" title="Privacy Policy">Privacy Policy</a></li>
       </ul>
     </nav>
     <div style="display:flex;gap:10px;align-items:center;margin-left:20px;flex-wrap:wrap;">
@@ -406,124 +404,12 @@ Your disability accommodations and support network">Your disability accommodatio
 
     loadSDKs();
   })();
-
-  // Claude: GPS snapshot — records position to localStorage once per page load
-  // Data stays local, never sent to Firebase. Used by check-in Social inference.
-  (function gpsSnapshot() {
-    var GPS_KEY_PREFIX = 'aa_gps_';
-    var dateKey = (function() {
-      var d = new Date();
-      return d.getFullYear() + '-' +
-             String(d.getMonth()+1).padStart(2,'0') + '-' +
-             String(d.getDate()).padStart(2,'0');
-    })();
-    var storageKey = GPS_KEY_PREFIX + dateKey;
-
-    if (!navigator.geolocation) return; // no GPS available (desktop etc.)
-
-    // Only snapshot if user already granted permission (don't prompt from header)
-    // Use getCurrentPosition with timeout=0 trick — if permission denied, fails silently
-    try {
-      navigator.permissions.query({name:'geolocation'}).then(function(result) {
-        if (result.state !== 'granted') return; // only proceed if already granted
-        navigator.geolocation.getCurrentPosition(function(pos) {
-          try {
-            var snapshots = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            snapshots.push({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              ts: Date.now()
-            });
-            // Keep max 48 snapshots per day (one per ~30 min if pages visited)
-            if (snapshots.length > 48) snapshots = snapshots.slice(-48);
-            localStorage.setItem(storageKey, JSON.stringify(snapshots));
-          } catch(e) {}
-        }, function() {}, { timeout: 5000, maximumAge: 300000 }); // 5min cache OK
-      });
-    } catch(e) {}
-  })();
-
-  // Claude: session timeout — HIPAA compliance, 30-min inactivity auto-logout
-  (function sessionTimeout() {
-    var WARN_MS  = 25 * 60 * 1000;  // 25 minutes
-    var LIMIT_MS = 30 * 60 * 1000;  // 30 minutes
-    var warnTimer, logoutTimer, banner;
-
-    function clearSensitiveStorage() {
-      // Claude: clear health/location data from localStorage on sign-out
-      try {
-        Object.keys(localStorage).forEach(function(k) {
-          if (/^checkins_|^aa_gps_|^aa-status-dev/.test(k)) {
-            localStorage.removeItem(k);
-          }
-        });
-      } catch(e) {}
-    }
-
-    function doLogout() {
-      clearSensitiveStorage();
-      if (window.AA && window.AA.auth) {
-        window.AA.auth.signOut().then(function() {
-          window.location.href = '/Academic-Allies/';
-        }).catch(function() {
-          window.location.reload();
-        });
-      }
-    }
-
-    function showWarning() {
-      if (banner) return;
-      banner = document.createElement('div');
-      banner.id = 'aa-session-warning';
-      banner.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);' +
-        'background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px 20px;' +
-        'font-size:.9rem;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.15);white-space:nowrap;';
-      banner.innerHTML = '⏱️ You\'ll be signed out in 5 minutes due to inactivity. ' +
-        '<button onclick="window.AA_resetSessionTimer()" style="margin-left:10px;padding:3px 10px;cursor:pointer;">Stay signed in</button>';
-      document.body.appendChild(banner);
-    }
-
-    function hideWarning() {
-      if (banner) { banner.remove(); banner = null; }
-    }
-
-    function resetTimers() {
-      clearTimeout(warnTimer);
-      clearTimeout(logoutTimer);
-      hideWarning();
-      if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
-      warnTimer   = setTimeout(showWarning, WARN_MS);
-      logoutTimer = setTimeout(doLogout,    LIMIT_MS);
-    }
-
-    window.AA_resetSessionTimer = resetTimers;
-
-    ['mousemove','keydown','click','scroll','touchstart'].forEach(function(evt) {
-      document.addEventListener(evt, resetTimers, { passive: true });
-    });
-
-    // Start timers once auth is ready
-    var pollAuth = setInterval(function() {
-      if (window.AA && window.AA.auth) {
-        clearInterval(pollAuth);
-        window.AA.auth.onAuthStateChanged(function(user) {
-          if (user) { resetTimers(); }
-          else { clearTimeout(warnTimer); clearTimeout(logoutTimer); hideWarning(); }
-        });
-      }
-    }, 300);
-  })();
   </script>
 <script src="/Academic-Allies/modular/js/draggable.js"></script>
 <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260301a"></script>
 <script src="/Academic-Allies/modular/js/status-circle.js?v=20260301a"></script>
   <!-- auth-system.js retired 2026-02-20 — was creating duplicate 'pending' user docs
        and conflicting with aa-firebase.js. Archived as archive/auth-system-RETIRED-*.js -->
-
-  <!-- Claude: compliance footer — 2026-03-03 -->
-  <footer id="aa-compliance-footer" style="text-align:center;padding:1.5rem;font-size:.8rem;color:#888;border-top:1px solid #eee;margin-top:2rem;">
-    Academic Allies &nbsp;·&nbsp; <a href="/Academic-Allies/modular/privacy.html">Privacy Policy</a> &nbsp;·&nbsp; &copy; 2026
-  </footer>
 </header>
 
 <style>

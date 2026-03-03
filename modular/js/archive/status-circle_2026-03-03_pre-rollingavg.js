@@ -41,9 +41,6 @@
   var DEV_KEY  = 'aa-status-dev';
   var VIEW_KEY = 'aa-status-view';  /* 'ring' | 'solid' */
 
-  /* Claude: number of past days to include in rolling average when today has no check-in */
-  var ROLLING_DAYS = 7;
-
   /* ── Runtime state ─────────────────────────────────────── */
   var _view         = 'ring';
   var _segData      = {};     /* { segmentName: colorHex } */
@@ -51,8 +48,6 @@
   var _unsubNope    = null;
   var _unsubDay     = null;
   var _lastCheckinTs = null;  /* Date | null — timestamp of latest check-in entry */
-  /* Claude: rolling average flag — true when displaying historical avg instead of today's data */
-  var _isRollingAvg = false;
 
   /* ── Day-of-week → eligible segments (0=Sun … 6=Sat) ───── */
   var DAY_SEGS = [
@@ -260,66 +255,6 @@
     return out;
   }
 
-  /* Claude: fetch recent entries from past ROLLING_DAYS for rolling average fallback */
-  function fetchRecentEntries(uid, todayDateKey) {
-    var now = new Date();
-    var entries = [];
-    var i;
-
-    /* Iterate backwards from yesterday, up to ROLLING_DAYS ago */
-    for (i = 1; i <= ROLLING_DAYS; i++) {
-      var d = new Date(now);
-      d.setDate(d.getDate() - i);
-      var dateKey = d.getFullYear() + '-' +
-                    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                    String(d.getDate()).padStart(2, '0');
-
-      /* Try to fetch from Firestore */
-      var docRef = window.AA.db
-        .collection('checkins').doc(uid)
-        .collection('days').doc(dateKey);
-
-      /* Synchronous attempt won't work; use async approach below */
-    }
-
-    /* Use Promise to fetch all days */
-    return Promise.all(
-      (function () {
-        var promises = [];
-        for (i = 1; i <= ROLLING_DAYS; i++) {
-          (function (dayIndex) {
-            var d = new Date(now);
-            d.setDate(d.getDate() - dayIndex);
-            var dateKey = d.getFullYear() + '-' +
-                          String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                          String(d.getDate()).padStart(2, '0');
-
-            var promise = window.AA.db
-              .collection('checkins').doc(uid)
-              .collection('days').doc(dateKey)
-              .get()
-              .then(function (doc) {
-                if (doc.exists && Array.isArray(doc.data().entries) && doc.data().entries.length > 0) {
-                  /* Return the last (most recent) entry from this day */
-                  return doc.data().entries[doc.data().entries.length - 1];
-                }
-                return null;
-              })
-              .catch(function () {
-                return null;
-              });
-
-            promises.push(promise);
-          })(i);
-        }
-        return promises;
-      })()
-    ).then(function (results) {
-      /* Filter out nulls and return non-null entries */
-      return results.filter(function (e) { return e !== null; });
-    });
-  }
-
   /* ── Banner: "Showing: [view] · Last check-in: [time]" ─── */
   /* Spec §8: always visible, non-intrusive, top-right below circle */
   function renderBanner() {
@@ -330,10 +265,7 @@
     if (_nope) viewLabel = 'NOPE mode';
 
     var timeLabel;
-    /* Claude: update banner text when showing rolling average */
-    if (_isRollingAvg) {
-      timeLabel = 'Avg of last ' + ROLLING_DAYS + ' days · No check-in today';
-    } else if (!_lastCheckinTs) {
+    if (!_lastCheckinTs) {
       timeLabel = 'No check-in today';
     } else {
       var now     = new Date();
@@ -370,39 +302,6 @@
     if (avg >= 2.5) return C.orange;
     if (avg >= 1.8) return C.yellow;
     return C.green;
-  }
-
-  /* Claude: build segData from rolling average of recent entries (multiple days) */
-  function fromRollingEntries(entriesArray) {
-    if (!entriesArray || !entriesArray.length) return {};
-
-    var out = {};
-
-    /* For each eligible segment, collect all non-null colors across all entries */
-    eligibleSegs().forEach(function (seg) {
-      var colors = [];
-      entriesArray.forEach(function (entry) {
-        var c = colorOf(seg, entry);
-        if (c !== null) colors.push(c);
-      });
-
-      /* If we have colors for this segment, average them */
-      if (colors.length > 0) {
-        var total = 0;
-        colors.forEach(function (col) {
-          total += (SCORE[col] || 1);
-        });
-        var avg = total / colors.length;
-
-        /* Map average score back to color */
-        if (avg >= 3.3) out[seg] = C.red;
-        else if (avg >= 2.5) out[seg] = C.orange;
-        else if (avg >= 1.8) out[seg] = C.yellow;
-        else out[seg] = C.green;
-      }
-    });
-
-    return out;
   }
 
   /* ── SVG donut ring builder ────────────────────────────── */
@@ -472,8 +371,6 @@
     el.style.animation  = '';
     el.style.background = 'transparent';
     el.innerHTML        = '';
-    /* Claude: dim opacity when showing rolling average instead of live data */
-    el.style.opacity    = _isRollingAvg ? '0.6' : '1';
 
     /* NOPE: always solid red, no segments */
     if (_nope) {
@@ -541,46 +438,8 @@
     try {
       var k   = _localDateKey();
       var raw = localStorage.getItem('checkins_' + k);
-      var entries = raw ? JSON.parse(raw) : [];
-
-      /* Claude: if today has entries, return them; else try rolling average from localStorage */
-      if (entries.length > 0) {
-        _isRollingAvg = false;
-        return fromEntries(entries);
-      }
-
-      /* No entries today — try to build rolling average from past days' localStorage */
-      var now = new Date();
-      var recentEntries = [];
-      var i;
-      for (i = 1; i <= ROLLING_DAYS; i++) {
-        var d = new Date(now);
-        d.setDate(d.getDate() - i);
-        var dateKey = d.getFullYear() + '-' +
-                      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                      String(d.getDate()).padStart(2, '0');
-        var dayRaw = localStorage.getItem('checkins_' + dateKey);
-        if (dayRaw) {
-          try {
-            var dayEntries = JSON.parse(dayRaw);
-            if (Array.isArray(dayEntries) && dayEntries.length > 0) {
-              recentEntries.push(dayEntries[dayEntries.length - 1]);
-            }
-          } catch (e) {}
-        }
-      }
-
-      if (recentEntries.length > 0) {
-        _isRollingAvg = true;
-        return fromRollingEntries(recentEntries);
-      }
-
-      _isRollingAvg = false;
-      return {};
-    } catch (e) {
-      _isRollingAvg = false;
-      return {};
-    }
+      return fromEntries(raw ? JSON.parse(raw) : []);
+    } catch (e) { return {}; }
   }
 
   function startWatching(user) {
@@ -593,13 +452,6 @@
       var bannerEl = document.getElementById('sc-banner');
       if (bannerEl) bannerEl.style.display = (role === 'student') ? 'none' : '';
     }).catch(function() {});
-
-    // Claude: audit log — call logAccess when viewing another student's data (mirror mode)
-    if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid) {
-      if (window.AA && window.AA.logAccess) {
-        window.AA.logAccess('read', window.AA_MIRROR_UID, 'checkin');
-      }
-    }
 
     teardown();
 
@@ -617,32 +469,11 @@
       .onSnapshot(function (doc) {
         var entries = (doc.exists && Array.isArray(doc.data().entries))
           ? doc.data().entries : [];
-
-        /* Claude: if today has check-ins, use them normally */
-        if (entries.length > 0) {
-          _segData = fromEntries(entries);
-          _isRollingAvg = false;
-          render();
-        } else {
-          /* Claude: no check-in today — fetch recent entries for rolling average */
-          fetchRecentEntries(uid, dateKey).then(function (recentEntries) {
-            _segData = fromRollingEntries(recentEntries);
-            _isRollingAvg = recentEntries.length > 0;
-            /* Only show rolling avg if we found recent data; otherwise empty is fine */
-            _lastCheckinTs = null;
-            render();
-          }).catch(function (err) {
-            console.warn('[status-circle] rolling average fetch failed:', err);
-            _segData = {};
-            _isRollingAvg = false;
-            _lastCheckinTs = null;
-            render();
-          });
-        }
+        _segData = fromEntries(entries);
+        render();
       }, function (err) {
         console.warn('[status-circle] checkin listener:', err);
         _segData = localData();
-        _isRollingAvg = false;
         render();
       });
   }
@@ -659,7 +490,6 @@
       var devC = devColorMap[dev];
       _nope = false;
       _segData = devC ? { 'Dev': devC } : {};
-      _isRollingAvg = false;
       render();
       return;
     }
@@ -676,7 +506,7 @@
           if (!user) {
             teardown();
             _nope = false;
-            _segData = localData();  /* localData() now sets _isRollingAvg */
+            _segData = localData();
             render();
             return;
           }
@@ -687,7 +517,7 @@
       /* Firebase unavailable after ~6 s — fall back to localStorage */
       if (tries > 20) {
         clearInterval(poll);
-        _segData = localData();  /* localData() now sets _isRollingAvg */
+        _segData = localData();
         render();
       }
     }, 300);

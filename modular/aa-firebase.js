@@ -617,6 +617,20 @@
       })
       .then(function () {
         console.log('[AA] Invite redeemed:', code, '→ network role:', inv.role, 'for', inv.studentUid);
+        // Claude: compliance — notify student when someone joins their network (FERPA)
+        // Write to /users/{studentUid}/notifications/{auto-id}
+        var displayName = user.displayName || user.email || 'Someone';
+        db.collection('users').doc(inv.studentUid)
+          .collection('notifications').add({
+            type: 'network_join',
+            message: displayName + ' joined your support network as ' + inv.role + '.',
+            joinedUid: user.uid,
+            role: inv.role,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            read: false
+          }).catch(function(err) {
+            console.warn('[AA] Failed to write network_join notification:', err);
+          });
         return { studentUid: inv.studentUid, role: inv.role, studentName: inv.studentName };
       });
     });
@@ -763,6 +777,29 @@
       }, function (err) {
         console.error('[AA] watchSpoonPlan error:', err);
       });
+  };
+
+  /* ── Audit Log — HIPAA compliance, logs PHI access ──────────────────────
+     Path: /auditLog/{auto-id}
+     Kept minimal: who, what, when. Not logged: actual data content.
+     Do not log self-access (owner reading own data) — log cross-user access only.
+     Added 2026-03-03 by Claude.
+  ─────────────────────────────────────────────────────────────────────── */
+  window.AA.logAccess = function(action, targetUid, dataType) {
+    var user = auth.currentUser;
+    if (!user) return;
+    // Claude: don't log self-access (owner reading own data) — log cross-user access only
+    if (user.uid === targetUid) return;
+    try {
+      db.collection('auditLog').add({
+        actorUid:   user.uid,
+        actorEmail: user.email || '',
+        targetUid:  targetUid,
+        dataType:   dataType,   // e.g. 'checkin', 'mealLog', 'spoonPlan'
+        action:     action,     // e.g. 'read', 'write'
+        timestamp:  firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(function() {}); // non-blocking, never throw
+    } catch(e) {}
   };
 
   console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);

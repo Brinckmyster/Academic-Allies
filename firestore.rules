@@ -289,5 +289,26 @@ service cloud.firestore {
       }
     }
 
+    // ── Notifications (per-user inbox) ────────────────────────────
+    // Stored under /users/{uid}/notifications/{notifId}
+    // Compliance: notify students when someone joins their network (FERPA audit trail)
+    // Added 2026-03-03 by Claude
+    match /users/{uid}/notifications/{notifId} {
+      // Claude: owner + backstage manager can read/delete notifications
+      allow read, delete: if isOwner(uid) || isBackstageManager();
+      // Claude: any signed-in user can write a notification to any user
+      allow create: if isSignedIn();
+    }
+
+    // ── Audit Log — append-only, admin-read only ──────────────────
+    // Path: /auditLog/{logId}
+    // Tracks PHI access: who, what, when. Not: actual data content.
+    // Added 2026-03-03 by Claude
+    match /auditLog/{logId} {
+      allow read: if isBackstageManager();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
   }
 }
