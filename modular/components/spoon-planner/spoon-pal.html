@@ -296,13 +296,13 @@
     </div>
   </div>
 
-  <!-- Templates Management Modal -->
+  <!-- Claude: BUG #8 FIX — Templates Management Modal (Day Templates Only) -->
   <div id="templateModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="templateModalTitle">
     <div class="modal-content">
       <button class="modal-close" id="templateModalClose" aria-label="Close modal">&times;</button>
-      <h2 id="templateModalTitle">Manage Templates</h2>
-      <button id="addTemplateBtn" type="button" style="margin-bottom: 1rem;">Add New Task Template</button>
-      <div id="templateList" aria-label="List of editable templates">
+      <h2 id="templateModalTitle">Day Templates</h2>
+      <button id="addTemplateBtn" type="button" style="margin-bottom: 1rem;">New Template (Clone Normal Day)</button>
+      <div id="templateList" aria-label="List of day templates">
         <!-- Populated dynamically -->
       </div>
     </div>
@@ -457,12 +457,9 @@
   let currentUid = null;  // set by Firebase auth
   // Claude: BUG #1 FIX — flag to prevent auto-save during initial load cycle
   let isInitialLoad = true;
+  // Claude: BUG #8 FIX — Day templates only; individual task templates removed
+  // All task quick-add functionality moved to LMJ Code buttons in Normal Day
   let templates = {
-    'Word Connect':  {type: 'task', emoji: '🔗', desc: 'Word Connect Streak Saver',  defaultCost: 1, priority: 'High', fixed: false},
-    'NightCafe':     {type: 'task', emoji: '🎨', desc: 'NightCafe Streak Saver',      defaultCost: 1, priority: 'High', fixed: false},
-    'Duolingo':      {type: 'task', emoji: '🦉', desc: 'Duolingo Streak Saver',       defaultCost: 1, priority: 'High', fixed: false},
-    'ASL':           {type: 'task', emoji: '🤟', desc: 'ASL Streak Saver',            defaultCost: 1, priority: 'High', fixed: false},
-    'Lingo Legend':  {type: 'task', emoji: '🦙', desc: 'Lingo Legend Streak Saver',   defaultCost: 1, priority: 'High', fixed: false},
     'Monday': {type: 'day', tasks: [
       {time: '8:30 AM', lmj: 'A',  description: 'Bathroom/CPAP cleaning',      spoon: 1, priority: 'High', fixed: true,  status: 'incomplete', notes: 'Essential start, sanitize CPAP'},
       {time: '9:00 AM', lmj: 'B',  description: 'Family scriptures & breakfast', spoon: 1, priority: 'High', fixed: true,  status: 'incomplete', notes: 'PB/fruit, hydrate with meal'},
@@ -768,33 +765,55 @@
   }
 
   // Claude: BUG #5 FIX — template picker now shows ONLY day templates
+  // Claude: BUG #8 FIX — renderTemplateList shows day templates only, Normal Day protected
   function renderTemplateList() {
     const list = document.getElementById('templateList');
     list.innerHTML = '';
 
-    // Fix #4: Show protected Normal Day template first (no delete, copy only)
+    // BUG #8: Show protected Normal Day template first (copy button only, no edit/delete)
     const ndItem = document.createElement('div');
     ndItem.classList.add('template-item');
-    ndItem.innerHTML = `<span>🔒 <strong>Normal Day</strong> — Day template (protected)</span>`;
+    ndItem.innerHTML = `<span>🔒 <strong>Normal Day</strong> — Day template<br><small>Protected — copy to customize</small></span>`;
     const ndCopyBtn = document.createElement('button');
-    ndCopyBtn.textContent = 'Duplicate';
+    ndCopyBtn.textContent = 'Copy';
     ndCopyBtn.style.background = '#28a745';
     ndCopyBtn.onclick = () => duplicateNormalDay();
     ndItem.appendChild(ndCopyBtn);
     list.appendChild(ndItem);
 
-    // User day templates only (filter out individual task templates)
+    // BUG #8: User day templates only (filter out any individual task templates)
     for (const key in templates) {
       const temp = templates[key];
       const isDay = temp.type === 'day' || !!temp.tasks;
 
-      // Claude: BUG #5 — skip individual task templates, only show day templates
+      // Skip individual task templates (type === 'task'), show only day templates
       if (!isDay) continue;
 
       const item = document.createElement('div');
       item.classList.add('template-item');
       const label = `📅 ${key} — Day template (${(temp.tasks || []).length} tasks)`;
       item.innerHTML = `<span>${label}</span>`;
+
+      // Edit button (for user templates, not locked templates)
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.style.background = '#007bff';
+      editBtn.onclick = () => openLoadDayModal(); // User can load and modify
+      item.appendChild(editBtn);
+
+      // Delete button
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.style.background = '#d9534f';
+      delBtn.onclick = () => {
+        if (confirm(`Delete "${key}"?`)) {
+          delete templates[key];
+          saveData();
+          renderTemplateList();
+        }
+      };
+      item.appendChild(delBtn);
+
       list.appendChild(item);
     }
   }
@@ -980,27 +999,130 @@
     closeLoadDayModal();
   }
 
-  // ── Fix #5: Day rollover ──────────────────────────────────────────────────────
+  // ── Claude: BUG #7 FIX — findNextAvailableSlot helper ──────────────────────────
+  // Finds the first 30-minute window with no task in existingTasks array
+  // Returns time string like "10:00 AM", or fallback if all slots occupied
+  function findNextAvailableSlot(existingTasks, startHour = 9) {
+    // Convert time string "HH:MM AM/PM" to minutes since midnight
+    function timeToMinutes(timeStr) {
+      const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (!match) return null;
+      let h = parseInt(match[1]);
+      const m = parseInt(match[2]);
+      const period = match[3].toUpperCase();
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return h * 60 + m;
+    }
+
+    // Convert minutes since midnight back to time string
+    function minutesToTime(mins) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      const period = h >= 12 ? 'PM' : 'AM';
+      const displayH = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+      return `${displayH}:${pad(m)} ${period}`;
+    }
+
+    // Build set of occupied 30-min slots
+    const occupiedSlots = new Set();
+    for (const task of existingTasks) {
+      const mins = timeToMinutes(task.time);
+      if (mins !== null) occupiedSlots.add(mins);
+    }
+
+    // Search from startHour to 22:00 (10pm) in 30-min increments
+    for (let mins = startHour * 60; mins <= 22 * 60; mins += 30) {
+      if (!occupiedSlots.has(mins)) {
+        return minutesToTime(mins);
+      }
+    }
+
+    // Fallback: all slots occupied, return 10:00 PM
+    return '10:00 PM';
+  }
+
+  // ── Claude: BUG #7 FIX — Day rollover with carry-forward and spoon debt tracking ──
   function rolloverDay() {
     const dateKey = getTodayKey();
-    // Archive current day to Firestore subcollection spoonPal/{uid}/days/{dateKey}
+
+    // A. ARCHIVE: Save current day to Firestore before clearing
+    const endOfDayBalance = calculateEndOfDayBalance();
+    const borrowedSpoons = Math.max(0, -endOfDayBalance);
+
     if (window.AA && window.AA.db && currentUid) {
+      // Claude: Archive full snapshot to subcollection spoonPal/{uid}/days/{dateKey}
       window.AA.db.collection('spoonPal').doc(currentUid).collection('days').doc(dateKey).set({
         timeline,
         checkIn,
         spoonDebtHistory,
+        endOfDayBalance,
+        borrowedSpoons,
+        dailyBudget: calculateDailyBudget(),
+        dateKey,
         archivedAt: new Date().toISOString()
       }).catch(err => console.error('[SpoonPal] Rollover archive error:', err));
     }
-    // Reset for new day
-    timeline = [];
+
+    // B. TASK CARRY-FORWARD: Only keep non-complete tasks, assign new times
+    const carryForwardTasks = timeline.filter(t => t.status !== 'complete');
+    timeline = carryForwardTasks.map(t => {
+      const newTime = findNextAvailableSlot(timeline, 9);
+      return {
+        ...t,
+        time: newTime,
+        status: 'incomplete' // Reset to incomplete for new day
+      };
+    });
+
+    // C. NEW DAY INIT: Set borrowed spoons flag on new day
+    if (borrowedSpoons > 0) {
+      // Store borrowed spoons at day level (would be persisted in saveData)
+      // Note: display happens in calculateSpoons()
+      spoonDebtHistory.push({
+        date: new Date().toDateString(),
+        base: 0,
+        spent: 0,
+        depletion: 0,
+        borrowedFromPrevDay: borrowedSpoons
+      });
+    }
+
+    // Recalculate for new day (show borrowed spoon warning if applicable)
     calculateSpoons();
     renderTimeline();
     saveData();
-    // Prompt to load tomorrow's template
-    if (confirm('Day complete! 🎉 Load tomorrow\'s template?')) {
+
+    // D. PROMPT: Offer to load template
+    if (confirm('🎉 Day rolled over! Carried forward ' + carryForwardTasks.length + ' task(s).' +
+                (borrowedSpoons > 0 ? `\n⚠️ ${borrowedSpoons} borrowed spoon(s) from yesterday.\n\n` : '\n\n') +
+                'Load a day template for today?')) {
       openLoadDayModal();
     }
+  }
+
+  // Claude: Helper to calculate end-of-day spoon balance
+  function calculateEndOfDayBalance() {
+    const dailyBudget = calculateDailyBudget();
+    const totalSpent = timeline.reduce((acc, t) => {
+      if (t.status === 'complete') return acc + (t.spoon || 0);
+      else if (t.status === 'partial') return acc + (t.spoon || 0) / 2;
+      return acc;
+    }, 0);
+    return dailyBudget - totalSpent;
+  }
+
+  // Claude: Helper to calculate daily budget (without borrowed deduction)
+  function calculateDailyBudget() {
+    let base = 20;
+    base -= Math.max(0, checkIn.pain - 5);
+    base -= Math.max(0, checkIn.fatigue - 5);
+    if (checkIn.sleep < 7) base -= 2 * (7 - checkIn.sleep);
+    else if (checkIn.sleep > 9) base += Math.min(3, checkIn.sleep - 9);
+    const moodAdj = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
+    base += moodAdj[checkIn.mood] || 0;
+    base += weather.impact || 0;
+    return Math.max(1, base);
   }
 
   // ── Save/load — Firestore-backed (Claude / aa-firebase.js integration) ─────────
@@ -1236,7 +1358,8 @@
     document.getElementById('loadDayModalClose').onclick = closeLoadDayModal;
     document.getElementById('taskForm').onsubmit = saveTask;
     document.getElementById('templateForm').onsubmit = saveTemplate;
-    document.getElementById('addTemplateBtn').onclick = () => openTemplateEdit(null);
+    // Claude: BUG #8 — "New Template" button now clones Normal Day instead of blank template
+    document.getElementById('addTemplateBtn').onclick = duplicateNormalDay;
     document.getElementById('deleteTemplateBtn').onclick = deleteTemplate;
     document.getElementById('deleteTaskBtn').onclick = () => deleteTask(selectedIndex);
     document.getElementById('taskTemplateSelect').onchange = (e) => applyTemplate(e.target.value);
