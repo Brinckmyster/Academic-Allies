@@ -132,6 +132,26 @@
     .template-item { border-bottom: 1px solid #eee; padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
     .template-item span { flex: 1; font-size: 14px; }
     .emoji-preview { font-size: 1.5em; min-height: 1.8em; margin-top: 0.4rem; padding: 0.25rem 0; }
+
+    /* Claude: Toast notification for auto-reschedule events */
+    .sp-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #333;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      font-size: 14px;
+      z-index: 10000;
+      animation: sp-toast-fadeout 3s ease-in-out forwards;
+    }
+    @keyframes sp-toast-fadeout {
+      0% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -446,6 +466,11 @@
     interrupted: '🚧', skipped: '❌', rescheduled: '🔄'
   };
 
+  // Claude: Auto-reschedule grace period before overdue tasks are rescheduled
+  const RESCHEDULE_GRACE_SECONDS = 5;
+  // Claude: Tracks setTimeout IDs for pending auto-reschedules, keyed by task index
+  const rescheduleTimers = {};
+
   // Variables
   let timeline = [];
   let checkIn = {pain: 7, fatigue: 5, sleep: 8.33, mood: 'poor'};
@@ -685,6 +710,8 @@
   function openTaskModal(index) {
     selectedIndex = index;
     const task = timeline[index];
+    // Claude: Cancel pending auto-reschedule on user interaction
+    cancelAutoReschedule(index);
     // Fix #1: populate only task-type templates in the select
     populateTemplateSelect('taskTemplateSelect');
     document.getElementById('taskTemplateSelect').value = '';
@@ -1044,6 +1071,11 @@
 
   // ── Claude: BUG #7 FIX — Day rollover with carry-forward and spoon debt tracking ──
   function rolloverDay() {
+    // Claude: Clear all pending auto-reschedule timers on day rollover
+    for (const idx in rescheduleTimers) {
+      cancelAutoReschedule(parseInt(idx));
+    }
+
     const dateKey = getTodayKey();
 
     // A. ARCHIVE: Save current day to Firestore before clearing
@@ -1123,6 +1155,93 @@
     base += moodAdj[checkIn.mood] || 0;
     base += weather.impact || 0;
     return Math.max(1, base);
+  }
+
+  // ── Claude: Auto-reschedule overdue tasks ──────────────────────────────────────
+  // Schedules auto-reschedule for an overdue task after a grace period.
+  // If already pending, does nothing (don't reset unless explicitly cancelled).
+  function scheduleAutoReschedule(taskIndex) {
+    if (taskIndex < 0 || taskIndex >= timeline.length) return;
+    const task = timeline[taskIndex];
+
+    // Only reschedule incomplete tasks
+    if (task.status !== 'incomplete') return;
+
+    // Check if task is overdue (scheduled time < now)
+    const now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
+    let taskTime = parseTime(task.time);
+    if (taskTime < dayStart * 60) taskTime += 1440; // adjust for past times
+    if (taskTime >= now) return; // not overdue
+
+    // If timer already pending for this task, don't schedule again
+    if (rescheduleTimers[taskIndex] !== undefined) return;
+
+    // Schedule auto-reschedule after grace period
+    rescheduleTimers[taskIndex] = setTimeout(function() {
+      if (taskIndex >= 0 && taskIndex < timeline.length && timeline[taskIndex].status === 'incomplete') {
+        const oldTime = timeline[taskIndex].time;
+        const newTime = findNextAvailableSlot(timeline, 9);
+
+        // Only reschedule if new time is different
+        if (newTime !== oldTime) {
+          timeline[taskIndex].time = newTime;
+          timeline[taskIndex].status = 'rescheduled';
+          calculateSpoons();
+          renderTimeline();
+          saveData();
+
+          // Show toast notification
+          showToast(`⏰ ${stripLeadingEmoji(timeline[taskIndex].description)} rescheduled to ${newTime}`);
+        }
+      }
+      delete rescheduleTimers[taskIndex];
+    }, RESCHEDULE_GRACE_SECONDS * 1000);
+  }
+
+  // Claude: Cancels pending auto-reschedule for a task (e.g., on user interaction).
+  function cancelAutoReschedule(taskIndex) {
+    if (rescheduleTimers[taskIndex] !== undefined) {
+      clearTimeout(rescheduleTimers[taskIndex]);
+      delete rescheduleTimers[taskIndex];
+    }
+  }
+
+  // Claude: Polling loop to detect overdue tasks and queue auto-reschedule.
+  // Runs every 30 seconds (not too aggressive).
+  function startOverdueCheck() {
+    setInterval(function() {
+      if (!timeline || timeline.length === 0) return;
+
+      for (let i = 0; i < timeline.length; i++) {
+        const task = timeline[i];
+
+        // Skip non-incomplete tasks
+        if (task.status !== 'incomplete') continue;
+
+        // Check if overdue
+        const now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
+        let taskTime = parseTime(task.time);
+        if (taskTime < dayStart * 60) taskTime += 1440;
+
+        // If overdue and no timer pending, schedule auto-reschedule
+        if (taskTime < now && rescheduleTimers[i] === undefined) {
+          scheduleAutoReschedule(i);
+        }
+      }
+    }, 30000); // 30 second interval
+  }
+
+  // Claude: Shows a non-blocking toast notification for auto-reschedule events.
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'sp-toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // Auto-remove after animation completes
+    setTimeout(function() {
+      toast.remove();
+    }, 3000);
   }
 
   // ── Save/load — Firestore-backed (Claude / aa-firebase.js integration) ─────────
@@ -1346,6 +1465,9 @@
     renderLegend();
     document.getElementById('timestamp').textContent = new Date().toLocaleString();
     setInterval(() => document.getElementById('timestamp').textContent = new Date().toLocaleString(), 60000);
+
+    // Claude: Start auto-reschedule polling loop
+    startOverdueCheck();
 
     // Event listeners
     document.getElementById('addTaskBtn').onclick = addTask;
