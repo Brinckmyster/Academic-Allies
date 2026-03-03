@@ -179,14 +179,6 @@
     <!-- NC contacts -->
     <div class="contacts-panel">
       <div class="contacts-header">🌐 Network Chat</div>
-      <!-- Claude: BUG #9 FIX — Support user student selector dropdown (2026-03-03) -->
-      <div id="nc-student-picker-wrap" style="display:none;padding:10px 14px;border-bottom:1px solid #e1e5e9;background:#f0f8f8;">
-        <label for="nc-student-select" style="display:block;font-weight:600;font-size:0.75rem;color:#4a7f82;margin-bottom:6px;">Select Student:</label>
-        <select id="nc-student-select" style="width:100%;padding:6px 8px;border:1px solid #b2d4d7;border-radius:4px;font-size:0.85rem;background:#fff;" onchange="switchNcStudent(this.value)">
-          <option value="">— loading students —</option>
-        </select>
-        <div id="nc-student-empty" style="display:none;padding:8px 0;font-size:0.8rem;color:#aaa;">No students assigned yet.</div>
-      </div>
       <div class="contact-list" id="nc-contact-list">
         <div style="padding:20px 14px;font-size:0.85rem;color:#aaa;">Loading…</div>
       </div>
@@ -299,10 +291,6 @@
         var myRole = data.role || 'student';
         _currentUserRole = myRole; // store so sendMessage() can check it
         setupTabs(myRole);
-        // Claude: BUG #9 FIX — populate student dropdown for support/network-lead roles (2026-03-03)
-        if (myRole !== 'student' && myRole !== 'backstage-manager') {
-          populateNcStudentDropdown();
-        }
 
         if (myRole === 'backstage-manager') {
           /* Backstage Manager sees students only — support/family/nearby-help have no reason
@@ -319,8 +307,7 @@
             watchThreads();
             document.getElementById('msg-loading').style.display = 'none';
             document.getElementById('msg-layout').style.display  = 'flex';
-            // Claude: BUG #9 FIX — backstage-manager also needs student dropdown for Network Chat (2026-03-03)
-            populateNcStudentDropdown();
+            loadNetworkChat();
           }).catch(function(err) {
             document.getElementById('msg-loading').textContent = 'Error loading users: ' + err.message;
           });
@@ -390,8 +377,7 @@
                 watchThreads();
                 document.getElementById('msg-loading').style.display = 'none';
                 document.getElementById('msg-layout').style.display  = 'flex';
-                // Claude: BUG #9 FIX — initialize Network Chat student dropdown on load (2026-03-03)
-                // populateNcStudentDropdown() is called from loadContacts() before this
+                loadNetworkChat();
               });
             });
           }).catch(function(err) {
@@ -707,89 +693,16 @@
       document.getElementById('nc-layout').style.display  = showMy ? 'none' : 'flex';
     }
 
-    /* Claude: BUG #9 FIX — populate student dropdown for support/network-lead/backstage-manager roles (2026-03-03) */
-    function populateNcStudentDropdown() {
-      var pickerWrap = document.getElementById('nc-student-picker-wrap');
-      var sel = document.getElementById('nc-student-select');
-      var isEmpty = document.getElementById('nc-student-empty');
-
-      if (_currentUserRole === 'student') {
-        pickerWrap.style.display = 'none';
-        return;
-      }
-
-      /* Query all students linked to this user */
-      var currentUid = currentUser.uid;
-      AA.db.collection('users').get().then(function (snap) {
-        var linkedStudents = [];
-        snap.forEach(function (doc) {
-          var d = doc.data();
-          if (d.role === 'student' && d.supportNetwork && d.supportNetwork[currentUid]) {
-            linkedStudents.push({ uid: doc.id, name: d.displayName || d.email || 'Unknown' });
-          }
-        });
-
-        if (linkedStudents.length === 0) {
-          isEmpty.style.display = 'block';
-          sel.style.display = 'none';
-          return;
-        }
-
-        isEmpty.style.display = 'none';
-        sel.innerHTML = '<option value="">— select a student —</option>';
-
-        /* Sort by name for readability */
-        linkedStudents.sort(function (a, b) { return a.name.localeCompare(b.name); });
-
-        linkedStudents.forEach(function (s) {
-          var opt = document.createElement('option');
-          opt.value = s.uid;
-          opt.textContent = s.name;
-          sel.appendChild(opt);
-        });
-
-        /* If only one student: auto-select and load their chat */
-        if (linkedStudents.length === 1) {
-          ncStudentUid = linkedStudents[0].uid;
-          sel.value = ncStudentUid;
-          sel.disabled = true;
-          loadNetworkChat();
-        } else {
-          sel.style.display = 'block';
-          /* Leave placeholder showing until user selects */
-        }
-
-        pickerWrap.style.display = 'block';
-      }).catch(function (err) {
-        console.error('[AA] populateNcStudentDropdown error:', err);
-      });
-    }
-
-    /* Claude: BUG #9 FIX — switch active student in Network Chat dropdown (2026-03-03) */
-    function switchNcStudent(studentUid) {
-      if (!studentUid) {
-        var ncList = document.getElementById('nc-contact-list');
-        ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">Please select a student to view their network chat.</div>';
-        ncStudentUid = null;
-        return;
-      }
-      ncStudentUid = studentUid;
-      loadNetworkChat();
-    }
-
     /* Load Network Chat contacts for the active student's network */
     function loadNetworkChat() {
+      /* Read student UID from mirror session cache */
+      var mirrorCache = null;
+      try { mirrorCache = JSON.parse(sessionStorage.getItem('aa-mirror') || 'null'); } catch (e) {}
+      ncStudentUid = (mirrorCache && mirrorCache.studentUid) || window.AA_MIRROR_UID || null;
+
       var ncList = document.getElementById('nc-contact-list');
-
-      /* Read student UID from mirror session cache (for student role) or dropdown selection (support roles) */
       if (!ncStudentUid) {
-        var mirrorCache = null;
-        try { mirrorCache = JSON.parse(sessionStorage.getItem('aa-mirror') || 'null'); } catch (e) {}
-        ncStudentUid = (mirrorCache && mirrorCache.studentUid) || window.AA_MIRROR_UID || null;
-      }
-
-      if (!ncStudentUid) {
-        ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">⚠️ No student selected.<br>Use the dropdown above to pick a student first.</div>';
+        ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">No student selected.<br>Use the header dropdown to pick a student first.</div>';
         return;
       }
 
@@ -812,19 +725,10 @@
 
       /* Fetch the student's supportNetwork for DM contacts */
       AA.getUserDoc(ncStudentUid).then(function (doc) {
-        if (!doc.exists) {
-          ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">Student not found or has no network.</div>';
-          return;
-        }
+        if (!doc.exists) return;
         var network  = doc.data().supportNetwork || {};
         var peerUids = Object.keys(network).filter(function (uid) { return uid !== currentUser.uid; });
-        if (!peerUids.length) {
-          var emptyMsg = document.createElement('div');
-          emptyMsg.style.cssText = 'padding:16px 14px;font-size:0.85rem;color:#aaa;';
-          emptyMsg.textContent = 'This student has no support network members.';
-          ncList.appendChild(emptyMsg);
-          return;
-        }
+        if (!peerUids.length) return;
 
         var fetches = peerUids.map(function (uid) {
           return AA.getUserDoc(uid).then(function (d) {
@@ -854,9 +758,6 @@
             ncList.appendChild(item);
           });
         });
-      }).catch(function (err) {
-        console.error('[AA] loadNetworkChat error:', err);
-        ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">Error loading network: ' + esc(err.message) + '</div>';
       });
     }
 
@@ -911,13 +812,8 @@
 
     /* Send a Network Chat message */
     // Claude: BUG #6 FIX — Network Chat messaging for support, network-lead, and other non-student roles
-    // Claude: BUG #9 FIX — Guard against null ncStudentUid with user-facing error message (2026-03-03)
     function sendNcMessage() {
-      if (!ncStudentUid) {
-        alert('Please select a student from the dropdown before sending messages.');
-        return;
-      }
-      if (!ncActiveThread) return;
+      if (!ncStudentUid || !ncActiveThread) return;
       var ta   = document.getElementById('nc-compose-text');
       var text = ta.value.trim();
       if (!text) return;
