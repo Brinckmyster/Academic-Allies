@@ -459,23 +459,9 @@
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      // Claude: timeout guard — if save hangs >10s (offline, permission denied silently), show error
-      var saveResolved = false;
-      var saveTimer = setTimeout(function() {
-        if (!saveResolved) {
-          saveResolved = true;
-          recordStatus.textContent = 'Save failed — check connection';
-          showToast('Save timed out — check your internet connection');
-          console.error('[AudioNotes] Firestore save timed out after 10s');
-        }
-      }, 10000);
-
       window.AA.db.collection('audioNotes').doc(writeUid)
         .collection('notes').add(noteData)
         .then(function() {
-          if (saveResolved) return; // Claude: timeout already fired, don't double-update
-          saveResolved = true;
-          clearTimeout(saveTimer);
           showToast('Note saved');
           recordStatus.textContent = 'Tap to start recording';
           liveTranscript.style.display = 'none';
@@ -487,11 +473,7 @@
           recordingAddress = null;
         })
         .catch(function(err) {
-          if (saveResolved) return;
-          saveResolved = true;
-          clearTimeout(saveTimer);
-          recordStatus.textContent = 'Save failed — tap mic to try again';
-          showToast('Error saving note: ' + (err.code || err.message || 'unknown'));
+          showToast('Error saving note');
           console.error('[AudioNotes] Firestore save error:', err);
         });
     }
