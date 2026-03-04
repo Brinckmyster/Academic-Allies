@@ -629,10 +629,20 @@
         document.getElementById('signin-notice').style.display = 'none';
         document.getElementById('main-body').style.display = 'block';
 
-        // Claude: audio notes are personal to the recorder — always use own UID,
-        // ignore AA_MIRROR_UID entirely. No mirror mode for this component.
         writeUid = user.uid;
-        readUid = user.uid;
+        readUid = window.AA_uid ? window.AA_uid(user.uid) : user.uid;
+        isMirror = (readUid !== writeUid);
+
+        // Claude: mirror mode — hide record, show banner
+        if (isMirror) {
+          document.getElementById('recordSection').style.display = 'none';
+          var studentName = (window.AA_MIRROR && window.AA_MIRROR.studentName) || 'student';
+          mirrorBanner.textContent = '👥 Viewing ' + studentName + "'s audio notes (read-only)";
+          mirrorBanner.style.display = 'block';
+        } else {
+          document.getElementById('recordSection').style.display = '';
+          mirrorBanner.style.display = 'none';
+        }
 
         watchNotes(readUid);
       });
