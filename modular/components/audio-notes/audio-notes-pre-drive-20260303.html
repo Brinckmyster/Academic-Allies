@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Audio Notes — Academic Allies</title>
   <link rel="icon" href="/Academic-Allies/favicon.ico">
-  <!-- Claude: Google Identity Services for Drive OAuth token (async, non-blocking) -->
-  <script src="https://accounts.google.com/gsi/client" async></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Atkinson Hyperlegible', Arial, sans-serif; background: #FAFAF9; color: #333; }
@@ -251,128 +249,6 @@
       return d.innerHTML;
     }
 
-    // ── Google Drive Upload ───────────────────────────────────────────────────
-    // Claude: upload recorded audio to user's Google Drive folder.
-    // Firebase Google Auth only grants profile+email scopes, so we need a
-    // separate drive.file-scoped token via Google Identity Services (GIS).
-    // GIS reuses the existing Google session — user consents to Drive once.
-    var GOOGLE_CLIENT_ID = '93996985456-ffj2euk9i4q41v88njuhpusk73mdb31j.apps.googleusercontent.com';
-    var DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
-    var DRIVE_FOLDER_NAME = 'Academic Allies Audio Notes';
-    var driveToken = null;        // cached OAuth token for the session
-    var driveFolderId = null;     // cached Drive folder ID for the session
-    var driveTokenClient = null;
-    var recordingMimeType = 'audio/webm'; // Claude: captured from MediaRecorder on start
-
-    function getDriveToken() {
-      return new Promise(function(resolve, reject) {
-        if (driveToken) { resolve(driveToken); return; }
-        if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-          reject(new Error('Google Identity Services not loaded'));
-          return;
-        }
-        if (!driveTokenClient) {
-          var userEmail = (window.AA.auth.currentUser && window.AA.auth.currentUser.email) || '';
-          driveTokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: GOOGLE_CLIENT_ID,
-            scope: DRIVE_SCOPE,
-            hint: userEmail,    // Claude: pre-select the signed-in Google account
-            callback: function() {} // overridden per-call below
-          });
-        }
-        driveTokenClient.callback = function(resp) {
-          if (resp.error) {
-            console.error('[AudioNotes] Drive auth error:', resp.error);
-            reject(new Error('Drive auth: ' + resp.error));
-            return;
-          }
-          driveToken = resp.access_token;
-          resolve(driveToken);
-        };
-        driveTokenClient.requestAccessToken({ prompt: '' });
-      });
-    }
-
-    function getOrCreateDriveFolder(token) {
-      if (driveFolderId) return Promise.resolve(driveFolderId);
-      var q = encodeURIComponent("name='" + DRIVE_FOLDER_NAME + "' and mimeType='application/vnd.google-apps.folder' and trashed=false");
-      return fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.files && data.files.length > 0) {
-          driveFolderId = data.files[0].id;
-          return driveFolderId;
-        }
-        // Claude: folder doesn't exist — create it
-        return fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: DRIVE_FOLDER_NAME,
-            mimeType: 'application/vnd.google-apps.folder'
-          })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(f) { driveFolderId = f.id; return driveFolderId; });
-      });
-    }
-
-    function uploadFileToDrive(token, folderId, blob, filename) {
-      // Claude: multipart/related upload — metadata + audio in one request
-      var boundary = 'aa_audio_' + Date.now();
-      var mimeType = blob.type || recordingMimeType || 'audio/webm';
-      var metadata = JSON.stringify({
-        name: filename,
-        parents: [folderId],
-        mimeType: mimeType
-      });
-      var body = new Blob([
-        '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',
-        metadata,
-        '\r\n--' + boundary + '\r\nContent-Type: ' + mimeType + '\r\n\r\n',
-        blob,
-        '\r\n--' + boundary + '--'
-      ]);
-      return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + token,
-          'Content-Type': 'multipart/related; boundary=' + boundary
-        },
-        body: body
-      })
-      .then(function(r) {
-        if (r.status === 401) {
-          driveToken = null; // Claude: token expired — clear cache for next attempt
-          throw new Error('Drive token expired');
-        }
-        if (!r.ok) throw new Error('Drive upload HTTP ' + r.status);
-        return r.json();
-      });
-    }
-
-    // Claude: best-effort Drive upload — returns {id, webViewLink} or null on failure
-    function attemptDriveUpload(blob) {
-      return getDriveToken()
-        .then(function(token) {
-          return getOrCreateDriveFolder(token).then(function(folderId) {
-            var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            var ext = (recordingMimeType.indexOf('webm') !== -1) ? 'webm' : 'ogg';
-            var filename = 'audio-note-' + ts + '.' + ext;
-            return uploadFileToDrive(token, folderId, blob, filename);
-          });
-        })
-        .catch(function(err) {
-          console.warn('[AudioNotes] Drive upload failed:', err);
-          return null;
-        });
-    }
-
     // ── Speech Recognition ─────────────────────────────────────────────────────
     // Claude: mobile Chrome fix — Speech Recognition stops after each utterance on
     // mobile and resets its results array on restart. We accumulate all final results
@@ -548,7 +424,6 @@
             stream.getTracks().forEach(function(t) { t.stop(); });
           };
           mediaRecorder.start();
-          recordingMimeType = mediaRecorder.mimeType || 'audio/webm';
           recordStartTime = Date.now();
 
           recordBtn.textContent = '⏹️';
@@ -611,8 +486,6 @@
     };
 
     // ── Save note ──────────────────────────────────────────────────────────────
-    // Claude: flow is: build blob → upload to Drive → save metadata to Firebase.
-    // If Drive upload fails, still saves to Firebase with null driveLink.
     function saveNote(category) {
       var duration = Math.round((Date.now() - (recordStartTime || Date.now())) / 1000);
       var localTime = new Date().toLocaleString();
@@ -620,68 +493,68 @@
       var finalTranscript = transcript.trim() || '';
       var gps = recordingGps ? { lat: recordingGps.lat, lng: recordingGps.lng } : null;
 
+      recordStatus.textContent = 'Saving…';
+
+      // TODO: future — upload audio blob to Google Drive here before saving to Firebase.
+      //   Use Google Drive API with scope 'https://www.googleapis.com/auth/drive.file'.
+      //   Save driveFileId + driveLink to the note doc.
+      //   See archive/audio-notes-pre-mvp-20260303.html for the full Drive upload implementation.
+
       // TODO: future — integrate Otter.ai or OpenAI Whisper API for higher-quality
       //   transcription as a fallback/upgrade from Web Speech API.
+      //   Web Speech API is free but Chrome-only and requires internet.
+      //   Whisper API handles offline recordings and non-English languages.
 
-      // Claude: build audio blob for Google Drive upload
-      var audioBlob = new Blob(audioChunks, { type: recordingMimeType });
+      var noteData = {
+        transcript: finalTranscript,
+        localTime: localTime,
+        gps: gps,
+        address: recordingAddress || null,
+        category: category,
+        duration: duration,
+        driveFileId: null,    // TODO: populate when Drive upload is added
+        driveLink: null,      // TODO: populate when Drive upload is added
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      };
 
-      recordStatus.textContent = 'Uploading to Drive…';
+      // Claude: timeout guard — if save hangs >10s (offline, permission denied silently), show error
+      var saveResolved = false;
+      var saveTimer = setTimeout(function() {
+        if (!saveResolved) {
+          saveResolved = true;
+          recordStatus.textContent = 'Save failed — timed out after 10s. Check connection.';
+          showToast('Save timed out — check your internet connection', 10000);
+          console.error('[AudioNotes] Firestore save timed out after 10s. writeUid:', writeUid);
+        }
+      }, 10000);
 
-      // Claude: attempt Drive upload first, then save to Firebase (with or without Drive link)
-      attemptDriveUpload(audioBlob).then(function(driveResult) {
-        recordStatus.textContent = driveResult ? 'Saving note…' : 'Saving (no Drive link)…';
-
-        var noteData = {
-          transcript: finalTranscript,
-          localTime: localTime,
-          gps: gps,
-          address: recordingAddress || null,
-          category: category,
-          duration: duration,
-          driveFileId: driveResult ? driveResult.id : null,
-          driveLink: driveResult ? driveResult.webViewLink : null,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        // Claude: timeout guard — if save hangs >10s, show error
-        var saveResolved = false;
-        var saveTimer = setTimeout(function() {
-          if (!saveResolved) {
-            saveResolved = true;
-            recordStatus.textContent = 'Save failed — timed out after 10s. Check connection.';
-            showToast('Save timed out — check your internet connection', 10000);
-            console.error('[AudioNotes] Firestore save timed out after 10s. writeUid:', writeUid);
-          }
-        }, 10000);
-
-        window.AA.db.collection('audioNotes').doc(writeUid)
-          .collection('notes').add(noteData)
-          .then(function() {
-            if (saveResolved) return;
-            saveResolved = true;
-            clearTimeout(saveTimer);
-            showToast(driveResult ? 'Note saved with audio' : 'Note saved');
-            recordStatus.textContent = 'Tap to start recording';
-            liveTranscript.style.display = 'none';
-            speechWarning.style.display = 'none';
-            gpsStatusEl.textContent = '';
-            audioChunks = [];
-            transcript = '';
-            interimText = '';
-            recordingAddress = null;
-          })
-          .catch(function(err) {
-            if (saveResolved) return;
-            saveResolved = true;
-            clearTimeout(saveTimer);
-            var errText = err.code ? err.code + ': ' + (err.message || '') : (err.message || String(err));
-            recordStatus.textContent = 'Save failed — ' + errText;
-            showToast('Error: ' + errText, 10000);
-            console.error('[AudioNotes] Firestore save error:', err);
-            console.error('[AudioNotes] writeUid:', writeUid, 'noteData:', noteData);
-          });
-      });
+      window.AA.db.collection('audioNotes').doc(writeUid)
+        .collection('notes').add(noteData)
+        .then(function() {
+          if (saveResolved) return; // Claude: timeout already fired, don't double-update
+          saveResolved = true;
+          clearTimeout(saveTimer);
+          showToast('Note saved');
+          recordStatus.textContent = 'Tap to start recording';
+          liveTranscript.style.display = 'none';
+          speechWarning.style.display = 'none';
+          gpsStatusEl.textContent = '';
+          audioChunks = [];
+          transcript = '';
+          interimText = '';
+          recordingAddress = null;
+        })
+        .catch(function(err) {
+          if (saveResolved) return;
+          saveResolved = true;
+          clearTimeout(saveTimer);
+          // Claude: show full error in status text so we can debug without console
+          var errText = err.code ? err.code + ': ' + (err.message || '') : (err.message || String(err));
+          recordStatus.textContent = 'Save failed — ' + errText;
+          showToast('Error: ' + errText, 10000);
+          console.error('[AudioNotes] Firestore save error:', err);
+          console.error('[AudioNotes] writeUid:', writeUid, 'noteData:', noteData);
+        });
     }
 
     // ── Load notes (real-time) ─────────────────────────────────────────────────
@@ -736,7 +609,7 @@
           ? '<button class="note-delete" data-id="' + n._id + '" title="Delete note">🗑️</button>'
           : '';
 
-        // Claude: show Drive playback link when audio was uploaded
+        // TODO: future — add "▶ Play on Drive" link when driveLink is populated
         var driveHtml = n.driveLink
           ? '<a href="' + escHtml(n.driveLink) + '" target="_blank" rel="noopener" style="font-size:10pt;color:#1a73e8;text-decoration:none;">▶ Play on Drive</a>'
           : '';
