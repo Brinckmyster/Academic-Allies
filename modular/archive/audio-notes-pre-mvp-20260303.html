@@ -27,15 +27,12 @@
     }
     @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(244,67,54,.4); } 50% { box-shadow: 0 0 0 14px rgba(244,67,54,0); } }
     #recordStatus { margin-top: 8px; font-size: 11pt; color: #888; min-height: 20px; }
-    #recordTimer { font-weight: 600; color: #f44336; }
     #gpsStatus { font-size: 10pt; color: #aaa; margin-top: 4px; }
-    #speechWarning { font-size: 10pt; color: #c77600; margin-top: 6px; display: none; }
     #liveTranscript {
       margin: 12px auto; max-width: 560px; min-height: 48px; padding: 10px 14px;
       background: #fff; border: 1px solid #e1e5e9; border-radius: 8px;
       font-size: 12pt; color: #555; white-space: pre-wrap; display: none;
     }
-    #liveTranscript .interim { color: #aaa; font-style: italic; }
 
     /* ── Category modal ── */
     .modal-overlay {
@@ -85,11 +82,11 @@
     .cat-academic   { background: #1a73e8; }
     .cat-personal   { background: #7b5ea7; }
     .cat-other      { background: #888; }
-    .note-transcript { font-size: 11pt; color: #555; margin-bottom: 6px; line-height: 1.4; cursor: pointer; }
-    .note-transcript.collapsed { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .note-expand { font-size: 9pt; color: #1a73e8; cursor: pointer; margin-bottom: 6px; display: none; }
+    .note-transcript { font-size: 11pt; color: #555; margin-bottom: 6px; line-height: 1.4; }
     .note-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
     .note-loc { font-size: 9pt; color: #aaa; }
+    .note-drive a { font-size: 10pt; color: #1a73e8; text-decoration: none; }
+    .note-drive a:hover { text-decoration: underline; }
     .note-delete { background: none; border: none; cursor: pointer; font-size: 14px; color: #ccc; padding: 2px 6px; }
     .note-delete:hover { color: #f44336; }
     #emptyState { text-align: center; color: #aaa; padding: 40px 0; font-size: 12pt; }
@@ -127,7 +124,6 @@
         <button id="recordBtn" title="Tap to record">🎙️</button>
         <div id="recordStatus">Tap to start recording</div>
         <div id="gpsStatus"></div>
-        <div id="speechWarning">⚠️ Live transcription not supported in this browser. Note will save without transcript.</div>
       </div>
       <div id="liveTranscript"></div>
 
@@ -169,6 +165,10 @@
 
   <div id="toast"></div>
 
+  <!-- Claude: Google API scripts for Drive upload -->
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://accounts.google.com/gsi/client"></script>
+
   <script>
     fetch('/Academic-Allies/modular/shared-header.html?v=20260304b')
       .then(function(r) { return r.text(); })
@@ -189,6 +189,9 @@
     'use strict';
 
     // ── Constants ──────────────────────────────────────────────────────────────
+    var GOOGLE_CLIENT_ID = '93996985456-ffj2euk9i4q41v88njuhpusk73mdb31j.apps.googleusercontent.com';
+    var DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+    var CATEGORIES = ['genealogy', 'medical', 'ideas', 'academic', 'personal', 'other'];
     var CAT_LABELS = { genealogy: '🌳 Genealogy', medical: '🏥 Medical', ideas: '💡 Ideas', academic: '📚 Academic', personal: '🔒 Personal', other: '📎 Other' };
 
     // ── State ──────────────────────────────────────────────────────────────────
@@ -201,25 +204,25 @@
     var transcript = '';
     var interimText = '';
     var recordingGps = null;
-    var recordingAddress = null;
     var recordStartTime = null;
-    var timerInterval = null;
+    var driveToken = null;      // Google Drive access token
+    var tokenClient = null;     // GIS token client
+    var gapiReady = false;
     var allNotes = [];          // cached notes from Firestore listener
     var unsubNotes = null;      // Firestore listener unsubscribe
 
     // ── DOM refs ───────────────────────────────────────────────────────────────
-    var recordBtn      = document.getElementById('recordBtn');
-    var recordStatus   = document.getElementById('recordStatus');
-    var gpsStatusEl    = document.getElementById('gpsStatus');
-    var speechWarning  = document.getElementById('speechWarning');
+    var recordBtn     = document.getElementById('recordBtn');
+    var recordStatus  = document.getElementById('recordStatus');
+    var gpsStatusEl   = document.getElementById('gpsStatus');
     var liveTranscript = document.getElementById('liveTranscript');
-    var catModal       = document.getElementById('catModal');
-    var notesList      = document.getElementById('notesList');
-    var emptyState     = document.getElementById('emptyState');
-    var searchInput    = document.getElementById('searchInput');
+    var catModal      = document.getElementById('catModal');
+    var notesList     = document.getElementById('notesList');
+    var emptyState    = document.getElementById('emptyState');
+    var searchInput   = document.getElementById('searchInput');
     var categoryFilter = document.getElementById('categoryFilter');
-    var mirrorBanner   = document.getElementById('mirrorBanner');
-    var toastEl        = document.getElementById('toast');
+    var mirrorBanner  = document.getElementById('mirrorBanner');
+    var toastEl       = document.getElementById('toast');
 
     // ── Helpers ────────────────────────────────────────────────────────────────
     function showToast(msg) {
@@ -234,29 +237,88 @@
       return d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
     }
 
-    function fmtDuration(sec) {
-      if (!sec) return '';
-      var m = Math.floor(sec / 60);
-      var s = sec % 60;
-      return m + ':' + (s < 10 ? '0' : '') + s;
+    function truncate(s, n) {
+      if (!s) return '(no transcript)';
+      return s.length > n ? s.substring(0, n) + '…' : s;
     }
 
-    function escHtml(str) {
-      var d = document.createElement('div');
-      d.textContent = str || '';
-      return d.innerHTML;
+    // ── Google Drive init ──────────────────────────────────────────────────────
+    function initGapi() {
+      gapi.load('client', function() {
+        gapiReady = true;
+      });
+    }
+    if (window.gapi) initGapi();
+    else window.addEventListener('load', function() { if (window.gapi) initGapi(); });
+
+    function initTokenClient() {
+      if (!window.google || !window.google.accounts) return;
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: DRIVE_SCOPE,
+        callback: function(resp) {
+          if (resp.error) { showToast('Google Drive auth failed'); return; }
+          driveToken = resp.access_token;
+          // Claude: if we were waiting to upload after auth, trigger it now
+          if (pendingUpload) { var cb = pendingUpload; pendingUpload = null; cb(); }
+        }
+      });
+    }
+    // Claude: wait a tick for GIS script to load
+    setTimeout(initTokenClient, 500);
+
+    var pendingUpload = null;
+
+    function ensureDriveAuth(callback) {
+      if (driveToken) { callback(); return; }
+      pendingUpload = callback;
+      if (!tokenClient) initTokenClient();
+      if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: '' });
+      } else {
+        showToast('Google API not loaded — try again');
+        pendingUpload = null;
+      }
+    }
+
+    // Claude: upload audio blob to Google Drive, returns {id, link} via callback
+    function uploadToDrive(blob, filename, callback) {
+      var metadata = {
+        name: filename,
+        mimeType: blob.type || 'audio/webm'
+      };
+      var form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', blob);
+
+      fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + driveToken },
+        body: form
+      })
+      .then(function(r) {
+        if (!r.ok) {
+          // Claude: token may have expired — clear and retry once
+          if (r.status === 401) {
+            driveToken = null;
+            ensureDriveAuth(function() { uploadToDrive(blob, filename, callback); });
+            return;
+          }
+          throw new Error('Drive upload failed: ' + r.status);
+        }
+        return r.json();
+      })
+      .then(function(data) {
+        if (data) callback(null, { id: data.id, link: data.webViewLink || ('https://drive.google.com/file/d/' + data.id + '/view') });
+      })
+      .catch(function(err) { callback(err); });
     }
 
     // ── Speech Recognition ─────────────────────────────────────────────────────
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     function startSpeechRecognition() {
-      if (!SpeechRecognition) {
-        // Claude: graceful fallback — show warning, recording still works without transcript
-        speechWarning.style.display = 'block';
-        return;
-      }
-      speechWarning.style.display = 'none';
+      if (!SpeechRecognition) return;
       recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -276,84 +338,39 @@
         }
         transcript = final.trim();
         interimText = interim;
-        // Claude: show final text normally, interim text in italic gray
-        liveTranscript.innerHTML = escHtml(transcript)
-          + (interim ? ' <span class="interim">' + escHtml(interim) + '</span>' : '');
+        liveTranscript.textContent = transcript + (interim ? ' ' + interim : '');
       };
 
       recognition.onerror = function(e) {
-        if (e.error === 'not-allowed') {
-          speechWarning.textContent = '⚠️ Microphone permission denied for transcription.';
-          speechWarning.style.display = 'block';
-        } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
-          console.warn('[AudioNotes] Speech error:', e.error);
-        }
+        if (e.error !== 'no-speech') console.warn('[AudioNotes] Speech error:', e.error);
       };
 
-      // Claude: restart if it stops mid-recording (Chrome kills it after ~60s)
+      // Claude: restart if it stops mid-recording (browser timeout)
       recognition.onend = function() {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
           try { recognition.start(); } catch(e) {}
         }
       };
 
-      try { recognition.start(); } catch(e) {
-        speechWarning.style.display = 'block';
-      }
+      try { recognition.start(); } catch(e) {}
     }
 
     function stopSpeechRecognition() {
       if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
     }
 
-    // ── GPS + reverse geocode ──────────────────────────────────────────────────
+    // ── GPS ────────────────────────────────────────────────────────────────────
     function captureGps() {
       recordingGps = null;
-      recordingAddress = null;
       gpsStatusEl.textContent = '📍 Getting location…';
       navigator.geolocation.getCurrentPosition(
         function(pos) {
           recordingGps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           gpsStatusEl.textContent = '📍 Location captured';
-          // Claude: best-effort reverse geocode via free Nominatim API (no key needed)
-          reverseGeocode(recordingGps.lat, recordingGps.lng);
         },
         function() { gpsStatusEl.textContent = '📍 Location unavailable'; },
         { timeout: 8000, maximumAge: 60000 }
       );
-    }
-
-    function reverseGeocode(lat, lng) {
-      fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=16')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data && data.display_name) {
-            // Claude: keep it short — city, state, country
-            var addr = data.address || {};
-            recordingAddress = [addr.city || addr.town || addr.village || '', addr.state || '', addr.country || '']
-              .filter(Boolean).join(', ');
-            if (recordingAddress) gpsStatusEl.textContent = '📍 ' + recordingAddress;
-          }
-        })
-        .catch(function() { /* silent — coords still saved */ });
-    }
-
-    // ── Recording timer ────────────────────────────────────────────────────────
-    function startTimer() {
-      var el = document.createElement('span');
-      el.id = 'recordTimer';
-      recordStatus.textContent = '';
-      recordStatus.appendChild(document.createTextNode('Recording '));
-      recordStatus.appendChild(el);
-      var start = Date.now();
-      timerInterval = setInterval(function() {
-        var sec = Math.floor((Date.now() - start) / 1000);
-        el.textContent = fmtDuration(sec);
-      }, 500);
-    }
-
-    function stopTimer() {
-      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
     }
 
     // ── Recording ──────────────────────────────────────────────────────────────
@@ -372,10 +389,10 @@
           recordBtn.textContent = '⏹️';
           recordBtn.classList.add('recording');
           recordBtn.title = 'Tap to stop';
+          recordStatus.textContent = 'Recording…';
           liveTranscript.style.display = 'block';
-          liveTranscript.innerHTML = '';
+          liveTranscript.textContent = '';
 
-          startTimer();
           captureGps();
           startSpeechRecognition();
         })
@@ -388,7 +405,6 @@
     function stopRecording() {
       if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
       stopSpeechRecognition();
-      stopTimer();
       mediaRecorder.stop();
 
       recordBtn.textContent = '🎙️';
@@ -396,6 +412,7 @@
       recordBtn.title = 'Tap to record';
       recordStatus.textContent = 'Select a category…';
 
+      // Claude: show category modal
       catModal.classList.add('open');
     }
 
@@ -422,40 +439,46 @@
       transcript = '';
       interimText = '';
       liveTranscript.style.display = 'none';
-      speechWarning.style.display = 'none';
-      gpsStatusEl.textContent = '';
       recordStatus.textContent = 'Recording discarded';
+      gpsStatusEl.textContent = '';
       setTimeout(function() { recordStatus.textContent = 'Tap to start recording'; }, 2000);
     };
 
     // ── Save note ──────────────────────────────────────────────────────────────
     function saveNote(category) {
+      if (audioChunks.length === 0) { showToast('No audio recorded'); return; }
+
+      var blob = new Blob(audioChunks, { type: mediaRecorder ? mediaRecorder.mimeType : 'audio/webm' });
       var duration = Math.round((Date.now() - (recordStartTime || Date.now())) / 1000);
       var localTime = new Date().toLocaleString();
-      var finalTranscript = (transcript + ' ' + interimText).trim() || '';
+      var finalTranscript = transcript || '(no transcript)';
       var gps = recordingGps ? { lat: recordingGps.lat, lng: recordingGps.lng } : null;
+      var filename = 'AudioNote_' + new Date().toISOString().replace(/[:.]/g, '-') + '.webm';
 
-      recordStatus.textContent = 'Saving…';
+      recordStatus.textContent = 'Uploading to Google Drive…';
 
-      // TODO: future — upload audio blob to Google Drive here before saving to Firebase.
-      //   Use Google Drive API with scope 'https://www.googleapis.com/auth/drive.file'.
-      //   Save driveFileId + driveLink to the note doc.
-      //   See archive/audio-notes-pre-mvp-20260303.html for the full Drive upload implementation.
+      ensureDriveAuth(function() {
+        uploadToDrive(blob, filename, function(err, driveResult) {
+          if (err) {
+            showToast('Drive upload failed — saving note without audio link');
+            console.error('[AudioNotes] Drive error:', err);
+            saveToFirebase(finalTranscript, localTime, gps, category, duration, null, null);
+            return;
+          }
+          saveToFirebase(finalTranscript, localTime, gps, category, duration, driveResult.id, driveResult.link);
+        });
+      });
+    }
 
-      // TODO: future — integrate Otter.ai or OpenAI Whisper API for higher-quality
-      //   transcription as a fallback/upgrade from Web Speech API.
-      //   Web Speech API is free but Chrome-only and requires internet.
-      //   Whisper API handles offline recordings and non-English languages.
-
+    function saveToFirebase(text, localTime, gps, category, duration, driveFileId, driveLink) {
       var noteData = {
-        transcript: finalTranscript,
+        transcript: text,
         localTime: localTime,
         gps: gps,
-        address: recordingAddress || null,
         category: category,
         duration: duration,
-        driveFileId: null,    // TODO: populate when Drive upload is added
-        driveLink: null,      // TODO: populate when Drive upload is added
+        driveFileId: driveFileId || null,
+        driveLink: driveLink || null,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       };
 
@@ -465,12 +488,10 @@
           showToast('Note saved');
           recordStatus.textContent = 'Tap to start recording';
           liveTranscript.style.display = 'none';
-          speechWarning.style.display = 'none';
           gpsStatusEl.textContent = '';
           audioChunks = [];
           transcript = '';
           interimText = '';
-          recordingAddress = null;
         })
         .catch(function(err) {
           showToast('Error saving note');
@@ -520,43 +541,27 @@
         var timeStr = fmtTime(n.timestamp);
         var catClass = 'cat-' + (n.category || 'other');
         var catLabel = CAT_LABELS[n.category] || n.category || 'Other';
-        // Claude: show address if available, else raw coords, else nothing
-        var locStr = n.address
-          ? '📍 ' + escHtml(n.address)
-          : (n.gps ? '📍 ' + n.gps.lat.toFixed(4) + ', ' + n.gps.lng.toFixed(4) : '');
-        var transcriptText = n.transcript || '(no transcript)';
-        var isLong = transcriptText.length > 120;
+        var locStr = n.gps ? ('📍 ' + n.gps.lat.toFixed(4) + ', ' + n.gps.lng.toFixed(4)) : '';
+        var driveHtml = n.driveLink
+          ? '<a href="' + n.driveLink + '" target="_blank" rel="noopener">▶ Play on Drive</a>'
+          : '<span style="color:#ccc;">No audio link</span>';
         var deleteHtml = !isMirror
           ? '<button class="note-delete" data-id="' + n._id + '" title="Delete note">🗑️</button>'
           : '';
 
-        // TODO: future — add "▶ Play on Drive" link when driveLink is populated
-        var driveHtml = n.driveLink
-          ? '<a href="' + escHtml(n.driveLink) + '" target="_blank" rel="noopener" style="font-size:10pt;color:#1a73e8;text-decoration:none;">▶ Play on Drive</a>'
-          : '';
-
         return '<div class="note-card">'
           + '<div class="note-header">'
-          +   '<span class="note-time">' + timeStr + (n.duration ? ' · ' + fmtDuration(n.duration) : '') + '</span>'
+          +   '<span class="note-time">' + timeStr + (n.duration ? ' · ' + n.duration + 's' : '') + '</span>'
           +   '<span class="note-cat ' + catClass + '">' + catLabel + '</span>'
           + '</div>'
-          + '<div class="note-transcript' + (isLong ? ' collapsed' : '') + '" data-nid="' + n._id + '">' + escHtml(transcriptText) + '</div>'
-          + (isLong ? '<div class="note-expand" data-nid="' + n._id + '" style="display:block;">Show more</div>' : '')
+          + '<div class="note-transcript">' + truncate(n.transcript, 200) + '</div>'
           + '<div class="note-footer">'
           +   '<span class="note-loc">' + locStr + '</span>'
-          +   driveHtml
+          +   '<span class="note-drive">' + driveHtml + '</span>'
           +   deleteHtml
           + '</div>'
           + '</div>';
       }).join('');
-
-      // Claude: wire expand/collapse on transcript tap
-      notesList.querySelectorAll('.note-transcript.collapsed').forEach(function(el) {
-        el.onclick = function() { toggleExpand(el.getAttribute('data-nid')); };
-      });
-      notesList.querySelectorAll('.note-expand').forEach(function(el) {
-        el.onclick = function() { toggleExpand(el.getAttribute('data-nid')); };
-      });
 
       // Claude: wire delete buttons
       notesList.querySelectorAll('.note-delete').forEach(function(btn) {
@@ -569,20 +574,6 @@
             .catch(function(err) { showToast('Delete failed'); console.error(err); });
         };
       });
-    }
-
-    function toggleExpand(nid) {
-      var transcript = notesList.querySelector('.note-transcript[data-nid="' + nid + '"]');
-      var expand = notesList.querySelector('.note-expand[data-nid="' + nid + '"]');
-      if (!transcript) return;
-      if (transcript.classList.contains('collapsed')) {
-        transcript.classList.remove('collapsed');
-        transcript.onclick = function() { toggleExpand(nid); };
-        if (expand) expand.textContent = 'Show less';
-      } else {
-        transcript.classList.add('collapsed');
-        if (expand) expand.textContent = 'Show more';
-      }
     }
 
     // Claude: filter listeners
