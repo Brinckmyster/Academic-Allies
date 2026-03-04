@@ -362,10 +362,7 @@
         .then(function(token) {
           return getOrCreateDriveFolder(token).then(function(folderId) {
             var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            // Claude: match extension to actual mimeType so Drive can preview
-            var ext = 'webm';
-            if (recordingMimeType.indexOf('mp4') !== -1) ext = 'mp4';
-            else if (recordingMimeType.indexOf('ogg') !== -1) ext = 'ogg';
+            var ext = (recordingMimeType.indexOf('webm') !== -1) ? 'webm' : 'ogg';
             var filename = 'audio-note-' + ts + '.' + ext;
             return uploadFileToDrive(token, folderId, blob, filename);
           });
@@ -541,29 +538,17 @@
     }
 
     // ── Recording ──────────────────────────────────────────────────────────────
-    // Claude: pick best audio format Drive can preview — mp4 > ogg > webm fallback
-    function pickMimeType() {
-      var prefs = ['audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm'];
-      for (var i = 0; i < prefs.length; i++) {
-        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(prefs[i])) return prefs[i];
-      }
-      return '';  // let browser pick default
-    }
-
     function startRecording() {
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(function(stream) {
           audioChunks = [];
-          // Claude: request preferred mimeType for Drive compatibility
-          var preferredMime = pickMimeType();
-          var recOpts = preferredMime ? { mimeType: preferredMime } : undefined;
-          mediaRecorder = new MediaRecorder(stream, recOpts);
+          mediaRecorder = new MediaRecorder(stream);
           mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
           mediaRecorder.onstop = function() {
             stream.getTracks().forEach(function(t) { t.stop(); });
           };
           mediaRecorder.start();
-          recordingMimeType = mediaRecorder.mimeType || preferredMime || 'audio/webm';
+          recordingMimeType = mediaRecorder.mimeType || 'audio/webm';
           recordStartTime = Date.now();
 
           recordBtn.textContent = '⏹️';
