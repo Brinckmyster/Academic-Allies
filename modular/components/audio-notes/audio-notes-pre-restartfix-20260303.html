@@ -254,8 +254,7 @@
     // mobile and resets its results array on restart. We accumulate all final results
     // into `transcript` across restarts so nothing is lost.
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var speechStopping = false;        // Claude: flag to prevent auto-restart after intentional stop
-    var isRecognitionRunning = false;   // Claude: guard against "already started" error in onend
+    var speechStopping = false; // Claude: flag to prevent auto-restart after intentional stop
 
     function showSpeechFallback(msg) {
       // Claude: Otter.ai fallback link for when Speech API unavailable or fails
@@ -318,32 +317,18 @@
       };
 
       // Claude: mobile Chrome auto-restart — on mobile, recognition fires onend after
-      // each phrase/silence. Silently restart after 300ms delay to let the browser
-      // fully release the old instance and avoid "already started" errors.
+      // each phrase/silence. Silently restart if still recording. The speechStopping
+      // flag prevents restart after intentional stop.
       recognition.onend = function() {
-        isRecognitionRunning = false;
         if (speechStopping) return;
         if (mediaRecorder && mediaRecorder.state === 'recording') {
-          setTimeout(function() {
-            // Claude: re-check guards after the 300ms delay
-            if (speechStopping || isRecognitionRunning) return;
-            if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
-            try {
-              initRecognitionInstance();
-            } catch(e) {
-              console.warn('[AudioNotes] Speech restart failed:', e);
-            }
-          }, 300);
+          try { initRecognitionInstance(); recognition.start(); } catch(e) {
+            console.warn('[AudioNotes] Speech restart failed:', e);
+          }
         }
       };
 
-      // Claude: only start if not already running — prevents "already started" error
-      if (isRecognitionRunning) return;
-      try {
-        recognition.start();
-        isRecognitionRunning = true;
-      } catch(e) {
-        isRecognitionRunning = false;
+      try { recognition.start(); } catch(e) {
         showSpeechFallback('Speech recognition failed to start');
         console.error('[AudioNotes] Speech start error:', e);
       }
@@ -359,7 +344,6 @@
         }
         try { recognition.stop(); } catch(e) {}
         recognition = null;
-        isRecognitionRunning = false;
       }
     }
 
