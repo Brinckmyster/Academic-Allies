@@ -127,8 +127,7 @@
         <button id="recordBtn" title="Tap to record">🎙️</button>
         <div id="recordStatus">Tap to start recording</div>
         <div id="gpsStatus"></div>
-        <!-- Claude: speech fallback populated by JS with Otter.ai link -->
-        <div id="speechWarning"></div>
+        <div id="speechWarning">⚠️ Live transcription not supported in this browser. Note will save without transcript.</div>
       </div>
       <div id="liveTranscript"></div>
 
@@ -223,11 +222,10 @@
     var toastEl        = document.getElementById('toast');
 
     // ── Helpers ────────────────────────────────────────────────────────────────
-    // Claude: duration param — errors stay visible longer (10s) than success (3s)
-    function showToast(msg, duration) {
+    function showToast(msg) {
       toastEl.textContent = msg;
       toastEl.style.display = 'block';
-      setTimeout(function() { toastEl.style.display = 'none'; }, duration || 3000);
+      setTimeout(function() { toastEl.style.display = 'none'; }, 3000);
     }
 
     function fmtTime(d) {
@@ -250,101 +248,62 @@
     }
 
     // ── Speech Recognition ─────────────────────────────────────────────────────
-    // Claude: mobile Chrome fix — Speech Recognition stops after each utterance on
-    // mobile and resets its results array on restart. We accumulate all final results
-    // into `transcript` across restarts so nothing is lost.
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var speechStopping = false; // Claude: flag to prevent auto-restart after intentional stop
-
-    function showSpeechFallback(msg) {
-      // Claude: Otter.ai fallback link for when Speech API unavailable or fails
-      speechWarning.innerHTML = '⚠️ ' + escHtml(msg || 'Transcript unavailable')
-        + ' — use <a href="https://otter.ai/download" target="_blank" rel="noopener" '
-        + 'style="color:#1a73e8;text-decoration:underline;">Otter.ai</a> as backup';
-      speechWarning.style.display = 'block';
-    }
 
     function startSpeechRecognition() {
       if (!SpeechRecognition) {
-        // Claude: graceful fallback — show warning with Otter link, recording still works
-        showSpeechFallback('Live transcription not supported in this browser');
+        // Claude: graceful fallback — show warning, recording still works without transcript
+        speechWarning.style.display = 'block';
         return;
       }
       speechWarning.style.display = 'none';
-      transcript = '';
-      interimText = '';
-      speechStopping = false;
-      initRecognitionInstance();
-    }
-
-    function initRecognitionInstance() {
       recognition = new SpeechRecognition();
-      // Claude: force continuous + interim on every instance (mobile Chrome needs both)
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
+      transcript = '';
+      interimText = '';
 
       recognition.onresult = function(e) {
-        // Claude: mobile Chrome resets results array on each restart, so we only read
-        // new finals from this session and append to the accumulated `transcript`.
-        var sessionFinal = '';
+        var final = '';
         var interim = '';
         for (var i = 0; i < e.results.length; i++) {
           if (e.results[i].isFinal) {
-            sessionFinal += e.results[i][0].transcript + ' ';
+            final += e.results[i][0].transcript + ' ';
           } else {
             interim += e.results[i][0].transcript;
           }
         }
-        // Claude: accumulate — append new finals to running transcript
-        if (sessionFinal.trim()) {
-          transcript = (transcript + ' ' + sessionFinal).trim();
-        }
+        transcript = final.trim();
         interimText = interim;
-        // Claude: show full accumulated text normally, current interim in italic gray
+        // Claude: show final text normally, interim text in italic gray
         liveTranscript.innerHTML = escHtml(transcript)
           + (interim ? ' <span class="interim">' + escHtml(interim) + '</span>' : '');
       };
 
       recognition.onerror = function(e) {
         if (e.error === 'not-allowed') {
-          showSpeechFallback('Microphone permission denied for transcription');
-        } else if (e.error === 'network') {
-          showSpeechFallback('Network error — transcription requires internet');
+          speechWarning.textContent = '⚠️ Microphone permission denied for transcription.';
+          speechWarning.style.display = 'block';
         } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
           console.warn('[AudioNotes] Speech error:', e.error);
         }
       };
 
-      // Claude: mobile Chrome auto-restart — on mobile, recognition fires onend after
-      // each phrase/silence. Silently restart if still recording. The speechStopping
-      // flag prevents restart after intentional stop.
+      // Claude: restart if it stops mid-recording (Chrome kills it after ~60s)
       recognition.onend = function() {
-        if (speechStopping) return;
         if (mediaRecorder && mediaRecorder.state === 'recording') {
-          try { initRecognitionInstance(); recognition.start(); } catch(e) {
-            console.warn('[AudioNotes] Speech restart failed:', e);
-          }
+          try { recognition.start(); } catch(e) {}
         }
       };
 
       try { recognition.start(); } catch(e) {
-        showSpeechFallback('Speech recognition failed to start');
-        console.error('[AudioNotes] Speech start error:', e);
+        speechWarning.style.display = 'block';
       }
     }
 
     function stopSpeechRecognition() {
-      speechStopping = true; // Claude: prevent auto-restart in onend
-      if (recognition) {
-        // Claude: capture any remaining interim text as final before stopping
-        if (interimText.trim()) {
-          transcript = (transcript + ' ' + interimText).trim();
-          interimText = '';
-        }
-        try { recognition.stop(); } catch(e) {}
-        recognition = null;
-      }
+      if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
     }
 
     // ── GPS + reverse geocode ──────────────────────────────────────────────────
@@ -473,8 +432,7 @@
     function saveNote(category) {
       var duration = Math.round((Date.now() - (recordStartTime || Date.now())) / 1000);
       var localTime = new Date().toLocaleString();
-      // Claude: stopSpeechRecognition() already folds interim into transcript
-      var finalTranscript = transcript.trim() || '';
+      var finalTranscript = (transcript + ' ' + interimText).trim() || '';
       var gps = recordingGps ? { lat: recordingGps.lat, lng: recordingGps.lng } : null;
 
       recordStatus.textContent = 'Saving…';
@@ -506,9 +464,9 @@
       var saveTimer = setTimeout(function() {
         if (!saveResolved) {
           saveResolved = true;
-          recordStatus.textContent = 'Save failed — timed out after 10s. Check connection.';
-          showToast('Save timed out — check your internet connection', 10000);
-          console.error('[AudioNotes] Firestore save timed out after 10s. writeUid:', writeUid);
+          recordStatus.textContent = 'Save failed — check connection';
+          showToast('Save timed out — check your internet connection');
+          console.error('[AudioNotes] Firestore save timed out after 10s');
         }
       }, 10000);
 
@@ -532,12 +490,9 @@
           if (saveResolved) return;
           saveResolved = true;
           clearTimeout(saveTimer);
-          // Claude: show full error in status text so we can debug without console
-          var errText = err.code ? err.code + ': ' + (err.message || '') : (err.message || String(err));
-          recordStatus.textContent = 'Save failed — ' + errText;
-          showToast('Error: ' + errText, 10000);
+          recordStatus.textContent = 'Save failed — tap mic to try again';
+          showToast('Error saving note: ' + (err.code || err.message || 'unknown'));
           console.error('[AudioNotes] Firestore save error:', err);
-          console.error('[AudioNotes] writeUid:', writeUid, 'noteData:', noteData);
         });
     }
 
