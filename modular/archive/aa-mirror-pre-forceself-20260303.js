@@ -70,18 +70,14 @@
   /* ── Synchronous init ─────────────────────────────────────── */
   /* Runs at script-parse time — before any onAuthStateChanged  */
 
-  // Claude: check force-self flag — if set, skip mirror entirely for this load
-  var _forceSelf = false;
-  try { _forceSelf = sessionStorage.getItem('AA_FORCE_SELF') === '1'; } catch (e) {}
-
   var _cache = readCache();
 
-  if (_forceSelf || !_cache || !_cache.studentUid || inPath(NO_MIRROR)) {
-    window.AA_MIRROR_UID = null;
-    window.AA_MIRROR     = null;
-  } else {
+  if (_cache && _cache.studentUid && !inPath(NO_MIRROR)) {
     window.AA_MIRROR_UID = _cache.studentUid;
     window.AA_MIRROR     = _cache;
+  } else {
+    window.AA_MIRROR_UID = null;
+    window.AA_MIRROR     = null;
   }
 
   /* ── Public helpers ───────────────────────────────────────── */
@@ -106,12 +102,11 @@
     window.location.reload();
   };
 
-  // Claude: exit mirror mode — sets force-self flag so mirror doesn't re-engage on reload
+  // Claude: exit mirror mode — clears mirror state, reloads to show viewer's own data
   window.AA_EXIT_MIRROR = function () {
     clearCache();
     window.AA_MIRROR_UID = null;
     window.AA_MIRROR     = null;
-    try { sessionStorage.setItem('AA_FORCE_SELF', '1'); } catch (e) {}
     window.location.reload();
   };
 
@@ -292,20 +287,6 @@
             window.AA_MIRROR_UID = null;
             window.AA_MIRROR     = null;
             if (wasMirroring) { window.location.reload(); }
-            return;
-          }
-
-          /* Claude: honor force-self flag — skip mirror setup, clear flag, show switcher only */
-          if (_forceSelf) {
-            try { sessionStorage.removeItem('AA_FORCE_SELF'); } catch (e) {}
-            _forceSelf = false;
-            findStudents(user.uid, function (students) {
-              if (!students || students.length === 0) return;
-              // Claude: cache students for switcher but DON'T set studentUid (no auto-mirror)
-              var entry = { viewerUid: user.uid, studentUid: null, studentName: null, allStudents: students };
-              writeCache(entry);
-              renderSwitcherWhenReady();
-            });
             return;
           }
 
