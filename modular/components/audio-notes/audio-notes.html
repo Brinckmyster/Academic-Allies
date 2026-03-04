@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Notes — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Atkinson Hyperlegible', Arial, sans-serif; background: #FAFAF9; color: #333; }
+    .container { max-width: 640px; margin: 0 auto; padding: 16px; }
+    h1 { color: #6CA0A3; font-size: 20pt; margin-bottom: 4px; }
+    .sub { color: #888; font-size: 11pt; margin-bottom: 20px; }
+
+    /* ── Record button ── */
+    .record-wrap { text-align: center; margin: 20px 0; }
+    #recordBtn {
+      width: 96px; height: 96px; border-radius: 50%; border: 4px solid #ccc;
+      background: #fff; cursor: pointer; font-size: 36px; display: inline-flex;
+      align-items: center; justify-content: center; transition: all .2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    }
+    #recordBtn:hover { border-color: #6CA0A3; }
+    #recordBtn.recording {
+      border-color: #f44336; background: #fdecea;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(244,67,54,.4); } 50% { box-shadow: 0 0 0 14px rgba(244,67,54,0); } }
+    #recordStatus { margin-top: 8px; font-size: 11pt; color: #888; min-height: 20px; }
+    #gpsStatus { font-size: 10pt; color: #aaa; margin-top: 4px; }
+    #liveTranscript {
+      margin: 12px auto; max-width: 560px; min-height: 48px; padding: 10px 14px;
+      background: #fff; border: 1px solid #e1e5e9; border-radius: 8px;
+      font-size: 12pt; color: #555; white-space: pre-wrap; display: none;
+    }
+
+    /* ── Category modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 12px; padding: 24px; width: 90%; max-width: 400px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.2);
+    }
+    .modal h2 { font-size: 14pt; color: #6CA0A3; margin-bottom: 14px; }
+    .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .cat-btn {
+      padding: 12px 8px; border: 2px solid #e1e5e9; border-radius: 8px;
+      background: #fff; cursor: pointer; font-size: 12pt; font-family: inherit;
+      transition: all .15s;
+    }
+    .cat-btn:hover { border-color: #6CA0A3; background: #f0f8f8; }
+    #cancelCat { margin-top: 12px; width: 100%; padding: 10px; border: none; background: #eee; border-radius: 8px; cursor: pointer; font-size: 11pt; font-family: inherit; }
+
+    /* ── Search / filter bar ── */
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .filter-bar input {
+      flex: 1; min-width: 160px; padding: 8px 12px; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 12pt; font-family: inherit;
+    }
+    .filter-bar select {
+      padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 12pt; font-family: inherit; background: #fff;
+    }
+
+    /* ── Notes list ── */
+    .note-card {
+      background: #fff; border: 1px solid #e1e5e9; border-radius: 10px;
+      padding: 14px 16px; margin-bottom: 10px;
+    }
+    .note-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+    .note-time { font-size: 10pt; color: #888; }
+    .note-cat {
+      display: inline-block; padding: 2px 10px; border-radius: 12px;
+      font-size: 9pt; font-weight: 600; color: #fff;
+    }
+    .cat-genealogy  { background: #8B6F47; }
+    .cat-medical    { background: #d32f2f; }
+    .cat-ideas      { background: #f9a825; color: #333; }
+    .cat-academic   { background: #1a73e8; }
+    .cat-personal   { background: #7b5ea7; }
+    .cat-other      { background: #888; }
+    .note-transcript { font-size: 11pt; color: #555; margin-bottom: 6px; line-height: 1.4; }
+    .note-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .note-loc { font-size: 9pt; color: #aaa; }
+    .note-drive a { font-size: 10pt; color: #1a73e8; text-decoration: none; }
+    .note-drive a:hover { text-decoration: underline; }
+    .note-delete { background: none; border: none; cursor: pointer; font-size: 14px; color: #ccc; padding: 2px 6px; }
+    .note-delete:hover { color: #f44336; }
+    #emptyState { text-align: center; color: #aaa; padding: 40px 0; font-size: 12pt; }
+
+    /* ── Mirror banner ── */
+    .mirror-banner {
+      background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;
+      padding: 8px 14px; margin-bottom: 14px; font-size: 11pt; color: #856404;
+      display: none;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #333; color: #fff; padding: 10px 20px; border-radius: 8px;
+      font-size: 11pt; z-index: 2000; display: none; white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div id="signin-notice" style="text-align:center;padding:60px 0;color:#888;">Loading…</div>
+
+    <div id="main-body" style="display:none;">
+      <h1>🎙️ Audio Notes</h1>
+      <p class="sub">Record, transcribe, and organize voice notes</p>
+
+      <!-- Claude: mirror banner for support users viewing student data -->
+      <div id="mirrorBanner" class="mirror-banner"></div>
+
+      <!-- Record section -->
+      <div id="recordSection" class="record-wrap">
+        <button id="recordBtn" title="Tap to record">🎙️</button>
+        <div id="recordStatus">Tap to start recording</div>
+        <div id="gpsStatus"></div>
+      </div>
+      <div id="liveTranscript"></div>
+
+      <!-- Search / filter -->
+      <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="Search notes…">
+        <select id="categoryFilter">
+          <option value="">All categories</option>
+          <option value="genealogy">Genealogy</option>
+          <option value="medical">Medical</option>
+          <option value="ideas">Ideas</option>
+          <option value="academic">Academic</option>
+          <option value="personal">Personal</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <!-- Notes list -->
+      <div id="notesList"></div>
+      <div id="emptyState" style="display:none;">No audio notes yet. Tap the mic to record your first note.</div>
+    </div>
+  </div>
+
+  <!-- Category picker modal -->
+  <div id="catModal" class="modal-overlay">
+    <div class="modal">
+      <h2>Tag this note</h2>
+      <div class="cat-grid">
+        <button class="cat-btn" data-cat="genealogy">🌳 Genealogy</button>
+        <button class="cat-btn" data-cat="medical">🏥 Medical</button>
+        <button class="cat-btn" data-cat="ideas">💡 Ideas</button>
+        <button class="cat-btn" data-cat="academic">📚 Academic</button>
+        <button class="cat-btn" data-cat="personal">🔒 Personal</button>
+        <button class="cat-btn" data-cat="other">📎 Other</button>
+      </div>
+      <button id="cancelCat">Cancel (discard recording)</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- Claude: Google API scripts for Drive upload -->
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://accounts.google.com/gsi/client"></script>
+
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260304b')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        });
+      });
+  </script>
+
+  <script>
+  (function() {
+    'use strict';
+
+    // ── Constants ──────────────────────────────────────────────────────────────
+    var GOOGLE_CLIENT_ID = '93996985456-ffj2euk9i4q41v88njuhpusk73mdb31j.apps.googleusercontent.com';
+    var DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+    var CATEGORIES = ['genealogy', 'medical', 'ideas', 'academic', 'personal', 'other'];
+    var CAT_LABELS = { genealogy: '🌳 Genealogy', medical: '🏥 Medical', ideas: '💡 Ideas', academic: '📚 Academic', personal: '🔒 Personal', other: '📎 Other' };
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    var writeUid = null;        // always the logged-in user
+    var readUid = null;         // mirror-aware uid for reading
+    var isMirror = false;       // true if viewing another user's data
+    var mediaRecorder = null;
+    var audioChunks = [];
+    var recognition = null;
+    var transcript = '';
+    var interimText = '';
+    var recordingGps = null;
+    var recordStartTime = null;
+    var driveToken = null;      // Google Drive access token
+    var tokenClient = null;     // GIS token client
+    var gapiReady = false;
+    var allNotes = [];          // cached notes from Firestore listener
+    var unsubNotes = null;      // Firestore listener unsubscribe
+
+    // ── DOM refs ───────────────────────────────────────────────────────────────
+    var recordBtn     = document.getElementById('recordBtn');
+    var recordStatus  = document.getElementById('recordStatus');
+    var gpsStatusEl   = document.getElementById('gpsStatus');
+    var liveTranscript = document.getElementById('liveTranscript');
+    var catModal      = document.getElementById('catModal');
+    var notesList     = document.getElementById('notesList');
+    var emptyState    = document.getElementById('emptyState');
+    var searchInput   = document.getElementById('searchInput');
+    var categoryFilter = document.getElementById('categoryFilter');
+    var mirrorBanner  = document.getElementById('mirrorBanner');
+    var toastEl       = document.getElementById('toast');
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.style.display = 'block';
+      setTimeout(function() { toastEl.style.display = 'none'; }, 3000);
+    }
+
+    function fmtTime(d) {
+      if (!d) return '';
+      if (d.toDate) d = d.toDate();
+      return d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+
+    function truncate(s, n) {
+      if (!s) return '(no transcript)';
+      return s.length > n ? s.substring(0, n) + '…' : s;
+    }
+
+    // ── Google Drive init ──────────────────────────────────────────────────────
+    function initGapi() {
+      gapi.load('client', function() {
+        gapiReady = true;
+      });
+    }
+    if (window.gapi) initGapi();
+    else window.addEventListener('load', function() { if (window.gapi) initGapi(); });
+
+    function initTokenClient() {
+      if (!window.google || !window.google.accounts) return;
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: DRIVE_SCOPE,
+        callback: function(resp) {
+          if (resp.error) { showToast('Google Drive auth failed'); return; }
+          driveToken = resp.access_token;
+          // Claude: if we were waiting to upload after auth, trigger it now
+          if (pendingUpload) { var cb = pendingUpload; pendingUpload = null; cb(); }
+        }
+      });
+    }
+    // Claude: wait a tick for GIS script to load
+    setTimeout(initTokenClient, 500);
+
+    var pendingUpload = null;
+
+    function ensureDriveAuth(callback) {
+      if (driveToken) { callback(); return; }
+      pendingUpload = callback;
+      if (!tokenClient) initTokenClient();
+      if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: '' });
+      } else {
+        showToast('Google API not loaded — try again');
+        pendingUpload = null;
+      }
+    }
+
+    // Claude: upload audio blob to Google Drive, returns {id, link} via callback
+    function uploadToDrive(blob, filename, callback) {
+      var metadata = {
+        name: filename,
+        mimeType: blob.type || 'audio/webm'
+      };
+      var form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', blob);
+
+      fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + driveToken },
+        body: form
+      })
+      .then(function(r) {
+        if (!r.ok) {
+          // Claude: token may have expired — clear and retry once
+          if (r.status === 401) {
+            driveToken = null;
+            ensureDriveAuth(function() { uploadToDrive(blob, filename, callback); });
+            return;
+          }
+          throw new Error('Drive upload failed: ' + r.status);
+        }
+        return r.json();
+      })
+      .then(function(data) {
+        if (data) callback(null, { id: data.id, link: data.webViewLink || ('https://drive.google.com/file/d/' + data.id + '/view') });
+      })
+      .catch(function(err) { callback(err); });
+    }
+
+    // ── Speech Recognition ─────────────────────────────────────────────────────
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    function startSpeechRecognition() {
+      if (!SpeechRecognition) return;
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      transcript = '';
+      interimText = '';
+
+      recognition.onresult = function(e) {
+        var final = '';
+        var interim = '';
+        for (var i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) {
+            final += e.results[i][0].transcript + ' ';
+          } else {
+            interim += e.results[i][0].transcript;
+          }
+        }
+        transcript = final.trim();
+        interimText = interim;
+        liveTranscript.textContent = transcript + (interim ? ' ' + interim : '');
+      };
+
+      recognition.onerror = function(e) {
+        if (e.error !== 'no-speech') console.warn('[AudioNotes] Speech error:', e.error);
+      };
+
+      // Claude: restart if it stops mid-recording (browser timeout)
+      recognition.onend = function() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          try { recognition.start(); } catch(e) {}
+        }
+      };
+
+      try { recognition.start(); } catch(e) {}
+    }
+
+    function stopSpeechRecognition() {
+      if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
+    }
+
+    // ── GPS ────────────────────────────────────────────────────────────────────
+    function captureGps() {
+      recordingGps = null;
+      gpsStatusEl.textContent = '📍 Getting location…';
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          recordingGps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          gpsStatusEl.textContent = '📍 Location captured';
+        },
+        function() { gpsStatusEl.textContent = '📍 Location unavailable'; },
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    }
+
+    // ── Recording ──────────────────────────────────────────────────────────────
+    function startRecording() {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+          audioChunks = [];
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
+          mediaRecorder.onstop = function() {
+            stream.getTracks().forEach(function(t) { t.stop(); });
+          };
+          mediaRecorder.start();
+          recordStartTime = Date.now();
+
+          recordBtn.textContent = '⏹️';
+          recordBtn.classList.add('recording');
+          recordBtn.title = 'Tap to stop';
+          recordStatus.textContent = 'Recording…';
+          liveTranscript.style.display = 'block';
+          liveTranscript.textContent = '';
+
+          captureGps();
+          startSpeechRecognition();
+        })
+        .catch(function(err) {
+          showToast('Microphone access denied');
+          console.error('[AudioNotes] getUserMedia error:', err);
+        });
+    }
+
+    function stopRecording() {
+      if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+      stopSpeechRecognition();
+      mediaRecorder.stop();
+
+      recordBtn.textContent = '🎙️';
+      recordBtn.classList.remove('recording');
+      recordBtn.title = 'Tap to record';
+      recordStatus.textContent = 'Select a category…';
+
+      // Claude: show category modal
+      catModal.classList.add('open');
+    }
+
+    recordBtn.onclick = function() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    };
+
+    // ── Category selection ─────────────────────────────────────────────────────
+    document.querySelectorAll('.cat-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        var category = btn.getAttribute('data-cat');
+        catModal.classList.remove('open');
+        saveNote(category);
+      };
+    });
+
+    document.getElementById('cancelCat').onclick = function() {
+      catModal.classList.remove('open');
+      audioChunks = [];
+      transcript = '';
+      interimText = '';
+      liveTranscript.style.display = 'none';
+      recordStatus.textContent = 'Recording discarded';
+      gpsStatusEl.textContent = '';
+      setTimeout(function() { recordStatus.textContent = 'Tap to start recording'; }, 2000);
+    };
+
+    // ── Save note ──────────────────────────────────────────────────────────────
+    function saveNote(category) {
+      if (audioChunks.length === 0) { showToast('No audio recorded'); return; }
+
+      var blob = new Blob(audioChunks, { type: mediaRecorder ? mediaRecorder.mimeType : 'audio/webm' });
+      var duration = Math.round((Date.now() - (recordStartTime || Date.now())) / 1000);
+      var localTime = new Date().toLocaleString();
+      var finalTranscript = transcript || '(no transcript)';
+      var gps = recordingGps ? { lat: recordingGps.lat, lng: recordingGps.lng } : null;
+      var filename = 'AudioNote_' + new Date().toISOString().replace(/[:.]/g, '-') + '.webm';
+
+      recordStatus.textContent = 'Uploading to Google Drive…';
+
+      ensureDriveAuth(function() {
+        uploadToDrive(blob, filename, function(err, driveResult) {
+          if (err) {
+            showToast('Drive upload failed — saving note without audio link');
+            console.error('[AudioNotes] Drive error:', err);
+            saveToFirebase(finalTranscript, localTime, gps, category, duration, null, null);
+            return;
+          }
+          saveToFirebase(finalTranscript, localTime, gps, category, duration, driveResult.id, driveResult.link);
+        });
+      });
+    }
+
+    function saveToFirebase(text, localTime, gps, category, duration, driveFileId, driveLink) {
+      var noteData = {
+        transcript: text,
+        localTime: localTime,
+        gps: gps,
+        category: category,
+        duration: duration,
+        driveFileId: driveFileId || null,
+        driveLink: driveLink || null,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      window.AA.db.collection('audioNotes').doc(writeUid)
+        .collection('notes').add(noteData)
+        .then(function() {
+          showToast('Note saved');
+          recordStatus.textContent = 'Tap to start recording';
+          liveTranscript.style.display = 'none';
+          gpsStatusEl.textContent = '';
+          audioChunks = [];
+          transcript = '';
+          interimText = '';
+        })
+        .catch(function(err) {
+          showToast('Error saving note');
+          console.error('[AudioNotes] Firestore save error:', err);
+        });
+    }
+
+    // ── Load notes (real-time) ─────────────────────────────────────────────────
+    function watchNotes(uid) {
+      if (unsubNotes) unsubNotes();
+      unsubNotes = window.AA.db.collection('audioNotes').doc(uid)
+        .collection('notes').orderBy('timestamp', 'desc')
+        .onSnapshot(function(snap) {
+          allNotes = snap.docs.map(function(d) {
+            var data = d.data();
+            data._id = d.id;
+            return data;
+          });
+          renderNotes();
+        }, function(err) {
+          console.error('[AudioNotes] Watch error:', err);
+        });
+    }
+
+    // ── Render notes ───────────────────────────────────────────────────────────
+    function renderNotes() {
+      var query = (searchInput.value || '').toLowerCase().trim();
+      var catFilter = categoryFilter.value;
+
+      var filtered = allNotes.filter(function(n) {
+        if (catFilter && n.category !== catFilter) return false;
+        if (query && (n.transcript || '').toLowerCase().indexOf(query) === -1) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        notesList.innerHTML = '';
+        emptyState.style.display = 'block';
+        emptyState.textContent = allNotes.length === 0
+          ? 'No audio notes yet. Tap the mic to record your first note.'
+          : 'No notes match your search.';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      notesList.innerHTML = filtered.map(function(n) {
+        var timeStr = fmtTime(n.timestamp);
+        var catClass = 'cat-' + (n.category || 'other');
+        var catLabel = CAT_LABELS[n.category] || n.category || 'Other';
+        var locStr = n.gps ? ('📍 ' + n.gps.lat.toFixed(4) + ', ' + n.gps.lng.toFixed(4)) : '';
+        var driveHtml = n.driveLink
+          ? '<a href="' + n.driveLink + '" target="_blank" rel="noopener">▶ Play on Drive</a>'
+          : '<span style="color:#ccc;">No audio link</span>';
+        var deleteHtml = !isMirror
+          ? '<button class="note-delete" data-id="' + n._id + '" title="Delete note">🗑️</button>'
+          : '';
+
+        return '<div class="note-card">'
+          + '<div class="note-header">'
+          +   '<span class="note-time">' + timeStr + (n.duration ? ' · ' + n.duration + 's' : '') + '</span>'
+          +   '<span class="note-cat ' + catClass + '">' + catLabel + '</span>'
+          + '</div>'
+          + '<div class="note-transcript">' + truncate(n.transcript, 200) + '</div>'
+          + '<div class="note-footer">'
+          +   '<span class="note-loc">' + locStr + '</span>'
+          +   '<span class="note-drive">' + driveHtml + '</span>'
+          +   deleteHtml
+          + '</div>'
+          + '</div>';
+      }).join('');
+
+      // Claude: wire delete buttons
+      notesList.querySelectorAll('.note-delete').forEach(function(btn) {
+        btn.onclick = function() {
+          var noteId = btn.getAttribute('data-id');
+          if (!confirm('Delete this note?')) return;
+          window.AA.db.collection('audioNotes').doc(writeUid)
+            .collection('notes').doc(noteId).delete()
+            .then(function() { showToast('Note deleted'); })
+            .catch(function(err) { showToast('Delete failed'); console.error(err); });
+        };
+      });
+    }
+
+    // Claude: filter listeners
+    searchInput.oninput = renderNotes;
+    categoryFilter.onchange = renderNotes;
+
+    // ── Auth + Init ────────────────────────────────────────────────────────────
+    function waitForAA(cb, n) {
+      n = n || 0;
+      if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+      if (n > 40) { document.getElementById('signin-notice').textContent = 'Failed to load. Please refresh.'; return; }
+      setTimeout(function() { waitForAA(cb, n + 1); }, 200);
+    }
+
+    waitForAA(function() {
+      window.AA.auth.onAuthStateChanged(function(user) {
+        if (!user) {
+          document.getElementById('signin-notice').textContent = 'Please sign in to use Audio Notes.';
+          document.getElementById('main-body').style.display = 'none';
+          document.getElementById('signin-notice').style.display = 'block';
+          if (unsubNotes) unsubNotes();
+          return;
+        }
+
+        document.getElementById('signin-notice').style.display = 'none';
+        document.getElementById('main-body').style.display = 'block';
+
+        writeUid = user.uid;
+        readUid = window.AA_uid ? window.AA_uid(user.uid) : user.uid;
+        isMirror = (readUid !== writeUid);
+
+        // Claude: mirror mode — hide record, show banner
+        if (isMirror) {
+          document.getElementById('recordSection').style.display = 'none';
+          var studentName = (window.AA_MIRROR && window.AA_MIRROR.studentName) || 'student';
+          mirrorBanner.textContent = '👥 Viewing ' + studentName + "'s audio notes (read-only)";
+          mirrorBanner.style.display = 'block';
+        } else {
+          document.getElementById('recordSection').style.display = '';
+          mirrorBanner.style.display = 'none';
+        }
+
+        watchNotes(readUid);
+      });
+    });
+
+  })();
+  </script>
+</body>
+</html>
