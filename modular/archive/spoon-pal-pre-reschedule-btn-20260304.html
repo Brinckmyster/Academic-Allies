@@ -956,12 +956,8 @@
   }
 
   // ── Fix #5: Toggle status — triggers ZZ rollover when ZZ marked complete ──────
-  // Claude: debounce timer for reschedule-on-cycle (1s to click past 🔄)
-  var rescheduleDebounce = {};
   function toggleStatus(index) {
     if (index < 0 || index >= timeline.length) return;
-    // Claude: if clicking again while 🔄 debounce is pending, cancel it and cycle past
-    if (rescheduleDebounce[index]) { clearTimeout(rescheduleDebounce[index]); delete rescheduleDebounce[index]; }
     let s = timeline[index].status;
     let pos = STATUS_ORDER.indexOf(s);
     pos = (pos + 1) % STATUS_ORDER.length;
@@ -969,11 +965,6 @@
     calculateSpoons();
     renderTimeline();
     saveData();
-    // Claude: landing on 'rescheduled' — delay 1s so user can click past if just cycling
-    if (STATUS_ORDER[pos] === 'rescheduled') {
-      rescheduleDebounce[index] = setTimeout(function() { delete rescheduleDebounce[index]; manualReschedule(index); }, 1000);
-      return;
-    }
     // Fix #5: ZZ rollover trigger
     if (timeline[index] && timeline[index].lmj === 'ZZ' && timeline[index].status === 'complete') {
       rolloverDay();
@@ -1205,21 +1196,6 @@
       }
       delete rescheduleTimers[taskIndex];
     }, RESCHEDULE_GRACE_SECONDS * 1000);
-  }
-
-  // Claude: Manual reschedule — finds next open 30-min slot, updates task time, saves.
-  function manualReschedule(index) {
-    if (index < 0 || index >= timeline.length) return;
-    const task = timeline[index];
-    const newTime = findNextAvailableSlot(timeline, 9);
-    if (newTime === task.time) { showToast('No open slot found'); return; }
-    task.time = newTime;
-    task.status = 'rescheduled';
-    cancelAutoReschedule(index);
-    calculateSpoons();
-    renderTimeline();
-    saveData();
-    showToast(`🔄 ${stripLeadingEmoji(task.description)} → ${newTime}`);
   }
 
   // Claude: Cancels pending auto-reschedule for a task (e.g., on user interaction).
