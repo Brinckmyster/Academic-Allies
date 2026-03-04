@@ -102,14 +102,6 @@
     window.location.reload();
   };
 
-  // Claude: exit mirror mode — clears mirror state, reloads to show viewer's own data
-  window.AA_EXIT_MIRROR = function () {
-    clearCache();
-    window.AA_MIRROR_UID = null;
-    window.AA_MIRROR     = null;
-    window.location.reload();
-  };
-
   /* ── Header student-switcher dropdown ─────────────────────── */
 
   function renderSwitcher() {
@@ -163,14 +155,6 @@
           '</button></li>'
         );
       }).join('') +
-      /* Claude: "View as Myself" option — exits mirror mode */
-      '<li style="border-top:1px solid #e1e5e9;margin-top:4px;padding-top:4px;">' +
-        '<button onclick="window.AA_EXIT_MIRROR()" ' +
-          'style="width:100%;text-align:left;padding:8px 14px;' +
-          'background:#fff;border:none;cursor:pointer;font-size:13px;' +
-          'color:#6CA0A3;font-weight:600;">' +
-          '&#x1F464; View as Myself' +
-        '</button></li>' +
       '</ul>';
 
     var btn  = document.getElementById('aa-switcher-btn');
