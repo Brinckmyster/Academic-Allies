@@ -36,15 +36,6 @@
   var db   = firebase.firestore();
   var auth = firebase.auth();
 
-  /* Claude: explicitly set auth persistence to LOCAL so sign-in survives
-     page navigations, tab closes, and browser restarts. This is the
-     default on most browsers, but making it explicit prevents edge-case
-     drops (e.g. Safari private mode falls back to SESSION). */
-  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-    .catch(function (err) {
-      console.warn('[AA] Auth persistence set failed:', err.code);
-    });
-
   /* Enable offline persistence (IndexedDB) so the app works without
      internet and picks up where it left off when reconnected.
      synchronizeTabs: true keeps multiple open tabs in sync. */
