@@ -24,8 +24,7 @@
     appId:             '1:93996985456:web:c697df7623bbceeb1d18b5'
   };
 
-  /* Claude: to add admins, add email to ADMIN_EMAILS array. Firestore rules also need updating.
-     Emails that get the "backstage-manager" role (can read all students' data) */
+  /* Emails that get the "backstage-manager" role (can read all students' data) */
   var ADMIN_EMAILS = ['brinckmyster@gmail.com'];
 
   /* ── Initialize Firebase once ───────────────────────────── */

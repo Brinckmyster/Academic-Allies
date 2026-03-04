@@ -24,8 +24,7 @@
     appId:             '1:93996985456:web:c697df7623bbceeb1d18b5'
   };
 
-  /* Claude: to add admins, add email to ADMIN_EMAILS array. Firestore rules also need updating.
-     Emails that get the "backstage-manager" role (can read all students' data) */
+  /* Emails that get the "backstage-manager" role (can read all students' data) */
   var ADMIN_EMAILS = ['brinckmyster@gmail.com'];
 
   /* ── Initialize Firebase once ───────────────────────────── */
@@ -224,10 +223,6 @@
 
   /* Real-time listener — callback(data | null) on every change */
   window.AA.watchNope = function (uid, callback) {
-    // Claude: log access to nope (crisis mode) data per compliance requirement
-    if (auth.currentUser && auth.currentUser.uid) {
-      window.AA.logAccess('read', uid, 'nope');
-    }
     return db.collection('nope').doc(uid)
       .onSnapshot(function (doc) {
         callback(doc.exists ? doc.data() : null);
@@ -423,10 +418,6 @@
   /* Real-time listener for check-ins (calls callback on any change) */
   window.AA.watchCheckins = function (uid, days, callback) {
     days = days || 7;
-    // Claude: log access to check-in data per compliance requirement
-    if (auth.currentUser && auth.currentUser.uid) {
-      window.AA.logAccess('read', uid, 'checkin');
-    }
     return db.collection('checkins').doc(uid)
       .collection('days')
       .orderBy('date', 'desc')
@@ -464,10 +455,6 @@
 
   /* Real-time listener for today's meal log */
   window.AA.watchMealLog = function (uid, dateKey, callback) {
-    // Claude: log access to meal log data per compliance requirement
-    if (auth.currentUser && auth.currentUser.uid) {
-      window.AA.logAccess('read', uid, 'mealLog');
-    }
     return db.collection('mealLogs').doc(uid)
       .collection('days').doc(dateKey)
       .onSnapshot(function (doc) {
@@ -488,10 +475,6 @@
   };
 
   window.AA.watchSpoonPal = function (uid, callback) {
-    // Claude: log access to spoonPal data per compliance requirement
-    if (auth.currentUser && auth.currentUser.uid) {
-      window.AA.logAccess('read', uid, 'spoonPal');
-    }
     return db.collection('spoonPal').doc(uid)
       .onSnapshot(function (doc) {
         callback(doc.exists ? doc.data() : null);
@@ -797,9 +780,7 @@
   };
 
   /* ── Audit Log — HIPAA compliance, logs PHI access ──────────────────────
-     Path: /auditLog/{targetUid}/entries/{logId}
-     Restructured 2026-03-03 for student visibility (FERPA: students can read
-     their own audit trail to see who accessed their data).
+     Path: /auditLog/{auto-id}
      Kept minimal: who, what, when. Not logged: actual data content.
      Do not log self-access (owner reading own data) — log cross-user access only.
      Added 2026-03-03 by Claude.
@@ -807,32 +788,18 @@
   window.AA.logAccess = function(action, targetUid, dataType) {
     var user = auth.currentUser;
     if (!user) return;
-    // Claude: removed self-access exclusion — log all access per compliance requirement
+    // Claude: don't log self-access (owner reading own data) — log cross-user access only
+    if (user.uid === targetUid) return;
     try {
-      // Claude: restructured to /auditLog/{targetUid}/{logId} so students can read their own trail
-      db.collection('auditLog').doc(targetUid)
-        .collection('entries').add({
-          actorUid:   user.uid,
-          actorEmail: user.email || '',
-          actorRole:  '', // will be filled if available
-          targetUid:  targetUid,
-          dataType:   dataType,   // e.g. 'checkin', 'mealLog', 'spoonPlan'
-          action:     action,     // e.g. 'read', 'write'
-          timestamp:  firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(function() {}); // non-blocking, never throw
+      db.collection('auditLog').add({
+        actorUid:   user.uid,
+        actorEmail: user.email || '',
+        targetUid:  targetUid,
+        dataType:   dataType,   // e.g. 'checkin', 'mealLog', 'spoonPlan'
+        action:     action,     // e.g. 'read', 'write'
+        timestamp:  firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(function() {}); // non-blocking, never throw
     } catch(e) {}
-  };
-
-  /* Get the last 50 audit log entries for a given student (FERPA audit viewer) */
-  window.AA.getAuditLog = function(targetUid) {
-    return db.collection('auditLog').doc(targetUid)
-      .collection('entries')
-      .orderBy('timestamp', 'desc')
-      .limit(50)
-      .get()
-      .then(function(snap) {
-        return snap.docs.map(function(doc) { return Object.assign({id: doc.id}, doc.data()); });
-      });
   };
 
   console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);

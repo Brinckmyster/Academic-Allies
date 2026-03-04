@@ -11,8 +11,6 @@ service cloud.firestore {
     }
     // "Admin" is the legacy name — this role is now called Backstage Manager.
     // Updated 2026-03-01 by Claude.
-    // Claude: 2026-03-03 — hardcoded email. When adding admins, update BOTH this function
-    // AND the ADMIN_EMAILS array in aa-firebase.js (see modular/aa-firebase.js line 28).
     function isBackstageManager() {
       return isSignedIn() && request.auth.token.email == 'brinckmyster@gmail.com';
     }
@@ -302,29 +300,14 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
-    // ── Audit Log — student-scoped, append-only ───────────────────
-    // Path: /auditLog/{targetUid}/entries/{logId}
-    // Students can read their own audit trail (FERPA right to know who accessed records).
-    // Network members can also read (support team transparency).
-    // Only the system (any signed-in user) can create. Nobody can update or delete.
-    // Added 2026-03-03 by Claude — restructured 2026-03-03 for student visibility.
-    match /auditLog/{targetUid} {
-      allow read: if isOwner(targetUid) || isNetworkMember(targetUid) || isBackstageManager();
-      allow write: if false; // no direct writes to the container doc
-
-      match /entries/{logId} {
-        allow read: if isOwner(targetUid) || isNetworkMember(targetUid) || isBackstageManager();
-        allow create: if isSignedIn();
-        allow update, delete: if false;
-      }
-    }
-
-    // ── Deletion requests — user submits, admin processes ─────────
-    // Claude: FERPA/HIPAA right to erasure — 2026-03-03
-    match /deletionRequests/{reqId} {
-      allow create: if isSignedIn()
-        && request.resource.data.uid == request.auth.uid;
-      allow read, update, delete: if isBackstageManager();
+    // ── Audit Log — append-only, admin-read only ──────────────────
+    // Path: /auditLog/{logId}
+    // Tracks PHI access: who, what, when. Not: actual data content.
+    // Added 2026-03-03 by Claude
+    match /auditLog/{logId} {
+      allow read: if isBackstageManager();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
     }
 
   }

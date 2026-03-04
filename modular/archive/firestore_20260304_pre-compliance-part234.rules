@@ -11,8 +11,6 @@ service cloud.firestore {
     }
     // "Admin" is the legacy name — this role is now called Backstage Manager.
     // Updated 2026-03-01 by Claude.
-    // Claude: 2026-03-03 — hardcoded email. When adding admins, update BOTH this function
-    // AND the ADMIN_EMAILS array in aa-firebase.js (see modular/aa-firebase.js line 28).
     function isBackstageManager() {
       return isSignedIn() && request.auth.token.email == 'brinckmyster@gmail.com';
     }
@@ -317,14 +315,6 @@ service cloud.firestore {
         allow create: if isSignedIn();
         allow update, delete: if false;
       }
-    }
-
-    // ── Deletion requests — user submits, admin processes ─────────
-    // Claude: FERPA/HIPAA right to erasure — 2026-03-03
-    match /deletionRequests/{reqId} {
-      allow create: if isSignedIn()
-        && request.resource.data.uid == request.auth.uid;
-      allow read, update, delete: if isBackstageManager();
     }
 
   }
