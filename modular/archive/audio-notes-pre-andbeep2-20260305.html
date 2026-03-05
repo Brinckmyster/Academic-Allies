@@ -1,15 +1,4 @@
 <!DOCTYPE html>
-<!-- ============================================================
-     audio-notes/audio-notes.html — Academic Allies Audio Notes
-     Updated: 2026-03-05 by Claude
-       - Android beep suppression via AudioContext silence buffer trick:
-         play near-silent 50ms buffer before each recognition.start()
-         to prevent Android Chrome's system chime on SR re-acquisition.
-         Non-nuclear — Speech Recognition stays enabled.
-       - Pre-warm AudioContext in startRecording() (user gesture context)
-         so mobile browsers don't auto-suspend it.
-       - aaAudioCtx closed in stopSpeechRecognition() for cleanup.
-     ============================================================ -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -394,34 +383,7 @@
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     var speechStopping = false;        // Claude: flag to prevent auto-restart after intentional stop
     var isRecognitionRunning = false;   // Claude: guard against "already started" error in onend
-    var isAndroid = /Android/i.test(navigator.userAgent); // Claude: Android-specific workarounds
-    var aaAudioCtx = null;             // Claude: 2026-03-05 — AudioContext for Android beep suppression
-
-    // Claude: 2026-03-05 — Android beep suppression via AudioContext silence buffer.
-    // Root cause: Android Chrome plays a system chime each time recognition.start() is
-    // called because it "re-acquires" the audio path. Trick: play a near-silent 50ms
-    // buffer through a live AudioContext right before start(), which keeps the audio
-    // output path occupied and prevents the OS from inserting its own sound.
-    // Non-nuclear — does NOT disable Speech Recognition.
-    function suppressAndroidBeep() {
-      if (!isAndroid) return;
-      try {
-        if (!aaAudioCtx || aaAudioCtx.state === 'closed') {
-          aaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (aaAudioCtx.state === 'suspended') aaAudioCtx.resume();
-        var buf = aaAudioCtx.createBuffer(1, Math.ceil(aaAudioCtx.sampleRate * 0.05), aaAudioCtx.sampleRate);
-        var src = aaAudioCtx.createBufferSource();
-        src.buffer = buf;
-        var gain = aaAudioCtx.createGain();
-        gain.gain.value = 0.001; // near-silent — not zero, which some devices ignore
-        src.connect(gain);
-        gain.connect(aaAudioCtx.destination);
-        src.start();
-      } catch(e) {
-        console.warn('[AudioNotes] AudioCtx beep suppress failed:', e);
-      }
-    }
+    var isAndroid = /Android/i.test(navigator.userAgent); // Claude: Android needs longer restart delay to avoid beeping
 
     function showSpeechFallback(msg) {
       // Claude: Otter.ai fallback link for when Speech API unavailable or fails
@@ -508,7 +470,6 @@
       // Claude: only start if not already running — prevents "already started" error
       if (isRecognitionRunning) return;
       try {
-        suppressAndroidBeep(); // Claude: 2026-03-05 — silence buffer trick before start()
         recognition.start();
         isRecognitionRunning = true;
       } catch(e) {
@@ -529,11 +490,6 @@
         try { recognition.stop(); } catch(e) {}
         recognition = null;
         isRecognitionRunning = false;
-      }
-      // Claude: 2026-03-05 — close AudioContext used for beep suppression
-      if (aaAudioCtx) {
-        try { aaAudioCtx.close(); } catch(e) {}
-        aaAudioCtx = null;
       }
     }
 
@@ -598,15 +554,6 @@
     }
 
     function startRecording() {
-      // Claude: 2026-03-05 — pre-warm AudioContext inside user gesture so mobile
-      // browsers don't suspend it immediately. Critical for beep suppression to work.
-      if (isAndroid) {
-        try {
-          if (!aaAudioCtx || aaAudioCtx.state === 'closed') {
-            aaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          }
-        } catch(e) {}
-      }
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(function(stream) {
           audioChunks = [];
