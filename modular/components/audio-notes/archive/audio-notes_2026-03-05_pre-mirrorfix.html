@@ -52,13 +52,6 @@
     #noteTitleInput:focus { outline: none; border-color: #6CA0A3; }
     #noteTitleInput::placeholder { color: #bbb; }
     .note-title { font-weight: 700; font-size: 11pt; color: #333; margin-bottom: 3px; }
-    /* Claude: 2026-03-05 — inline rename */
-    .note-rename-btn { background: none; border: none; cursor: pointer; font-size: 13px; color: #aaa; padding: 0 0 0 6px; vertical-align: middle; }
-    .note-rename-btn:hover { color: #6CA0A3; }
-    .note-rename-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-    .note-rename-input { flex: 1; padding: 4px 8px; border: 1.5px solid #6CA0A3; border-radius: 6px; font-size: 11pt; font-family: inherit; }
-    .note-rename-save { background: #6CA0A3; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 10pt; }
-    .note-rename-cancel { background: none; border: none; color: #aaa; cursor: pointer; font-size: 10pt; }
     #liveTranscript {
       margin: 12px auto; max-width: 560px; min-height: 48px; padding: 10px 14px;
       background: #fff; border: 1px solid #e1e5e9; border-radius: 8px;
@@ -407,26 +400,6 @@
           console.warn('[AudioNotes] Drive upload failed:', err);
           return null;
         });
-    }
-
-    // Claude: 2026-03-05 — rename a Drive file by fileId (PATCH metadata only, no re-upload)
-    function renameDriveFile(fileId, newName) {
-      return getDriveToken().then(function(token) {
-        return fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(fileId), {
-          method: 'PATCH',
-          headers: {
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ name: newName })
-        }).then(function(r) {
-          if (!r.ok) throw new Error('Drive rename HTTP ' + r.status);
-          return r.json();
-        });
-      }).catch(function(err) {
-        console.warn('[AudioNotes] Drive rename failed:', err);
-        return null;
-      });
     }
 
     // ── Speech Recognition ─────────────────────────────────────────────────────
@@ -881,20 +854,8 @@
           ? '<a href="' + escHtml(n.driveLink) + '" target="_blank" rel="noopener" style="font-size:10pt;color:#1a73e8;text-decoration:none;">▶ Play on Drive</a>'
           : '';
 
-        // Claude: 2026-03-05 — title row with inline rename button (own notes only)
-        var titleHtml = '';
-        if (!isMirror) {
-          var displayTitle = n.title ? escHtml(n.title) : '<span style="color:#bbb;font-weight:400;">Untitled</span>';
-          titleHtml = '<div class="note-rename-row">'
-            + '<span class="note-title" style="flex:1">' + displayTitle + '</span>'
-            + '<button class="note-rename-btn" data-id="' + n._id + '" data-title="' + escHtml(n.title || '').replace(/"/g,'&quot;') + '" data-driveid="' + escHtml(n.driveFileId || '') + '" title="Rename">✏️</button>'
-            + '</div>';
-        } else if (n.title) {
-          titleHtml = '<div class="note-title">' + escHtml(n.title) + '</div>';
-        }
-
         return '<div class="note-card">'
-          + titleHtml
+          + (n.title ? '<div class="note-title">' + escHtml(n.title) + '</div>' : '')
           + '<div class="note-header">'
           +   '<span class="note-time">' + timeStr + (n.duration ? ' · ' + fmtDuration(n.duration) : '') + '</span>'
           +   '<span class="note-cat ' + catClass + '">' + catLabel + '</span>'
@@ -923,55 +884,6 @@
             .collection('notes').doc(noteId).delete()
             .then(function() { showToast('Note deleted'); })
             .catch(function(err) { showToast('Delete failed'); console.error(err); });
-        };
-      });
-
-      // Claude: 2026-03-05 — wire rename buttons (pencil icon → inline input)
-      notesList.querySelectorAll('.note-rename-btn').forEach(function(btn) {
-        btn.onclick = function() {
-          var row = btn.closest('.note-rename-row');
-          if (!row) return;
-          var noteId  = btn.getAttribute('data-id');
-          var driveId = btn.getAttribute('data-driveid');
-          var current = btn.getAttribute('data-title') || '';
-
-          // Replace the row with an inline edit field
-          row.innerHTML =
-            '<input class="note-rename-input" type="text" maxlength="100" value="' + escHtml(current).replace(/"/g,'&quot;') + '" placeholder="Note title…">'
-            + '<button class="note-rename-save">Save</button>'
-            + '<button class="note-rename-cancel">Cancel</button>';
-
-          var input  = row.querySelector('.note-rename-input');
-          var saveBtn   = row.querySelector('.note-rename-save');
-          var cancelBtn = row.querySelector('.note-rename-cancel');
-          input.focus();
-          input.select();
-
-          function doSave() {
-            var newTitle = input.value.trim();
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving…';
-            // Update Firestore
-            window.AA.db.collection('audioNotes').doc(writeUid)
-              .collection('notes').doc(noteId)
-              .update({ title: newTitle })
-              .then(function() {
-                // If there's a Drive file, rename it there too
-                if (driveId) {
-                  return renameDriveFile(driveId, newTitle || ('audio-note-' + noteId));
-                }
-              })
-              .then(function() { showToast('Renamed!'); })
-              .catch(function(err) { showToast('Rename failed'); console.error(err); });
-            // renderNotes() will be called by the Firestore onSnapshot listener automatically
-          }
-
-          saveBtn.onclick = doSave;
-          input.onkeydown = function(e) {
-            if (e.key === 'Enter') doSave();
-            if (e.key === 'Escape') cancelBtn.click();
-          };
-          cancelBtn.onclick = function() { renderNotes(); }; // restore view
         };
       });
     }
@@ -1018,12 +930,10 @@
         document.getElementById('signin-notice').style.display = 'none';
         document.getElementById('main-body').style.display = 'block';
 
-        // Claude: 2026-03-05 — writeUid is always the signed-in user (you record your own notes).
-        // readUid follows AA_MIRROR_UID so support network sees the student's notes, not their own.
+        // Claude: audio notes are personal to the recorder — always use own UID,
+        // ignore AA_MIRROR_UID entirely. No mirror mode for this component.
         writeUid = user.uid;
-        readUid = (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid)
-          ? window.AA_MIRROR_UID
-          : user.uid;
+        readUid = user.uid;
 
         watchNotes(readUid);
       });
