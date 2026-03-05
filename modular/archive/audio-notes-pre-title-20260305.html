@@ -43,15 +43,6 @@
     #recordTimer { font-weight: 600; color: #f44336; }
     #gpsStatus { font-size: 10pt; color: #aaa; margin-top: 4px; }
     #speechWarning { font-size: 10pt; color: #c77600; margin-top: 6px; display: none; }
-    /* Claude: 2026-03-05 — optional note title input */
-    #noteTitleInput {
-      display: block; width: 100%; max-width: 400px; margin: 0 auto 14px;
-      padding: 9px 14px; border: 1.5px solid #e1e5e9; border-radius: 8px;
-      font-size: 12pt; font-family: inherit; background: #fff; color: #333;
-    }
-    #noteTitleInput:focus { outline: none; border-color: #6CA0A3; }
-    #noteTitleInput::placeholder { color: #bbb; }
-    .note-title { font-weight: 700; font-size: 11pt; color: #333; margin-bottom: 3px; }
     #liveTranscript {
       margin: 12px auto; max-width: 560px; min-height: 48px; padding: 10px 14px;
       background: #fff; border: 1px solid #e1e5e9; border-radius: 8px;
@@ -145,9 +136,6 @@
       <!-- Claude: mirror banner for support users viewing student data -->
       <div id="mirrorBanner" class="mirror-banner"></div>
 
-      <!-- Claude: 2026-03-05 — optional title, editable before or during recording -->
-      <input type="text" id="noteTitleInput" placeholder="Note title (optional)" maxlength="100">
-
       <!-- Record section -->
       <div id="recordSection" class="record-wrap">
         <button id="recordBtn" title="Tap to record">🎙️</button>
@@ -227,7 +215,6 @@
     var recognition = null;
     var transcript = '';
     var interimText = '';
-    var noteTitle = '';         // Claude: 2026-03-05 — optional title set before/during recording
     var recordingGps = null;
     var recordingAddress = null;
     var recordStartTime = null;
@@ -236,7 +223,6 @@
     var unsubNotes = null;      // Firestore listener unsubscribe
 
     // ── DOM refs ───────────────────────────────────────────────────────────────
-    var noteTitleInput = document.getElementById('noteTitleInput'); // Claude: 2026-03-05
     var recordBtn      = document.getElementById('recordBtn');
     var recordStatus   = document.getElementById('recordStatus');
     var gpsStatusEl    = document.getElementById('gpsStatus');
@@ -615,10 +601,15 @@
     }
 
     function startRecording() {
-      // Claude: 2026-03-05 — capture title at start of recording
-      noteTitle = noteTitleInput ? noteTitleInput.value.trim() : '';
-      noteTitleInput.disabled = true; // lock while recording
-
+      // Claude: 2026-03-05 — pre-warm AudioContext inside user gesture so mobile
+      // browsers don't suspend it immediately. Critical for beep suppression to work.
+      if (isAndroid) {
+        try {
+          if (!aaAudioCtx || aaAudioCtx.state === 'closed') {
+            aaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+        } catch(e) {}
+      }
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(function(stream) {
           audioChunks = [];
@@ -642,11 +633,7 @@
 
           startTimer();
           captureGps();
-          // Claude: 2026-03-05 — skip SR on Android entirely; beep is OS-level and
-          // cannot be suppressed. Audio records fine; transcript stays empty on Android.
-          if (!isAndroid) {
-            startSpeechRecognition();
-          }
+          startSpeechRecognition();
         })
         .catch(function(err) {
           showToast('Microphone access denied');
@@ -664,7 +651,6 @@
       recordBtn.classList.remove('recording');
       recordBtn.title = 'Tap to record';
       recordStatus.textContent = 'Select a category…';
-      noteTitleInput.disabled = false; // Claude: re-enable title input after recording
 
       catModal.classList.add('open');
     }
@@ -691,9 +677,6 @@
       audioChunks = [];
       transcript = '';
       interimText = '';
-      noteTitle = '';
-      noteTitleInput.value = '';
-      noteTitleInput.disabled = false;
       liveTranscript.style.display = 'none';
       speechWarning.style.display = 'none';
       gpsStatusEl.textContent = '';
@@ -724,7 +707,6 @@
         recordStatus.textContent = driveResult ? 'Saving note…' : 'Saving (no Drive link)…';
 
         var noteData = {
-          title: noteTitle || null,  // Claude: 2026-03-05 — optional title
           transcript: finalTranscript,
           localTime: localTime,
           gps: gps,
@@ -763,9 +745,6 @@
             audioChunks = [];
             transcript = '';
             interimText = '';
-            noteTitle = '';               // Claude: clear title after save
-            noteTitleInput.value = '';
-            noteTitleInput.disabled = false;
             recordingAddress = null;
           })
           .catch(function(err) {
@@ -841,7 +820,6 @@
           : '';
 
         return '<div class="note-card">'
-          + (n.title ? '<div class="note-title">' + escHtml(n.title) + '</div>' : '')
           + '<div class="note-header">'
           +   '<span class="note-time">' + timeStr + (n.duration ? ' · ' + fmtDuration(n.duration) : '') + '</span>'
           +   '<span class="note-cat ' + catClass + '">' + catLabel + '</span>'
