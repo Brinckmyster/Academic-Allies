@@ -232,20 +232,6 @@
           if (u) u.getIdToken(true).catch(function () {});
         }, 45 * 60 * 1000);
       }
-      /* Claude: 2026-03-05 — visibilitychange refresh.
-         Chrome throttles setInterval for background tabs, so the 45-min
-         interval may never fire while the tab is hidden. When the user
-         returns, force a token refresh immediately so the session doesn't
-         expire mid-use. One listener registered once per session. */
-      if (_keepSignedIn && !window._aaVisibilityRefreshBound) {
-        window._aaVisibilityRefreshBound = true;
-        document.addEventListener('visibilitychange', function () {
-          if (!document.hidden) {
-            var u = auth.currentUser;
-            if (u) u.getIdToken(true).catch(function () {});
-          }
-        });
-      }
     }
     if (!user) {
       /* Claude: clear token refresh interval on sign-out */
