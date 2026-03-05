@@ -801,24 +801,10 @@
     // ── Render notes ───────────────────────────────────────────────────────────
     function renderNotes() {
       var query = (searchInput.value || '').toLowerCase().trim();
-      var catFilter = categoryFilter ? categoryFilter.value : '';
-
-      // Claude: 2026-03-05 — normalize category comparison. Old notes may have
-      // been saved with emoji prefix or different case; strip to lowercase key only.
-      var CAT_NORMALIZE = {};
-      Object.keys(CAT_LABELS).forEach(function(k) {
-        // map "🌳 Genealogy" → "genealogy", "Genealogy" → "genealogy", etc.
-        CAT_NORMALIZE[CAT_LABELS[k].replace(/^\S+\s+/, '').toLowerCase()] = k;
-        CAT_NORMALIZE[k.toLowerCase()] = k;
-      });
-      function normalizeCategory(raw) {
-        if (!raw) return '';
-        var stripped = String(raw).replace(/^\S+\s+/, '').toLowerCase().trim();
-        return CAT_NORMALIZE[stripped] || CAT_NORMALIZE[raw.toLowerCase().trim()] || raw.toLowerCase().trim();
-      }
+      var catFilter = categoryFilter.value;
 
       var filtered = allNotes.filter(function(n) {
-        if (catFilter && normalizeCategory(n.category) !== catFilter) return false;
+        if (catFilter && n.category !== catFilter) return false;
         if (query && (n.transcript || '').toLowerCase().indexOf(query) === -1) return false;
         return true;
       });
