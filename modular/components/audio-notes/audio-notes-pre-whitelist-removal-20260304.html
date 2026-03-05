@@ -818,6 +818,17 @@
       setTimeout(function() { waitForAA(cb, n + 1); }, 200);
     }
 
+    // Claude: temporary email whitelist for Audio Notes access through RootsTech.
+    // TODO: remove whitelist after March 13, 2026 — open to all signed-in users.
+    var AUDIO_NOTES_WHITELIST = [
+      'brinckmyster@gmail.com',       // backstage-manager
+      'karenbrinckfh@gmail.com'          // temporary RootsTech access
+    ];
+
+    function isAllowed(email) {
+      return AUDIO_NOTES_WHITELIST.indexOf((email || '').toLowerCase()) !== -1;
+    }
+
     waitForAA(function() {
       window.AA.auth.onAuthStateChanged(function(user) {
         if (!user) {
@@ -825,6 +836,14 @@
           document.getElementById('main-body').style.display = 'none';
           document.getElementById('signin-notice').style.display = 'block';
           if (unsubNotes) unsubNotes();
+          return;
+        }
+
+        // Claude: check email whitelist (temporary through RootsTech 2026-03-13)
+        if (!isAllowed(user.email)) {
+          document.getElementById('signin-notice').textContent = 'Audio Notes is in early testing. Access coming soon.';
+          document.getElementById('main-body').style.display = 'none';
+          document.getElementById('signin-notice').style.display = 'block';
           return;
         }
 

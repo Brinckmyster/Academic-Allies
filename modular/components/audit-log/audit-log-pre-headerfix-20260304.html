@@ -187,25 +187,25 @@
     </div>
   </div>
 
-  <!-- Claude: standard fetch loader for shared header with script re-execution -->
-  <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260304b')
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        var c = document.getElementById('site-header');
-        c.innerHTML = html;
-        c.querySelectorAll('script').forEach(function(old) {
-          var s = document.createElement('script');
-          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
-          s.textContent = old.textContent;
-          old.replaceWith(s);
-        });
-      });
-  </script>
-
+  <!-- Include shared header for Firebase + auth -->
+  <script id="shared-header-loader"></script>
   <script>
   (function() {
     'use strict';
+
+    /* ── Include shared header HTML ────────────────────────────── */
+    function loadSharedHeader() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/Academic-Allies/modular/shared-header.html', true);
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          var headerDiv = document.getElementById('site-header');
+          headerDiv.innerHTML = xhr.responseText;
+          initAfterHeader();
+        }
+      };
+      xhr.send();
+    }
 
     /* ── Wait for window.AA to be ready ────────────────────────── */
     function waitForAA(callback) {
@@ -354,50 +354,55 @@
       }
     };
 
-    /* ── Start ──────────────────────────────────────────────────── */
-    waitForAA(function() {
-      var currentUser = window.AA.auth.currentUser;
-      if (!currentUser) {
-        document.getElementById('no-logs').textContent = 'Please sign in to view your audit log';
-        document.getElementById('no-logs').style.display = 'block';
-        return;
-      }
-
-      // Claude: determine user role and set up UI
-      window.AA.getUserDoc(currentUser.uid).then(function(doc) {
-        var role = doc.exists ? (doc.data().role || 'student') : 'student';
-
-        if (role === 'backstage-manager') {
-          // Show student picker
-          document.getElementById('student-picker-wrap').style.display = 'block';
-
-          // Populate student list
-          window.AA.getAllStudents().then(function(students) {
-            var picker = document.getElementById('student-picker');
-            picker.innerHTML = '<option value="">Select a student…</option>';
-            students.forEach(function(student) {
-              var opt = document.createElement('option');
-              opt.value = student.uid;
-              opt.textContent = student.data.displayName || student.data.email;
-              picker.appendChild(opt);
-            });
-
-            // Listen for picker change
-            picker.addEventListener('change', function() {
-              if (this.value) refreshLog();
-            });
-          }).catch(function(err) {
-            console.error('[audit-log] Error loading students:', err);
-          });
-        } else {
-          // Student or network member — load their own log immediately
-          loadAuditLog(currentUser.uid);
+    /* ── Initialize after header loads ───────────────────────────── */
+    function initAfterHeader() {
+      waitForAA(function() {
+        var currentUser = window.AA.auth.currentUser;
+        if (!currentUser) {
+          document.getElementById('no-logs').textContent = 'Please sign in to view your audit log';
+          document.getElementById('no-logs').style.display = 'block';
+          return;
         }
-      }).catch(function(err) {
-        console.error('[audit-log] Error fetching user doc:', err);
-        loadAuditLog(currentUser.uid); // fallback
+
+        // Claude: determine user role and set up UI
+        window.AA.getUserDoc(currentUser.uid).then(function(doc) {
+          var role = doc.exists ? (doc.data().role || 'student') : 'student';
+
+          if (role === 'backstage-manager') {
+            // Show student picker
+            document.getElementById('student-picker-wrap').style.display = 'block';
+
+            // Populate student list
+            window.AA.getAllStudents().then(function(students) {
+              var picker = document.getElementById('student-picker');
+              picker.innerHTML = '<option value="">Select a student…</option>';
+              students.forEach(function(student) {
+                var opt = document.createElement('option');
+                opt.value = student.uid;
+                opt.textContent = student.data.displayName || student.data.email;
+                picker.appendChild(opt);
+              });
+
+              // Listen for picker change
+              picker.addEventListener('change', function() {
+                if (this.value) refreshLog();
+              });
+            }).catch(function(err) {
+              console.error('[audit-log] Error loading students:', err);
+            });
+          } else {
+            // Student or network member — load their own log immediately
+            loadAuditLog(currentUser.uid);
+          }
+        }).catch(function(err) {
+          console.error('[audit-log] Error fetching user doc:', err);
+          loadAuditLog(currentUser.uid); // fallback
+        });
       });
-    });
+    }
+
+    /* ── Start ──────────────────────────────────────────────────– */
+    loadSharedHeader();
   })();
   </script>
 </body>
