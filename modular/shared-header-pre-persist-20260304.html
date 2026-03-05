@@ -91,7 +91,7 @@ Your disability accommodations and support network">Your disability accommodatio
        Pages that rely on shared-header for Firebase (calendar, support-dashboard, user-tiers,
        message-system) were receiving 9.23.0 via this dynamic loader instead of the required 10.7.1. */
     var FB_BASE   = 'https://www.gstatic.com/firebasejs/10.7.1/';
-    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260304a'; /* Claude: persistence fix — chain onAuthStateChanged after setPersistence */
+    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260303a'; /* Updated: 2026-03-03 by Claude — cache-bust bump with version fix */
 
     /* ── 3. Wire up the header UI once window.AA is ready ── */
     function initAuthUI() {
@@ -140,14 +140,10 @@ Your disability accommodations and support network">Your disability accommodatio
         });
       }
 
-      // Claude: save original sign-in button HTML for restoring after re-auth failure
-      var _signinBtnOrigHtml = signinBtn ? signinBtn.innerHTML : '';
-
       /* Sign-out click */
       if (signoutBtn) {
         signoutBtn.addEventListener('click', function () {
           sessionStorage.removeItem('academicAlliesUser');
-          sessionStorage.removeItem('AA_REAUTH_DONE'); // Claude: allow re-auth on next sign-in
           window.AA.signOut();
         });
       }
@@ -334,38 +330,7 @@ Your disability accommodations and support network">Your disability accommodatio
       /* React to every auth state change */
       window.AA.auth.onAuthStateChanged(function (user) {
         if (!user) {
-          /* Claude: check localStorage for cached user — persistence may be slow
-             across virtual desktops. Attempt silent re-auth before showing sign-in. */
-          var lastUser = null;
-          try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
-
-          if (lastUser && !sessionStorage.getItem('AA_REAUTH_DONE')) {
-            /* Claude: show "Resuming…" and wait 3s for persistence to kick in.
-               If still null, try signInWithPopup with login_hint for one-click re-auth.
-               sessionStorage flag prevents infinite attempts within the session. */
-            sessionStorage.setItem('AA_REAUTH_DONE', '1');
-            if (signinBtn) {
-              signinBtn.style.display = 'inline-flex';
-              signinBtn.disabled = true;
-              signinBtn.textContent = 'Resuming session\u2026';
-            }
-            setTimeout(function () {
-              if (window.AA.auth.currentUser) return; // persistence resolved in time
-              var provider = new firebase.auth.GoogleAuthProvider();
-              provider.setCustomParameters({ login_hint: lastUser.email });
-              window.AA.auth.signInWithPopup(provider).catch(function (err) {
-                console.warn('[AA] Silent re-auth failed:', err.code || err.message);
-                try { localStorage.removeItem('AA_LAST_USER'); } catch (e) {}
-                if (signinBtn) {
-                  signinBtn.innerHTML = _signinBtnOrigHtml;
-                  signinBtn.disabled = false;
-                }
-              });
-            }, 3000);
-          } else {
-            if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
-          }
-
+          if (signinBtn)     { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
           if (infoWrap)      infoWrap.style.display      = 'none';
           if (signoutBtn)    signoutBtn.style.display     = 'none';
           if (deleteBtn)     deleteBtn.style.display      = 'none'; /* Claude: data deletion request */

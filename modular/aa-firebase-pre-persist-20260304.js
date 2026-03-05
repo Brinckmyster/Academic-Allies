@@ -37,11 +37,10 @@
   var auth = firebase.auth();
 
   /* Claude: explicitly set auth persistence to LOCAL so sign-in survives
-     page navigations, tab closes, and browser restarts. Save the promise
-     so onAuthStateChanged can wait for persistence to load from IndexedDB
-     before checking auth state. Fixes sign-in not persisting across
-     virtual desktops where the async read was racing the listener. */
-  var _persistenceReady = auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+     page navigations, tab closes, and browser restarts. This is the
+     default on most browsers, but making it explicit prevents edge-case
+     drops (e.g. Safari private mode falls back to SESSION). */
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
     .catch(function (err) {
       console.warn('[AA] Auth persistence set failed:', err.code);
     });
@@ -112,16 +111,7 @@
       });
   };
 
-  // Claude: clear cached user on sign-out so re-auth isn't attempted next load
-  window.AA.signOut = function () {
-    try { localStorage.removeItem('AA_LAST_USER'); } catch (e) {}
-    return auth.signOut();
-  };
-
-  // Claude: read cached user from localStorage (for re-auth fallback in shared-header)
-  window.AA.getLastUser = function () {
-    try { return JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) { return null; }
-  };
+  window.AA.signOut = function () { return auth.signOut(); };
 
   window.AA.isAdmin = function () {
     var u = auth.currentUser;
@@ -178,21 +168,7 @@
      permission-denied error reading pendingUsers, which silently prevented
      createUserDoc from ever being called. Now we catch that error per-step
      and fall through to the default role. */
-  /* Claude: wait for persistence to resolve before checking auth state.
-     This prevents onAuthStateChanged from firing with null while
-     IndexedDB is still loading the persisted session. */
-  _persistenceReady.then(function () {
   auth.onAuthStateChanged(function (user) {
-    /* Claude: cache last signed-in user to localStorage for re-auth fallback.
-       If Firebase persistence fails (virtual desktops, cleared IndexedDB),
-       shared-header can read this to attempt silent re-auth. */
-    if (user) {
-      try {
-        localStorage.setItem('AA_LAST_USER', JSON.stringify({
-          email: user.email, displayName: user.displayName, uid: user.uid
-        }));
-      } catch (e) {}
-    }
     if (!user) return;
     db.collection('users').doc(user.uid).get().then(function (doc) {
       if (doc.exists) {
@@ -252,7 +228,6 @@
       console.error('[AA] User profile create error:', err);
     });
   });
-  }); /* Claude: end _persistenceReady.then() */
 
   /* ── Nope helpers ───────────────────────────────────────── */
 
