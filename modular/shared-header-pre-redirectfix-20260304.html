@@ -342,37 +342,28 @@ Your disability accommodations and support network">Your disability accommodatio
       /* React to every auth state change */
       window.AA.auth.onAuthStateChanged(function (user) {
         if (!user) {
-          /* Claude: check getRedirectResult() first — if user just came back from
-             signInWithRedirect, auth state fires null before redirect resolves.
-             Only show sign-in button if redirect also returns no user. */
-          window.AA.auth.getRedirectResult().then(function (result) {
-            if (result && result.user) return; // redirect resolved — onAuthStateChanged will re-fire with user
+          /* Claude: check localStorage for cached user — persistence may be slow
+             across virtual desktops. Attempt silent re-auth before showing sign-in. */
+          var lastUser = null;
+          try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
 
-            var lastUser = null;
-            try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
-
-            if (lastUser && !sessionStorage.getItem('AA_REAUTH_DONE')) {
-              /* Claude: show "Resuming…" and wait 500ms for persistence to kick in.
-                 If still null, call _doSignIn with login_hint — it tries popup first,
-                 falls back to redirect if blocked. sessionStorage flag prevents loops. */
-              sessionStorage.setItem('AA_REAUTH_DONE', '1');
-              if (signinBtn) {
-                signinBtn.style.display = 'inline-flex';
-                signinBtn.disabled = true;
-                signinBtn.textContent = 'Resuming session\u2026';
-              }
-              setTimeout(function () {
-                if (window.AA.auth.currentUser) return; // persistence resolved in time
-                _doSignIn(lastUser.email);
-              }, 500);
-            } else {
-              if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
+          if (lastUser && !sessionStorage.getItem('AA_REAUTH_DONE')) {
+            /* Claude: show "Resuming…" and wait 3s for persistence to kick in.
+               If still null, call _doSignIn with login_hint — it tries popup first,
+               falls back to redirect if blocked. sessionStorage flag prevents loops. */
+            sessionStorage.setItem('AA_REAUTH_DONE', '1');
+            if (signinBtn) {
+              signinBtn.style.display = 'inline-flex';
+              signinBtn.disabled = true;
+              signinBtn.textContent = 'Resuming session\u2026';
             }
-          }).catch(function (err) {
-            /* Claude: redirect result failed — just show sign-in button */
-            console.warn('[AA header] getRedirectResult error:', err);
+            setTimeout(function () {
+              if (window.AA.auth.currentUser) return; // persistence resolved in time
+              _doSignIn(lastUser.email);
+            }, 3000);
+          } else {
             if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
-          });
+          }
 
           if (infoWrap)      infoWrap.style.display      = 'none';
           if (signoutBtn)    signoutBtn.style.display     = 'none';
