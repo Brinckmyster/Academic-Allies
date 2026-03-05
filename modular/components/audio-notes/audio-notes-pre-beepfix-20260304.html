@@ -383,7 +383,6 @@
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     var speechStopping = false;        // Claude: flag to prevent auto-restart after intentional stop
     var isRecognitionRunning = false;   // Claude: guard against "already started" error in onend
-    var isAndroid = /Android/i.test(navigator.userAgent); // Claude: Android needs longer restart delay to avoid beeping
 
     function showSpeechFallback(msg) {
       // Claude: Otter.ai fallback link for when Speech API unavailable or fails
@@ -411,7 +410,6 @@
       // Claude: force continuous + interim on every instance (mobile Chrome needs both)
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.maxAlternatives = 1; // Claude: reduce processing load — we only need the top result
       recognition.lang = 'en-US';
 
       recognition.onresult = function(e) {
@@ -447,15 +445,14 @@
       };
 
       // Claude: mobile Chrome auto-restart — on mobile, recognition fires onend after
-      // each phrase/silence. Restart after delay to let the browser fully release the
-      // old instance. Android needs 2s to avoid beeping; desktop/iOS uses 300ms.
+      // each phrase/silence. Silently restart after 300ms delay to let the browser
+      // fully release the old instance and avoid "already started" errors.
       recognition.onend = function() {
         isRecognitionRunning = false;
         if (speechStopping) return;
         if (mediaRecorder && mediaRecorder.state === 'recording') {
-          var delay = isAndroid ? 2000 : 300;
           setTimeout(function() {
-            // Claude: re-check guards after the delay
+            // Claude: re-check guards after the 300ms delay
             if (speechStopping || isRecognitionRunning) return;
             if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
             try {
@@ -463,7 +460,7 @@
             } catch(e) {
               console.warn('[AudioNotes] Speech restart failed:', e);
             }
-          }, delay);
+          }, 300);
         }
       };
 
