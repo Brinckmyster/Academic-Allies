@@ -345,9 +345,7 @@
         // Backstage manager mode — use selected student
         var selectedUid = picker.value;
         if (!selectedUid) {
-          // Claude: 2026-03-05 — show message inside the picker area, not the content area
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('no-logs').textContent = '← Select a student above to view their log';
+          document.getElementById('no-logs').textContent = 'Please select a student';
           document.getElementById('no-logs').style.display = 'block';
           return;
         }
@@ -386,17 +384,10 @@
               picker.appendChild(opt);
             });
 
-            // Claude: 2026-03-05 — auto-select if only one student, so admin doesn't
-          // land on a blank page. Also load immediately on auto-select.
-          if (students.length === 1) {
-            picker.value = students[0].uid;
-            loadAuditLog(students[0].uid);
-          }
-
-          // Listen for picker change
-          picker.addEventListener('change', function() {
-            if (this.value) loadAuditLog(this.value);
-          });
+            // Listen for picker change
+            picker.addEventListener('change', function() {
+              if (this.value) refreshLog();
+            });
           }).catch(function(err) {
             console.error('[audit-log] Error loading students:', err);
           });
