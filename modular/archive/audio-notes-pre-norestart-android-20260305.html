@@ -485,17 +485,17 @@
         }
       };
 
+      /* Claude: 2026-03-05 — Android beeping fix: use onaudioend instead of onend for
+         restart trigger. onaudioend fires when the audio stream ends (before the beep
+         that onend causes). Android gets 3s delay; desktop/iOS gets 300ms. */
       recognition.onend = function() {
         isRecognitionRunning = false;
       };
 
-      /* Claude: 2026-03-05 — Android: no restart. One SR session per recording,
-         no beep ever. Audio records the full session regardless. Live transcript
-         works for the first stretch; desktop/iOS still auto-restarts normally. */
       recognition.onaudioend = function() {
         if (speechStopping) return;
-        if (isAndroid) return; // Claude: no restart on Android — eliminates beep entirely
         if (mediaRecorder && mediaRecorder.state === 'recording') {
+          var delay = isAndroid ? 3000 : 300;
           setTimeout(function() {
             if (speechStopping || isRecognitionRunning) return;
             if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
@@ -504,7 +504,7 @@
             } catch(e) {
               console.warn('[AudioNotes] Speech restart failed:', e);
             }
-          }, 300);
+          }, delay);
         }
       };
 
