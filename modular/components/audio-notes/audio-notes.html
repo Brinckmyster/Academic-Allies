@@ -87,9 +87,10 @@
     .cat-academic   { background: #1a73e8; }
     .cat-personal   { background: #7b5ea7; }
     .cat-other      { background: #888; }
-    .note-transcript { font-size: 11pt; color: #555; margin-bottom: 6px; line-height: 1.4; cursor: pointer; }
-    .note-transcript.collapsed { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .note-expand { font-size: 9pt; color: #1a73e8; cursor: pointer; margin-bottom: 6px; display: none; }
+    /* Claude: 2026-03-05 — transcript preview: 100-char truncation, expand/collapse, 300px scroll cap */
+    .note-transcript { font-size: 11pt; color: #555; margin-bottom: 6px; line-height: 1.4; white-space: pre-wrap; }
+    .note-transcript.expanded { max-height: 300px; overflow-y: auto; }
+    .note-expand { font-size: 9pt; color: #1a73e8; cursor: pointer; margin-bottom: 6px; }
     .note-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
     .note-loc { font-size: 9pt; color: #aaa; }
     .note-delete { background: none; border: none; cursor: pointer; font-size: 14px; color: #ccc; padding: 2px 6px; }
@@ -446,16 +447,18 @@
         }
       };
 
-      // Claude: mobile Chrome auto-restart — on mobile, recognition fires onend after
-      // each phrase/silence. Restart after delay to let the browser fully release the
-      // old instance. Android needs 2s to avoid beeping; desktop/iOS uses 300ms.
+      /* Claude: 2026-03-05 — Android beeping fix: use onaudioend instead of onend for
+         restart trigger. onaudioend fires when the audio stream ends (before the beep
+         that onend causes). Android gets 3s delay; desktop/iOS gets 300ms. */
       recognition.onend = function() {
         isRecognitionRunning = false;
+      };
+
+      recognition.onaudioend = function() {
         if (speechStopping) return;
         if (mediaRecorder && mediaRecorder.state === 'recording') {
-          var delay = isAndroid ? 2000 : 300;
+          var delay = isAndroid ? 3000 : 300;
           setTimeout(function() {
-            // Claude: re-check guards after the delay
             if (speechStopping || isRecognitionRunning) return;
             if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
             try {
@@ -750,8 +753,10 @@
         var locStr = n.address
           ? '📍 ' + escHtml(n.address)
           : (n.gps ? '📍 ' + n.gps.lat.toFixed(4) + ', ' + n.gps.lng.toFixed(4) : '');
+        /* Claude: 2026-03-05 — show first 100 chars as preview, "..." if longer */
         var transcriptText = n.transcript || '(no transcript)';
-        var isLong = transcriptText.length > 120;
+        var isLong = transcriptText.length > 100;
+        var previewText = isLong ? transcriptText.slice(0, 100) + '...' : transcriptText;
         var deleteHtml = !isMirror
           ? '<button class="note-delete" data-id="' + n._id + '" title="Delete note">🗑️</button>'
           : '';
@@ -766,8 +771,8 @@
           +   '<span class="note-time">' + timeStr + (n.duration ? ' · ' + fmtDuration(n.duration) : '') + '</span>'
           +   '<span class="note-cat ' + catClass + '">' + catLabel + '</span>'
           + '</div>'
-          + '<div class="note-transcript' + (isLong ? ' collapsed' : '') + '" data-nid="' + n._id + '">' + escHtml(transcriptText) + '</div>'
-          + (isLong ? '<div class="note-expand" data-nid="' + n._id + '" style="display:block;">Show more</div>' : '')
+          + '<div class="note-transcript" data-nid="' + n._id + '" data-full="' + escHtml(transcriptText).replace(/"/g, '&quot;') + '">' + escHtml(previewText) + '</div>'
+          + (isLong ? '<div class="note-expand" data-nid="' + n._id + '">Show more</div>' : '')
           + '<div class="note-footer">'
           +   '<span class="note-loc">' + locStr + '</span>'
           +   driveHtml
@@ -776,10 +781,7 @@
           + '</div>';
       }).join('');
 
-      // Claude: wire expand/collapse on transcript tap
-      notesList.querySelectorAll('.note-transcript.collapsed').forEach(function(el) {
-        el.onclick = function() { toggleExpand(el.getAttribute('data-nid')); };
-      });
+      // Claude: wire expand/collapse toggle
       notesList.querySelectorAll('.note-expand').forEach(function(el) {
         el.onclick = function() { toggleExpand(el.getAttribute('data-nid')); };
       });
@@ -797,17 +799,20 @@
       });
     }
 
+    /* Claude: 2026-03-05 — toggle between 100-char preview and full text (300px scroll cap) */
     function toggleExpand(nid) {
-      var transcript = notesList.querySelector('.note-transcript[data-nid="' + nid + '"]');
-      var expand = notesList.querySelector('.note-expand[data-nid="' + nid + '"]');
-      if (!transcript) return;
-      if (transcript.classList.contains('collapsed')) {
-        transcript.classList.remove('collapsed');
-        transcript.onclick = function() { toggleExpand(nid); };
-        if (expand) expand.textContent = 'Show less';
+      var el = notesList.querySelector('.note-transcript[data-nid="' + nid + '"]');
+      var btn = notesList.querySelector('.note-expand[data-nid="' + nid + '"]');
+      if (!el) return;
+      var fullText = el.getAttribute('data-full');
+      if (el.classList.contains('expanded')) {
+        el.classList.remove('expanded');
+        el.textContent = fullText.length > 100 ? fullText.slice(0, 100) + '...' : fullText;
+        if (btn) btn.textContent = 'Show more';
       } else {
-        transcript.classList.add('collapsed');
-        if (expand) expand.textContent = 'Show more';
+        el.classList.add('expanded');
+        el.textContent = fullText;
+        if (btn) btn.textContent = 'Show less';
       }
     }
 
