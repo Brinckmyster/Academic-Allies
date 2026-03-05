@@ -149,8 +149,7 @@
       <h1>🎙️ Audio Notes</h1>
       <p class="sub">Record, transcribe, and organize voice notes</p>
 
-      <!-- Claude: student switcher (rendered by aa-mirror.js) + mirror banner -->
-      <div id="aa-student-switcher"></div>
+      <!-- Claude: mirror banner for support users viewing student data -->
       <div id="mirrorBanner" class="mirror-banner"></div>
 
       <!-- Claude: 2026-03-05 — optional title, editable before or during recording -->
@@ -1020,37 +1019,13 @@
         document.getElementById('main-body').style.display = 'block';
 
         // Claude: 2026-03-05 — writeUid is always the signed-in user (you record your own notes).
-        // readUid follows AA_MIRROR_UID: view your own notes when on your page,
-        // student's notes when mirroring. isMirror controls UI (hide record/delete for others).
+        // readUid follows AA_MIRROR_UID so support network sees the student's notes, not their own.
         writeUid = user.uid;
+        readUid = (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid)
+          ? window.AA_MIRROR_UID
+          : user.uid;
 
-        function applyMirror() {
-          var mirrorUid = window.AA_MIRROR_UID;
-          isMirror = !!(mirrorUid && mirrorUid !== user.uid);
-          readUid = isMirror ? mirrorUid : user.uid;
-
-          // Update banner
-          var banner = document.getElementById('mirrorBanner');
-          if (banner) {
-            if (isMirror) {
-              banner.style.display = 'block';
-              banner.textContent = '👁 Viewing another student\'s audio notes (read-only)';
-            } else {
-              banner.style.display = 'none';
-            }
-          }
-
-          // Hide/show record section
-          var recSection = document.getElementById('recordSection');
-          var titleInput = document.getElementById('noteTitleInput');
-          if (recSection) recSection.style.display = isMirror ? 'none' : '';
-          if (titleInput) titleInput.style.display = isMirror ? 'none' : '';
-
-          watchNotes(readUid);
-        }
-
-        // Claude: AA_SWITCH_STUDENT always does a full reload, so applyMirror() once at init is enough
-        applyMirror();
+        watchNotes(readUid);
       });
     });
 
