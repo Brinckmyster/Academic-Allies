@@ -1,69 +1,95 @@
-# Academic Allies — Nightly Summary
-**Date:** 2026-03-05
-**Prepared by:** Claude (automated nightly run)
+# Nightly Summary — 2026-03-05
+**Branch:** `claude/determined-zhukovsky`
+**Commit:** `eb5b0b6`
+**Status:** NOT pushed (per instructions)
 
 ---
 
-## Audit Result: ✅ Clean (2 FAILs fixed earlier today)
+## What got done tonight
 
-All 8 audit categories passed. Two FAILs were resolved in an earlier run today:
-- **FAIL-1:** `nope-mode.html` — broken messages URL → fixed to correct message-system path
-- **FAIL-2:** `emergency.html` — `window.AA_ROLE` (never set) → replaced with `AA.isAdmin()`
-- **WARNING-1:** Audio-notes archive files misplaced in component folder → moved to `modular/archive/`
+### Phase 1: Deep Audit (8 categories)
+Full audit across all active files. Results in `AUDIT-2026-03-05.md`.
 
----
-
-## Feature Work: All Priorities Verified Complete
-
-### Priority 1 ✅
-- **modes.html** — tiles now navigate correctly via `<a href>` (fixed 2026-03-01)
-- **accommodations.html** — full AA standard template applied (fixed 2026-03-01)
-- **resources.html** — full AA standard template applied (fixed 2026-03-01)
-
-### Priority 2 ✅
-- **emergency.html** — "🌱 Seed Default Contacts" button (backstage-manager only) seeds Dorothy (Mom) and Brian (Dad) for Mary
-- **emergency.html** — "👥 Pick from Support Network" dropdown reads `users/{uid}.supportNetwork` and pre-fills name/email
-
-### Priority 3 ✅
-- **checkin.html** — custom `studentProfile.checkinPrompts` supported; replaces defaults per-category if set
-- **message-system.html** — timestamps shown on every message via `fmtTime()` (already working)
-
----
-
-## Evening Fix: Android Beeping in Audio Notes
-
-**Problem reported:** Android Chrome beeps/chimes each time Speech Recognition restarts during a recording session.
-
-**Root cause:** Android Chrome plays a system chime whenever `recognition.start()` is called because it re-acquires the audio path. The previous 2000ms delay fix reduced frequency but didn't eliminate it.
-
-**Fix applied (non-nuclear):** AudioContext silence buffer trick
-- Created `suppressAndroidBeep()` function
-- Pre-warms an `AudioContext` during `startRecording()` (inside user gesture — required for mobile)
-- Plays a near-silent (0.001 gain) 50ms buffer right before each `recognition.start()`
-- This keeps the audio output path occupied, preventing Android from inserting its system chime
-- `AudioContext` is properly closed in `stopSpeechRecognition()` to avoid resource leaks
-
-**Archive:** `modular/archive/audio-notes-pre-andbeep2-20260305.html`
-
----
-
-## Files Changed This Run
-
-| File | Change |
+| Category | Result |
 |---|---|
-| `modular/components/audio-notes/audio-notes.html` | Android beep suppression (AudioContext trick) |
-| `AUDIT-2026-03-05.md` | Evening addendum added |
+| Firebase SDK (10.7.1) | PASS |
+| Mirror Mode (AA_MIRROR_UID) | PASS |
+| Header Loader (clone-and-replace) | PASS |
+| Firestore Rules alignment | PASS |
+| Role/Tier consistency | PASS |
+| Broken Links | 1 FAIL (fixed) |
+| JS Errors / Dead Code | 1 FAIL + 1 WARNING (all fixed) |
+| Security / Data Leakage | PASS |
+
+### Phase 2: Fixes Applied
+
+**FAIL-1 — Broken messages link in nope-mode.html**
+- `nope-mode.html:413` pointed to nonexistent `/modular/messages.html`
+- Fixed to `/modular/components/message-system/message-system.html`
+- Archived original first
+
+**FAIL-2 — window.AA_ROLE never set in emergency.html**
+- `emergency.html:315, 588` checked `window.AA_ROLE === 'backstage-manager'` but nothing ever set that variable
+- The seed-defaults button would never show for you
+- Replaced with `window.AA && window.AA.isAdmin()` which correctly uses ADMIN_EMAILS
+- Archived original first
+
+**WARNING-1 — Misplaced archive files**
+- 6 audio-notes backup files were sitting in `modular/components/audio-notes/` instead of `modular/archive/`
+- Moved them all to the right place
+
+### Compliance Updates (Audio Notes / Google Drive)
+
+**privacy.html** — updated for audio notes:
+- Added TOC entry for "Audio notes"
+- Added `(g) audio recordings and speech-to-text transcripts` to section 1 data collection
+- Added new **section 4a** explaining that transcripts go to Firebase, audio files go to user's own Google Drive
+- User controls their own Drive files (good for FERPA — user owns their data)
+
+**audit-log.html** — added `audioNote: 'Audio Note'` to DATA_TYPE_MAP so audio note access shows up with a friendly name in the audit log viewer
+
+**audio-notes.html** — added `AA.logAccess('write', writeUid, 'audioNote')` call after successful save, so every audio note save is recorded in the compliance audit trail
+
+No separate FERPA/HIPAA doc files exist in the repo — privacy.html is the compliance doc.
+
+### Infrastructure
+
+**do-commit.sh** — rewritten:
+- Generic `git add -A` with interactive commit message prompt
+- Optional push with auto-cleanup of worktrees after successful push
+- Archived original first
+
+**clean-worktrees.sh** — new standalone script:
+- Removes all `.claude/worktrees/*` directories for manual cleanup
+- Safe to run anytime
+
+### Phase 3: Feature Work Assessment
+
+All features checked — **everything was already implemented** in prior sessions:
+- P1: modes.html tile navigation (uses `<a href>`), accommodations + resources standard styling
+- P2: Emergency seed button (now works after AA_ROLE fix), "Pick from support network" dropdown (exists)
+- P3: Custom check-in prompts (checkin.html reads `studentProfile.checkinPrompts`), message timestamps (already shown)
 
 ---
 
-## For Bruise
+## Files changed (14)
 
-The Android beeping fix is live — please test on Mary's (or your) Android device by starting a recording and letting it run for 30+ seconds to see if the restart chime is gone.
-
-If the chime still appears on a specific Android version, let me know and I can try bumping the post-restart delay as well.
-
-No push needed from your side tonight — just the usual `do-commit.sh` when you're ready.
+| File | What changed |
+|---|---|
+| `AUDIT-2026-03-05.md` | NEW — full audit report |
+| `clean-worktrees.sh` | NEW — standalone cleanup script |
+| `do-commit.sh` | Rewritten with worktree cleanup |
+| `modular/nope-mode.html` | Fixed broken messages URL |
+| `modular/emergency.html` | Fixed AA_ROLE → AA.isAdmin() (2 locations) |
+| `modular/privacy.html` | Added audio notes section 4a + updated data list |
+| `modular/components/audit-log/audit-log.html` | Added audioNote to DATA_TYPE_MAP |
+| `modular/components/audio-notes/audio-notes.html` | Added logAccess on save |
+| 6 archive files | Moved from audio-notes/ to modular/archive/ |
 
 ---
 
-*Co-Authored-By: Claude <noreply@anthropic.com>*
+## Nothing left undone
+
+All phases complete. All audit failures fixed. All compliance docs updated. All Phase 3 features verified present. Commit created, not pushed.
+
+To push: `git push origin claude/determined-zhukovsky`

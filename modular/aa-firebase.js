@@ -36,12 +36,14 @@
   var db   = firebase.firestore();
   var auth = firebase.auth();
 
-  /* Claude: explicitly set auth persistence to LOCAL so sign-in survives
-     page navigations, tab closes, and browser restarts. Save the promise
-     so onAuthStateChanged can wait for persistence to load from IndexedDB
-     before checking auth state. Fixes sign-in not persisting across
-     virtual desktops where the async read was racing the listener. */
-  var _persistenceReady = auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+  /* Claude: 2026-03-05 — persistence mode driven by "Keep me signed in" checkbox.
+     localStorage AA_KEEP_SIGNED_IN: 'false' → SESSION (tab-only), else LOCAL (survives restarts).
+     Save the promise so onAuthStateChanged can wait for persistence to load. */
+  var _keepSignedIn = localStorage.getItem('AA_KEEP_SIGNED_IN') !== 'false';
+  var _persistenceType = _keepSignedIn
+    ? firebase.auth.Auth.Persistence.LOCAL
+    : firebase.auth.Auth.Persistence.SESSION;
+  var _persistenceReady = auth.setPersistence(_persistenceType)
     .catch(function (err) {
       console.warn('[AA] Auth persistence set failed:', err.code);
     });
@@ -95,6 +97,12 @@
   window.AA.signInWithGoogle = function (loginHint) {
     var googleProvider = new firebase.auth.GoogleAuthProvider();
     if (loginHint) googleProvider.setCustomParameters({ login_hint: loginHint });
+    /* Claude: 2026-03-05 — re-read checkbox preference at sign-in time */
+    var keepPref = localStorage.getItem('AA_KEEP_SIGNED_IN') !== 'false';
+    var pType = keepPref
+      ? firebase.auth.Auth.Persistence.LOCAL
+      : firebase.auth.Auth.Persistence.SESSION;
+    return auth.setPersistence(pType).then(function () {
     return auth.signInWithPopup(googleProvider)
       .catch(function (err) {
         // Claude: popup blocked — fall back to redirect (works everywhere)
@@ -133,6 +141,7 @@
               });
           });
       });
+    }); /* Claude: end setPersistence.then() */
   };
 
   // Claude: clear cached user on sign-out so re-auth isn't attempted next load
@@ -215,8 +224,23 @@
           email: user.email, displayName: user.displayName, uid: user.uid
         }));
       } catch (e) {}
+      /* Claude: 2026-03-05 — silently refresh token every 45 min when LOCAL persistence
+         is active, to prevent 1-hour expiration sign-outs */
+      if (_keepSignedIn && !window._aaTokenRefreshInterval) {
+        window._aaTokenRefreshInterval = setInterval(function () {
+          var u = auth.currentUser;
+          if (u) u.getIdToken(true).catch(function () {});
+        }, 45 * 60 * 1000);
+      }
     }
-    if (!user) return;
+    if (!user) {
+      /* Claude: clear token refresh interval on sign-out */
+      if (window._aaTokenRefreshInterval) {
+        clearInterval(window._aaTokenRefreshInterval);
+        window._aaTokenRefreshInterval = null;
+      }
+      return;
+    }
     db.collection('users').doc(user.uid).get().then(function (doc) {
       if (doc.exists) {
         // ── Admin self-heal: if this is an admin email but role got wiped, restore it ──

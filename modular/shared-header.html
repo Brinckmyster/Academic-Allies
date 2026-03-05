@@ -55,6 +55,15 @@ Your disability accommodations and support network">Your disability accommodatio
         <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
         Sign in with Google
       </button>
+      <!-- Claude: 2026-03-05 — "Keep me signed in" checkbox, saves to localStorage -->
+      <div id="aa-keep-signed-in-wrap" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#555;cursor:pointer;">
+          <input type="checkbox" id="aa-keep-signed-in" checked
+            style="width:14px;height:14px;cursor:pointer;">
+          Keep me signed in on this device
+        </label>
+        <span style="font-size:10px;color:#999;padding-left:20px;">Only check this on your personal device</span>
+      </div>
 
       <!-- Backstage Manager Panel Button (shown only for backstage-manager role) -->
       <!-- Updated 2026-02-26 by Claude — renamed Admin → Backstage Manager -->
@@ -107,6 +116,17 @@ Your disability accommodations and support network">Your disability accommodatio
       var auditLogNavLi   = document.getElementById('auditLogNavLi');
       var audioNotesNavLi = document.getElementById('audioNotesNavLi');
       var deleteBtn       = document.getElementById('delete-request-btn');
+      var keepSignedInWrap = document.getElementById('aa-keep-signed-in-wrap');
+      var keepSignedInBox  = document.getElementById('aa-keep-signed-in');
+
+      /* Claude: 2026-03-05 — "Keep me signed in" checkbox wired to localStorage */
+      if (keepSignedInBox) {
+        var stored = localStorage.getItem('AA_KEEP_SIGNED_IN');
+        keepSignedInBox.checked = stored !== 'false'; /* default: checked */
+        keepSignedInBox.addEventListener('change', function () {
+          localStorage.setItem('AA_KEEP_SIGNED_IN', keepSignedInBox.checked ? 'true' : 'false');
+        });
+      }
 
       /* Tier icon map — Updated 2026-02-28 by Claude: badge-admin-yellow-center→backstage-manager, icon-user-admin→network-lead */
       var TIER_ICONS = {
@@ -367,20 +387,22 @@ Your disability accommodations and support network">Your disability accommodatio
               }, 500);
             } else {
               if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
+            if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex'; /* Claude: show checkbox */
             }
           }).catch(function (err) {
             /* Claude: redirect result failed — just show sign-in button */
             console.warn('[AA header] getRedirectResult error:', err);
             if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
+            if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex'; /* Claude: show checkbox */
           });
 
-          if (infoWrap)      infoWrap.style.display      = 'none';
-          if (signoutBtn)    signoutBtn.style.display     = 'none';
-          if (deleteBtn)     deleteBtn.style.display      = 'none'; /* Claude: data deletion request */
-          if (adminBtn)      adminBtn.style.display       = 'none';
-          if (networkNavLi)  networkNavLi.style.display   = 'none';
-          if (auditLogNavLi) auditLogNavLi.style.display = 'none';
-          if (audioNotesNavLi) audioNotesNavLi.style.display = 'none';
+          if (infoWrap)         infoWrap.style.display         = 'none';
+          if (signoutBtn)       signoutBtn.style.display       = 'none';
+          if (deleteBtn)        deleteBtn.style.display        = 'none'; /* Claude: data deletion request */
+          if (adminBtn)         adminBtn.style.display         = 'none';
+          if (networkNavLi)     networkNavLi.style.display     = 'none';
+          if (auditLogNavLi)    auditLogNavLi.style.display    = 'none';
+          if (audioNotesNavLi)  audioNotesNavLi.style.display  = 'none';
           _unwatchNavUnread(); /* clear unread badge on sign-out */
           return;
         }
@@ -407,12 +429,13 @@ Your disability accommodations and support network">Your disability accommodatio
             var isAdmin = (role === 'backstage-manager');
             var first   = (user.displayName || user.email || '').split(' ')[0];
 
-            if (signinBtn)     signinBtn.style.display    = 'none';
-            if (infoWrap)      infoWrap.style.display     = 'flex';
-            if (nameEl)        nameEl.textContent          = first;
-            if (adminBtn)      adminBtn.style.display      = isAdmin ? 'inline-flex' : 'none';
-            if (signoutBtn)    signoutBtn.style.display    = 'inline-block';
-            if (deleteBtn)     deleteBtn.style.display     = 'inline-block'; /* Claude: data deletion request */
+            if (signinBtn)        signinBtn.style.display       = 'none';
+            if (keepSignedInWrap) keepSignedInWrap.style.display = 'none'; /* Claude: hide checkbox when signed in */
+            if (infoWrap)         infoWrap.style.display        = 'flex';
+            if (nameEl)           nameEl.textContent             = first;
+            if (adminBtn)         adminBtn.style.display         = isAdmin ? 'inline-flex' : 'none';
+            if (signoutBtn)       signoutBtn.style.display       = 'inline-block';
+            if (deleteBtn)        deleteBtn.style.display        = 'inline-block'; /* Claude: data deletion request */
             if (networkNavLi)  networkNavLi.style.display  = 'list-item'; /* show for all signed-in users incl. admin */
             if (auditLogNavLi) auditLogNavLi.style.display = 'list-item'; /* Claude: everyone sees own audit log */
             if (audioNotesNavLi) audioNotesNavLi.style.display = 'list-item'; /* Claude: audio notes for all signed-in users */
