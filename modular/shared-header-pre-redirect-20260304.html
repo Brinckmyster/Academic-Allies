@@ -91,7 +91,7 @@ Your disability accommodations and support network">Your disability accommodatio
        Pages that rely on shared-header for Firebase (calendar, support-dashboard, user-tiers,
        message-system) were receiving 9.23.0 via this dynamic loader instead of the required 10.7.1. */
     var FB_BASE   = 'https://www.gstatic.com/firebasejs/10.7.1/';
-    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260304b'; /* Claude: popup→redirect fallback for blocked popups */
+    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260304a'; /* Claude: persistence fix — chain onAuthStateChanged after setPersistence */
 
     /* ── 3. Wire up the header UI once window.AA is ready ── */
     function initAuthUI() {
@@ -127,29 +127,21 @@ Your disability accommodations and support network">Your disability accommodatio
         tierIconEl.onerror = function () { tierIconEl.style.display = 'none'; };
       }
 
-      // Claude: save original sign-in button HTML for restoring after re-auth failure
-      var _signinBtnOrigHtml = signinBtn ? signinBtn.innerHTML : '';
-
-      // Claude: centralized sign-in handler — used by button click AND re-auth fallback.
-      // signInWithGoogle now falls back to signInWithRedirect if popup is blocked.
-      function _doSignIn(hint) {
-        if (signinBtn) {
+      /* Sign-in click → Firebase Google popup */
+      if (signinBtn) {
+        signinBtn.addEventListener('click', function () {
           signinBtn.disabled    = true;
-          signinBtn.textContent = 'Signing in\u2026';
-        }
-        window.AA.signInWithGoogle(hint).catch(function (err) {
-          console.error('[AA header] sign-in error:', err);
-          if (signinBtn) {
-            signinBtn.innerHTML = _signinBtnOrigHtml;
-            signinBtn.disabled  = false;
-          }
+          signinBtn.textContent = 'Signing in…';
+          window.AA.signInWithGoogle().catch(function (err) {
+            console.error('[AA header] sign-in error:', err);
+            signinBtn.disabled    = false;
+            signinBtn.innerHTML   = '&#x25B6; Sign in with Google';
+          });
         });
       }
 
-      /* Sign-in click → Firebase Google popup (redirect fallback built in) */
-      if (signinBtn) {
-        signinBtn.addEventListener('click', function () { _doSignIn(); });
-      }
+      // Claude: save original sign-in button HTML for restoring after re-auth failure
+      var _signinBtnOrigHtml = signinBtn ? signinBtn.innerHTML : '';
 
       /* Sign-out click */
       if (signoutBtn) {
@@ -349,8 +341,8 @@ Your disability accommodations and support network">Your disability accommodatio
 
           if (lastUser && !sessionStorage.getItem('AA_REAUTH_DONE')) {
             /* Claude: show "Resuming…" and wait 3s for persistence to kick in.
-               If still null, call _doSignIn with login_hint — it tries popup first,
-               falls back to redirect if blocked. sessionStorage flag prevents loops. */
+               If still null, try signInWithPopup with login_hint for one-click re-auth.
+               sessionStorage flag prevents infinite attempts within the session. */
             sessionStorage.setItem('AA_REAUTH_DONE', '1');
             if (signinBtn) {
               signinBtn.style.display = 'inline-flex';
@@ -359,7 +351,16 @@ Your disability accommodations and support network">Your disability accommodatio
             }
             setTimeout(function () {
               if (window.AA.auth.currentUser) return; // persistence resolved in time
-              _doSignIn(lastUser.email);
+              var provider = new firebase.auth.GoogleAuthProvider();
+              provider.setCustomParameters({ login_hint: lastUser.email });
+              window.AA.auth.signInWithPopup(provider).catch(function (err) {
+                console.warn('[AA] Silent re-auth failed:', err.code || err.message);
+                try { localStorage.removeItem('AA_LAST_USER'); } catch (e) {}
+                if (signinBtn) {
+                  signinBtn.innerHTML = _signinBtnOrigHtml;
+                  signinBtn.disabled = false;
+                }
+              });
             }, 3000);
           } else {
             if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }

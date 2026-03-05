@@ -78,30 +78,15 @@
     return null;
   }
 
-  /* Claude: detect popup-blocked errors — browsers on virtual desktops,
-     cross-origin iframes, and some mobile browsers silently block popups. */
-  function _isPopupBlocked(err) {
-    return err.code === 'auth/popup-blocked'
-        || err.code === 'auth/popup-closed-by-user'
-        || err.code === 'auth/cancelled-popup-request';
-  }
-
   /* Sign in with Google.
      If the email already exists under a different auth provider,
      sign in with that provider first, then link the Google credential
      so a single Firebase account covers both methods.
-     Claude: falls back to signInWithRedirect if popup is blocked.
-     Added 2026-02-21 by Claude. Updated 2026-03-04 by Claude. */
-  window.AA.signInWithGoogle = function (loginHint) {
+     Added 2026-02-21 by Claude. */
+  window.AA.signInWithGoogle = function () {
     var googleProvider = new firebase.auth.GoogleAuthProvider();
-    if (loginHint) googleProvider.setCustomParameters({ login_hint: loginHint });
     return auth.signInWithPopup(googleProvider)
       .catch(function (err) {
-        // Claude: popup blocked — fall back to redirect (works everywhere)
-        if (_isPopupBlocked(err)) {
-          console.warn('[AA] Popup blocked — falling back to signInWithRedirect');
-          return auth.signInWithRedirect(googleProvider);
-        }
         if (err.code !== 'auth/account-exists-with-different-credential') throw err;
 
         var pendingCred = err.credential; // Google credential to link
@@ -122,14 +107,6 @@
             return auth.signInWithPopup(existingProvider)
               .then(function (result) {
                 return result.user.linkWithCredential(pendingCred);
-              })
-              .catch(function (linkErr) {
-                // Claude: popup blocked on the link step too — redirect
-                if (_isPopupBlocked(linkErr)) {
-                  console.warn('[AA] Link popup blocked — falling back to redirect');
-                  return auth.signInWithRedirect(existingProvider);
-                }
-                throw linkErr;
               });
           });
       });
