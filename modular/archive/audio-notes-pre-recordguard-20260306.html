@@ -1009,65 +1009,14 @@
     }
 
     waitForAA(function() {
-      /* Claude: 2026-03-06 — grace period for auth null events, matching shared-header.
-         Firebase fires onAuthStateChanged(null) transiently when the token expires in
-         a background tab. We wait 5s before accepting null as a real sign-out so an
-         active recording is never interrupted by a brief auth hiccup.
-         If we're genuinely signed out after 5s AND a recording was in progress,
-         we save the transcript to localStorage as an emergency draft so it is never lost. */
-      var _anGracePeriod = null;
-
-      function _saveEmergencyDraft() {
-        var draftText = (transcript || '').trim();
-        if (!draftText) return;
-        try {
-          var draft = { transcript: draftText, savedAt: new Date().toISOString(), uid: writeUid || '' };
-          localStorage.setItem('AA_AUDIO_DRAFT', JSON.stringify(draft));
-          showToast('Session ended while recording — transcript saved as a draft. Sign back in to recover it.', 8000);
-        } catch (e) {}
-      }
-
-      function _restoreEmergencyDraft() {
-        try {
-          var raw = localStorage.getItem('AA_AUDIO_DRAFT');
-          if (!raw) return;
-          var draft = JSON.parse(raw);
-          if (!draft || !draft.transcript) return;
-          // Only restore if it belongs to this user
-          if (draft.uid && writeUid && draft.uid !== writeUid) return;
-          localStorage.removeItem('AA_AUDIO_DRAFT');
-          var liveEl = document.getElementById('liveTranscript');
-          var statusEl = document.getElementById('recordStatus');
-          transcript = draft.transcript;
-          if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = transcript; }
-          if (statusEl) statusEl.textContent = 'Draft restored — tap a category to save';
-          showToast('Draft transcript restored from your last session.', 8000);
-        } catch (e) {}
-      }
-
       window.AA.auth.onAuthStateChanged(function(user) {
         if (!user) {
-          /* Grace period — don't immediately tear down if a recording is active */
-          if (_anGracePeriod) return; // already waiting
-          _anGracePeriod = setTimeout(function() {
-            _anGracePeriod = null;
-            if (window.AA.auth.currentUser) return; // recovered — do nothing
-            /* Still null after grace period — real sign-out. Save draft if recording. */
-            var isActiveRecording = mediaRecorder && mediaRecorder.state === 'recording';
-            if (isActiveRecording || transcript.trim()) {
-              if (isActiveRecording) { try { stopSpeechRecognition(); } catch(e) {} }
-              _saveEmergencyDraft();
-            }
-            document.getElementById('signin-notice').textContent = 'Please sign in to use Audio Notes.';
-            document.getElementById('main-body').style.display = 'none';
-            document.getElementById('signin-notice').style.display = 'block';
-            if (unsubNotes) unsubNotes();
-          }, 5000);
+          document.getElementById('signin-notice').textContent = 'Please sign in to use Audio Notes.';
+          document.getElementById('main-body').style.display = 'none';
+          document.getElementById('signin-notice').style.display = 'block';
+          if (unsubNotes) unsubNotes();
           return;
         }
-
-        /* User is present — cancel any pending grace-period sign-out */
-        if (_anGracePeriod) { clearTimeout(_anGracePeriod); _anGracePeriod = null; }
 
         document.getElementById('signin-notice').style.display = 'none';
         document.getElementById('main-body').style.display = 'block';
@@ -1076,9 +1025,6 @@
         // readUid follows AA_MIRROR_UID: view your own notes when on your page,
         // student's notes when mirroring. isMirror controls UI (hide record/delete for others).
         writeUid = user.uid;
-
-        /* Claude: 2026-03-06 — restore any emergency draft saved during a mid-recording sign-out */
-        _restoreEmergencyDraft();
 
         function applyMirror() {
           var mirrorUid = window.AA_MIRROR_UID;
