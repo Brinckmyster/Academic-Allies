@@ -188,38 +188,18 @@ Your disability accommodations and support network">Your disability accommodatio
         signinBtn.addEventListener('click', function () { _doSignIn(); });
       }
 
-      /* Claude: 2026-03-06 — global pre-sign-out hook.
-         Any page can set window.AA_PRESIGNOUT = function() { return Promise; }
-         to autosave unsaved work before auth is cleared.
-         The hook is called for BOTH intentional sign-outs AND forced sign-outs
-         (background token expiry). It must resolve quickly (≤3s). */
-      function _runPresignout(cb) {
-        var fn = window.AA_PRESIGNOUT;
-        if (typeof fn !== 'function') { cb(); return; }
-        var done = false;
-        function finish() { if (!done) { done = true; cb(); } }
-        try {
-          var result = fn();
-          if (result && typeof result.then === 'function') {
-            result.then(finish).catch(finish);
-            setTimeout(finish, 3000); // safety timeout — don't hang forever
-          } else {
-            finish();
-          }
-        } catch (e) { finish(); }
-      }
-
       /* Sign-out click */
       if (signoutBtn) {
         signoutBtn.addEventListener('click', function () {
           sessionStorage.removeItem('academicAlliesUser');
-          sessionStorage.removeItem('AA_REAUTH_DONE');
+          sessionStorage.removeItem('AA_REAUTH_DONE'); // Claude: allow re-auth on next sign-in
+          /* Claude: 2026-03-06 — clear last-user so welcome-back doesn't show after intentional sign-out */
           localStorage.removeItem('AA_LAST_USER');
           if (welcomeBack) welcomeBack.style.display = 'none';
+          /* Claude: 2026-03-06 — skip grace period for intentional sign-out */
           _intentionalSignOut = true;
           if (_signOutDebounce) { clearTimeout(_signOutDebounce); _signOutDebounce = null; }
-          /* Claude: 2026-03-06 — autosave before signing out */
-          _runPresignout(function () { window.AA.signOut(); });
+          window.AA.signOut();
         });
       }
 
@@ -404,10 +384,6 @@ Your disability accommodations and support network">Your disability accommodatio
 
       /* Helper: run the actual signed-out UI (called after grace period) */
       function _doSignOutUI() {
-        /* Claude: 2026-03-06 — autosave any unsaved page work before tearing down UI */
-        _runPresignout(function () { _doSignOutUIInner(); });
-      }
-      function _doSignOutUIInner() {
         /* Claude: check getRedirectResult() first — if user just came back from
            signInWithRedirect, auth state fires null before redirect resolves.
            Only show sign-in button if redirect also returns no user. */

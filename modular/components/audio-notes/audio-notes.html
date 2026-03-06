@@ -1207,6 +1207,31 @@
       }
     });
 
+    /* Claude: 2026-03-06 — register with global presignout hook.
+       If Sign Out is clicked (or forced sign-out fires) while a recording is active,
+       stop the recorder cleanly, collect the blob, and save the full audio draft to
+       IndexedDB before auth is cleared — same as the grace period path. */
+    window.AA_PRESIGNOUT = function() {
+      var isActiveRecording = mediaRecorder && mediaRecorder.state === 'recording';
+      if (!isActiveRecording && !audioChunks.length && !transcript.trim()) return; // nothing to save
+      return new Promise(function(resolve) {
+        if (isActiveRecording) {
+          try { stopSpeechRecognition(); } catch(e) {}
+          var _mr = mediaRecorder;
+          _mr.onstop = function() {
+            var blob = audioChunks.length ? new Blob(audioChunks, { type: recordingMimeType }) : null;
+            _saveEmergencyDraft(blob);
+            setTimeout(resolve, 300); // brief pause so IndexedDB write can start
+          };
+          try { _mr.stop(); } catch(e) { _saveEmergencyDraft(null); resolve(); }
+        } else {
+          var blob = audioChunks.length ? new Blob(audioChunks, { type: recordingMimeType }) : null;
+          _saveEmergencyDraft(blob);
+          setTimeout(resolve, 300);
+        }
+      });
+    };
+
   })();
   </script>
 </body>
