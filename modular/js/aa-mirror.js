@@ -123,7 +123,8 @@
     console.log('[aa-mirror] renderSwitcher: cache=', !!cache,
       'allStudents=', cache && cache.allStudents ? cache.allStudents.length : 'missing');
 
-    if (!cache || !cache.allStudents || cache.allStudents.length < 2) return;
+    // Claude: 2026-03-05 — show switcher for 1+ students (need "View as Myself" even with one)
+    if (!cache || !cache.allStudents || cache.allStudents.length < 1) return;
     if (inPath(NO_BANNER)) return;
 
     var wrap = document.getElementById('aa-student-switcher');
