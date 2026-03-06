@@ -270,6 +270,11 @@
           .then(function (pending) {
             if (pending.exists) {
               var pendingRole = pending.data().role || 'student';
+              // Claude: 2026-03-05 — never overwrite an admin email's role via pendingUsers
+              if (ADMIN_EMAILS.indexOf(user.email) !== -1) {
+                console.log('[AA] Skipping pendingUsers role for admin email:', user.email);
+                return db.collection('pendingUsers').doc(user.email).delete().catch(function () {});
+              }
               console.log('[AA] Honoring pending role for existing user:', user.email, '→', pendingRole);
               return db.collection('pendingUsers').doc(user.email).delete()
                 .catch(function () {})
