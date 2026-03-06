@@ -280,25 +280,6 @@
     }
 
     /* ── Boot ────────────────────────────────────────────── */
-    /* Claude: 2026-03-06 — save/restore unsent Network Chat compose draft on sign-out/sign-in.
-       Main compose (compose-text) already has per-thread Firebase drafts — this covers nc only. */
-    function _ncDraftSave() {
-      var ta = document.getElementById('nc-compose-text');
-      var text = ta ? ta.value.trim() : '';
-      if (!text) return;
-      try { localStorage.setItem('AA_NC_MSG_DRAFT', text); } catch(e) {}
-    }
-
-    function _ncDraftRestore() {
-      try {
-        var text = localStorage.getItem('AA_NC_MSG_DRAFT');
-        if (!text) return;
-        var ta = document.getElementById('nc-compose-text');
-        if (ta) { ta.value = text; }
-        localStorage.removeItem('AA_NC_MSG_DRAFT');
-      } catch(e) {}
-    }
-
     function boot() {
       AA.auth.onAuthStateChanged(function(user) {
         if (!user) {
@@ -306,13 +287,6 @@
           return;
         }
         currentUser = user;
-
-        /* Claude: 2026-03-06 — restore nc-compose draft saved before sign-out */
-        _ncDraftRestore();
-
-        /* Claude: 2026-03-06 — register presignout hook to save unsent nc-compose text */
-        window.AA_PRESIGNOUT = _ncDraftSave;
-
         loadContacts();
       });
     }

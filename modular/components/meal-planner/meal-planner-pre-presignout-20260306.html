@@ -148,35 +148,6 @@
       setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
     }
 
-    /* Claude: 2026-03-06 — save/restore in-progress add-meal form on sign-out/sign-in.
-       AA_MEAL_DRAFT is keyed by date so a yesterday draft is discarded automatically. */
-    function _mealDraftSave() {
-      var name  = (document.getElementById('mealName')  || {}).value  || '';
-      var time  = (document.getElementById('mealTime')  || {}).value  || '';
-      var notes = (document.getElementById('mealNotes') || {}).value  || '';
-      var type  = (document.getElementById('mealType')  || {}).value  || '';
-      if (!name && !time && !notes && !type) return;
-      try {
-        localStorage.setItem('AA_MEAL_DRAFT', JSON.stringify({
-          date: dateKey, name: name, time: time, notes: notes, type: type
-        }));
-      } catch(e) {}
-    }
-
-    function _mealDraftRestore() {
-      try {
-        var raw = localStorage.getItem('AA_MEAL_DRAFT');
-        if (!raw) return;
-        var d = JSON.parse(raw);
-        if (d.date !== dateKey) { localStorage.removeItem('AA_MEAL_DRAFT'); return; }
-        if (d.name)  document.getElementById('mealName').value  = d.name;
-        if (d.time)  document.getElementById('mealTime').value  = d.time;
-        if (d.notes) document.getElementById('mealNotes').value = d.notes;
-        if (d.type)  document.getElementById('mealType').value  = d.type;
-        localStorage.removeItem('AA_MEAL_DRAFT');
-      } catch(e) {}
-    }
-
     function boot() {
       AA.auth.onAuthStateChanged(function(user) {
         if (!user) {
@@ -189,12 +160,6 @@
         document.getElementById('signin-notice').style.display   = 'none';
         document.getElementById('planner-body').style.display    = 'block';
         document.getElementById('planner-title').textContent     = currentName + "'s Meal Planner";
-
-        /* Claude: 2026-03-06 — restore any draft form data saved before sign-out */
-        _mealDraftRestore();
-
-        /* Claude: 2026-03-06 — register presignout hook to save the add-meal form */
-        window.AA_PRESIGNOUT = _mealDraftSave;
 
         startMealListener();
         loadBasePlan();
