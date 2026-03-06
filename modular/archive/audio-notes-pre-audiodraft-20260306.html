@@ -1017,104 +1017,32 @@
          we save the transcript to localStorage as an emergency draft so it is never lost. */
       var _anGracePeriod = null;
 
-      /* Claude: 2026-03-06 — IndexedDB draft store (replaces localStorage version).
-         IndexedDB can hold the full audio blob (no size limit), so the actual
-         recording is saved, not just the transcript. */
-      var _draftDB = null;
-      function _openDraftDB(cb) {
-        if (_draftDB) { cb(_draftDB); return; }
-        var req = indexedDB.open('AA_AudioDrafts', 1);
-        req.onupgradeneeded = function(e) {
-          e.target.result.createObjectStore('drafts', { keyPath: 'id' });
-        };
-        req.onsuccess = function(e) { _draftDB = e.target.result; cb(_draftDB); };
-        req.onerror   = function()  { cb(null); };
-      }
-
-      function _saveEmergencyDraft(audioBlob) {
-        /* Stop speech recognition and collect any remaining audio first */
-        try { stopSpeechRecognition(); } catch(e) {}
-        var draft = {
-          id: 'pending',
-          uid: writeUid || '',
-          transcript: (transcript || '').trim(),
-          audioBlob: audioBlob || null,
-          mimeType: recordingMimeType || 'audio/webm',
-          title: noteTitle || '',
-          gps: recordingGps || null,
-          address: recordingAddress || null,
-          duration: recordStartTime ? Math.round((Date.now() - recordStartTime) / 1000) : 0,
-          savedAt: new Date().toISOString()
-        };
-        _openDraftDB(function(db) {
-          if (!db) {
-            /* IndexedDB unavailable — fall back to transcript-only via localStorage */
-            try { localStorage.setItem('AA_AUDIO_DRAFT_TEXT', draft.transcript); } catch(e) {}
-            showToast('Session ended — transcript saved as draft. Sign back in to recover.', 8000);
-            return;
-          }
-          var tx = db.transaction('drafts', 'readwrite');
-          tx.objectStore('drafts').put(draft);
-          tx.oncomplete = function() {
-            showToast('Session ended while recording — audio + transcript saved. Sign back in to continue.', 8000);
-          };
-          tx.onerror = function() {
-            showToast('Session ended — could not save audio draft.', 6000);
-          };
-        });
+      function _saveEmergencyDraft() {
+        var draftText = (transcript || '').trim();
+        if (!draftText) return;
+        try {
+          var draft = { transcript: draftText, savedAt: new Date().toISOString(), uid: writeUid || '' };
+          localStorage.setItem('AA_AUDIO_DRAFT', JSON.stringify(draft));
+          showToast('Session ended while recording — transcript saved as a draft. Sign back in to recover it.', 8000);
+        } catch (e) {}
       }
 
       function _restoreEmergencyDraft() {
-        _openDraftDB(function(db) {
-          if (!db) return;
-          var tx  = db.transaction('drafts', 'readwrite');
-          var req = tx.objectStore('drafts').get('pending');
-          req.onsuccess = function(e) {
-            var draft = e.target.result;
-            if (!draft) return;
-            /* Only restore if it belongs to this user (uid matches or blank) */
-            if (draft.uid && writeUid && draft.uid !== writeUid) return;
-            /* Delete the draft now — if save succeeds it won't re-appear; if
-               save fails, user will be notified and can try again. */
-            tx.objectStore('drafts').delete('pending');
-
-            var liveEl   = document.getElementById('liveTranscript');
-            var statusEl = document.getElementById('recordStatus');
-
-            /* Restore transcript state */
-            transcript = draft.transcript || '';
-            noteTitle  = draft.title || '';
-            recordingGps     = draft.gps || null;
-            recordingAddress = draft.address || null;
-            if (noteTitleInput) noteTitleInput.value = noteTitle;
-            if (liveEl && transcript) { liveEl.style.display = 'block'; liveEl.textContent = transcript; }
-
-            if (draft.audioBlob) {
-              /* Restore audio blob so the normal save flow (Drive upload + Firestore) runs */
-              audioChunks    = [draft.audioBlob];
-              recordingMimeType = draft.mimeType || 'audio/webm';
-              recordStartTime   = Date.now() - (draft.duration || 0) * 1000;
-              if (statusEl) statusEl.textContent = 'Recording recovered — tap a category to save';
-              showToast('Recording recovered! Tap a category button to save it.', 10000);
-            } else {
-              /* Audio blob didn't survive — transcript only */
-              if (statusEl) statusEl.textContent = 'Transcript recovered — tap a category to save';
-              showToast('Transcript recovered from last session. Tap a category to save.', 8000);
-            }
-          };
-        });
-        /* Also clear any old localStorage fallback draft */
         try {
-          var oldText = localStorage.getItem('AA_AUDIO_DRAFT_TEXT');
-          if (oldText) {
-            localStorage.removeItem('AA_AUDIO_DRAFT_TEXT');
-            if (!transcript) {
-              transcript = oldText;
-              var liveEl = document.getElementById('liveTranscript');
-              if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = transcript; }
-            }
-          }
-        } catch(e) {}
+          var raw = localStorage.getItem('AA_AUDIO_DRAFT');
+          if (!raw) return;
+          var draft = JSON.parse(raw);
+          if (!draft || !draft.transcript) return;
+          // Only restore if it belongs to this user
+          if (draft.uid && writeUid && draft.uid !== writeUid) return;
+          localStorage.removeItem('AA_AUDIO_DRAFT');
+          var liveEl = document.getElementById('liveTranscript');
+          var statusEl = document.getElementById('recordStatus');
+          transcript = draft.transcript;
+          if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = transcript; }
+          if (statusEl) statusEl.textContent = 'Draft restored — tap a category to save';
+          showToast('Draft transcript restored from your last session.', 8000);
+        } catch (e) {}
       }
 
       window.AA.auth.onAuthStateChanged(function(user) {
@@ -1124,27 +1052,11 @@
           _anGracePeriod = setTimeout(function() {
             _anGracePeriod = null;
             if (window.AA.auth.currentUser) return; // recovered — do nothing
-            /* Still null after grace period — real sign-out. Save audio + transcript. */
+            /* Still null after grace period — real sign-out. Save draft if recording. */
             var isActiveRecording = mediaRecorder && mediaRecorder.state === 'recording';
-            if (isActiveRecording || transcript.trim() || audioChunks.length) {
-              if (isActiveRecording) {
-                /* Stop recorder cleanly so ondataavailable fires before we save */
-                try { stopSpeechRecognition(); } catch(e) {}
-                var _mr = mediaRecorder;
-                _mr.onstop = function() {
-                  var blob = audioChunks.length
-                    ? new Blob(audioChunks, { type: recordingMimeType })
-                    : null;
-                  _saveEmergencyDraft(blob);
-                };
-                try { _mr.stop(); } catch(e) { _saveEmergencyDraft(null); }
-              } else {
-                /* Not actively recording but we have chunks or transcript */
-                var blob = audioChunks.length
-                  ? new Blob(audioChunks, { type: recordingMimeType })
-                  : null;
-                _saveEmergencyDraft(blob);
-              }
+            if (isActiveRecording || transcript.trim()) {
+              if (isActiveRecording) { try { stopSpeechRecognition(); } catch(e) {} }
+              _saveEmergencyDraft();
             }
             document.getElementById('signin-notice').textContent = 'Please sign in to use Audio Notes.';
             document.getElementById('main-body').style.display = 'none';
