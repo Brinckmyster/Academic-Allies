@@ -372,27 +372,19 @@ Your disability accommodations and support network">Your disability accommodatio
             try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
 
             if (lastUser && !sessionStorage.getItem('AA_REAUTH_DONE')) {
-              /* Claude: 2026-03-05 — wait up to 2500ms for Firebase LOCAL persistence to restore
-                 the session before triggering re-auth. 500ms was too short on cold loads / mobile.
-                 Poll every 200ms so we sign in as fast as possible without a fixed delay. */
+              /* Claude: show "Resuming…" and wait 500ms for persistence to kick in.
+                 If still null, call _doSignIn with login_hint — it tries popup first,
+                 falls back to redirect if blocked. sessionStorage flag prevents loops. */
               sessionStorage.setItem('AA_REAUTH_DONE', '1');
               if (signinBtn) {
                 signinBtn.style.display = 'inline-flex';
                 signinBtn.disabled = true;
                 signinBtn.textContent = 'Resuming session\u2026';
               }
-              var _persistPollCount = 0;
-              var _persistPoll = setInterval(function () {
-                _persistPollCount++;
-                if (window.AA.auth.currentUser) {
-                  clearInterval(_persistPoll); // persistence kicked in — nothing to do
-                  return;
-                }
-                if (_persistPollCount >= 13) { // ~2500ms (13 × 200ms)
-                  clearInterval(_persistPoll);
-                  _doSignIn(lastUser.email); // give up waiting, trigger re-auth
-                }
-              }, 200);
+              setTimeout(function () {
+                if (window.AA.auth.currentUser) return; // persistence resolved in time
+                _doSignIn(lastUser.email);
+              }, 500);
             } else {
               if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
             if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex'; /* Claude: show checkbox */
