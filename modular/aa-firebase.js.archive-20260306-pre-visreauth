@@ -256,19 +256,7 @@
         document.addEventListener('visibilitychange', function () {
           if (!document.hidden) {
             var u = auth.currentUser;
-            if (u) {
-              /* Refresh token proactively — Chrome throttles timers in background tabs */
-              u.getIdToken(true).catch(function () {});
-            } else {
-              /* Claude: 2026-03-06 — tab returned to foreground with no current user.
-                 Firebase may have expired the session while throttled in background.
-                 Clear AA_REAUTH_DONE so the re-auth poll can run on next null event. */
-              var lastUser = null;
-              try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
-              if (lastUser && lastUser.email) {
-                sessionStorage.removeItem('AA_REAUTH_DONE');
-              }
-            }
+            if (u) u.getIdToken(true).catch(function () {});
           }
         });
       }

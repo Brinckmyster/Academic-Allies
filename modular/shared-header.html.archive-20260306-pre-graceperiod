@@ -117,13 +117,6 @@ Your disability accommodations and support network">Your disability accommodatio
       var nameEl          = document.getElementById('userNameDisplay');
       var tierIconEl      = document.getElementById('userTierIcon');
       var signoutBtn      = document.getElementById('signOutButton');
-      /* Claude: 2026-03-06 — grace period timer for background sign-out debounce.
-         Firebase fires onAuthStateChanged(null) when the token expires in a background tab.
-         We wait 5s before accepting null as a real sign-out, giving Firebase time to
-         auto-refresh the token and fire onAuthStateChanged(user) again.
-         _intentionalSignOut skips the grace period when the user clicks Sign Out. */
-      var _signOutDebounce  = null;
-      var _intentionalSignOut = false;
       var adminBtn        = document.getElementById('adminPanelBtn');
       var networkNavLi    = document.getElementById('supportNetworkNavLi');
       var auditLogNavLi   = document.getElementById('auditLogNavLi');
@@ -196,9 +189,6 @@ Your disability accommodations and support network">Your disability accommodatio
           /* Claude: 2026-03-06 — clear last-user so welcome-back doesn't show after intentional sign-out */
           localStorage.removeItem('AA_LAST_USER');
           if (welcomeBack) welcomeBack.style.display = 'none';
-          /* Claude: 2026-03-06 — skip grace period for intentional sign-out */
-          _intentionalSignOut = true;
-          if (_signOutDebounce) { clearTimeout(_signOutDebounce); _signOutDebounce = null; }
           window.AA.signOut();
         });
       }
@@ -382,98 +372,67 @@ Your disability accommodations and support network">Your disability accommodatio
         if (badge) badge.style.display = 'none';
       }
 
-      /* Helper: run the actual signed-out UI (called after grace period) */
-      function _doSignOutUI() {
-        /* Claude: check getRedirectResult() first — if user just came back from
-           signInWithRedirect, auth state fires null before redirect resolves.
-           Only show sign-in button if redirect also returns no user. */
-        window.AA.auth.getRedirectResult().then(function (result) {
-          if (result && result.user) return; // redirect resolved — onAuthStateChanged will re-fire with user
-
-          var lastUser = null;
-          try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
-
-          /* Claude: 2026-03-06 — show welcome-back banner whenever a previous session is detected.
-             Fixed: use lastUser.displayName (not .name — that field doesn't exist). */
-          if (lastUser && lastUser.displayName && welcomeBack && welcomeBackMsg) {
-            welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '! Tap "Sign in with Google" to continue.';
-            welcomeBack.style.display = 'flex';
-          }
-
-          if (lastUser && !sessionStorage.getItem('AA_REAUTH_DONE')) {
-            /* Claude: 2026-03-05 — wait up to 2500ms for Firebase LOCAL persistence to restore
-               the session before triggering re-auth. 500ms was too short on cold loads / mobile.
-               Poll every 200ms so we sign in as fast as possible without a fixed delay. */
-            sessionStorage.setItem('AA_REAUTH_DONE', '1');
-            if (signinBtn) {
-              signinBtn.style.display = 'inline-flex';
-              signinBtn.disabled = true;
-              signinBtn.textContent = 'Resuming session\u2026';
-            }
-            var _persistPollCount = 0;
-            var _persistPoll = setInterval(function () {
-              _persistPollCount++;
-              if (window.AA.auth.currentUser) {
-                clearInterval(_persistPoll); // persistence kicked in — nothing to do
-                return;
-              }
-              if (_persistPollCount >= 13) { // ~2500ms (13 × 200ms)
-                clearInterval(_persistPoll);
-                _doSignIn(lastUser.email); // give up waiting, trigger re-auth
-              }
-            }, 200);
-          } else if (lastUser && lastUser.email) {
-            /* Claude: 2026-03-06 — AA_REAUTH_DONE was set (later in the session), but
-               Firebase still fired null (background token expiry). Auto-sign in silently
-               without requiring the user to click anything. */
-            sessionStorage.removeItem('AA_REAUTH_DONE'); // reset so next load can poll again
-            _doSignIn(lastUser.email);
-          } else {
-            if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
-            if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
-          }
-        }).catch(function (err) {
-          console.warn('[AA header] getRedirectResult error:', err);
-          if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
-          if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
-        });
-
-        if (infoWrap)         infoWrap.style.display         = 'none';
-        if (signoutBtn)       signoutBtn.style.display       = 'none';
-        if (deleteBtn)        deleteBtn.style.display        = 'none';
-        if (adminBtn)         adminBtn.style.display         = 'none';
-        if (networkNavLi)     networkNavLi.style.display     = 'none';
-        if (auditLogNavLi)    auditLogNavLi.style.display    = 'none';
-        if (audioNotesNavLi)  audioNotesNavLi.style.display  = 'none';
-        _unwatchNavUnread();
-      }
-
       /* React to every auth state change */
       window.AA.auth.onAuthStateChanged(function (user) {
         if (!user) {
-          /* Claude: 2026-03-06 — grace period before accepting null as a real sign-out.
-             Firebase fires onAuthStateChanged(null) transiently when the auth token
-             expires in a background tab; it then auto-refreshes and fires user again.
-             Wait 5s before treating null as definitive — if user fires within that
-             window the timer is cancelled and nothing changes visually.
-             _intentionalSignOut (set by the Sign Out button) bypasses the grace period. */
-          if (_intentionalSignOut) {
-            _intentionalSignOut = false;
-            _doSignOutUI();
-            return;
-          }
-          if (_signOutDebounce) return; // already waiting — don't stack timers
-          _signOutDebounce = setTimeout(function () {
-            _signOutDebounce = null;
-            if (!window.AA.auth.currentUser) {
-              _doSignOutUI(); // still null after grace period — it's a real sign-out
+          /* Claude: check getRedirectResult() first — if user just came back from
+             signInWithRedirect, auth state fires null before redirect resolves.
+             Only show sign-in button if redirect also returns no user. */
+          window.AA.auth.getRedirectResult().then(function (result) {
+            if (result && result.user) return; // redirect resolved — onAuthStateChanged will re-fire with user
+
+            var lastUser = null;
+            try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
+
+            /* Claude: 2026-03-06 — show welcome-back banner whenever a previous session is detected */
+            if (lastUser && lastUser.name && welcomeBack && welcomeBackMsg) {
+              welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.name.split(' ')[0] + '! Your session ended (reboot or browser restart).';
+              welcomeBack.style.display = 'flex';
             }
-          }, 5000); // 5s grace period
+
+            if (lastUser && !sessionStorage.getItem('AA_REAUTH_DONE')) {
+              /* Claude: 2026-03-05 — wait up to 2500ms for Firebase LOCAL persistence to restore
+                 the session before triggering re-auth. 500ms was too short on cold loads / mobile.
+                 Poll every 200ms so we sign in as fast as possible without a fixed delay. */
+              sessionStorage.setItem('AA_REAUTH_DONE', '1');
+              if (signinBtn) {
+                signinBtn.style.display = 'inline-flex';
+                signinBtn.disabled = true;
+                signinBtn.textContent = 'Resuming session\u2026';
+              }
+              var _persistPollCount = 0;
+              var _persistPoll = setInterval(function () {
+                _persistPollCount++;
+                if (window.AA.auth.currentUser) {
+                  clearInterval(_persistPoll); // persistence kicked in — nothing to do
+                  return;
+                }
+                if (_persistPollCount >= 13) { // ~2500ms (13 × 200ms)
+                  clearInterval(_persistPoll);
+                  _doSignIn(lastUser.email); // give up waiting, trigger re-auth
+                }
+              }, 200);
+            } else {
+              if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
+              if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex'; /* Claude: show checkbox */
+            }
+          }).catch(function (err) {
+            /* Claude: redirect result failed — just show sign-in button */
+            console.warn('[AA header] getRedirectResult error:', err);
+            if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
+            if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex'; /* Claude: show checkbox */
+          });
+
+          if (infoWrap)         infoWrap.style.display         = 'none';
+          if (signoutBtn)       signoutBtn.style.display       = 'none';
+          if (deleteBtn)        deleteBtn.style.display        = 'none'; /* Claude: data deletion request */
+          if (adminBtn)         adminBtn.style.display         = 'none';
+          if (networkNavLi)     networkNavLi.style.display     = 'none';
+          if (auditLogNavLi)    auditLogNavLi.style.display    = 'none';
+          if (audioNotesNavLi)  audioNotesNavLi.style.display  = 'none';
+          _unwatchNavUnread(); /* clear unread badge on sign-out */
           return;
         }
-
-        /* User is present — cancel any pending grace-period sign-out */
-        if (_signOutDebounce) { clearTimeout(_signOutDebounce); _signOutDebounce = null; }
 
         /* Look up role in Firestore */
         window.AA.db.collection('users').doc(user.uid).get()
