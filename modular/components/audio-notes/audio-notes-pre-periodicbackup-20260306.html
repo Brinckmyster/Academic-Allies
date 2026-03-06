@@ -677,8 +677,6 @@
           if (!isAndroid) {
             startSpeechRecognition();
           }
-          // Claude: 2026-03-06 — start periodic transcript backup (unstable-device resilience)
-          _startTranscriptBackup();
         })
         .catch(function(err) {
           showToast('Microphone access denied');
@@ -690,8 +688,6 @@
       if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
       stopSpeechRecognition();
       stopTimer();
-      // Claude: 2026-03-06 — stop periodic transcript backup when recording ends
-      _stopTranscriptBackup();
       mediaRecorder.stop();
 
       recordBtn.textContent = '🎙️';
@@ -1119,23 +1115,6 @@
             }
           }
         } catch(e) {}
-        /* Claude: 2026-03-06 — also restore periodic transcript backup (device-crash fallback) */
-        try {
-          var backupRaw = localStorage.getItem('AA_AUDIO_TRANSCRIPT_BACKUP');
-          if (backupRaw) {
-            localStorage.removeItem('AA_AUDIO_TRANSCRIPT_BACKUP');
-            var backup = JSON.parse(backupRaw);
-            if (backup.transcript && !transcript) {
-              transcript = backup.transcript;
-              var liveEl2 = document.getElementById('liveTranscript');
-              if (liveEl2) { liveEl2.style.display = 'block'; liveEl2.textContent = transcript; }
-              if (backup.title) {
-                var titleEl = document.getElementById('note-title');
-                if (titleEl && !titleEl.value) { titleEl.value = backup.title; }
-              }
-            }
-          }
-        } catch(e) {}
       }
 
       window.AA.auth.onAuthStateChanged(function(user) {
@@ -1232,34 +1211,6 @@
        If Sign Out is clicked (or forced sign-out fires) while a recording is active,
        stop the recorder cleanly, collect the blob, and save the full audio draft to
        IndexedDB before auth is cleared — same as the grace period path. */
-    /* Claude: 2026-03-06 — periodic transcript backup every 30 s during recording.
-       Saves transcript + title to localStorage so words survive even if the device
-       dies before IndexedDB can write the audio blob (unstable-device resilience).
-       AA_AUDIO_TRANSCRIPT_BACKUP is consumed by _restoreEmergencyDraft() on sign-in. */
-    var _transcriptBackupTimer = null;
-
-    function _startTranscriptBackup() {
-      _stopTranscriptBackup();
-      _transcriptBackupTimer = setInterval(function () {
-        var t = (transcript || '').trim();
-        if (!t) return;
-        try {
-          localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
-            transcript: t,
-            title:      (document.getElementById('note-title') || {}).value || '',
-            savedAt:    new Date().toISOString()
-          }));
-        } catch (e) {}
-      }, 30000); // every 30 seconds
-    }
-
-    function _stopTranscriptBackup() {
-      if (_transcriptBackupTimer) {
-        clearInterval(_transcriptBackupTimer);
-        _transcriptBackupTimer = null;
-      }
-    }
-
     window.AA_PRESIGNOUT = function() {
       var isActiveRecording = mediaRecorder && mediaRecorder.state === 'recording';
       if (!isActiveRecording && !audioChunks.length && !transcript.trim()) return; // nothing to save
