@@ -36,23 +36,10 @@
   var db   = firebase.firestore();
   var auth = firebase.auth();
 
-  /* Claude: 2026-03-06 — persistence hardening.
-     LOCAL is the ironclad default. SESSION only when user explicitly unchecks the box.
-     On first load (no stored pref) or after storage wipe, stamp 'true' immediately
-     so the preference is always explicit — never silently missing.
-     sessionStorage mirrors the pref as a same-tab backup: if localStorage is wiped
-     mid-session the current tab stays on LOCAL rather than unknowingly flipping. */
-  (function _stampPersistPref() {
-    if (localStorage.getItem('AA_KEEP_SIGNED_IN') === null) {
-      localStorage.setItem('AA_KEEP_SIGNED_IN', 'true'); // explicit stamp — LOCAL by default
-    }
-    // Short-term mirror so we survive a localStorage wipe within the same tab.
-    sessionStorage.setItem('AA_KEEP_SIGNED_IN_SS', localStorage.getItem('AA_KEEP_SIGNED_IN'));
-  }());
-
-  /* Resolve: prefer localStorage; fall back to sessionStorage mirror if LS was cleared. */
-  var _keepSignedIn = (localStorage.getItem('AA_KEEP_SIGNED_IN')
-                       || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
+  /* Claude: 2026-03-05 — persistence mode driven by "Keep me signed in" checkbox.
+     localStorage AA_KEEP_SIGNED_IN: 'false' → SESSION (tab-only), else LOCAL (survives restarts).
+     Save the promise so onAuthStateChanged can wait for persistence to load. */
+  var _keepSignedIn = localStorage.getItem('AA_KEEP_SIGNED_IN') !== 'false';
   var _persistenceType = _keepSignedIn
     ? firebase.auth.Auth.Persistence.LOCAL
     : firebase.auth.Auth.Persistence.SESSION;
@@ -110,9 +97,8 @@
   window.AA.signInWithGoogle = function (loginHint) {
     var googleProvider = new firebase.auth.GoogleAuthProvider();
     if (loginHint) googleProvider.setCustomParameters({ login_hint: loginHint });
-    /* Claude: 2026-03-06 — re-read preference at sign-in time; sessionStorage fallback */
-    var keepPref = (localStorage.getItem('AA_KEEP_SIGNED_IN')
-                    || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
+    /* Claude: 2026-03-05 — re-read checkbox preference at sign-in time */
+    var keepPref = localStorage.getItem('AA_KEEP_SIGNED_IN') !== 'false';
     var pType = keepPref
       ? firebase.auth.Auth.Persistence.LOCAL
       : firebase.auth.Auth.Persistence.SESSION;

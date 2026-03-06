@@ -49,12 +49,6 @@ Your disability accommodations and support network">Your disability accommodatio
         <span id="userNameDisplay"></span>
       </div>
 
-      <!-- Claude: 2026-03-06 — welcome-back banner shown when a previous session is detected -->
-      <div id="aa-welcome-back" style="display:none;flex-direction:column;gap:4px;padding:7px 12px;background:#e8f4f5;border:1px solid #b2d8db;border-radius:6px;font-size:12px;color:#2c6b6e;max-width:220px;line-height:1.4;">
-        <span id="aa-welcome-back-msg"></span>
-        <span style="font-size:10px;color:#5a9a9d;">Tap "Sign in" to continue →</span>
-      </div>
-
       <!-- Firebase Sign-In Button (hidden once signed in) -->
       <button id="aa-signin-btn" title="Sign in with Google"
         style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:#fff;color:#444;border:1px solid #dadce0;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.1);">
@@ -125,18 +119,14 @@ Your disability accommodations and support network">Your disability accommodatio
       var keepSignedInWrap = document.getElementById('aa-keep-signed-in-wrap');
       var keepSignedInBox  = document.getElementById('aa-keep-signed-in');
 
-      /* Claude: 2026-03-06 — checkbox wired to localStorage + sessionStorage mirror */
+      /* Claude: 2026-03-05 — "Keep me signed in" checkbox wired to localStorage */
       if (keepSignedInBox) {
         var stored = localStorage.getItem('AA_KEEP_SIGNED_IN');
         keepSignedInBox.checked = stored !== 'false'; /* default: checked */
         keepSignedInBox.addEventListener('change', function () {
-          var val = keepSignedInBox.checked ? 'true' : 'false';
-          localStorage.setItem('AA_KEEP_SIGNED_IN', val);
-          sessionStorage.setItem('AA_KEEP_SIGNED_IN_SS', val); /* keep mirror in sync */
+          localStorage.setItem('AA_KEEP_SIGNED_IN', keepSignedInBox.checked ? 'true' : 'false');
         });
       }
-      var welcomeBack    = document.getElementById('aa-welcome-back');
-      var welcomeBackMsg = document.getElementById('aa-welcome-back-msg');
 
       /* Tier icon map — Updated 2026-02-28 by Claude: badge-admin-yellow-center→backstage-manager, icon-user-admin→network-lead */
       var TIER_ICONS = {
@@ -186,9 +176,6 @@ Your disability accommodations and support network">Your disability accommodatio
         signoutBtn.addEventListener('click', function () {
           sessionStorage.removeItem('academicAlliesUser');
           sessionStorage.removeItem('AA_REAUTH_DONE'); // Claude: allow re-auth on next sign-in
-          /* Claude: 2026-03-06 — clear last-user so welcome-back doesn't show after intentional sign-out */
-          localStorage.removeItem('AA_LAST_USER');
-          if (welcomeBack) welcomeBack.style.display = 'none';
           window.AA.signOut();
         });
       }
@@ -384,12 +371,6 @@ Your disability accommodations and support network">Your disability accommodatio
             var lastUser = null;
             try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
 
-            /* Claude: 2026-03-06 — show welcome-back banner whenever a previous session is detected */
-            if (lastUser && lastUser.name && welcomeBack && welcomeBackMsg) {
-              welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.name.split(' ')[0] + '! Your session ended (reboot or browser restart).';
-              welcomeBack.style.display = 'flex';
-            }
-
             if (lastUser && !sessionStorage.getItem('AA_REAUTH_DONE')) {
               /* Claude: 2026-03-05 — wait up to 2500ms for Firebase LOCAL persistence to restore
                  the session before triggering re-auth. 500ms was too short on cold loads / mobile.
@@ -414,7 +395,7 @@ Your disability accommodations and support network">Your disability accommodatio
               }, 200);
             } else {
               if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
-              if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex'; /* Claude: show checkbox */
+            if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex'; /* Claude: show checkbox */
             }
           }).catch(function (err) {
             /* Claude: redirect result failed — just show sign-in button */
@@ -458,7 +439,6 @@ Your disability accommodations and support network">Your disability accommodatio
 
             if (signinBtn)        signinBtn.style.display       = 'none';
             if (keepSignedInWrap) keepSignedInWrap.style.display = 'none'; /* Claude: hide checkbox when signed in */
-            if (welcomeBack)      welcomeBack.style.display      = 'none'; /* Claude: 2026-03-06 — hide welcome-back once signed in */
             if (infoWrap)         infoWrap.style.display        = 'flex';
             if (nameEl)           nameEl.textContent             = first;
             if (adminBtn)         adminBtn.style.display         = isAdmin ? 'inline-flex' : 'none';
