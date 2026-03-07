@@ -105,9 +105,25 @@
 
     /* Mirror banner */
     .mirror-notice {
+      border-radius: 10px;
+      padding: 12px 18px; margin-bottom: 18px; font-size: 0.88rem;
+    }
+    .mirror-notice.mirror-readonly {
       background: linear-gradient(135deg, #e8eeff, #f0f4ff);
-      border: 2px solid #a5b4fc; border-radius: 10px;
-      padding: 12px 18px; margin-bottom: 18px; font-size: 0.88rem; color: #4338ca;
+      border: 2px solid #a5b4fc; color: #4338ca;
+    }
+    .mirror-notice.mirror-nl {
+      background: linear-gradient(135deg, #e6f4ea 0%, #f0faf2 100%);
+      border: 2px solid #6abf7b; color: #2d6a4f;
+    }
+    .nl-action-links { margin-top: 10px; }
+    .nl-action-links a {
+      display: inline-block; margin-right: 8px; margin-bottom: 6px;
+      padding: 5px 12px; background: #fff; color: #2d6a4f;
+      border: 1px solid #6abf7b; border-radius: 6px;
+      font-size: 0.8rem; text-decoration: none; font-weight: 600;
+    }
+    .nl-action-links a:hover { background: #e6f4ea; }
       display: flex; align-items: center; gap: 10px;
     }
 
@@ -125,8 +141,8 @@
 
     <div id="dash-body" style="display:none;">
 
-      <!-- Mirror notice -->
-      <div class="mirror-notice">
+      <!-- Mirror notice — Claude 2026-03-07: NL-aware -->
+      <div class="mirror-notice mirror-readonly" id="dash-mirror-notice">
         🪞 <span>You're in <strong>read-only mirror mode</strong> — you can view but not change anything here.</span>
       </div>
 
@@ -330,6 +346,23 @@
       document.getElementById('student-name-sub').textContent   = name + "'s";
       document.getElementById('msg-student-name').textContent   = name;
       document.getElementById('meals-date').textContent = dateKey;
+
+      /* Claude: 2026-03-07 — NL-aware banner and subtitle */
+      var notice = document.getElementById('dash-mirror-notice');
+      var subEl  = document.querySelector('.sub');
+      if (window.AA_MIRROR_CAN_WRITE) {
+        if (notice) {
+          notice.className = 'mirror-notice mirror-nl';
+          notice.innerHTML = '🌟 <strong>Network Lead</strong> — managing ' +
+            esc(name) + '\'s data · full access' +
+            '<div class="nl-action-links">' +
+              '<a href="/Academic-Allies/modular/components/meal-planner/meal-planner.html">🍽 Edit Meal Plan</a>' +
+              '<a href="/Academic-Allies/modular/nope-mode.html">🚫 Manage NOPE</a>' +
+              '<a href="/Academic-Allies/modular/emergency.html">🚨 Emergency Contacts</a>' +
+            '</div>';
+        }
+        if (subEl) subEl.innerHTML = 'Real-time view of <span id="student-name-sub">' + esc(name) + '\'s</span> wellness data.';
+      }
 
       applyToggles();
       startNopeListener();

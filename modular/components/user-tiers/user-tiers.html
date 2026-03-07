@@ -231,6 +231,18 @@
         <span id="ssp-status">Loading…</span>
       </div>
       <div style="font-size:0.8rem;color:#aaa;" id="ssp-detail"></div>
+      <div class="live-status-row" style="margin-top:8px;">
+        <span>🍽</span>
+        <span id="ssp-meals">Loading meals…</span>
+      </div>
+      <div class="live-status-row">
+        <span>🌸</span>
+        <span id="ssp-flowers">Loading flower quiz…</span>
+      </div>
+      <div style="margin-top:10px;">
+        <a href="/Academic-Allies/modular/components/support-dashboard/support-dashboard.html"
+           style="font-size:0.82rem;color:#4a7f82;text-decoration:underline;">View Full Dashboard →</a>
+      </div>
     </div>
 
     <!-- Mirror mode banner (non-student roles) -->
@@ -700,7 +712,11 @@
         'font-size:13px;text-decoration:none;font-weight:600;';
       el.innerHTML =
         '<a href="/Academic-Allies/modular/components/message-system/message-system.html" style="' + linkStyle + '">💬 Messages</a>' +
-        '<a href="/Academic-Allies/modular/components/support-dashboard/support-dashboard.html" style="' + linkStyle + '">📊 Dashboard</a>';
+        '<a href="/Academic-Allies/modular/components/support-dashboard/support-dashboard.html" style="' + linkStyle + '">📊 Dashboard</a>' +
+        '<a href="/Academic-Allies/modular/components/meal-planner/meal-planner.html" style="' + linkStyle + '">🍽 Meal Planner</a>' +
+        '<a href="/Academic-Allies/modular/nope-mode.html" style="' + linkStyle + '">🚫 NOPE Mode</a>' +
+        '<a href="/Academic-Allies/modular/emergency.html" style="' + linkStyle + '">🚨 Emergency</a>' +
+        '<a href="/Academic-Allies/modular/checkin-log.html" style="' + linkStyle + '">📝 Check-in Log</a>';
       el.style.display = 'block';
     }
 
@@ -1004,6 +1020,7 @@
     function _teardownStatusPanel() {
       if (_unsubStatusNope)    { _unsubStatusNope();    _unsubStatusNope    = null; }
       if (_unsubStatusCheckin) { _unsubStatusCheckin(); _unsubStatusCheckin = null; }
+      if (_unsubStatusMeals)   { _unsubStatusMeals();   _unsubStatusMeals   = null; }
     }
 
     /* Shared renderer — called by both NOPE and check-in snapshots */
@@ -1127,6 +1144,29 @@
           _statusState.checkin = null;
           _renderStatusPanel(studentName);
         });
+
+      /* ── Real-time meal log listener ─── Claude 2026-03-07 ─── */
+      _unsubStatusMeals = AA.watchMealLog(studentUid, today, function(data) {
+        var meals = (data && Array.isArray(data.meals)) ? data.meals : [];
+        var el = document.getElementById('ssp-meals');
+        if (el) el.textContent = meals.length
+          ? meals.length + ' meal' + (meals.length === 1 ? '' : 's') + ' logged today'
+          : 'No meals logged today';
+      });
+
+      /* ── Flower quiz progress (one-shot) ─── Claude 2026-03-07 ─── */
+      AA.getFlowerQuiz(studentUid).then(function(doc) {
+        var el = document.getElementById('ssp-flowers');
+        if (!el) return;
+        if (doc.exists && doc.data().flowerCount) {
+          el.textContent = doc.data().flowerCount + ' / 31 flowers completed';
+        } else {
+          el.textContent = 'Flower quiz not started';
+        }
+      }).catch(function() {
+        var el = document.getElementById('ssp-flowers');
+        if (el) el.textContent = 'Could not load flower quiz';
+      });
     }
 
     /* ── Invite code generator ──────────────────────────────────────────
@@ -1287,6 +1327,7 @@
     // Added 2026-02-28 by Claude.
     var _unsubStatusNope    = null;
     var _unsubStatusCheckin = null;
+    var _unsubStatusMeals   = null;
 
     /* Claude-credit: DEFAULT_MODULES expanded + spoonPal restricted to backstage-manager 2026-02-26 */
     var DEFAULT_MODULES = {

@@ -59,6 +59,20 @@
 
     /* Sign-in notice */
     #signin-notice { padding: 30px; text-align: center; color: #888; font-size: 0.95rem; }
+
+    /* Mirror / NL banner */
+    #meal-mirror-banner {
+      display: none; padding: 12px 18px; border-radius: 10px;
+      margin-bottom: 18px; font-size: 0.88rem; line-height: 1.5;
+    }
+    #meal-mirror-banner.nl-banner {
+      background: linear-gradient(135deg, #e6f4ea 0%, #f0faf2 100%);
+      border: 1px solid #6abf7b; color: #2d6a4f;
+    }
+    #meal-mirror-banner.mirror-banner {
+      background: linear-gradient(135deg, #e8eeff 0%, #f0f0ff 100%);
+      border: 1px solid #a5b4fc; color: #4338ca;
+    }
   </style>
 </head>
 <body>
@@ -82,6 +96,8 @@
 
   <div id="signin-notice">Loading…</div>
   <div id="planner-body" style="display:none;">
+
+    <div id="meal-mirror-banner"></div>
 
     <h1 id="planner-title">Meal Planner</h1>
     <p class="subtitle" id="planner-subtitle">Track daily meals. Base plan can be customized by your admin.</p>
@@ -186,19 +202,59 @@
         currentUid  = user.uid;
         currentName = user.displayName || user.email;
 
+        /* Claude: 2026-03-07 — mirror mode support for NL + support roles */
+        var mirrorUid = window.AA_MIRROR_UID;
+        var isMirror  = !!(mirrorUid && mirrorUid !== user.uid);
+        var canWrite  = !isMirror || !!window.AA_MIRROR_CAN_WRITE;
+
+        if (isMirror) {
+          currentUid = mirrorUid;
+          /* Look up student name for title */
+          AA.db.collection('users').doc(mirrorUid).get()
+            .then(function(doc) {
+              var sName = (doc.exists && (doc.data().displayName || doc.data().name)) || 'Student';
+              document.getElementById('planner-title').textContent = sName + "'s Meal Planner";
+              _showMirrorBanner(sName, canWrite);
+            }).catch(function() {
+              document.getElementById('planner-title').textContent = "Student's Meal Planner";
+              _showMirrorBanner('Student', canWrite);
+            });
+
+          /* Hide editing UI for read-only mirror viewers */
+          if (!canWrite) {
+            document.querySelector('.meal-entry').style.display    = 'none';
+            document.querySelector('.meal-controls').style.display = 'none';
+          }
+        }
+
         document.getElementById('signin-notice').style.display   = 'none';
         document.getElementById('planner-body').style.display    = 'block';
-        document.getElementById('planner-title').textContent     = currentName + "'s Meal Planner";
+        if (!isMirror) {
+          document.getElementById('planner-title').textContent   = currentName + "'s Meal Planner";
+        }
 
         /* Claude: 2026-03-06 — restore any draft form data saved before sign-out */
-        _mealDraftRestore();
+        if (!isMirror) _mealDraftRestore();
 
         /* Claude: 2026-03-06 — register presignout hook to save the add-meal form */
-        window.AA_PRESIGNOUT = _mealDraftSave;
+        if (!isMirror) window.AA_PRESIGNOUT = _mealDraftSave;
 
         startMealListener();
         loadBasePlan();
       });
+    }
+
+    function _showMirrorBanner(studentName, canWrite) {
+      var banner = document.getElementById('meal-mirror-banner');
+      if (!banner) return;
+      if (canWrite) {
+        banner.className = 'nl-banner';
+        banner.innerHTML = '🌟 <strong>Network Lead</strong> — managing ' + esc(studentName) + '\'s meals · full access';
+      } else {
+        banner.className = 'mirror-banner';
+        banner.innerHTML = '👁 Viewing ' + esc(studentName) + '\'s meals <strong>(read-only)</strong>';
+      }
+      banner.style.display = 'block';
     }
 
     /* ── Real-time Firestore listener for today's meals ──
@@ -287,8 +343,12 @@
         return;
       }
 
+      /* Claude: 2026-03-07 — hide remove buttons for read-only mirror viewers */
+      var isMirrorReadOnly = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE);
       list.innerHTML = todaysMeals.map(function(meal, i) {
         var timeStr = meal.time ? to12HourSafe(meal.time) : '';
+        var removeBtn = isMirrorReadOnly ? '' :
+          '<button class="btn-remove" onclick="removeMeal(' + i + ')">Remove</button>';
         return '<div class="meal-item">' +
           '<div class="meal-item-body">' +
             (meal.type ? '<span class="mtype">' + esc(meal.type) + '</span>' : '') +
@@ -298,7 +358,7 @@
               (meal.notes ? '📝 ' + esc(meal.notes) : '') +
             '</div>' +
           '</div>' +
-          '<button class="btn-remove" onclick="removeMeal(' + i + ')">Remove</button>' +
+          removeBtn +
         '</div>';
       }).join('');
     }
