@@ -499,9 +499,9 @@
     interrupted: '🚧', skipped: '❌', rescheduled: '🔄'
   };
 
-  // Claude: Auto-reschedule grace period before overdue tasks are rescheduled
-  const RESCHEDULE_GRACE_SECONDS = 5;
-  // Claude: Tracks setTimeout IDs for pending auto-reschedules, keyed by task index
+  // Claude 2026-03-06: RESCHEDULE_GRACE_SECONDS replaced by sequential queue — see checkOverdueTasks()
+  // Archive: const RESCHEDULE_GRACE_SECONDS = 5;
+  // rescheduleTimers kept for cancelAutoReschedule/rolloverDay backward compat
   const rescheduleTimers = {};
 
   // Variables
@@ -1295,45 +1295,53 @@
     return Math.max(1, base);
   }
 
-  // ── Claude: Auto-reschedule overdue tasks ──────────────────────────────────────
-  // Schedules auto-reschedule for an overdue task after a grace period.
-  // If already pending, does nothing (don't reset unless explicitly cancelled).
-  function scheduleAutoReschedule(taskIndex) {
-    if (taskIndex < 0 || taskIndex >= timeline.length) return;
+  // ── Claude 2026-03-06: Auto-reschedule — sequential queue ──────────────────────
+  // Archive of old approach: individual setTimeout per task (RESCHEDULE_GRACE_SECONDS = 5).
+  // Problem: all overdue tasks fired simultaneously → all called findNextAvailableSlot at the
+  // same moment → all landed on the same slot. Also, first check was 30s after page load,
+  // so tasks missed earlier in the day weren't caught until then.
+  //
+  // New approach:
+  //   - Collect ALL overdue non-fixed incomplete tasks, sort by scheduled time
+  //   - Process sequentially with 400ms gap so each task sees the updated timeline
+  //   - Run immediately on load (via startOverdueCheck) AND every 60s thereafter
+  //   - Fixed tasks are never auto-rescheduled (their time is locked by definition)
+
+  var _rescheduleQueue = [];      // ordered list of task indices awaiting reschedule
+  var _rescheduleRunning = false;  // true while queue is being drained
+
+  // Add a task index to the reschedule queue (no duplicates).
+  function queueReschedule(taskIndex) {
+    if (_rescheduleQueue.indexOf(taskIndex) !== -1) return; // already queued
+    if (rescheduleTimers[taskIndex] !== undefined) return;   // legacy guard (kept for cancelAutoReschedule compat)
+    _rescheduleQueue.push(taskIndex);
+    if (!_rescheduleRunning) _drainRescheduleQueue();
+  }
+
+  // Process the queue one task at a time, 400ms apart so timeline is stable between moves.
+  function _drainRescheduleQueue() {
+    if (_rescheduleQueue.length === 0) { _rescheduleRunning = false; return; }
+    _rescheduleRunning = true;
+    const taskIndex = _rescheduleQueue.shift();
+
+    // Task may no longer exist or may have been completed while waiting
+    if (taskIndex < 0 || taskIndex >= timeline.length || timeline[taskIndex].status !== 'incomplete') {
+      setTimeout(_drainRescheduleQueue, 0);
+      return;
+    }
+
     const task = timeline[taskIndex];
+    const newTime = findNextAvailableSlot(timeline, 9);
+    if (newTime !== task.time) {
+      task.time = newTime;
+      // status stays 'incomplete' — task is not done, just moved
+      calculateSpoons();
+      renderTimeline();
+      saveData();
+      showToast(`⏰ ${stripLeadingEmoji(task.description)} → ${newTime}`);
+    }
 
-    // Only reschedule incomplete tasks
-    if (task.status !== 'incomplete') return;
-
-    // Check if task is overdue (scheduled time < now)
-    const now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
-    let taskTime = parseTime(task.time);
-    if (taskTime < dayStart * 60) taskTime += 1440; // adjust for past times
-    if (taskTime >= now) return; // not overdue
-
-    // If timer already pending for this task, don't schedule again
-    if (rescheduleTimers[taskIndex] !== undefined) return;
-
-    // Schedule auto-reschedule after grace period
-    rescheduleTimers[taskIndex] = setTimeout(function() {
-      if (taskIndex >= 0 && taskIndex < timeline.length && timeline[taskIndex].status === 'incomplete') {
-        const oldTime = timeline[taskIndex].time;
-        const newTime = findNextAvailableSlot(timeline, 9);
-
-        // Claude: 2026-03-05 — move time but keep status 'incomplete' so task stays active
-        // Status only changes to 'rescheduled' if user picks it manually
-        if (newTime !== oldTime) {
-          timeline[taskIndex].time = newTime;
-          // status stays 'incomplete' — don't mark as rescheduled automatically
-          calculateSpoons();
-          renderTimeline();
-          saveData();
-
-          showToast(`⏰ ${stripLeadingEmoji(timeline[taskIndex].description)} → ${newTime}`);
-        }
-      }
-      delete rescheduleTimers[taskIndex];
-    }, RESCHEDULE_GRACE_SECONDS * 1000);
+    setTimeout(_drainRescheduleQueue, 400); // gap keeps findNextAvailableSlot accurate
   }
 
   // Claude: Manual reschedule — finds next open 30-min slot, updates task time, saves.
@@ -1343,45 +1351,52 @@
     const newTime = findNextAvailableSlot(timeline, 9);
     if (newTime === task.time) { showToast('No open slot found'); return; }
     task.time = newTime;
-    // Claude: 2026-03-05 — keep status incomplete on manual reschedule too
-    cancelAutoReschedule(index);
+    // Remove from queue if pending
+    const qi = _rescheduleQueue.indexOf(index);
+    if (qi !== -1) _rescheduleQueue.splice(qi, 1);
     calculateSpoons();
     renderTimeline();
     saveData();
     showToast(`🔄 ${stripLeadingEmoji(task.description)} → ${newTime}`);
   }
 
-  // Claude: Cancels pending auto-reschedule for a task (e.g., on user interaction).
+  // Claude: Cancels a pending reschedule for a task (e.g., user opened modal).
   function cancelAutoReschedule(taskIndex) {
+    // Remove from sequential queue
+    const qi = _rescheduleQueue.indexOf(taskIndex);
+    if (qi !== -1) _rescheduleQueue.splice(qi, 1);
+    // Legacy timer cleanup (kept for rolloverDay compat)
     if (rescheduleTimers[taskIndex] !== undefined) {
       clearTimeout(rescheduleTimers[taskIndex]);
       delete rescheduleTimers[taskIndex];
     }
   }
 
-  // Claude: Polling loop to detect overdue tasks and queue auto-reschedule.
-  // Runs every 30 seconds (not too aggressive).
+  // Scan timeline for overdue non-fixed incomplete tasks and queue them in time order.
+  function checkOverdueTasks() {
+    if (!timeline || timeline.length === 0) return;
+    const now = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
+    const overdue = [];
+    for (let i = 0; i < timeline.length; i++) {
+      const task = timeline[i];
+      if (task.status !== 'incomplete') continue;
+      if (task.fixed) continue; // fixed tasks stay put — their time is intentional
+      let taskTime = parseTime(task.time);
+      if (taskTime === null) continue;
+      if (taskTime < dayStart * 60) taskTime += 1440;
+      if (taskTime < now) overdue.push({ index: i, taskTime });
+    }
+    // Sort by original scheduled time so earlier tasks get rescheduled first
+    overdue.sort(function(a, b) { return a.taskTime - b.taskTime; });
+    overdue.forEach(function(o) { queueReschedule(o.index); });
+  }
+
+  // Start polling: run immediately after load, then every 60 seconds.
   function startOverdueCheck() {
-    setInterval(function() {
-      if (!timeline || timeline.length === 0) return;
-
-      for (let i = 0; i < timeline.length; i++) {
-        const task = timeline[i];
-
-        // Skip non-incomplete tasks
-        if (task.status !== 'incomplete') continue;
-
-        // Check if overdue
-        const now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
-        let taskTime = parseTime(task.time);
-        if (taskTime < dayStart * 60) taskTime += 1440;
-
-        // If overdue and no timer pending, schedule auto-reschedule
-        if (taskTime < now && rescheduleTimers[i] === undefined) {
-          scheduleAutoReschedule(i);
-        }
-      }
-    }, 30000); // 30 second interval
+    // Immediate check fires 1.5s after load (gives loadData time to finish)
+    setTimeout(checkOverdueTasks, 1500);
+    // Ongoing poll
+    setInterval(checkOverdueTasks, 60000);
   }
 
   // Claude: Shows a non-blocking toast notification for auto-reschedule events.
@@ -1680,6 +1695,8 @@
           renderTimeline();
           restoreQuickEntry(); // reflect loaded checkIn state in the buttons
           fetchWeather();      // safe to fetch now — Firestore data already loaded
+          // Claude 2026-03-06: check for missed tasks immediately after data loads
+          checkOverdueTasks();
         });
       });
     });
@@ -1696,3 +1713,4 @@
 <!-- Cache bust #10: 2026-03-06 Claude - Native time picker: replaced text input with <input type="time"> + ±15/30 min bump buttons; to24h/from24h helpers convert between stored "8:30 AM" and picker's 24h format -->
 <!-- Cache bust #11: 2026-03-06 Claude - Status picker popup: replaced 7-step linear cycle with tap-to-open grid picker; setStatus() handles rescheduled + ZZ rollover; closes on outside tap -->
 <!-- Cache bust #12: 2026-03-06 Claude - Day template system fixed: removed dead task-template dropdown from task modal; template Edit now renames only; added Save as Template button to save current timeline as a named day template -->
+<!-- Cache bust #13: 2026-03-06 Claude - Auto-reschedule sequential queue: fixed slot collision for multiple overdue tasks; runs immediately on loadData + every 60s; fixed tasks never auto-rescheduled -->
