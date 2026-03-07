@@ -1191,16 +1191,16 @@
         const oldTime = timeline[taskIndex].time;
         const newTime = findNextAvailableSlot(timeline, 9);
 
-        // Claude: 2026-03-05 — move time but keep status 'incomplete' so task stays active
-        // Status only changes to 'rescheduled' if user picks it manually
+        // Only reschedule if new time is different
         if (newTime !== oldTime) {
           timeline[taskIndex].time = newTime;
-          // status stays 'incomplete' — don't mark as rescheduled automatically
+          timeline[taskIndex].status = 'rescheduled';
           calculateSpoons();
           renderTimeline();
           saveData();
 
-          showToast(`⏰ ${stripLeadingEmoji(timeline[taskIndex].description)} → ${newTime}`);
+          // Show toast notification
+          showToast(`⏰ ${stripLeadingEmoji(timeline[taskIndex].description)} rescheduled to ${newTime}`);
         }
       }
       delete rescheduleTimers[taskIndex];
@@ -1214,7 +1214,7 @@
     const newTime = findNextAvailableSlot(timeline, 9);
     if (newTime === task.time) { showToast('No open slot found'); return; }
     task.time = newTime;
-    // Claude: 2026-03-05 — keep status incomplete on manual reschedule too
+    task.status = 'rescheduled';
     cancelAutoReschedule(index);
     calculateSpoons();
     renderTimeline();
