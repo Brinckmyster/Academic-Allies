@@ -676,9 +676,6 @@
 
           startTimer();
           captureGps();
-          // Claude: 2026-03-07 — set global flag so doLogout() blocks sign-out even if
-          // the DOM class is stale (e.g. after screen-lock on desktop or background throttle).
-          window.AA_isRecording = true;
           // Claude: 2026-03-05 — reset session inactivity timer when recording starts
           if (window.AA_resetSessionTimer) window.AA_resetSessionTimer();
           // Claude: 2026-03-05 — skip SR on Android entirely; beep is OS-level and
@@ -697,8 +694,6 @@
 
     function stopRecording() {
       if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
-      // Claude: 2026-03-07 — clear global recording flag immediately on stop
-      window.AA_isRecording = false;
       stopSpeechRecognition();
       stopTimer();
       // Claude: 2026-03-06 — stop periodic transcript backup when recording ends
@@ -721,20 +716,6 @@
         startRecording();
       }
     };
-
-    /* Claude: 2026-03-07 — visibilitychange guard for desktop sign-out protection.
-       On Windows, when the screen locks the tab becomes "hidden". When the user
-       unlocks, the tab becomes "visible" again. If the 30-min session timer was
-       close to expiring while the screen was locked, resetting it on wake prevents
-       a sign-out the moment the user comes back to their recording. */
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden && window.AA_isRecording) {
-        if (window.AA_resetSessionTimer) {
-          window.AA_resetSessionTimer();
-          console.log('[AA] Visibility restored while recording — session timer reset');
-        }
-      }
-    });
 
     // ── Category selection ─────────────────────────────────────────────────────
     document.querySelectorAll('.cat-btn').forEach(function(btn) {

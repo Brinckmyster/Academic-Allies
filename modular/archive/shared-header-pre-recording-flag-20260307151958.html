@@ -662,14 +662,10 @@ Your disability accommodations and support network">Your disability accommodatio
     }
 
     function doLogout() {
-      // Claude: 2026-03-07 — check AA_isRecording global flag (set by audio-notes) PLUS
-      // the DOM class as a fallback. The global flag is more reliable on desktop because
-      // the recording class can become stale after a screen-lock / background event.
-      var recordBtn    = document.getElementById('recordBtn');
-      var domRecording = recordBtn && recordBtn.classList.contains('recording');
-      if (window.AA_isRecording || domRecording) {
-        console.log('[AA] Session timeout suppressed — recording in progress (flag=' +
-          !!window.AA_isRecording + ' dom=' + !!domRecording + ')');
+      // Claude: 2026-03-05 — never sign out mid-recording; reset timer instead
+      var recordBtn = document.getElementById('recordBtn');
+      if (recordBtn && recordBtn.classList.contains('recording')) {
+        console.log('[AA] Session timeout suppressed — recording in progress');
         resetTimers(); // give another full 30 minutes
         return;
       }

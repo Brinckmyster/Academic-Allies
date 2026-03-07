@@ -59,12 +59,8 @@ self.addEventListener('install', function (e) {
       );
     })
   );
-  /* Claude: 2026-03-07 — DO NOT call skipWaiting() here.
-     skipWaiting() + clients.claim() caused visible page disruptions ("app keeps
-     refreshing") when code was deployed mid-session. Without skipWaiting, the new
-     SW only activates when all tabs using the old SW are closed or refreshed — so
-     a recording session is never interrupted by a mid-air SW update.
-     Archive: self.skipWaiting(); */
+  /* Take over immediately without waiting for old SW to finish */
+  self.skipWaiting();
 });
 
 /* ── Activate: purge old caches ─────────────────────────────── */
@@ -81,10 +77,8 @@ self.addEventListener('activate', function (e) {
       );
     })
   );
-  /* Claude: 2026-03-07 — DO NOT call clients.claim() (paired with skipWaiting removal above).
-     Claiming open clients mid-session triggered the "app keeps refreshing" behavior.
-     The new SW will naturally take control on next page load.
-     Archive: self.clients.claim(); */
+  /* Claim all open clients so the new SW takes effect without reload */
+  self.clients.claim();
 });
 
 /* ── Fetch: cache-first for our origin, passthrough for CDN ─── */
