@@ -16,33 +16,20 @@
   var FIRESTORE_FIELD = 'migraineMode'; // boolean on /users/{uid}
 
   /* ── CSS injected into <head> when migraine mode is active ── */
-  // Claude: 2026-03-05 — broad dark override; targets all common white/light backgrounds
+  // Claude: 2026-03-05 — use CSS filter on entire page; catches ALL colors including
+  // inline styles, yellow cards, etc. invert(1) flips to dark, hue-rotate(180deg)
+  // corrects hue so blues stay blue. brightness(0.85) tones down the result.
+  // Excludes images (re-inverted back) so photos look normal but dimmed.
   var MIGRAINE_CSS = [
-    'html, body { background: #0d0d0d !important; color: #c0c0c0 !important; }',
+    'html { filter: invert(1) hue-rotate(180deg) brightness(0.75) !important; }',
     'body * { animation: none !important; transition: none !important; }',
-    // Catch all divs/sections that use white or near-white backgrounds
-    'div, section, article, main, aside, form, li, ul, ol, table, thead, tbody, tr, td, th {',
-    '  background-color: #111 !important; border-color: #333 !important; color: #c0c0c0 !important; }',
-    '.site-header, header.site-header { background: #1a1a1a !important; border-bottom: 1px solid #333 !important; }',
-    'a { color: #8ab4b7 !important; }',
-    'button:not(#aa-migraine-btn) { background: #222 !important; color: #c0c0c0 !important; border-color: #444 !important; }',
-    '.nav-list a { color: #8ab4b7 !important; }',
-    'input, select, textarea {',
-    '  background: #222 !important; color: #c0c0c0 !important;',
-    '  border-color: #444 !important; }',
-    'p, li, td, th, label, span {',
-    '  font-size: 115% !important; line-height: 1.7 !important; color: #c0c0c0 !important; }',
-    'h1, h2, h3, h4, h5, h6 { color: #a0a0a0 !important; }',
-    // Modals, overlays, cards
-    '[class*="modal"], [class*="card"], [class*="panel"], [class*="box"], [class*="wrap"] {',
-    '  background: #1a1a1a !important; border-color: #333 !important; }',
-    // White backgrounds on inline styles — override with !important
-    '[style*="background:#fff"], [style*="background: #fff"],',
-    '[style*="background:white"], [style*="background: white"] {',
-    '  background: #111 !important; }',
-    'img:not(.home-icon):not(#userTierIcon) { opacity: 0.5 !important; filter: brightness(0.5) !important; }',
-    '#aa-migraine-btn { background: #7b2d2d !important; color: #fff !important;',
-    '  border: 2px solid #c0392b !important; font-weight: 700 !important; }'
+    // Re-invert images so they look natural (not color-inverted)
+    'img, video, canvas { filter: invert(1) hue-rotate(180deg) brightness(0.7) !important; }',
+    // Larger text for easier reading
+    'body, p, li, td, th, label, span, div { font-size: 115% !important; line-height: 1.7 !important; }',
+    // Migraine button stays visible and red
+    '#aa-migraine-btn { filter: none !important; background: #c0392b !important;',
+    '  color: #fff !important; font-weight: 700 !important; border: 2px solid #ff6b6b !important; }'
   ].join('\n');
 
   var _styleEl = null;
