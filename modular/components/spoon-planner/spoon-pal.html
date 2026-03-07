@@ -558,8 +558,11 @@
   // Strip any leading emoji chars from a description string.
   // Prevents duplicate emoji when old saved data has emoji baked into description text
   // and the LMJ column also derives the same emoji. (Added 2026-03-02 by Claude)
+  // Claude 2026-03-06: Added \uFE0F (variation selector) and \u200D (ZWJ) to prevent
+  // stray combining chars being left behind for emoji sequences like 🍽️.
+  // Archive of prior regex: /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u
   function stripLeadingEmoji(str) {
-    return (str || '').replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u, '').trim();
+    return (str || '').replace(/^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D\s]+/u, '').trim();
   }
 
   // ── Fix #2: Update emoji preview in task modal ────────────────────────────────
@@ -718,7 +721,9 @@
     document.getElementById('taskTime').value = task.time;
     document.getElementById('taskLmj').value = task.lmj;
     // Fix #3: no emoji field — show derived emoji as preview
-    document.getElementById('taskDescription').value = task.description;
+    // Claude 2026-03-06: strip emoji from description in modal — prevents user from
+    // re-saving stale Firestore data that has emoji baked in, which would cause duplicates
+    document.getElementById('taskDescription').value = stripLeadingEmoji(task.description);
     updateEmojiPreview();
     document.getElementById('taskSpoon').value = task.spoon;
     document.getElementById('taskPriority').value = task.priority;
@@ -743,7 +748,9 @@
       return;
     }
     t.time = timeVal;
-    t.description = document.getElementById('taskDescription').value.trim() || '';
+    // Claude 2026-03-06: strip emoji before saving — ensures descriptions stay clean in Firestore
+    // Archive: t.description = document.getElementById('taskDescription').value.trim() || '';
+    t.description = stripLeadingEmoji(document.getElementById('taskDescription').value.trim()) || '';
     t.spoon = parseFloat(document.getElementById('taskSpoon').value) || 0;
     t.priority = document.getElementById('taskPriority').value;
     t.fixed = document.getElementById('taskFixed').value === 'true';
@@ -914,7 +921,8 @@
     timeline.push({
       time: task.time,
       lmj,
-      description: task.description,
+      // Claude 2026-03-06: strip emoji from cloned description to prevent accumulation
+      description: stripLeadingEmoji(task.description || ''),
       spoon: task.spoon,
       priority: task.priority,
       fixed: task.fixed,
@@ -1021,7 +1029,8 @@
     timeline = sourceTasks.map(t => ({
       time: t.time,
       lmj: t.lmj,
-      description: t.description,
+      // Claude 2026-03-06: strip emoji from day template descriptions
+      description: stripLeadingEmoji(t.description || ''),
       spoon: t.spoon,
       priority: t.priority,
       fixed: t.fixed,
@@ -1324,7 +1333,12 @@
         .then(function(doc) {
           if (doc.exists) {
             const obj = doc.data();
-            timeline = obj.timeline || [];
+            // Claude 2026-03-06: strip any emoji baked into descriptions on load
+            // so old Firestore data with emoji in description fields is cleaned up
+            // automatically. Archive: timeline = obj.timeline || [];
+            timeline = (obj.timeline || []).map(function(t) {
+              return Object.assign({}, t, { description: stripLeadingEmoji(t.description || '') });
+            });
             checkIn = obj.checkIn || checkIn;
             spoonDebtHistory = obj.spoonDebtHistory || [];
             dayStart = obj.dayStart || 8;
@@ -1547,3 +1561,5 @@
 <!-- Cache bust #5: 2026-02-18 Bruise - Grok assisted - SpoonPal full recovery from backup -->
 <!-- Cache bust #6: 2026-02-20 Claude - localStorage → Firestore migration for spoonPal collection -->
 <!-- Cache bust #7: 2026-03-01 Claude - Audit fixes: full-day templates, auto-emoji, emoji field removal, Normal Day template, ZZ rollover -->
+<!-- Cache bust #8: 2026-03-05 Claude - Auto-reschedule fix: status stays 'incomplete' after reschedule so tasks are not lost -->
+<!-- Cache bust #9: 2026-03-06 Claude - Multiple emoji fix: stripLeadingEmoji applied at load, save, clone, modal open, and day template load; improved regex to handle variation selectors (U+FE0F) and ZWJ (U+200D) -->
