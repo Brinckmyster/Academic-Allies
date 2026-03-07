@@ -1165,8 +1165,12 @@
   }
 
   // ── Claude: BUG #7 FIX — findNextAvailableSlot helper ──────────────────────────
-  // Finds the first 30-minute window with no task in existingTasks array
-  // Returns time string like "10:00 AM", or fallback if all slots occupied
+  // Finds the first future 30-minute window with no task in existingTasks array.
+  // Claude 2026-03-07: Fixed critical bug — was searching from startHour (9am) regardless
+  // of current time, so rescheduled tasks could land in the past and immediately become
+  // overdue again, causing an infinite reschedule loop.
+  // Archive: for (let mins = startHour * 60; mins <= 22 * 60; mins += 30)
+  // Fix: search starts from max(startHour, now+15min) — always in the future.
   function findNextAvailableSlot(existingTasks, startHour = 9) {
     // Convert time string "HH:MM AM/PM" to minutes since midnight
     function timeToMinutes(timeStr) {
@@ -1182,10 +1186,10 @@
 
     // Convert minutes since midnight back to time string
     function minutesToTime(mins) {
-      const h = Math.floor(mins / 60);
+      const h = Math.floor(mins / 60) % 24;
       const m = mins % 60;
       const period = h >= 12 ? 'PM' : 'AM';
-      const displayH = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+      const displayH = h % 12 || 12;
       return `${displayH}:${pad(m)} ${period}`;
     }
 
@@ -1196,15 +1200,21 @@
       if (mins !== null) occupiedSlots.add(mins);
     }
 
-    // Search from startHour to 22:00 (10pm) in 30-min increments
-    for (let mins = startHour * 60; mins <= 22 * 60; mins += 30) {
+    // Start from the later of: requested startHour OR now+15min (rounded to next 30-min mark)
+    // This ensures we never place a task in the past.
+    const nowMins = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
+    const nowRounded = Math.ceil((nowMins + 15) / 30) * 30; // round up to next 30-min boundary
+    const searchStart = Math.max(startHour * 60, nowRounded);
+    const searchEnd = (dayEnd || 25) * 60; // search to end of day
+
+    for (let mins = searchStart; mins <= searchEnd; mins += 30) {
       if (!occupiedSlots.has(mins)) {
         return minutesToTime(mins);
       }
     }
 
-    // Fallback: all slots occupied, return 10:00 PM
-    return '10:00 PM';
+    // Fallback: no open slot found — place 15 min from now as last resort
+    return minutesToTime(nowRounded);
   }
 
   // ── Claude: BUG #7 FIX — Day rollover with carry-forward and spoon debt tracking ──
@@ -1714,3 +1724,4 @@
 <!-- Cache bust #11: 2026-03-06 Claude - Status picker popup: replaced 7-step linear cycle with tap-to-open grid picker; setStatus() handles rescheduled + ZZ rollover; closes on outside tap -->
 <!-- Cache bust #12: 2026-03-06 Claude - Day template system fixed: removed dead task-template dropdown from task modal; template Edit now renames only; added Save as Template button to save current timeline as a named day template -->
 <!-- Cache bust #13: 2026-03-06 Claude - Auto-reschedule sequential queue: fixed slot collision for multiple overdue tasks; runs immediately on loadData + every 60s; fixed tasks never auto-rescheduled -->
+<!-- Cache bust #14: 2026-03-07 Claude - findNextAvailableSlot: always searches from now+15min, never the past; fixes infinite reschedule loop where tasks placed in past immediately became overdue again -->
