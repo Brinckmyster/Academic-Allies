@@ -767,19 +767,7 @@
       var duration = Math.round((Date.now() - (recordStartTime || Date.now())) / 1000);
       var localTime = new Date().toLocaleString();
       // Claude: stopSpeechRecognition() already folds interim into transcript
-      var rawTranscript = transcript.trim() || '';
-      /* Claude: 2026-03-07 — Firestore hard-limits a string field to 1,048,487 bytes.
-         Long recordings (RootsTech-style) can produce transcripts far exceeding that.
-         Cap at 800,000 chars (~800 KB) so we're safely under the limit even with
-         multi-byte UTF-8 characters. The Drive audio file always has the complete
-         recording, so nothing is permanently lost.
-         Archive: var finalTranscript = transcript.trim() || ''; */
-      var TRANSCRIPT_MAX = 800000;
-      var transcriptTruncated = rawTranscript.length > TRANSCRIPT_MAX;
-      var finalTranscript = transcriptTruncated
-        ? rawTranscript.slice(0, TRANSCRIPT_MAX) +
-          '\n\n[⚠️ Transcript clipped at 800k characters — full audio saved to Drive.]'
-        : rawTranscript;
+      var finalTranscript = transcript.trim() || '';
       var gps = recordingGps ? { lat: recordingGps.lat, lng: recordingGps.lng } : null;
 
       // TODO: future — integrate Otter.ai or OpenAI Whisper API for higher-quality
@@ -797,8 +785,6 @@
         var noteData = {
           title: noteTitle || null,  // Claude: 2026-03-05 — optional title
           transcript: finalTranscript,
-          // Claude: 2026-03-07 — flag long recordings so the UI can indicate clipping
-          transcriptTruncated: transcriptTruncated || false,
           localTime: localTime,
           gps: gps,
           address: recordingAddress || null,
