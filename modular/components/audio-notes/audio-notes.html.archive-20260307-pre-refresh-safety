@@ -660,11 +660,7 @@
           mediaRecorder.onstop = function() {
             stream.getTracks().forEach(function(t) { t.stop(); });
           };
-          /* Claude 2026-03-07: 10s timeslice — ondataavailable fires every 10s so
-             audioChunks fills DURING recording, not only on stop. This means
-             pagehide/beforeunload saves contain real audio instead of empty blob.
-             Archive: mediaRecorder.start(); */
-          mediaRecorder.start(10000);
+          mediaRecorder.start();
           recordingMimeType = mediaRecorder.mimeType || preferredMime || 'audio/webm';
           recordStartTime = Date.now();
 
@@ -1225,60 +1221,13 @@
       });
     });
 
-    /* Claude 2026-03-07: save-then-warn on unload.
-       Archive of old handler: only warned if button had 'recording' class; saved nothing.
-       New behaviour:
-         1. Sync-save transcript to localStorage (always completes before page dies)
-         2. Async-save audio blob to IndexedDB (best-effort; completes in most browsers)
-         3. Show dialog only if actively recording; unsaved transcript silently auto-saves */
+    // Claude: 2026-03-05 — warn before leaving page mid-recording
     window.addEventListener('beforeunload', function(e) {
-      var isRecording = mediaRecorder && mediaRecorder.state === 'recording';
-      var hasChunks   = audioChunks && audioChunks.length > 0;
-      var hasTxt      = transcript && transcript.trim();
-      if (!isRecording && !hasChunks && !hasTxt) return; // nothing to protect
-
-      // 1. Synchronous localStorage save — survives even if IndexedDB doesn't finish
-      if (hasTxt) {
-        try {
-          localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
-            transcript: transcript.trim(),
-            title:      (document.getElementById('note-title') || {}).value || '',
-            savedAt:    new Date().toISOString()
-          }));
-        } catch(ex) {}
-      }
-
-      // 2. Async IndexedDB save — best-effort (most browsers honour it in beforeunload)
-      if (hasChunks || hasTxt) {
-        var blob = hasChunks ? new Blob(audioChunks, { type: recordingMimeType }) : null;
-        _saveEmergencyDraft(blob);
-      }
-
-      // 3. Warn only if actively recording so user knows they can restore
-      if (isRecording) {
+      if (recordBtn && recordBtn.classList.contains('recording')) {
         e.preventDefault();
-        e.returnValue = 'Recording in progress — your audio is being saved. Tap "Stay" to keep recording, or leave to restore it later.';
+        e.returnValue = 'You are currently recording. Leaving will discard your recording.';
         return e.returnValue;
       }
-    });
-
-    /* Claude 2026-03-07: pagehide listener — fires on hard refresh, tab close, and
-       navigate-away AFTER the user confirms the beforeunload dialog. At this point
-       audioChunks already has data (thanks to the 10s timeslice above).
-       requestData() asks the recorder for any buffered partial chunk before saving. */
-    window.addEventListener('pagehide', function() {
-      var isRecording = mediaRecorder && mediaRecorder.state === 'recording';
-      var hasChunks   = audioChunks && audioChunks.length > 0;
-      var hasTxt      = transcript && transcript.trim();
-      if (!isRecording && !hasChunks && !hasTxt) return;
-
-      // Flush any buffered partial chunk from the recorder into audioChunks
-      if (isRecording) {
-        try { mediaRecorder.requestData(); } catch(ex) {}
-      }
-
-      var blob = audioChunks.length ? new Blob(audioChunks, { type: recordingMimeType }) : null;
-      _saveEmergencyDraft(blob);
     });
 
     /* Claude: 2026-03-06 — register with global presignout hook.
