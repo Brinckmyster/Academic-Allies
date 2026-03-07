@@ -1294,6 +1294,11 @@
     function _startTranscriptBackup() {
       _stopTranscriptBackup();
       _transcriptBackupTimer = setInterval(function () {
+        // Claude 2026-03-07: reset session timeout on every tick so a long recording
+        // is never killed by inactivity — even if the screen locked and the OS paused
+        // the recorder (which removes recordBtn.recording, breaking the shared-header guard).
+        if (window.AA_resetSessionTimer) window.AA_resetSessionTimer();
+
         var t = (transcript || '').trim();
         if (!t) return;
         try {
