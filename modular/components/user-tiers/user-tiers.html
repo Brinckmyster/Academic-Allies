@@ -102,6 +102,35 @@
     .mirror-mode h1   { color: #6366f1; }
     .mirror-mode .sub { color: #818cf8; }
 
+    /* Network Lead banner */
+    #nl-banner {
+      display: none;
+      background: linear-gradient(135deg, #e6f4ea 0%, #f0faf2 100%);
+      border: 2px solid #6abf7b;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }
+    #nl-banner .nl-icon { font-size: 2rem; float: left; margin-right: 14px; line-height: 1; }
+    #nl-banner h2 { margin: 0 0 4px; font-size: 1.1rem; color: #2d6a4f; }
+    #nl-banner p  { margin: 0; font-size: 0.88rem; color: #40916c; }
+    .nl-mode h1   { color: #2d6a4f; }
+    .nl-mode .sub { color: #40916c; }
+
+    /* Network Lead student picker */
+    #nl-student-picker-wrap {
+      background: #e6f4ea; border: 1px solid #6abf7b; border-radius: 10px;
+      padding: 14px 18px; margin-bottom: 24px; display: none;
+    }
+    #nl-student-picker-wrap label { font-weight: 600; font-size: 0.9rem; color: #2d6a4f; display: block; margin-bottom: 8px; }
+    #nl-student-picker { padding: 8px 12px; border: 1px solid #6abf7b; border-radius: 6px; font-size: 14px; background: #fff; width: 100%; max-width: 340px; }
+
+    /* Student heading above network cards */
+    #nl-student-heading {
+      display: none; font-size: 1.1rem; font-weight: 600; color: #2d6a4f;
+      margin-bottom: 12px; padding: 8px 0; border-bottom: 2px solid #c5e8cd;
+    }
+
     /* State messages */
     #loading-msg, #signin-msg { text-align: center; padding: 40px; color: #aaa; font-size: 1rem; }
 
@@ -210,6 +239,21 @@
       <p id="mirror-desc">You have read-only access to the networks you're part of. The student controls their own network.</p>
       <div style="clear:both;"></div>
     </div>
+
+    <!-- Network Lead banner + student picker -->
+    <div id="nl-banner">
+      <span class="nl-icon">🌟</span>
+      <h2 id="nl-title">Network Lead</h2>
+      <p id="nl-desc"></p>
+      <div style="clear:both;"></div>
+    </div>
+    <div id="nl-student-picker-wrap">
+      <label for="nl-student-picker">🌟 Select a student to manage:</label>
+      <select id="nl-student-picker" onchange="nlSwitchStudent(this.value)">
+        <option value="">— select a student —</option>
+      </select>
+    </div>
+    <div id="nl-student-heading"></div>
 
     <!-- Platform admin: pick which student's network to manage -->
     <div id="student-picker-wrap">
@@ -553,51 +597,90 @@
         'Students own their support networks. You can view any network but cannot add, remove, or change roles.';
     }
 
-    /* Network Lead mode: mirror for network cards, profile edit enabled.
-       Added 2026-02-26 by Claude */
+    /* Network Lead mode: full edit access to student's network + profile.
+       Uses dedicated #nl-banner. Adds student picker when managing multiple students. */
+    var _nlStudents = [];  /* cached list of students this lead manages */
+
     function activateNetworkLeadMode(name) {
-      /* Distinct green banner — different from purple mirror */
-      document.querySelector('.page-wrap').classList.add('mirror-mode');
-      document.getElementById('page-title').textContent = '🌟 Network Lead View';
+      document.querySelector('.page-wrap').classList.add('nl-mode');
+      document.getElementById('page-title').textContent = '🌟 Network Lead';
       document.getElementById('page-sub').textContent   =
-        'You can view the support network and edit the student profile. The student controls who is in the network.';
-      var banner = document.getElementById('mirror-banner');
-      banner.style.background   = 'linear-gradient(135deg,#e6f4ea 0%,#f0faf2 100%)';
-      banner.style.borderColor  = '#6abf7b';
-      banner.style.display      = 'block';
-      document.getElementById('mirror-title').style.color = '#2d6a4f';
-      document.getElementById('mirror-desc').style.color  = '#40916c';
-      document.getElementById('mirror-title').textContent = '🌟 Network Lead — ' + esc(name);
-      document.getElementById('mirror-desc').textContent  =
-        'You can read the support network and edit this student\'s profile ' +
-        '(conditions, active modules, check-in prompts). ' +
-        'The student owns the network — they control who is in it.';
+        'Manage your student\'s support network and profile.';
+
+      /* Show dedicated NL banner */
+      var banner = document.getElementById('nl-banner');
+      banner.style.display = 'block';
+      document.getElementById('nl-title').textContent = '🌟 Network Lead — ' + esc(name);
+      document.getElementById('nl-desc').textContent  =
+        'You can manage this student\'s support network and edit their profile. ' +
+        'The student can always override your changes.';
 
       document.getElementById('loading-msg').textContent = 'Finding your student…';
 
       AA.db.collection('users').get().then(function (snap) {
         var uid   = AA.auth.currentUser.uid;
-        var found = [];
+        _nlStudents = [];
         snap.forEach(function (doc) {
           var d = doc.data();
           if (d.supportNetwork && d.supportNetwork[uid] === 'network-lead') {
-            found.push({ uid: doc.id, data: d });
+            _nlStudents.push({ uid: doc.id, data: d });
           }
         });
 
-        if (found.length === 0) {
+        if (_nlStudents.length === 0) {
           document.getElementById('loading-msg').textContent =
             'You\'re not yet the Network Lead for any student. Ask the student to invite you via the invite code system.';
           return;
         }
 
         document.getElementById('loading-msg').style.display = 'none';
-        found.forEach(function (s) {
+
+        if (_nlStudents.length > 1) {
+          /* Multiple students — show picker */
+          var pickerWrap = document.getElementById('nl-student-picker-wrap');
+          var sel        = document.getElementById('nl-student-picker');
+          sel.innerHTML  = '<option value="">— select a student —</option>';
+          _nlStudents.forEach(function (s) {
+            var opt = document.createElement('option');
+            opt.value       = s.uid;
+            opt.textContent = (s.data.displayName || s.data.email) + ' — ' + s.data.email;
+            sel.appendChild(opt);
+          });
+          pickerWrap.style.display = 'block';
+          /* Auto-select first student */
+          sel.value = _nlStudents[0].uid;
+          nlSwitchStudent(_nlStudents[0].uid);
+        } else {
+          /* Single student — load directly */
+          var s = _nlStudents[0];
+          _showNlStudentHeading(s.data.displayName || s.data.email);
           loadNetwork(s.uid, s.data.displayName || s.data.email);
-        });
+        }
       }).catch(function (err) {
         showError('Could not load your student\'s network: ' + err.message);
       });
+    }
+
+    /* Network Lead student picker change handler */
+    function nlSwitchStudent(uid) {
+      if (!uid) {
+        document.getElementById('network-list').style.display = 'none';
+        document.getElementById('add-panel').style.display    = 'none';
+        document.getElementById('nl-student-heading').style.display = 'none';
+        document.getElementById('profile-section').style.display    = 'none';
+        return;
+      }
+      var match = _nlStudents.filter(function (s) { return s.uid === uid; })[0];
+      var sName = match ? (match.data.displayName || match.data.email) : 'Student';
+      _showNlStudentHeading(sName);
+      loadNetwork(uid, sName);
+    }
+
+    function _showNlStudentHeading(studentName) {
+      var h = document.getElementById('nl-student-heading');
+      if (!h) return;
+      h.textContent  = '👤 Managing: ' + studentName + '\'s Network';
+      h.style.display = 'block';
     }
 
     /* Full mirror mode: show banner + auto-find which student(s) this person belongs to */
@@ -667,8 +750,8 @@
       document.getElementById('loading-msg').style.display = 'block';
       document.getElementById('network-list').style.display = 'none';
       document.getElementById('add-panel').style.display    = 'none';
-      /* Show live status panel in mirror mode — Added 2026-02-26 by Claude */
-      if (isMirrorMode) { loadStudentStatus(studentUid, studentName); }
+      /* Show live status panel in mirror mode or network-lead mode */
+      if (isMirrorMode || isNetworkLeadMode) { loadStudentStatus(studentUid, studentName); }
 
       AA.getUserDoc(studentUid).then(function(doc) {
         if (!doc.exists) { showError('No profile found.'); return; }
