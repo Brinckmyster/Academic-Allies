@@ -207,10 +207,19 @@
   (function() {
     'use strict';
 
-    /* ── Wait for window.AA to be ready ────────────────────────── */
+    /* ── Wait for window.AA AND auth.currentUser to be ready ────── */
+    // Claude: 2026-03-05 — must wait for both AA and auth state, not just AA object
     function waitForAA(callback) {
       if (window.AA && window.AA.auth && window.AA.db) {
-        callback();
+        if (window.AA.auth.currentUser) {
+          callback();
+        } else {
+          // Auth object exists but user not yet resolved — wait for state change
+          var unsub = window.AA.auth.onAuthStateChanged(function(user) {
+            unsub();
+            callback();
+          });
+        }
       } else {
         setTimeout(function() { waitForAA(callback); }, 100);
       }
