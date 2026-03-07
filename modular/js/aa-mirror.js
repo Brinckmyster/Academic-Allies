@@ -226,6 +226,9 @@
       ' \u2014 viewing <strong>' + esc(name) + '\u2019s</strong> data' +
       ' &nbsp;\u00B7&nbsp; read-only';
     document.body.insertBefore(b, document.body.firstChild);
+    // Claude: 2026-03-05 — nudge status circle down so it's not hidden under the banner
+    var sc = document.getElementById('status-circle');
+    if (sc) sc.style.top = '36px';
   }
 
   if (window.AA_MIRROR_UID) {

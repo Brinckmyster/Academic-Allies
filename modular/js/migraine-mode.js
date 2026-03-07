@@ -135,7 +135,15 @@
   /* ── Init: apply on load if active, set up button, watch mirror ── */
   function init() {
     if (isActive()) applyCSS();
-    updateBtn(isActive());
+
+    // Claude: 2026-03-05 — hide migraine button in mirror mode (support can't toggle for student)
+    // Only the student themselves can turn on migraine mode for their own account
+    if (window.AA_MIRROR_UID) {
+      var btn = document.getElementById('aa-migraine-btn');
+      if (btn) btn.style.display = 'none';
+    } else {
+      updateBtn(isActive());
+    }
 
     // If in mirror mode, watch the student's state
     if (window.AA_MIRROR_UID) {
