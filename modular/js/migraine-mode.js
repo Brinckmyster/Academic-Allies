@@ -16,20 +16,31 @@
   var FIRESTORE_FIELD = 'migraineMode'; // boolean on /users/{uid}
 
   /* ── CSS injected into <head> when migraine mode is active ── */
+  // Claude: 2026-03-05 — broad dark override; targets all common white/light backgrounds
   var MIGRAINE_CSS = [
-    'body { background: #0d0d0d !important; color: #c0c0c0 !important; }',
+    'html, body { background: #0d0d0d !important; color: #c0c0c0 !important; }',
     'body * { animation: none !important; transition: none !important; }',
+    // Catch all divs/sections that use white or near-white backgrounds
+    'div, section, article, main, aside, form, li, ul, ol, table, thead, tbody, tr, td, th {',
+    '  background-color: #111 !important; border-color: #333 !important; color: #c0c0c0 !important; }',
     '.site-header, header.site-header { background: #1a1a1a !important; border-bottom: 1px solid #333 !important; }',
-    'a, button, .nav-list a { color: #8ab4b7 !important; }',
-    '.container, .card, .note-card, .checkin-card, [class*="card"] {',
-    '  background: #1a1a1a !important; border-color: #333 !important; }',
+    'a { color: #8ab4b7 !important; }',
+    'button:not(#aa-migraine-btn) { background: #222 !important; color: #c0c0c0 !important; border-color: #444 !important; }',
+    '.nav-list a { color: #8ab4b7 !important; }',
     'input, select, textarea {',
     '  background: #222 !important; color: #c0c0c0 !important;',
     '  border-color: #444 !important; }',
-    'body, p, li, td, th, label, span, div {',
-    '  font-size: 115% !important; line-height: 1.7 !important; }',
-    'h1, h2, h3 { color: #a0a0a0 !important; }',
-    'img:not(.home-icon):not(#userTierIcon) { opacity: 0.6 !important; filter: brightness(0.6) !important; }',
+    'p, li, td, th, label, span {',
+    '  font-size: 115% !important; line-height: 1.7 !important; color: #c0c0c0 !important; }',
+    'h1, h2, h3, h4, h5, h6 { color: #a0a0a0 !important; }',
+    // Modals, overlays, cards
+    '[class*="modal"], [class*="card"], [class*="panel"], [class*="box"], [class*="wrap"] {',
+    '  background: #1a1a1a !important; border-color: #333 !important; }',
+    // White backgrounds on inline styles — override with !important
+    '[style*="background:#fff"], [style*="background: #fff"],',
+    '[style*="background:white"], [style*="background: white"] {',
+    '  background: #111 !important; }',
+    'img:not(.home-icon):not(#userTierIcon) { opacity: 0.5 !important; filter: brightness(0.5) !important; }',
     '#aa-migraine-btn { background: #7b2d2d !important; color: #fff !important;',
     '  border: 2px solid #c0392b !important; font-weight: 700 !important; }'
   ].join('\n');

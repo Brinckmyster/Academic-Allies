@@ -930,23 +930,41 @@
      Do not log self-access (owner reading own data) — log cross-user access only.
      Added 2026-03-03 by Claude.
   ─────────────────────────────────────────────────────────────────────── */
+  // Claude: 2026-03-05 — queue for entries that arrive before auth is ready
+  var _auditQueue = [];
+
+  function _writeAuditEntry(user, targetUid, action, dataType) {
+    db.collection('auditLog').doc(targetUid)
+      .collection('entries').add({
+        actorUid:   user.uid,
+        actorEmail: user.email || '',
+        actorRole:  window.AA._currentRole || '',
+        targetUid:  targetUid,
+        dataType:   dataType,
+        action:     action,
+        timestamp:  firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(function(err) {
+        console.warn('[AA] auditLog write failed:', err.code, err.message);
+      });
+  }
+
+  // Claude: flush the queue once auth is confirmed
+  auth.onAuthStateChanged(function(user) {
+    if (!user || !_auditQueue.length) return;
+    var queued = _auditQueue.splice(0);
+    queued.forEach(function(entry) {
+      _writeAuditEntry(user, entry.targetUid, entry.action, entry.dataType);
+    });
+  });
+
   window.AA.logAccess = function(action, targetUid, dataType) {
     var user = auth.currentUser;
-    if (!user) return;
-    // Claude: removed self-access exclusion — log all access per compliance requirement
-    try {
-      // Claude: restructured to /auditLog/{targetUid}/{logId} so students can read their own trail
-      db.collection('auditLog').doc(targetUid)
-        .collection('entries').add({
-          actorUid:   user.uid,
-          actorEmail: user.email || '',
-          actorRole:  '', // will be filled if available
-          targetUid:  targetUid,
-          dataType:   dataType,   // e.g. 'checkin', 'mealLog', 'spoonPlan'
-          action:     action,     // e.g. 'read', 'write'
-          timestamp:  firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(function() {}); // non-blocking, never throw
-    } catch(e) {}
+    if (!user) {
+      // Claude: queue it — auth may not be ready yet on page load
+      _auditQueue.push({ action: action, targetUid: targetUid, dataType: dataType });
+      return;
+    }
+    _writeAuditEntry(user, targetUid, action, dataType);
   };
 
   /* Get the last 50 audit log entries for a given student (FERPA audit viewer) */
