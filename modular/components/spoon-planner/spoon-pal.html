@@ -140,6 +140,37 @@
     .time-bump-row button { flex: 1; padding: 0.35rem 0; font-size: 13px; background: #e8f0fe; color: #1a73e8; border: 1px solid #c5d8fc; border-radius: 5px; min-width: 48px; }
     .time-bump-row button:hover { background: #d2e3fc; color: #155ab6; }
 
+    /* Claude 2026-03-06: status picker popup */
+    #statusPicker {
+      position: fixed;
+      z-index: 10001;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+      padding: 0.5rem;
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem;
+      min-width: 200px;
+    }
+    #statusPicker.open { display: grid; }
+    .sp-status-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.7rem;
+      border-radius: 7px;
+      background: #f0f4f9;
+      color: #222;
+      border: 1px solid #dde3f0;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .sp-status-btn:hover { background: #d2e3fc; border-color: #aac4f7; }
+    .sp-status-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+
     /* Claude: Toast notification for auto-reschedule events */
     .sp-toast {
       position: fixed;
@@ -261,6 +292,9 @@
     <tbody id="timelineBody">
     </tbody>
   </table>
+
+  <!-- Claude 2026-03-06: status picker popup — populated and positioned by JS -->
+  <div id="statusPicker" role="listbox" aria-label="Set task status"></div>
 
   <!-- Fix #1: Load Day button added alongside existing buttons -->
   <div class="btn-row">
@@ -717,7 +751,9 @@
       const statusTd = document.createElement('td');
       statusTd.textContent = STATUS_ICONS[t.status] || STATUS_ICONS['incomplete'];
       statusTd.classList.add('clickable');
-      statusTd.onclick = () => toggleStatus(i);
+      statusTd.title = 'Tap to change status';
+      // Claude 2026-03-06: open picker instead of cycling
+      statusTd.onclick = (e) => { e.stopPropagation(); openStatusPicker(i, statusTd); };
       tr.appendChild(statusTd);
 
       const noteTd = document.createElement('td');
@@ -1006,26 +1042,75 @@
   }
 
   // ── Fix #5: Toggle status — triggers ZZ rollover when ZZ marked complete ──────
-  // Claude: debounce timer for reschedule-on-cycle (1s to click past 🔄)
-  var rescheduleDebounce = {};
-  function toggleStatus(index) {
+  // ── Claude 2026-03-06: Status picker popup — replaces linear cycle ───────────
+  // Archive of old toggleStatus (linear cycle through STATUS_ORDER):
+  //   var rescheduleDebounce = {};
+  //   function toggleStatus(index) {
+  //     if (rescheduleDebounce[index]) { clearTimeout(rescheduleDebounce[index]); delete rescheduleDebounce[index]; }
+  //     let pos = (STATUS_ORDER.indexOf(timeline[index].status) + 1) % STATUS_ORDER.length;
+  //     timeline[index].status = STATUS_ORDER[pos];
+  //     calculateSpoons(); renderTimeline(); saveData();
+  //     if (STATUS_ORDER[pos] === 'rescheduled') {
+  //       rescheduleDebounce[index] = setTimeout(function() { delete rescheduleDebounce[index]; manualReschedule(index); }, 1000);
+  //     }
+  //     if (timeline[index]?.lmj === 'ZZ' && timeline[index].status === 'complete') rolloverDay();
+  //   }
+
+  var _statusPickerIndex = null;
+
+  // Labels shown in the popup grid
+  var STATUS_LABELS = {
+    incomplete: 'Incomplete', partial: 'Partial', progress: 'In Progress',
+    complete: 'Complete', interrupted: 'Interrupted', skipped: 'Skipped', rescheduled: 'Reschedule'
+  };
+
+  function openStatusPicker(index, cell) {
     if (index < 0 || index >= timeline.length) return;
-    // Claude: if clicking again while 🔄 debounce is pending, cancel it and cycle past
-    if (rescheduleDebounce[index]) { clearTimeout(rescheduleDebounce[index]); delete rescheduleDebounce[index]; }
-    let s = timeline[index].status;
-    let pos = STATUS_ORDER.indexOf(s);
-    pos = (pos + 1) % STATUS_ORDER.length;
-    timeline[index].status = STATUS_ORDER[pos];
+    _statusPickerIndex = index;
+    const current = timeline[index].status;
+    const picker = document.getElementById('statusPicker');
+
+    // Build buttons
+    picker.innerHTML = '';
+    STATUS_ORDER.forEach(function(s) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sp-status-btn' + (s === current ? ' active' : '');
+      btn.innerHTML = `<span>${STATUS_ICONS[s]}</span> ${STATUS_LABELS[s]}`;
+      btn.onclick = function(e) { e.stopPropagation(); setStatus(index, s); };
+      picker.appendChild(btn);
+    });
+
+    // Position near the tapped cell
+    const rect = cell.getBoundingClientRect();
+    const pickerH = 220; // approx
+    let top = rect.bottom + 4;
+    if (top + pickerH > window.innerHeight) top = rect.top - pickerH - 4;
+    picker.style.top = `${Math.max(4, top)}px`;
+    picker.style.left = `${Math.min(rect.left, window.innerWidth - 220)}px`;
+    picker.classList.add('open');
+  }
+
+  function closeStatusPicker() {
+    const picker = document.getElementById('statusPicker');
+    if (picker) picker.classList.remove('open');
+    _statusPickerIndex = null;
+  }
+
+  function setStatus(index, newStatus) {
+    closeStatusPicker();
+    if (index < 0 || index >= timeline.length) return;
+    timeline[index].status = newStatus;
     calculateSpoons();
     renderTimeline();
     saveData();
-    // Claude: landing on 'rescheduled' — delay 1s so user can click past if just cycling
-    if (STATUS_ORDER[pos] === 'rescheduled') {
-      rescheduleDebounce[index] = setTimeout(function() { delete rescheduleDebounce[index]; manualReschedule(index); }, 1000);
+    // 'rescheduled' chosen deliberately — reschedule immediately
+    if (newStatus === 'rescheduled') {
+      manualReschedule(index);
       return;
     }
-    // Fix #5: ZZ rollover trigger
-    if (timeline[index] && timeline[index].lmj === 'ZZ' && timeline[index].status === 'complete') {
+    // ZZ rollover trigger
+    if (timeline[index] && timeline[index].lmj === 'ZZ' && newStatus === 'complete') {
       rolloverDay();
     }
   }
@@ -1549,6 +1634,14 @@
     // Claude: Start auto-reschedule polling loop
     startOverdueCheck();
 
+    // Claude 2026-03-06: close status picker on outside click
+    document.addEventListener('click', function(e) {
+      const picker = document.getElementById('statusPicker');
+      if (picker && picker.classList.contains('open') && !picker.contains(e.target)) {
+        closeStatusPicker();
+      }
+    });
+
     // Event listeners
     document.getElementById('addTaskBtn').onclick = addTask;
     document.getElementById('loadDayBtn').onclick = openLoadDayModal;
@@ -1606,3 +1699,4 @@
 <!-- Cache bust #8: 2026-03-05 Claude - Auto-reschedule fix: status stays 'incomplete' after reschedule so tasks are not lost -->
 <!-- Cache bust #9: 2026-03-06 Claude - Multiple emoji fix: stripLeadingEmoji applied at load, save, clone, modal open, and day template load; improved regex to handle variation selectors (U+FE0F) and ZWJ (U+200D) -->
 <!-- Cache bust #10: 2026-03-06 Claude - Native time picker: replaced text input with <input type="time"> + ±15/30 min bump buttons; to24h/from24h helpers convert between stored "8:30 AM" and picker's 24h format -->
+<!-- Cache bust #11: 2026-03-06 Claude - Status picker popup: replaced 7-step linear cycle with tap-to-open grid picker; setStatus() handles rescheduled + ZZ rollover; closes on outside tap -->
