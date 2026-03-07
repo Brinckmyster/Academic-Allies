@@ -133,6 +133,13 @@
     .template-item span { flex: 1; font-size: 14px; }
     .emoji-preview { font-size: 1.5em; min-height: 1.8em; margin-top: 0.4rem; padding: 0.25rem 0; }
 
+    /* Claude 2026-03-06: time picker + bump buttons */
+    .time-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.25rem; }
+    .time-row input[type="time"] { flex: 1; padding: 0.5rem 0.75rem; font-size: 1rem; border-radius: 5px; border: 1px solid #ccc; }
+    .time-bump-row { display: flex; gap: 0.4rem; margin-top: 0.35rem; flex-wrap: wrap; }
+    .time-bump-row button { flex: 1; padding: 0.35rem 0; font-size: 13px; background: #e8f0fe; color: #1a73e8; border: 1px solid #c5d8fc; border-radius: 5px; min-width: 48px; }
+    .time-bump-row button:hover { background: #d2e3fc; color: #155ab6; }
+
     /* Claude: Toast notification for auto-reschedule events */
     .sp-toast {
       position: fixed;
@@ -274,7 +281,17 @@
           <!-- Populated dynamically — task-type only (Fix #1) -->
         </select>
         <label for="taskTime">Time</label>
-        <input type="text" id="taskTime" name="taskTime" placeholder="8:30 AM" autocomplete="off" required />
+        <!-- Claude 2026-03-06: replaced text input with native time picker + bump buttons -->
+        <!-- Archive: <input type="text" id="taskTime" name="taskTime" placeholder="8:30 AM" autocomplete="off" required /> -->
+        <div class="time-row">
+          <input type="time" id="taskTime" name="taskTime" required />
+        </div>
+        <div class="time-bump-row" aria-label="Adjust time">
+          <button type="button" onclick="bumpTime(-30)">−30m</button>
+          <button type="button" onclick="bumpTime(-15)">−15m</button>
+          <button type="button" onclick="bumpTime(+15)">+15m</button>
+          <button type="button" onclick="bumpTime(+30)">+30m</button>
+        </div>
         <label for="taskLmj">LMJ Code</label>
         <input type="text" id="taskLmj" name="taskLmj" readonly aria-readonly="true" />
         <!-- Claude: Emoji input field removed (Fix #3) — emoji derived at render time -->
@@ -522,6 +539,27 @@
     return `${hr12}:${pad(m)} ${ampm}`;
   }
 
+  // Claude 2026-03-06: helpers for native <input type="time"> ↔ stored "8:30 AM" format
+  // to24h("8:30 AM") → "08:30"  |  from24h("08:30") → "8:30 AM"
+  function to24h(str) {
+    const mins = parseTime(str);
+    if (mins === null) return '';
+    return `${pad(Math.floor(mins / 60) % 24)}:${pad(mins % 60)}`;
+  }
+  function from24h(str) {
+    const parts = (str || '').match(/^(\d{2}):(\d{2})$/);
+    if (!parts) return '';
+    return formatTime(parseInt(parts[1]) * 60 + parseInt(parts[2]));
+  }
+  // Bump the time picker value by ±deltaMins and wrap around midnight
+  function bumpTime(deltaMins) {
+    const input = document.getElementById('taskTime');
+    const parts = (input.value || '').match(/^(\d{2}):(\d{2})$/);
+    if (!parts) return;
+    const newMins = (parseInt(parts[1]) * 60 + parseInt(parts[2]) + deltaMins + 1440) % 1440;
+    input.value = `${pad(Math.floor(newMins / 60))}:${pad(newMins % 60)}`;
+  }
+
   function uniqueLMJ() {
     const taken = new Set(timeline.map(t => t.lmj));
     for (const lmj of LOCKED_LMJ_ORDER) {
@@ -718,7 +756,8 @@
     // Fix #1: populate only task-type templates in the select
     populateTemplateSelect('taskTemplateSelect');
     document.getElementById('taskTemplateSelect').value = '';
-    document.getElementById('taskTime').value = task.time;
+    // Claude 2026-03-06: convert stored "8:30 AM" to "08:30" for native time picker
+    document.getElementById('taskTime').value = to24h(task.time);
     document.getElementById('taskLmj').value = task.lmj;
     // Fix #3: no emoji field — show derived emoji as preview
     // Claude 2026-03-06: strip emoji from description in modal — prevents user from
@@ -742,11 +781,14 @@
     e.preventDefault();
     if (selectedIndex === null) return;
     const t = timeline[selectedIndex];
-    const timeVal = document.getElementById('taskTime').value.trim().toUpperCase();
-    if (!/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/.test(timeVal)) {
-      alert('Invalid time format, please use formats like 8:30 AM');
-      return;
-    }
+    // Claude 2026-03-06: read native time picker (24h "HH:MM"), convert back to "8:30 AM"
+    // Archive of old text-input validation:
+    //   const timeVal = document.getElementById('taskTime').value.trim().toUpperCase();
+    //   if (!/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/.test(timeVal)) { alert(...); return; }
+    //   t.time = timeVal;
+    const raw24 = document.getElementById('taskTime').value;
+    const timeVal = from24h(raw24);
+    if (!timeVal) { alert('Please set a time.'); return; }
     t.time = timeVal;
     // Claude 2026-03-06: strip emoji before saving — ensures descriptions stay clean in Firestore
     // Archive: t.description = document.getElementById('taskDescription').value.trim() || '';
@@ -1563,3 +1605,4 @@
 <!-- Cache bust #7: 2026-03-01 Claude - Audit fixes: full-day templates, auto-emoji, emoji field removal, Normal Day template, ZZ rollover -->
 <!-- Cache bust #8: 2026-03-05 Claude - Auto-reschedule fix: status stays 'incomplete' after reschedule so tasks are not lost -->
 <!-- Cache bust #9: 2026-03-06 Claude - Multiple emoji fix: stripLeadingEmoji applied at load, save, clone, modal open, and day template load; improved regex to handle variation selectors (U+FE0F) and ZWJ (U+200D) -->
+<!-- Cache bust #10: 2026-03-06 Claude - Native time picker: replaced text input with <input type="time"> + ±15/30 min bump buttons; to24h/from24h helpers convert between stored "8:30 AM" and picker's 24h format -->
