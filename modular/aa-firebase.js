@@ -643,19 +643,11 @@
   }
 
   /* Create an invite code for someone to join the student's support network.
-     studentUid  — uid of the student creating the invite (caller)
+     studentUid  — uid of the student creating the invite (caller or NL's student)
      role        — 'family' | 'support' | 'nearby-help' | 'network-lead'
-     Returns Promise<{ code, expiresAt }>                              */
-  window.AA.createInvite = function (studentUid, role) {
-    var validRoles = ['family', 'support', 'nearby-help', 'network-lead'];
-    if (validRoles.indexOf(role) === -1) {
-      return Promise.reject(new Error('Invalid role: ' + role));
-    }
-    var user = auth.currentUser;
-    if (!user || user.uid !== studentUid) {
-      return Promise.reject(new Error('Must be signed in as the student'));
-    }
-
+     Returns Promise<{ code, expiresAt }>
+     Updated 2026-03-07: network leads can create invites for their student. */
+  function _doCreateInvite(studentUid, studentName, role) {
     var code      = _makeCode();
     var now       = new Date();
     var expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); /* 7 days */
@@ -663,7 +655,7 @@
     var invite = {
       code:        code,
       studentUid:  studentUid,
-      studentName: user.displayName || user.email || 'Your student',
+      studentName: studentName,
       role:        role,
       createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
       expiresAt:   firebase.firestore.Timestamp.fromDate(expiresAt),
@@ -677,6 +669,29 @@
         console.log('[AA] Invite created:', code, '→', role);
         return { code: code, expiresAt: expiresAt };
       });
+  }
+
+  window.AA.createInvite = function (studentUid, role) {
+    var validRoles = ['family', 'support', 'nearby-help', 'network-lead'];
+    if (validRoles.indexOf(role) === -1) {
+      return Promise.reject(new Error('Invalid role: ' + role));
+    }
+    var user = auth.currentUser;
+    if (!user) return Promise.reject(new Error('Not signed in'));
+
+    /* Student creating for self */
+    if (user.uid === studentUid) {
+      return _doCreateInvite(studentUid, user.displayName || user.email || 'Your student', role);
+    }
+
+    /* Network lead creating for their student — look up student's name */
+    return AA.isNetworkLeadFor(studentUid).then(function (isNL) {
+      if (!isNL) throw new Error('Not authorized');
+      return db.collection('users').doc(studentUid).get();
+    }).then(function (doc) {
+      var sName = doc.exists ? (doc.data().displayName || doc.data().email) : 'Student';
+      return _doCreateInvite(studentUid, sName, role);
+    });
   };
 
   /* Get all pending (unused, unexpired) invites created by a student */

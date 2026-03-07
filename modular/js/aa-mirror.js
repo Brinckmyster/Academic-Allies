@@ -77,11 +77,13 @@
   var _cache = readCache();
 
   if (_forceSelf || !_cache || !_cache.studentUid || inPath(NO_MIRROR)) {
-    window.AA_MIRROR_UID = null;
-    window.AA_MIRROR     = null;
+    window.AA_MIRROR_UID       = null;
+    window.AA_MIRROR           = null;
+    window.AA_MIRROR_CAN_WRITE = false;
   } else {
-    window.AA_MIRROR_UID = _cache.studentUid;
-    window.AA_MIRROR     = _cache;
+    window.AA_MIRROR_UID       = _cache.studentUid;
+    window.AA_MIRROR           = _cache;
+    window.AA_MIRROR_CAN_WRITE = (_cache.viewerRole === 'network-lead');
   }
 
   /* ── Public helpers ───────────────────────────────────────── */
@@ -221,10 +223,19 @@
       'border-bottom:2px solid #a5b4fc;' +
       'padding:5px 16px;font-size:12px;color:#4338ca;' +
       'text-align:center;font-family:inherit;line-height:1.4;box-sizing:border-box;';
-    b.innerHTML =
-      '\uD83E\uDDD1\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1 <strong>Mirror mode</strong>' +
-      ' \u2014 viewing <strong>' + esc(name) + '\u2019s</strong> data' +
-      ' &nbsp;\u00B7&nbsp; read-only';
+    var _isNL = (_cache && _cache.viewerRole === 'network-lead');
+    b.style.background = _isNL
+      ? 'linear-gradient(90deg,#e6f4ea,#f0faf2)'
+      : 'linear-gradient(90deg,#e8eeff,#f0f4ff)';
+    b.style.borderBottom = _isNL ? '2px solid #6abf7b' : '2px solid #a5b4fc';
+    b.style.color = _isNL ? '#2d6a4f' : '#4338ca';
+    b.innerHTML = _isNL
+      ? '\uD83C\uDF1F <strong>Network Lead</strong>' +
+        ' \u2014 managing <strong>' + esc(name) + '\u2019s</strong> data' +
+        ' &nbsp;\u00B7&nbsp; full access'
+      : '\uD83E\uDDD1\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1 <strong>Mirror mode</strong>' +
+        ' \u2014 viewing <strong>' + esc(name) + '\u2019s</strong> data' +
+        ' &nbsp;\u00B7&nbsp; read-only';
     document.body.insertBefore(b, document.body.firstChild);
     // Claude: 2026-03-05 — nudge status circle down so it's not hidden under the banner
     var sc = document.getElementById('status-circle');
@@ -306,7 +317,7 @@
             findStudents(user.uid, function (students) {
               if (!students || students.length === 0) return;
               // Claude: cache students for switcher but DON'T set studentUid (no auto-mirror)
-              var entry = { viewerUid: user.uid, studentUid: null, studentName: null, allStudents: students };
+              var entry = { viewerUid: user.uid, viewerRole: role, studentUid: null, studentName: null, allStudents: students };
               writeCache(entry);
               renderSwitcherWhenReady();
             });
@@ -341,6 +352,7 @@
             if (!students || students.length === 0) return;
             var entry = {
               viewerUid:   user.uid,
+              viewerRole:  role,
               studentUid:  students[0].uid,
               studentName: students[0].name,
               allStudents: students

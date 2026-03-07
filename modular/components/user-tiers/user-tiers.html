@@ -25,6 +25,7 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     .network-card.owner-card { border-color: #4a7f82; background: #f0f8f8; }
+    .network-card.nl-self-card { border-color: #2d6a4f; background: #f0faf2; }
     .tier-badge {
       display: inline-block; padding: 3px 10px; border-radius: 20px;
       font-size: 0.78rem; font-weight: 700; color: #fff; white-space: nowrap;
@@ -245,6 +246,7 @@
       <span class="nl-icon">🌟</span>
       <h2 id="nl-title">Network Lead</h2>
       <p id="nl-desc"></p>
+      <div id="nl-banner-actions" style="margin-top:10px;display:none;"></div>
       <div style="clear:both;"></div>
     </div>
     <div id="nl-student-picker-wrap">
@@ -616,6 +618,7 @@
         'The student can always override your changes.';
 
       document.getElementById('loading-msg').textContent = 'Finding your student…';
+      _updateNlBannerActions();
 
       AA.db.collection('users').get().then(function (snap) {
         var uid   = AA.auth.currentUser.uid;
@@ -635,6 +638,13 @@
 
         document.getElementById('loading-msg').style.display = 'none';
 
+        /* Check URL param ?student=uid for deep-linking */
+        var params    = new URLSearchParams(window.location.search);
+        var targetUid = params.get('student');
+        var urlMatch  = targetUid
+          ? _nlStudents.filter(function (s) { return s.uid === targetUid; })[0]
+          : null;
+
         if (_nlStudents.length > 1) {
           /* Multiple students — show picker */
           var pickerWrap = document.getElementById('nl-student-picker-wrap');
@@ -647,9 +657,10 @@
             sel.appendChild(opt);
           });
           pickerWrap.style.display = 'block';
-          /* Auto-select first student */
-          sel.value = _nlStudents[0].uid;
-          nlSwitchStudent(_nlStudents[0].uid);
+          /* Auto-select from URL param or default to first */
+          var autoUid = urlMatch ? urlMatch.uid : _nlStudents[0].uid;
+          sel.value = autoUid;
+          nlSwitchStudent(autoUid);
         } else {
           /* Single student — load directly */
           var s = _nlStudents[0];
@@ -663,23 +674,43 @@
 
     /* Network Lead student picker change handler */
     function nlSwitchStudent(uid) {
-      if (!uid) {
-        document.getElementById('network-list').style.display = 'none';
-        document.getElementById('add-panel').style.display    = 'none';
-        document.getElementById('nl-student-heading').style.display = 'none';
-        document.getElementById('profile-section').style.display    = 'none';
-        return;
-      }
+      /* Hide all panels from previous student */
+      document.getElementById('network-list').style.display        = 'none';
+      document.getElementById('add-panel').style.display            = 'none';
+      document.getElementById('nl-student-heading').style.display   = 'none';
+      document.getElementById('profile-section').style.display      = 'none';
+      document.getElementById('student-status-panel').style.display = 'none';
+      var invSec = document.getElementById('invite-section');
+      if (invSec) invSec.style.display = 'none';
+      _teardownStatusPanel();
+
+      if (!uid) return;
+
       var match = _nlStudents.filter(function (s) { return s.uid === uid; })[0];
       var sName = match ? (match.data.displayName || match.data.email) : 'Student';
       _showNlStudentHeading(sName);
       loadNetwork(uid, sName);
     }
 
-    function _showNlStudentHeading(studentName) {
+    function _updateNlBannerActions() {
+      var el = document.getElementById('nl-banner-actions');
+      if (!el) return;
+      var linkStyle = 'display:inline-block;margin-right:10px;padding:5px 12px;' +
+        'background:#fff;color:#2d6a4f;border:1px solid #6abf7b;border-radius:6px;' +
+        'font-size:13px;text-decoration:none;font-weight:600;';
+      el.innerHTML =
+        '<a href="/Academic-Allies/modular/components/message-system/message-system.html" style="' + linkStyle + '">💬 Messages</a>' +
+        '<a href="/Academic-Allies/modular/components/support-dashboard/support-dashboard.html" style="' + linkStyle + '">📊 Dashboard</a>';
+      el.style.display = 'block';
+    }
+
+    function _showNlStudentHeading(studentName, memberCount) {
       var h = document.getElementById('nl-student-heading');
       if (!h) return;
-      h.textContent  = '👤 Managing: ' + studentName + '\'s Network';
+      var countStr = (typeof memberCount === 'number')
+        ? ' (' + memberCount + ' member' + (memberCount === 1 ? '' : 's') + ')'
+        : '';
+      h.textContent  = '👤 Managing: ' + studentName + '\'s Network' + countStr;
       h.style.display = 'block';
     }
 
@@ -803,7 +834,8 @@
         var email = m.data ? m.data.email : m.uid;
 
         var card = document.createElement('div');
-        card.className = 'network-card';
+        var isCurrentUser = (m.uid === AA.auth.currentUser.uid);
+        card.className = 'network-card' + (isCurrentUser && isNetworkLeadMode ? ' nl-self-card' : '');
         card.id = 'card-' + m.uid;
 
         /* Build tier selector */
@@ -831,7 +863,7 @@
         card.innerHTML =
           '<span class="tier-badge ' + tierInfo.badge + '">' + tierInfo.label + '</span>' +
           '<div class="card-info">' +
-            '<div class="card-name">' + esc(name) + '</div>' +
+            '<div class="card-name">' + esc(name) + (isCurrentUser ? ' (You)' : '') + '</div>' +
             '<div class="card-email">' + esc(email) + '</div>' +
             '<div class="card-desc">' + tierInfo.desc + '</div>' +
           '</div>' +
@@ -842,15 +874,17 @@
 
       document.getElementById('loading-msg').style.display  = 'none';
       list.style.display                                      = 'flex';
+      /* Update NL heading with member count */
+      if (isNetworkLeadMode) { _showNlStudentHeading(studentName, members.length); }
       /* Only show Add / Invite panels if the viewer is the student (boss controls) */
       if (!isMirrorMode) {
         document.getElementById('add-panel').style.display = 'block';
       }
-      /* Invite section: only for the student viewing their OWN network */
+      /* Invite section: student viewing own network OR network lead managing student */
       var inviteSection = document.getElementById('invite-section');
-      var isOwnNetworkEdit = !isMirrorMode && studentUid === AA.auth.currentUser.uid;
-      inviteSection.style.display = isOwnNetworkEdit ? 'block' : 'none';
-      if (isOwnNetworkEdit) { loadPendingInvites(); }
+      var canManageInvites = !isMirrorMode && (studentUid === AA.auth.currentUser.uid || isNetworkLeadMode);
+      inviteSection.style.display = canManageInvites ? 'block' : 'none';
+      if (canManageInvites) { loadPendingInvites(); }
 
       /* Profile panel: visible to student, network-lead, and backstage-manager.
          Editable by student + network-lead + backstage-manager; read-only for others.
