@@ -297,9 +297,11 @@
   <div id="statusPicker" role="listbox" aria-label="Set task status"></div>
 
   <!-- Fix #1: Load Day button added alongside existing buttons -->
+  <!-- Claude 2026-03-06: Save as Template button added -->
   <div class="btn-row">
     <button id="addTaskBtn" type="button" aria-label="Add new task">Add Task</button>
     <button id="loadDayBtn" type="button" aria-label="Load a full-day template">Load Day</button>
+    <button id="saveAsTemplateBtn" type="button" aria-label="Save current timeline as a day template" style="background:#6f42c1;">💾 Save as Template</button>
     <button id="manageTemplatesBtn" type="button" aria-label="Manage editable templates">Manage Templates</button>
   </div>
 
@@ -309,11 +311,7 @@
       <button class="modal-close" id="taskModalClose" aria-label="Close modal">&times;</button>
       <h2 id="taskModalTitle">Edit Task</h2>
       <form id="taskForm">
-        <label for="taskTemplateSelect">Apply Template (optional)</label>
-        <select id="taskTemplateSelect">
-          <option value="">None</option>
-          <!-- Populated dynamically — task-type only (Fix #1) -->
-        </select>
+        <!-- Claude 2026-03-06: taskTemplateSelect removed — individual task templates deprecated, always empty. Archive: <label>Apply Template</label><select id="taskTemplateSelect">... -->
         <label for="taskTime">Time</label>
         <!-- Claude 2026-03-06: replaced text input with native time picker + bump buttons -->
         <!-- Archive: <input type="text" id="taskTime" name="taskTime" placeholder="8:30 AM" autocomplete="off" required /> -->
@@ -379,34 +377,18 @@
     </div>
   </div>
 
-  <!-- Template Edit Sub-Modal -->
+  <!-- Claude 2026-03-06: Template rename modal — day templates only, task-level fields removed -->
+  <!-- Archive of old fields: emoji, desc, defaultCost, priority, fixed — were for individual task templates (deprecated) -->
   <div id="templateEditModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="templateEditTitle">
     <div class="modal-content">
       <button class="modal-close" id="templateEditClose" aria-label="Close modal">&times;</button>
-      <h2 id="templateEditTitle">Edit Template</h2>
+      <h2 id="templateEditTitle">Rename Template</h2>
+      <p style="font-size:0.9em;color:#555;margin-bottom:0.5rem;">To change a template's tasks: load it, edit your timeline, then use <strong>Save as Template</strong>.</p>
       <form id="templateForm">
         <label for="templateName">Template Name</label>
         <input type="text" id="templateName" name="templateName" required />
-        <label for="templateEmoji">Emoji</label>
-        <input type="text" id="templateEmoji" name="templateEmoji" placeholder="e.g., 🚿" />
-        <label for="templateDesc">Description</label>
-        <input type="text" id="templateDesc" name="templateDesc" required />
-        <label for="templateCost">Default Spoon Cost</label>
-        <input type="number" id="templateCost" name="templateCost" step="0.5" min="0" max="20" required />
-        <label for="templatePriority">Default Priority</label>
-        <select id="templatePriority" name="templatePriority" required>
-          <option value="Urgent">Urgent</option>
-          <option value="High" selected>High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
-        </select>
-        <label for="templateFixed">Default Fixed / Flexible</label>
-        <select id="templateFixed" name="templateFixed" required>
-          <option value="true">Fixed 🔒</option>
-          <option value="false" selected>Flexible ↕️</option>
-        </select>
         <div class="modal-actions">
-          <button type="submit">Save</button>
+          <button type="submit">Rename</button>
           <button type="button" id="deleteTemplateBtn" style="background:#d9534f; color:#fff;">Delete</button>
         </div>
       </form>
@@ -789,9 +771,6 @@
     const task = timeline[index];
     // Claude: Cancel pending auto-reschedule on user interaction
     cancelAutoReschedule(index);
-    // Fix #1: populate only task-type templates in the select
-    populateTemplateSelect('taskTemplateSelect');
-    document.getElementById('taskTemplateSelect').value = '';
     // Claude 2026-03-06: convert stored "8:30 AM" to "08:30" for native time picker
     document.getElementById('taskTime').value = to24h(task.time);
     document.getElementById('taskLmj').value = task.lmj;
@@ -944,15 +923,11 @@
     alert(`"${newKey}" created — you can now edit it in the timeline.`);
   }
 
+  // Claude 2026-03-06: simplified to rename-only — task-level fields removed
+  // Archive: old openTemplateEdit populated emoji, desc, defaultCost, priority, fixed
   function openTemplateEdit(key) {
     selectedTemplateKey = key;
-    const temp = templates[key] || { emoji: '', desc: '', defaultCost: 1, priority: 'Medium', fixed: false };
     document.getElementById('templateName').value = key || '';
-    document.getElementById('templateEmoji').value = temp.emoji || '';
-    document.getElementById('templateDesc').value = temp.desc || '';
-    document.getElementById('templateCost').value = temp.defaultCost;
-    document.getElementById('templatePriority').value = temp.priority || 'High';
-    document.getElementById('templateFixed').value = temp.fixed ? 'true' : 'false';
     document.getElementById('templateEditModal').style.display = 'block';
   }
 
@@ -961,28 +936,46 @@
     selectedTemplateKey = null;
   }
 
-  // Claude: BUG #5 FIX — removed individual task template saving
-  // Templates are now day-only. This function archived for reference.
+  // Claude 2026-03-06: saveTemplate now renames a day template
+  // Archive of old behavior: showed alert "Individual task templates are no longer supported."
   function saveTemplate(e) {
     e.preventDefault();
-    alert('Individual task templates are no longer supported. Only day templates can be saved.');
+    const newName = document.getElementById('templateName').value.trim();
+    if (!newName) { alert('Template name required.'); return; }
+    if (!selectedTemplateKey || !templates[selectedTemplateKey]) { closeTemplateEdit(); return; }
+    if (newName !== selectedTemplateKey) {
+      if (templates[newName]) { alert(`A template named "${newName}" already exists.`); return; }
+      templates[newName] = templates[selectedTemplateKey];
+      delete templates[selectedTemplateKey];
+    }
+    saveData();
+    renderTemplateList();
     closeTemplateEdit();
-    // Claude: Individual task template save logic archived here for reference:
-    // const name = document.getElementById('templateName').value.trim();
-    // if (!name) { alert('Template name required'); return; }
-    // if (selectedTemplateKey && selectedTemplateKey !== name) {
-    //   delete templates[selectedTemplateKey];
-    // }
-    // templates[name] = {
-    //   type: 'task',
-    //   emoji: document.getElementById('templateEmoji').value.trim(),
-    //   desc: document.getElementById('templateDesc').value.trim(),
-    //   defaultCost: parseFloat(document.getElementById('templateCost').value) || 0,
-    //   priority: document.getElementById('templatePriority').value,
-    //   fixed: document.getElementById('templateFixed').value === 'true'
-    // };
-    // saveData();
-    // renderTemplateList();
+  }
+
+  // Claude 2026-03-06: save current timeline as a named day template
+  function saveTimelineAsTemplate() {
+    if (!timeline.length) { alert('Your timeline is empty — add some tasks first.'); return; }
+    let name = prompt('Name this day template:', 'My Day');
+    if (!name) return;
+    name = name.trim();
+    if (!name) return;
+    if (templates[name]) {
+      if (!confirm(`"${name}" already exists. Overwrite it?`)) return;
+    }
+    templates[name] = {
+      type: 'day',
+      tasks: timeline.map(function(t) {
+        return {
+          time: t.time, lmj: t.lmj,
+          description: stripLeadingEmoji(t.description || ''),
+          spoon: t.spoon, priority: t.priority,
+          fixed: t.fixed, notes: t.notes || ''
+        };
+      })
+    };
+    saveData();
+    showToast(`✅ Saved as "${name}"`);
   }
 
   function deleteTemplate() {
@@ -1030,7 +1023,7 @@
       // Fix #3: emoji not stored
     });
     openTaskModal(timeline.length - 1);
-    populateTemplateSelect('taskTemplateSelect');
+    // Claude 2026-03-06: populateTemplateSelect removed — task templates deprecated
   }
 
   // Delete task
@@ -1645,6 +1638,7 @@
     // Event listeners
     document.getElementById('addTaskBtn').onclick = addTask;
     document.getElementById('loadDayBtn').onclick = openLoadDayModal;
+    document.getElementById('saveAsTemplateBtn').onclick = saveTimelineAsTemplate; // Claude 2026-03-06
     document.getElementById('manageTemplatesBtn').onclick = openTemplateModal;
     document.getElementById('refreshWeather').onclick = fetchWeather;
     document.getElementById('taskModalClose').onclick = closeTaskModal;
@@ -1657,7 +1651,8 @@
     document.getElementById('addTemplateBtn').onclick = duplicateNormalDay;
     document.getElementById('deleteTemplateBtn').onclick = deleteTemplate;
     document.getElementById('deleteTaskBtn').onclick = () => deleteTask(selectedIndex);
-    document.getElementById('taskTemplateSelect').onchange = (e) => applyTemplate(e.target.value);
+    // Claude 2026-03-06: taskTemplateSelect removed — individual task templates deprecated
+    // Archive: document.getElementById('taskTemplateSelect').onchange = (e) => applyTemplate(e.target.value);
     document.getElementById('confirmLoadDayBtn').onclick = applyDayTemplate;
     document.getElementById('cancelLoadDayBtn').onclick = closeLoadDayModal;
     // Fix #2: auto-emoji preview updates as user types description
@@ -1700,3 +1695,4 @@
 <!-- Cache bust #9: 2026-03-06 Claude - Multiple emoji fix: stripLeadingEmoji applied at load, save, clone, modal open, and day template load; improved regex to handle variation selectors (U+FE0F) and ZWJ (U+200D) -->
 <!-- Cache bust #10: 2026-03-06 Claude - Native time picker: replaced text input with <input type="time"> + ±15/30 min bump buttons; to24h/from24h helpers convert between stored "8:30 AM" and picker's 24h format -->
 <!-- Cache bust #11: 2026-03-06 Claude - Status picker popup: replaced 7-step linear cycle with tap-to-open grid picker; setStatus() handles rescheduled + ZZ rollover; closes on outside tap -->
+<!-- Cache bust #12: 2026-03-06 Claude - Day template system fixed: removed dead task-template dropdown from task modal; template Edit now renames only; added Save as Template button to save current timeline as a named day template -->
