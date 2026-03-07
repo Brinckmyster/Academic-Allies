@@ -1171,7 +1171,9 @@
   // overdue again, causing an infinite reschedule loop.
   // Archive: for (let mins = startHour * 60; mins <= 22 * 60; mins += 30)
   // Fix: search starts from max(startHour, now+15min) — always in the future.
-  function findNextAvailableSlot(existingTasks, startHour = 9) {
+  // forNewDay=true bypasses the "must be in future" guard — used by rolloverDay()
+  // so tomorrow's tasks are placed from dayStart (e.g. 9am), not from tonight's time.
+  function findNextAvailableSlot(existingTasks, startHour = 9, forNewDay = false) {
     // Convert time string "HH:MM AM/PM" to minutes since midnight
     function timeToMinutes(timeStr) {
       const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -1200,12 +1202,20 @@
       if (mins !== null) occupiedSlots.add(mins);
     }
 
-    // Start from the later of: requested startHour OR now+15min (rounded to next 30-min mark)
-    // This ensures we never place a task in the past.
-    const nowMins = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
-    const nowRounded = Math.ceil((nowMins + 15) / 30) * 30; // round up to next 30-min boundary
-    const searchStart = Math.max(startHour * 60, nowRounded);
-    const searchEnd = (dayEnd || 25) * 60; // search to end of day
+    // For today: start from max(startHour, now+15min) — never place in the past.
+    // For new day rollover: start from startHour exactly (tomorrow hasn't happened yet).
+    let searchStart;
+    let fallback;
+    if (forNewDay) {
+      searchStart = startHour * 60;
+      fallback = minutesToTime(startHour * 60);
+    } else {
+      const nowMins = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
+      const nowRounded = Math.ceil((nowMins + 15) / 30) * 30;
+      searchStart = Math.max(startHour * 60, nowRounded);
+      fallback = minutesToTime(nowRounded);
+    }
+    const searchEnd = (dayEnd || 25) * 60;
 
     for (let mins = searchStart; mins <= searchEnd; mins += 30) {
       if (!occupiedSlots.has(mins)) {
@@ -1213,8 +1223,8 @@
       }
     }
 
-    // Fallback: no open slot found — place 15 min from now as last resort
-    return minutesToTime(nowRounded);
+    // Fallback: no open slot found
+    return fallback;
   }
 
   // ── Claude: BUG #7 FIX — Day rollover with carry-forward and spoon debt tracking ──
@@ -1245,15 +1255,20 @@
     }
 
     // B. TASK CARRY-FORWARD: Only keep non-complete tasks, assign new times
+    // Claude 2026-03-07: Fixed two bugs:
+    //   1. Was passing old `timeline` to findNextAvailableSlot inside the map —
+    //      all tasks got the same slot because the new list wasn't visible yet.
+    //      Fix: build newTimeline progressively so each task sees prior placements.
+    //   2. Was using the live "now+15min" guard, so rollover at 10pm placed all
+    //      tomorrow's tasks starting at 10:15pm. Fix: pass forNewDay=true.
+    // Archive: timeline = carryForwardTasks.map(t => { const newTime = findNextAvailableSlot(timeline, 9); ... });
     const carryForwardTasks = timeline.filter(t => t.status !== 'complete');
-    timeline = carryForwardTasks.map(t => {
-      const newTime = findNextAvailableSlot(timeline, 9);
-      return {
-        ...t,
-        time: newTime,
-        status: 'incomplete' // Reset to incomplete for new day
-      };
+    const newTimeline = [];
+    carryForwardTasks.forEach(function(t) {
+      const newTime = findNextAvailableSlot(newTimeline, dayStart || 9, true); // forNewDay=true
+      newTimeline.push({ ...t, time: newTime, status: 'incomplete' });
     });
+    timeline = newTimeline;
 
     // C. NEW DAY INIT: Set borrowed spoons flag on new day
     if (borrowedSpoons > 0) {
@@ -1725,3 +1740,4 @@
 <!-- Cache bust #12: 2026-03-06 Claude - Day template system fixed: removed dead task-template dropdown from task modal; template Edit now renames only; added Save as Template button to save current timeline as a named day template -->
 <!-- Cache bust #13: 2026-03-06 Claude - Auto-reschedule sequential queue: fixed slot collision for multiple overdue tasks; runs immediately on loadData + every 60s; fixed tasks never auto-rescheduled -->
 <!-- Cache bust #14: 2026-03-07 Claude - findNextAvailableSlot: always searches from now+15min, never the past; fixes infinite reschedule loop where tasks placed in past immediately became overdue again -->
+<!-- Cache bust #15: 2026-03-07 Claude - rolloverDay carry-forward: build new timeline progressively so tasks don't all land on same slot; forNewDay=true bypasses now+15min guard so tomorrow's tasks start at dayStart not tonight's time -->
