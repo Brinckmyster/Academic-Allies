@@ -573,7 +573,9 @@
         // Added 2026-02-28 by Claude — support network status panel reads this
         // to show "📨 Student reached out at [time]" in real time.
         if (_currentUserRole === 'student') {
-          var dateKey = new Date().toISOString().split('T')[0];
+          // FUNCTIONAL FIX 2026-03-07 by Claude: local date not UTC (toISOString flips day after ~7 PM EST)
+          var _d = new Date();
+          var dateKey = _d.getFullYear() + '-' + String(_d.getMonth()+1).padStart(2,'0') + '-' + String(_d.getDate()).padStart(2,'0');
           AA.db.collection('checkins').doc(currentUser.uid)
             .collection('days').doc(dateKey)
             .set({ reachedOutAt: AA.FieldValue.serverTimestamp() }, { merge: true })

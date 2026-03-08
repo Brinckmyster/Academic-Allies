@@ -595,6 +595,16 @@ var catEmoji   = {};   // { 'mental-yes': 3, 'physical-no': 7, ... }
 var catMood    = {};   // { mental: 'Pretty Good', ... }  (label string)
 var bbdActive  = false;
 var emergencyYes = false;
+// FUNCTIONAL FIX 2026-03-07 by Claude: use LOCAL date, not UTC.
+// toISOString() returns UTC — in US timezones this flips to the next day after 7 PM EST / 4 PM PST,
+// saving evening check-ins under tomorrow's date. Use local year/month/day instead.
+function localDateKey() {
+  var d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
 // Tracks the most recent computed flag so saveCheckin() can persist it.
 // Updated by showFlag(). Added 2026-02-28 by Claude.
 var _savedFlag = 'g';
@@ -845,7 +855,7 @@ function saveCheckin() {
   entry.flag = FLAG_FULL[_savedFlag] || 'green';
 
   // ── Cache in localStorage (format status-circle.js expects) ──────────
-  var dateKey = new Date().toISOString().split('T')[0];
+  var dateKey = localDateKey();
   try {
     var existing = JSON.parse(localStorage.getItem('checkins_' + dateKey) || '[]');
     existing.push(entry);
@@ -936,7 +946,7 @@ function waitForAA(cb, fallback, tries) {
      so shared-header calls it before any sign-out (intentional or forced). */
 
   function _checkinBuildDraft() {
-    var dateKey = new Date().toISOString().split('T')[0];
+    var dateKey = localDateKey();
     var notes = {};
     ['mental','physical','school','spiritual','social'].forEach(function(cat) {
       var el = document.getElementById('note-' + cat);
@@ -974,7 +984,7 @@ function waitForAA(cb, fallback, tries) {
       if (!raw) return;
       var draft = JSON.parse(raw);
       if (!draft || !draft.dateKey) return;
-      var today = new Date().toISOString().split('T')[0];
+      var today = localDateKey();
       if (draft.dateKey !== today) { localStorage.removeItem('AA_CHECKIN_DRAFT'); return; }
 
       gwState = draft.gwState || {};
