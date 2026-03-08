@@ -1338,9 +1338,18 @@
       status: 'incomplete',
       notes: t.notes || ''
     }));
+    // Claude 2026-03-08: Deduplicate — skip carried tasks whose LMJ code
+    // already exists in the template. Prevents daily events (breakfast, CPAP,
+    // streak savers, dinner, etc.) from appearing twice after rollover.
+    const templateLmjCodes = new Set(newTasks.map(t => t.lmj).filter(Boolean));
+    const uniqueCarry = carryForward.filter(t => !t.lmj || !templateLmjCodes.has(t.lmj));
+    const skippedCount = carryForward.length - uniqueCarry.length;
+    if (skippedCount > 0) {
+      console.log('[SpoonPal] applyDayTemplate — skipped ' + skippedCount + ' duplicate daily task(s)');
+    }
     // Place carried tasks into available slots after the template tasks
     const merged = [...newTasks];
-    carryForward.forEach(function(t) {
+    uniqueCarry.forEach(function(t) {
       const slot = findNextAvailableSlot(merged, 9, true);
       merged.push({ ...t, time: slot, status: 'incomplete' });
     });
@@ -1349,8 +1358,11 @@
     renderTimeline();
     saveData();
     closeLoadDayModal();
-    if (carryForward.length > 0) {
-      showToast('📋 Loaded template + carried forward ' + carryForward.length + ' task(s).', 3000);
+    if (uniqueCarry.length > 0 || skippedCount > 0) {
+      let msg = '📋 Loaded template';
+      if (uniqueCarry.length > 0) msg += ' + carried forward ' + uniqueCarry.length + ' task(s)';
+      if (skippedCount > 0) msg += ' (skipped ' + skippedCount + ' daily repeat' + (skippedCount > 1 ? 's' : '') + ')';
+      showToast(msg + '.', 3000);
     }
   }
 
