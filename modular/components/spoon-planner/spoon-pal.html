@@ -1312,6 +1312,11 @@
   function applyDayTemplate() {
     const key = document.getElementById('dayTemplateSelect').value;
     if (!key) return;
+    // Claude: DEBUG — log timeline state before carry-forward so we can see what's there.
+    // Note: timeline is a module-scoped let, NOT window.timeline (window.timeline is undefined).
+    // Carry-forward reads from this module variable, not directly from Firestore.
+    console.log('[SpoonPal] applyDayTemplate — timeline before carry-forward:', JSON.parse(JSON.stringify(timeline)));
+    console.log('[SpoonPal] applyDayTemplate — timeline.length:', timeline.length, '| window.timeline:', typeof window.timeline);
     let sourceTasks;
     if (key === '__NORMAL_DAY__') {
       sourceTasks = NORMAL_DAY_TEMPLATE.tasks;
@@ -1322,6 +1327,7 @@
     }
     // Carry forward incomplete/partial tasks from current timeline
     const carryForward = timeline.filter(t => t.status !== 'complete' && t.status !== 'skipped');
+    console.log('[SpoonPal] applyDayTemplate — carryForward count:', carryForward.length, carryForward.map(t => t.description + ' [' + t.status + ']'));
     const newTasks = sourceTasks.map(t => ({
       time: t.time,
       lmj: t.lmj,
@@ -2023,3 +2029,4 @@
 <!-- Cache bust #21: 2026-03-07 Claude - FUNCTIONAL FIX: spoon debt carry-forward now actually reduces tomorrow's budget. borrowed was hardcoded to 0 in calculateSpoons() — rolloverDay() stored borrowedFromPrevDay in spoonDebtHistory but calculateSpoons() and calculateDailyBudget() never read it back. Fixed both functions. -->
 <!-- Cache bust #22: 2026-03-07 Claude - FUNCTIONAL FIX x3: (a) rolloverDay() debt entry stored under tomorrow's date so calculateSpoons() finds it next morning; (b) stale-data confirm() replaced with rollover preview modal — night owls past midnight can say Not Yet; (c) onAuthStateChanged guard prevents loadData() re-firing on every 45-min token refresh, fixing visible "loading Firebase" flash -->
 <!-- Cache bust #23: 2026-03-07 Claude - FUNCTIONAL FIX: saveData() was doing a Firestore read before every write — incomingTimestamp=new Date() is always current time so always newer than stored savedAt, meaning the pre-read never blocked the write but cost a full round-trip on every user interaction. Removed the pre-read; now writes directly with set(). -->
+<!-- Cache bust #24: 2026-03-08 Claude - DEBUG: added console.log in applyDayTemplate() to log timeline state before carry-forward — investigating why tasks are wiped instead of carried forward. Carry-forward reads from module-scoped `timeline` (not window.timeline, which doesn't exist). -->
