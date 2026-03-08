@@ -494,9 +494,10 @@
       <h2 id="loadDayModalTitle">Load Day Template</h2>
       <label for="dayTemplateSelect">Choose a Day Template</label>
       <select id="dayTemplateSelect" aria-label="Select day template to load"></select>
-      <p style="margin-top: 0.75rem; font-size: 0.9em; color: #666;">⚠️ This will replace your current timeline.</p>
+      <p style="margin-top: 0.75rem; font-size: 0.9em; color: #666;">Incomplete tasks will carry forward automatically.</p>
       <div class="modal-actions">
         <button type="button" id="confirmLoadDayBtn">Load Day</button>
+        <button type="button" id="startFreshDayBtn" style="background: #d9534f;">Start Fresh</button>
         <button type="button" id="cancelLoadDayBtn" style="background: #6c757d;">Cancel</button>
       </div>
     </div>
@@ -1306,11 +1307,52 @@
     document.getElementById('loadDayModal').style.display = 'none';
   }
 
-  // Fix #1: applyDayTemplate — confirms before replacing timeline
+  // Claude: applyDayTemplate — carry forward incomplete tasks, then load template (no confirm)
+  // Archive: had confirm('This will replace your current timeline...') — removed per requirement
   function applyDayTemplate() {
     const key = document.getElementById('dayTemplateSelect').value;
     if (!key) return;
-    if (!confirm('This will replace your current timeline with the selected day template. Continue?')) return;
+    let sourceTasks;
+    if (key === '__NORMAL_DAY__') {
+      sourceTasks = NORMAL_DAY_TEMPLATE.tasks;
+    } else {
+      const temp = templates[key];
+      if (!temp || !temp.tasks) { alert('Day template not found.'); return; }
+      sourceTasks = temp.tasks;
+    }
+    // Carry forward incomplete/partial tasks from current timeline
+    const carryForward = timeline.filter(t => t.status !== 'complete' && t.status !== 'skipped');
+    const newTasks = sourceTasks.map(t => ({
+      time: t.time,
+      lmj: t.lmj,
+      description: stripLeadingEmoji(t.description || ''),
+      spoon: t.spoon,
+      priority: t.priority,
+      fixed: t.fixed,
+      status: 'incomplete',
+      notes: t.notes || ''
+    }));
+    // Place carried tasks into available slots after the template tasks
+    const merged = [...newTasks];
+    carryForward.forEach(function(t) {
+      const slot = findNextAvailableSlot(merged, 9, true);
+      merged.push({ ...t, time: slot, status: 'incomplete' });
+    });
+    timeline = merged;
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+    closeLoadDayModal();
+    if (carryForward.length > 0) {
+      showToast('📋 Loaded template + carried forward ' + carryForward.length + ' task(s).', 3000);
+    }
+  }
+
+  // Claude: startFreshDayTemplate — wipe timeline and load template (has confirm)
+  function startFreshDayTemplate() {
+    const key = document.getElementById('dayTemplateSelect').value;
+    if (!key) return;
+    if (!confirm('Start Fresh will discard ALL current tasks and load the template from scratch. Continue?')) return;
     let sourceTasks;
     if (key === '__NORMAL_DAY__') {
       sourceTasks = NORMAL_DAY_TEMPLATE.tasks;
@@ -1322,14 +1364,12 @@
     timeline = sourceTasks.map(t => ({
       time: t.time,
       lmj: t.lmj,
-      // Claude 2026-03-06: strip emoji from day template descriptions
       description: stripLeadingEmoji(t.description || ''),
       spoon: t.spoon,
       priority: t.priority,
       fixed: t.fixed,
       status: 'incomplete',
       notes: t.notes || ''
-      // Fix #3: emoji not stored
     }));
     calculateSpoons();
     renderTimeline();
@@ -1921,6 +1961,7 @@
     // Claude 2026-03-06: taskTemplateSelect removed — individual task templates deprecated
     // Archive: document.getElementById('taskTemplateSelect').onchange = (e) => applyTemplate(e.target.value);
     document.getElementById('confirmLoadDayBtn').onclick = applyDayTemplate;
+    document.getElementById('startFreshDayBtn').onclick = startFreshDayTemplate;
     document.getElementById('cancelLoadDayBtn').onclick = closeLoadDayModal;
     // Fix #2: auto-emoji preview updates as user types description
     document.getElementById('taskDescription').addEventListener('input', updateEmojiPreview);
