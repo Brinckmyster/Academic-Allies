@@ -536,6 +536,10 @@
 
     <script>
         // Spoon Management
+        // UID guards — prevent full re-init on Firebase ~45-min token refresh. Claude, 2026-03-07.
+        var _rmFlowerUid  = null; // guards listener #1: greeting/meal-options/flower-quiz
+        var _rmSpoonUid   = null; // guards listener #2: spoon-plan loader
+        var _rmJournalUid = null; // guards _journalUpdateAuth
         let dailySpoons = 10;
         let remainingSpoons = 10;
         let tasks = [
@@ -961,6 +965,8 @@
                         loadSpoonPlanFromStorage();
                         return;
                     }
+                    if (user.uid === _rmFlowerUid) return; // token refresh — skip re-init
+                    _rmFlowerUid = user.uid;
                     // ── Personalise greeting with signed-in user's name ──
                     // Added 2026-02-28 by Claude — replace hardcoded 'Mary' with real name
                     var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
@@ -1066,6 +1072,8 @@
             if (window.AA && AA.auth) {
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) return;
+                    if (user.uid === _rmSpoonUid) return; // token refresh — skip re-load
+                    _rmSpoonUid = user.uid;
                     // Claude: one-time load — no live sync to avoid fighting reset — 2026-02-27
                     // Claude: use student UID in mirror mode — 2026-02-28
                     AA.getSpoonPlan(window.AA_MIRROR_UID || user.uid).then(function(data) {
@@ -1382,6 +1390,8 @@
 
         /* Claude: show sign-in message when signed out — 2026-02-27 */
         function _journalUpdateAuth(user) {
+            if (user && user.uid === _rmJournalUid) return; // token refresh — skip
+            if (user) _rmJournalUid = user.uid;
             var msg = document.getElementById('journal-signin-msg');
             if (msg) msg.style.display = user ? 'none' : 'block';
             if (!user) {

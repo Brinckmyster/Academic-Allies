@@ -640,10 +640,13 @@ function bbdSaveEnergy(value, label) {
 }
 
 /* On load — restore today's energy pick from Firebase if not already selected */
+var _bbdUid = null; // UID guard — skips re-run on Firebase ~45-min token refresh. Claude, 2026-03-07.
 document.addEventListener('DOMContentLoaded', function() {
     if (!window.AA || !AA.auth) return;
     AA.auth.onAuthStateChanged(function(user) {
         if (!user) return;
+        if (user.uid === _bbdUid) return; // token refresh — skip
+        _bbdUid = user.uid;
         /* Only restore if the user hasn't already picked something this session */
         if (document.querySelector('.energy-item.selected')) return;
         AA.getRecentCheckins(user.uid, 1).then(function(docs) {
