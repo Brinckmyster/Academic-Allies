@@ -994,6 +994,86 @@
       .update({ status: 'rejected', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
   };
 
+  /* ── Mode Suggestions (Nope / Semi-Nope) ────────────────────────────────
+     Supporters suggest a mode change; student sees a flash notification
+     and accepts or dismisses. Student is always sudo.
+     Collection: modeSuggestions/{studentUid}/pending/{autoId}
+     Schema: { mode, semiVisible, suggestedBy, suggestedByName, createdAt, status }
+     Added 2026-03-08 by Claude.
+  ─────────────────────────────────────────────────────────────────────── */
+  window.AA.suggestMode = function (studentUid, mode, semiVisible) {
+    var user = auth.currentUser;
+    if (!user) return Promise.reject(new Error('Not signed in'));
+    return db.collection('modeSuggestions').doc(studentUid)
+      .collection('pending').add({
+        mode: mode,
+        semiVisible: semiVisible || {},
+        suggestedBy: user.uid,
+        suggestedByName: user.displayName || user.email || 'Support',
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+  };
+
+  window.AA.getPendingModeSuggestions = function (uid) {
+    return db.collection('modeSuggestions').doc(uid)
+      .collection('pending')
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'desc')
+      .get()
+      .then(function (snap) {
+        var results = [];
+        snap.forEach(function (doc) { results.push(Object.assign({ id: doc.id }, doc.data())); });
+        return results;
+      });
+  };
+
+  window.AA.respondModeSuggestion = function (uid, suggestionId, accepted) {
+    return db.collection('modeSuggestions').doc(uid)
+      .collection('pending').doc(suggestionId)
+      .update({ status: accepted ? 'accepted' : 'dismissed', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  };
+
+  /* ── Meal Suggestions ──────────────────────────────────────────────────
+     Supporters suggest meals (not logged as actual meals). Student accepts
+     to add them to their meal log. No reason required.
+     Collection: mealSuggestions/{studentUid}/pending/{autoId}
+     Schema: { meals[], dateKey, suggestedBy, suggestedByName, createdAt, status }
+     Added 2026-03-08 by Claude.
+  ─────────────────────────────────────────────────────────────────────── */
+  window.AA.suggestMeals = function (studentUid, dateKey, meals) {
+    var user = auth.currentUser;
+    if (!user) return Promise.reject(new Error('Not signed in'));
+    return db.collection('mealSuggestions').doc(studentUid)
+      .collection('pending').add({
+        meals: meals,
+        dateKey: dateKey,
+        suggestedBy: user.uid,
+        suggestedByName: user.displayName || user.email || 'Support',
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+  };
+
+  window.AA.getPendingMealSuggestions = function (uid) {
+    return db.collection('mealSuggestions').doc(uid)
+      .collection('pending')
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'desc')
+      .get()
+      .then(function (snap) {
+        var results = [];
+        snap.forEach(function (doc) { results.push(Object.assign({ id: doc.id }, doc.data())); });
+        return results;
+      });
+  };
+
+  window.AA.respondMealSuggestion = function (uid, suggestionId, accepted) {
+    return db.collection('mealSuggestions').doc(uid)
+      .collection('pending').doc(suggestionId)
+      .update({ status: accepted ? 'accepted' : 'dismissed', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  };
+
   /* ── Audit Log — HIPAA compliance, logs PHI access ──────────────────────
      Path: /auditLog/{targetUid}/entries/{logId}
      Restructured 2026-03-03 for student visibility (FERPA: students can read

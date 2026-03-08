@@ -187,6 +187,24 @@ service cloud.firestore {
       allow update: if isOwner(studentUid) || isBackstageManager();
     }
 
+    // ── Mode Suggestions (Nope/Semi-Nope) ──────────────────────────
+    // Supporters suggest mode changes; student accepts/dismisses (student is sudo).
+    // Added 2026-03-08 by Claude.
+    match /modeSuggestions/{studentUid}/pending/{suggestionId} {
+      allow read: if isOwner(studentUid) || isNetworkMember(studentUid) || isBackstageManager();
+      allow create: if isSignedIn() && (isNetworkMember(studentUid) || isBackstageManager());
+      allow update: if isOwner(studentUid) || isBackstageManager();
+    }
+
+    // ── Meal Suggestions ─────────────────────────────────────────
+    // Supporters suggest meals (not logged as actual meals); student accepts to add.
+    // Added 2026-03-08 by Claude.
+    match /mealSuggestions/{studentUid}/pending/{suggestionId} {
+      allow read: if isOwner(studentUid) || isNetworkMember(studentUid) || isBackstageManager();
+      allow create: if isSignedIn() && (isNetworkMember(studentUid) || isBackstageManager());
+      allow update: if isOwner(studentUid) || isBackstageManager();
+    }
+
     // ── Recovery Journal ─────────────────────────────────────────
     // Auto-saved journal entries from recovery-mode.html.
     // Doc ID is a random session key (not uid); uid is stored inside the doc.
