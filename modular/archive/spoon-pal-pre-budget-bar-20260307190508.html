@@ -71,37 +71,7 @@
       margin-bottom: 16px;
     }
 
-    /* Claude: 2026-03-07 — visual spoon budget bar replaces plain text wall */
-    .section.spoon-summary { font-size: 15px; }
-
-    #spoonBudgetWrap {
-      display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
-    }
-    #spoonBudgetBar {
-      flex: 1; height: 22px; background: #f0f0f0; border-radius: 11px;
-      overflow: hidden; display: flex;
-    }
-    #spoonBarSpent {
-      background: #6CA0A3; transition: width 0.4s ease; height: 100%;
-    }
-    #spoonBarPlanned {
-      background: repeating-linear-gradient(
-        45deg, #6CA0A3, #6CA0A3 4px,
-        rgba(108,160,163,0.25) 4px, rgba(108,160,163,0.25) 8px
-      );
-      transition: width 0.4s ease; height: 100%;
-    }
-    #spoonRemainingBadge {
-      font-weight: 700; font-size: 16px; white-space: nowrap; min-width: 70px; text-align: right;
-    }
-    .spoon-ok   { color: #2d8a4e; }
-    .spoon-low  { color: #b8860b; }
-    .spoon-debt { color: #c0392b; }
-    #spoonStatsRow {
-      display: flex; gap: 16px; flex-wrap: wrap;
-      font-size: 13px; color: #666; margin-bottom: 6px;
-    }
-    #spoonBreakdown { font-size: 12px; color: #aaa; margin-top: 2px; }
+    .section.spoon-summary { font-size: 15px; line-height: 1.8; }
 
     /* ── Quick-entry check-in — Updated 2026-03-02 by Claude ── */
     .section.checkin { display: flex; flex-direction: column; gap: 12px; }
@@ -249,31 +219,15 @@
   <div id="legend" class="section" aria-label="Protocol Legend"></div>
   <div id="debtWarning" role="alert" aria-live="assertive"></div>
 
-  <!-- Claude: 2026-03-07 — visual budget bar replaces 7-number text wall.
-       All original span IDs kept hidden for backward compat with calculateSpoons(). -->
-  <section class="section spoon-summary" aria-label="Spoon Budget">
-    <!-- Budget bar: spent (solid) + planned-remaining (striped) + buffer (empty) -->
-    <div id="spoonBudgetWrap">
-      <div id="spoonBudgetBar" title="Solid = spent · Striped = planned · Empty = available">
-        <div id="spoonBarSpent"></div>
-        <div id="spoonBarPlanned"></div>
-      </div>
-      <span id="spoonRemainingBadge" class="spoon-ok">-- left</span>
-    </div>
-    <!-- Stats row -->
-    <div id="spoonStatsRow">
-      <span>🥄 <strong id="spentSpoons">--</strong> spent</span>
-      <span>📋 <strong id="plannedSpoons">--</strong> planned</span>
-      <span>⭐ <strong id="startSpoons">--</strong> start</span>
-      <span id="debtDaysSpan" style="display:none">🔴 <strong id="consecutiveDebt">0</strong> debt day(s)</span>
-    </div>
-    <!-- Why today is X spoons -->
-    <div id="spoonBreakdown"></div>
-    <!-- Hidden compat spans (calculateSpoons still writes to these) -->
-    <span id="baselineSpoons"  style="display:none">--</span>
-    <span id="borrowedSpoons"  style="display:none">--</span>
-    <span id="remainingSpoons" style="display:none">--</span>
-    <span id="depletionSpoons" style="display:none">--</span>
+  <section class="section spoon-summary" aria-label="Spoon Management Summary">
+    <div><strong>Baseline:</strong> <span id="baselineSpoons">--</span> &nbsp;&nbsp;
+    <strong>Borrowed:</strong> <span id="borrowedSpoons">--</span> &nbsp;&nbsp;
+    <strong>Start:</strong> <span id="startSpoons">--</span></div>
+    <div><strong>Planned:</strong> <span id="plannedSpoons">--</span> &nbsp;&nbsp;
+    <strong>Spent:</strong> <span id="spentSpoons">--</span> &nbsp;&nbsp;
+    <strong>Remaining:</strong> <span id="remainingSpoons">--</span></div>
+    <div><strong>Depletion:</strong> <span id="depletionSpoons">--</span> &nbsp;&nbsp;
+    <strong>Consecutive Debt Days:</strong> <span id="consecutiveDebt">0</span></div>
   </section>
 
   <!-- Check-in quick-entry — Updated 2026-03-02 by Claude:
@@ -675,22 +629,14 @@
 
   // ── Spoon calculations ────────────────────────────────────────────────────────
   function calculateSpoons() {
-    /* Claude: 2026-03-07 — track each adjustment separately for breakdown display */
-    const painAdj    = Math.max(0, checkIn.pain - 5);
-    const fatigueAdj = Math.max(0, checkIn.fatigue - 5);
-    const sleepHrs   = checkIn.sleep;
-    const sleepAdj   = sleepHrs < 7 ? -(2 * (7 - sleepHrs))
-                     : sleepHrs > 9 ? Math.min(3, sleepHrs - 9) : 0;
-    const moodAdj    = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
-    const moodAdjVal = moodAdj[checkIn.mood] || 0;
-    const weatherAdj = weather.impact || 0;
-
     let base = 20;
-    base -= painAdj;
-    base -= fatigueAdj;
-    base += sleepAdj;
-    base += moodAdjVal;
-    base += weatherAdj;
+    base -= Math.max(0, checkIn.pain - 5);
+    base -= Math.max(0, checkIn.fatigue - 5);
+    if (checkIn.sleep < 7) base -= 2 * (7 - checkIn.sleep);
+    else if (checkIn.sleep > 9) base += Math.min(3, checkIn.sleep - 9);
+    const moodAdj = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
+    base += moodAdj[checkIn.mood] || 0;
+    base += weather.impact || 0;
     base = Math.max(1, base);
 
     let borrowed = 0;
@@ -730,36 +676,6 @@
     } else {
       document.getElementById('debtWarning').style.display = 'none';
     }
-
-    /* Claude: 2026-03-07 — update visual budget bar + breakdown equation */
-    const safeStart  = Math.max(start, 0.1);
-    const spentPct   = Math.min(100, (spent / safeStart) * 100);
-    const pendingPct = Math.max(0, Math.min(100 - spentPct, ((planned - spent) / safeStart) * 100));
-    document.getElementById('spoonBarSpent').style.width   = spentPct + '%';
-    document.getElementById('spoonBarPlanned').style.width = pendingPct + '%';
-
-    // Remaining badge — color coded
-    const badge = document.getElementById('spoonRemainingBadge');
-    badge.textContent = remaining.toFixed(1) + ' left';
-    badge.className = remaining > 2 ? 'spoon-ok' : remaining > 0 ? 'spoon-low' : 'spoon-debt';
-
-    // Debt days row
-    const debtSpan = document.getElementById('debtDaysSpan');
-    if (debtSpan) debtSpan.style.display = counter > 0 ? 'inline' : 'none';
-
-    // Why-today equation (only show adjustments that are non-zero)
-    let eq = '20 base';
-    if (painAdj)        eq += ` − pain(${painAdj})`;
-    if (fatigueAdj)     eq += ` − fatigue(${fatigueAdj})`;
-    if (sleepAdj < 0)   eq += ` − sleep(${Math.abs(sleepAdj).toFixed(1)})`;
-    if (sleepAdj > 0)   eq += ` + sleep(+${sleepAdj.toFixed(1)})`;
-    if (moodAdjVal < 0) eq += ` − mood(${Math.abs(moodAdjVal)})`;
-    if (moodAdjVal > 0) eq += ` + mood(+${moodAdjVal})`;
-    if (weatherAdj < 0) eq += ` − weather(${Math.abs(weatherAdj)})`;
-    if (weatherAdj > 0) eq += ` + weather(+${weatherAdj})`;
-    if (borrowed > 0)   eq += ` − borrowed(${borrowed})`;
-    eq += ` = ${base} today`;
-    document.getElementById('spoonBreakdown').textContent = eq;
   }
 
   // ── Timeline rendering ────────────────────────────────────────────────────────
