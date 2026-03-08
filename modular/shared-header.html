@@ -433,10 +433,17 @@ Your disability accommodations and support network">Your disability accommodatio
             welcomeBack.style.display = 'flex';
           }
 
-          if (lastUser && !sessionStorage.getItem('AA_REAUTH_DONE')) {
-            /* Claude: 2026-03-05 — wait up to 2500ms for Firebase LOCAL persistence to restore
-               the session before triggering re-auth. 500ms was too short on cold loads / mobile.
-               Poll every 200ms so we sign in as fast as possible without a fixed delay. */
+          /* Claude: 2026-03-08 — respect "Keep me signed in" checkbox.
+             Only attempt auto re-auth when LOCAL persistence is active.
+             SESSION persistence means user chose NOT to stay signed in,
+             so we show the sign-in button and let them decide. */
+          var _wantKeep = (localStorage.getItem('AA_KEEP_SIGNED_IN')
+                           || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
+
+          if (lastUser && _wantKeep && !sessionStorage.getItem('AA_REAUTH_DONE')) {
+            /* Claude: 2026-03-05 — wait up to 4s for Firebase LOCAL persistence to restore
+               the session before triggering re-auth. Bumped from 2.5s — mobile/slow loads
+               need more time. Poll every 200ms so we sign in as fast as possible. */
             sessionStorage.setItem('AA_REAUTH_DONE', '1');
             if (signinBtn) {
               signinBtn.style.display = 'inline-flex';
@@ -450,12 +457,12 @@ Your disability accommodations and support network">Your disability accommodatio
                 clearInterval(_persistPoll); // persistence kicked in — nothing to do
                 return;
               }
-              if (_persistPollCount >= 13) { // ~2500ms (13 × 200ms)
+              if (_persistPollCount >= 20) { // ~4000ms (20 × 200ms)
                 clearInterval(_persistPoll);
                 _doSignIn(lastUser.email); // give up waiting, trigger re-auth
               }
             }, 200);
-          } else if (lastUser && lastUser.email) {
+          } else if (lastUser && _wantKeep && lastUser.email) {
             /* Claude: 2026-03-06 — AA_REAUTH_DONE was set (later in the session), but
                Firebase still fired null (background token expiry). Auto-sign in silently
                without requiring the user to click anything. */
