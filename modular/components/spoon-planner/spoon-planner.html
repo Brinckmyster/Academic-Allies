@@ -604,15 +604,14 @@
         }
 
         // Save data — always localStorage, also Firebase if signed in
-        // Updated 2026-03-08 by Claude: use AA_uid() for mirror mode; block saves
-        // when mirroring read-only (only network-leads may write via AA_MIRROR_CAN_WRITE).
+        // Updated 2026-03-08 by Claude: block ALL mirror saves. Student is sudo —
+        // supporters must use "Suggest Plan" instead. No direct writes to student data.
         function saveTasks() {
-            var isMirror = !!(window.AA_MIRROR_UID && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
-            if (!isMirror) localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
+            var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            if (isMirror) return; // Mirror mode: no auto-save. Use "Suggest Plan" instead.
+            localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
             if (window.AA && AA.auth && AA.auth.currentUser) {
-                if (isMirror && !window.AA_MIRROR_CAN_WRITE) return; // read-only mirror — don't save
-                var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid;
-                AA.saveSpoonPlan(effectiveUid, {
+                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
                     tasks: tasks,
                     dailySpoons: totalSpoons
                 }).catch(function(err) {
@@ -838,22 +837,24 @@
             localStorage.setItem('yesterdayTasks', JSON.stringify(tasks));
             originalTasks = JSON.parse(JSON.stringify(tasks));
 
-            // Also save yesterdayTasks to Firebase
-            // Updated 2026-03-08 by Claude: use AA_uid() + block read-only mirror saves
+            // Updated 2026-03-08 by Claude: block ALL mirror confirms. Student is sudo.
+            var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
+                && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            if (isMirror) {
+                // Shouldn't reach here (button is hidden), but belt-and-suspenders
+                alert('Use "Suggest This Plan" instead — the student decides.');
+                return;
+            }
+
+            // Save yesterdayTasks to Firebase (own plan only)
             if (window.AA && AA.auth && AA.auth.currentUser) {
-                var isMirror = !!(window.AA_MIRROR_UID && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
-                if (isMirror && !window.AA_MIRROR_CAN_WRITE) {
-                    console.warn('[AA] Confirm blocked — read-only mirror mode');
-                } else {
-                    var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid;
-                    AA.saveSpoonPlan(effectiveUid, {
-                        tasks: tasks,
-                        dailySpoons: totalSpoons,
-                        yesterdayTasks: tasks
-                    }).catch(function(err) {
-                        console.warn('[AA] Firebase confirm save failed:', err.message);
-                    });
-                }
+                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
+                    tasks: tasks,
+                    dailySpoons: totalSpoons,
+                    yesterdayTasks: tasks
+                }).catch(function(err) {
+                    console.warn('[AA] Firebase confirm save failed:', err.message);
+                });
             }
 
             alert('✅ Plan confirmed! Your tasks are ready in Recovery Mode.');
