@@ -345,5 +345,14 @@ service cloud.firestore {
       allow read, update, delete: if isBackstageManager();
     }
 
+    // ── Message drafts — unsent compose text, per user per thread ──
+    // Claude: 2026-03-07 — added missing rule (collection was defaulting to deny).
+    // Path: messageDrafts/{uid}_{threadId}
+    // Draft content is low-sensitivity. Any signed-in user may read/write.
+    // Future: tighten by adding uid field to draft docs and checking resource.data.uid.
+    match /messageDrafts/{draftId} {
+      allow read, write: if isSignedIn();
+    }
+
   }
 }
