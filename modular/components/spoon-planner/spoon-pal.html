@@ -1506,11 +1506,14 @@
     timeline = newTimeline;
 
     // C. NEW DAY INIT: Set borrowed spoons flag on new day
+    // Claude: 2026-03-07 — store under TOMORROW's date so calculateSpoons() finds it
+    //   the next morning. Cache bust #22.
+    //   Archive: date: new Date().toDateString() — stored under today, invisible next morning.
     if (borrowedSpoons > 0) {
-      // Store borrowed spoons at day level (would be persisted in saveData)
-      // Note: display happens in calculateSpoons()
+      const _tomorrow = new Date();
+      _tomorrow.setDate(_tomorrow.getDate() + 1);
       spoonDebtHistory.push({
-        date: new Date().toDateString(),
+        date: _tomorrow.toDateString(),
         base: 0,
         spent: 0,
         depletion: 0,
@@ -1752,17 +1755,20 @@
               }
             }
             // Fix #5: stale-data detection
+            // Claude: 2026-03-07 — replaced blocking confirm() with auto-rollover + toast. Cache bust #22.
+            //   Archive: if (confirm(`Old data detected from ...`)) { rolloverDay(); }
+            //   confirm() can be silently blocked by browsers; auto-rollover is the correct behavior
+            //   since data from a past day should always carry forward to today.
             const storedDateKey = obj.dateKey || null;
             const todayKey = getTodayKey();
             if (storedDateKey && storedDateKey < todayKey) {
-              // Clear isInitialLoad so we can save the rollover action
               isInitialLoad = false;
               if (callback) callback();
-              setTimeout(() => {
-                if (confirm(`Old data detected from ${storedDateKey}. Archive it and start fresh for today?`)) {
-                  rolloverDay();
-                }
-              }, 500);
+              // Claude: 2026-03-07 — reuse rollover preview modal so user can choose.
+              //   Pass -1 so cancelRollover() skips the ZZ-status revert (no ZZ task here).
+              //   Archive: auto-rollover + toast removed — night owls past midnight
+              //   would lose their active session with no way to say "not yet".
+              setTimeout(() => { showRolloverPreview(-1); }, 800);
               return;
             }
           }
@@ -1951,7 +1957,13 @@
     //     quick-entry buttons handle pain/fatigue/mood input directly.
     waitForAA(function() {
       window.AA.auth.onAuthStateChanged(function(user) {
-        if (!user) return;
+        if (!user) { currentUid = null; return; }
+        // Claude: 2026-03-07 — guard against token-refresh re-fires (cache bust #22).
+        // onAuthStateChanged fires on every ID token refresh (~every 45 min), not just
+        // on initial sign-in. Without this guard, loadData() + renderTimeline() ran
+        // again on each refresh, causing the visible "trying to load Firebase" flash.
+        // If uid hasn't changed it's a token refresh — skip the full reload.
+        if (user.uid === currentUid) return;
         currentUid = user.uid; // always the signed-in user's own data — no mirror
         loadData(function() {
           calculateSpoons();
@@ -1985,3 +1997,4 @@
 <!-- Cache bust #19: 2026-03-07 Claude - Fixed-task visual accent: timeline rows for fixed-time tasks (🔒) get a teal left border (4px solid #6CA0A3) so fixed vs flexible layout is readable at a glance without squinting at the icon -->
 <!-- Cache bust #20: 2026-03-07 Claude - Next-up task indicator: first upcoming incomplete task gets warm amber background (#fffbec) + orange ▶ prefix in time cell so you can see your current task at a glance without hunting through the list -->
 <!-- Cache bust #21: 2026-03-07 Claude - FUNCTIONAL FIX: spoon debt carry-forward now actually reduces tomorrow's budget. borrowed was hardcoded to 0 in calculateSpoons() — rolloverDay() stored borrowedFromPrevDay in spoonDebtHistory but calculateSpoons() and calculateDailyBudget() never read it back. Fixed both functions. -->
+<!-- Cache bust #22: 2026-03-07 Claude - FUNCTIONAL FIX x3: (a) rolloverDay() debt entry stored under tomorrow's date so calculateSpoons() finds it next morning; (b) stale-data confirm() replaced with rollover preview modal — night owls past midnight can say Not Yet; (c) onAuthStateChanged guard prevents loadData() re-firing on every 45-min token refresh, fixing visible "loading Firebase" flash -->
