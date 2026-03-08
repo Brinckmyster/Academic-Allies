@@ -539,16 +539,10 @@
       recognition.onaudioend = function() {
         if (speechStopping) return;
         if (isAndroid) return; // Claude: no restart on Android — eliminates beep entirely
-        /* Claude: 2026-03-07 — do NOT restart SR when the tab is hidden.
-           Chrome stops SpeechRecognition in background tabs and will reject
-           .start() calls, flooding onerror and making the app look broken.
-           The visibilitychange handler below restarts SR when the tab returns. */
-        if (document.hidden) return;
         if (mediaRecorder && mediaRecorder.state === 'recording') {
           setTimeout(function() {
             if (speechStopping || isRecognitionRunning) return;
             if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
-            if (document.hidden) return; // still hidden — wait for visibilitychange
             try {
               initRecognitionInstance();
             } catch(e) {
@@ -685,9 +679,6 @@
           // Claude: 2026-03-07 — set global flag so doLogout() blocks sign-out even if
           // the DOM class is stale (e.g. after screen-lock on desktop or background throttle).
           window.AA_isRecording = true;
-          // Claude: 2026-03-07 — mirror to sessionStorage so the flag survives a page
-          // refresh (JS memory is wiped on reload but sessionStorage is not).
-          try { sessionStorage.setItem('AA_RECORDING_ACTIVE', '1'); } catch(e) {}
           // Claude: 2026-03-05 — reset session inactivity timer when recording starts
           if (window.AA_resetSessionTimer) window.AA_resetSessionTimer();
           // Claude: 2026-03-05 — skip SR on Android entirely; beep is OS-level and
@@ -706,9 +697,8 @@
 
     function stopRecording() {
       if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
-      // Claude: 2026-03-07 — clear global flag and sessionStorage backup on stop
+      // Claude: 2026-03-07 — clear global recording flag immediately on stop
       window.AA_isRecording = false;
-      try { sessionStorage.removeItem('AA_RECORDING_ACTIVE'); } catch(e) {}
       stopSpeechRecognition();
       stopTimer();
       // Claude: 2026-03-06 — stop periodic transcript backup when recording ends
@@ -732,24 +722,16 @@
       }
     };
 
-    /* Claude: 2026-03-07 — visibilitychange: session + SR recovery when tab returns.
-       On Windows, screen-lock makes the tab "hidden". On unlock it becomes "visible".
-       We reset the 30-min inactivity timer immediately AND restart SpeechRecognition
-       (which Chrome stops in background tabs) so transcription resumes seamlessly. */
+    /* Claude: 2026-03-07 — visibilitychange guard for desktop sign-out protection.
+       On Windows, when the screen locks the tab becomes "hidden". When the user
+       unlocks, the tab becomes "visible" again. If the 30-min session timer was
+       close to expiring while the screen was locked, resetting it on wake prevents
+       a sign-out the moment the user comes back to their recording. */
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) return; // nothing to do when going to background
-      // Reset session timer so screen-lock can't trigger a sign-out
-      if (window.AA_isRecording || sessionStorage.getItem('AA_RECORDING_ACTIVE')) {
+      if (!document.hidden && window.AA_isRecording) {
         if (window.AA_resetSessionTimer) {
           window.AA_resetSessionTimer();
           console.log('[AA] Visibility restored while recording — session timer reset');
-        }
-      }
-      // Restart SR if it was paused by the browser while hidden
-      if (window.AA_isRecording && !isAndroid && !speechStopping && !isRecognitionRunning) {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          console.log('[AA] Visibility restored — restarting speech recognition');
-          try { initRecognitionInstance(); } catch(e) {}
         }
       }
     });

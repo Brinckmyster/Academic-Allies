@@ -667,17 +667,9 @@ Your disability accommodations and support network">Your disability accommodatio
       // the recording class can become stale after a screen-lock / background event.
       var recordBtn    = document.getElementById('recordBtn');
       var domRecording = recordBtn && recordBtn.classList.contains('recording');
-      // Claude: 2026-03-07 — also check sessionStorage: the JS flag is wiped on page
-      // refresh but sessionStorage survives, so this catches post-refresh sign-outs too.
-      var ssRecording  = sessionStorage.getItem('AA_RECORDING_ACTIVE');
-      if (window.AA_isRecording || domRecording || ssRecording) {
+      if (window.AA_isRecording || domRecording) {
         console.log('[AA] Session timeout suppressed — recording in progress (flag=' +
-          !!window.AA_isRecording + ' dom=' + !!domRecording + ' ss=' + !!ssRecording + ')');
-        // If only sessionStorage flag remains (page refreshed mid-recording),
-        // clear it so it doesn't protect forever after the recording was already lost.
-        if (ssRecording && !window.AA_isRecording && !domRecording) {
-          try { sessionStorage.removeItem('AA_RECORDING_ACTIVE'); } catch(e) {}
-        }
+          !!window.AA_isRecording + ' dom=' + !!domRecording + ')');
         resetTimers(); // give another full 30 minutes
         return;
       }
