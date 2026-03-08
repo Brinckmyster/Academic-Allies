@@ -529,18 +529,28 @@
             renderTasks();
 
             // Then try Firebase — overrides localStorage if data is fresher
+            // Updated 2026-03-08 by Claude: use AA_uid() so mirror mode works —
+            // support members mirroring a student now see the student's spoon plan.
             if (window.AA && AA.auth) {
                 var _spPlannerUid = null;
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) return;
+                    var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(user.uid) : user.uid;
                     // Claude: 2026-03-07 — guard against token-refresh re-fires causing getSpoonPlan() to re-run
-                    if (user.uid === _spPlannerUid) return;
-                    _spPlannerUid = user.uid;
+                    if (effectiveUid === _spPlannerUid) return;
+                    _spPlannerUid = effectiveUid;
                     // ── Personalise title with signed-in user's name ──
                     // Added 2026-02-28 by Claude — replace hardcoded 'Mary' with real name
-                    var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
+                    // Claude 2026-03-08: When mirroring, show the student's name from cache
+                    var isMirror = (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid);
+                    var firstName;
+                    if (isMirror && window.AA_MIRROR && window.AA_MIRROR.studentName) {
+                        firstName = window.AA_MIRROR.studentName.split(/[\s@]/)[0];
+                    } else {
+                        firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
+                    }
                     if (firstName) document.title = 'Spoon Planner \u2014 ' + firstName + '\u2019s Safe Space';
-                    AA.getSpoonPlan(user.uid).then(function(data) {
+                    AA.getSpoonPlan(effectiveUid).then(function(data) {
                         if (!data) return;
                         if (data.tasks)       { tasks = data.tasks; originalTasks = JSON.parse(JSON.stringify(tasks)); }
                         if (data.dailySpoons) { totalSpoons = data.dailySpoons; }
@@ -553,10 +563,15 @@
         }
 
         // Save data — always localStorage, also Firebase if signed in
+        // Updated 2026-03-08 by Claude: use AA_uid() for mirror mode; block saves
+        // when mirroring read-only (only network-leads may write via AA_MIRROR_CAN_WRITE).
         function saveTasks() {
-            localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
+            var isMirror = !!(window.AA_MIRROR_UID && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            if (!isMirror) localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
             if (window.AA && AA.auth && AA.auth.currentUser) {
-                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
+                if (isMirror && !window.AA_MIRROR_CAN_WRITE) return; // read-only mirror — don't save
+                var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid;
+                AA.saveSpoonPlan(effectiveUid, {
                     tasks: tasks,
                     dailySpoons: totalSpoons
                 }).catch(function(err) {
@@ -714,13 +729,16 @@
             }
         }
 
+        // Updated 2026-03-08 by Claude: use AA_uid() for mirror mode
         function duplicateDay() {
-            const yesterday = localStorage.getItem('yesterdayTasks');
+            var isMirror = !!(window.AA_MIRROR_UID && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            var yesterday = isMirror ? null : localStorage.getItem('yesterdayTasks');
             if (yesterday) {
                 tasks = JSON.parse(yesterday);
                 renderTasks();
             } else if (window.AA && AA.auth && AA.auth.currentUser) {
-                AA.getSpoonPlan(AA.auth.currentUser.uid).then(function(data) {
+                var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid;
+                AA.getSpoonPlan(effectiveUid).then(function(data) {
                     if (data && data.yesterdayTasks && data.yesterdayTasks.length > 0) {
                         tasks = data.yesterdayTasks;
                         renderTasks();
@@ -780,14 +798,21 @@
             originalTasks = JSON.parse(JSON.stringify(tasks));
 
             // Also save yesterdayTasks to Firebase
+            // Updated 2026-03-08 by Claude: use AA_uid() + block read-only mirror saves
             if (window.AA && AA.auth && AA.auth.currentUser) {
-                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
-                    tasks: tasks,
-                    dailySpoons: totalSpoons,
-                    yesterdayTasks: tasks
-                }).catch(function(err) {
-                    console.warn('[AA] Firebase confirm save failed:', err.message);
-                });
+                var isMirror = !!(window.AA_MIRROR_UID && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+                if (isMirror && !window.AA_MIRROR_CAN_WRITE) {
+                    console.warn('[AA] Confirm blocked — read-only mirror mode');
+                } else {
+                    var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid;
+                    AA.saveSpoonPlan(effectiveUid, {
+                        tasks: tasks,
+                        dailySpoons: totalSpoons,
+                        yesterdayTasks: tasks
+                    }).catch(function(err) {
+                        console.warn('[AA] Firebase confirm save failed:', err.message);
+                    });
+                }
             }
 
             alert('✅ Plan confirmed! Your tasks are ready in Recovery Mode.');

@@ -34,8 +34,8 @@
   var FLOWER_EXEMPT = 'dorothy.brinck@gmail.com';
 
   /* Pages where mirroring is suppressed entirely */
-  /* Updated 2026-03-02 by Claude: added spoon-pal — it is the viewer's OWN personal planner,
-     never a student's. Mirror UID must never bleed in here. */
+  /* Updated 2026-03-02 by Claude: spoon-pal is Bruise's personal energy tracker only,
+     never shared — mirror UID must never bleed in. */
   var NO_MIRROR = ['admin.html', 'user-tiers', 'message-system', 'spoon-pal'];
 
   /* Pages where the banner is suppressed (support-dashboard has its own) */
