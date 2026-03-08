@@ -1235,6 +1235,12 @@
         /* User is present — cancel any pending grace-period sign-out */
         if (_anGracePeriod) { clearTimeout(_anGracePeriod); _anGracePeriod = null; }
 
+        // Claude: 2026-03-07 — guard against token-refresh re-fires.
+        // onAuthStateChanged fires on every ~45-min ID token refresh, not just sign-in.
+        // Without this guard each refresh stacked a new watchNotes() Firestore listener
+        // and re-ran applyMirror(), causing the visible "loading Firebase" flash.
+        if (user.uid === writeUid) return;
+
         document.getElementById('signin-notice').style.display = 'none';
         document.getElementById('main-body').style.display = 'block';
 

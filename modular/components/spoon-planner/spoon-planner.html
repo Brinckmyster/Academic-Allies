@@ -530,8 +530,12 @@
 
             // Then try Firebase — overrides localStorage if data is fresher
             if (window.AA && AA.auth) {
+                var _spPlannerUid = null;
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) return;
+                    // Claude: 2026-03-07 — guard against token-refresh re-fires causing getSpoonPlan() to re-run
+                    if (user.uid === _spPlannerUid) return;
+                    _spPlannerUid = user.uid;
                     // ── Personalise title with signed-in user's name ──
                     // Added 2026-02-28 by Claude — replace hardcoded 'Mary' with real name
                     var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
