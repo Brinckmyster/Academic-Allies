@@ -1700,29 +1700,12 @@
       savedAt: incomingTimestamp.toISOString()
     };
     if (window.AA && window.AA.db && currentUid) {
-      // Get current remote data to compare timestamps
-      window.AA.db.collection('spoonPal').doc(currentUid).get()
-        .then(function(doc) {
-          if (doc.exists) {
-            const remoteData = doc.data();
-            const remoteSavedAt = remoteData.savedAt ? new Date(remoteData.savedAt) : null;
-            const incomingTs = incomingTimestamp.getTime();
-            const remoteTs = remoteSavedAt ? remoteSavedAt.getTime() : 0;
-
-            // Only write if incoming timestamp is NEWER than remote
-            if (incomingTs > remoteTs) {
-              window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
-                .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
-            } else {
-              console.log('[SpoonPal] Remote data is newer; skipping local write');
-            }
-          } else {
-            // Document doesn't exist yet, write it
-            window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
-              .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
-          }
-        })
-        .catch(function(err) { console.error('[SpoonPal] Error comparing timestamps:', err); });
+      // FUNCTIONAL FIX 2026-03-07 by Claude: removed unnecessary pre-read before every write.
+      // incomingTimestamp = new Date() is always the current time, so it was always newer
+      // than any stored savedAt — the read never blocked the write but cost a full Firestore
+      // round-trip on every user interaction. Direct set() is correct here.
+      window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
+        .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
     }
   }
 
@@ -1998,3 +1981,4 @@
 <!-- Cache bust #20: 2026-03-07 Claude - Next-up task indicator: first upcoming incomplete task gets warm amber background (#fffbec) + orange ▶ prefix in time cell so you can see your current task at a glance without hunting through the list -->
 <!-- Cache bust #21: 2026-03-07 Claude - FUNCTIONAL FIX: spoon debt carry-forward now actually reduces tomorrow's budget. borrowed was hardcoded to 0 in calculateSpoons() — rolloverDay() stored borrowedFromPrevDay in spoonDebtHistory but calculateSpoons() and calculateDailyBudget() never read it back. Fixed both functions. -->
 <!-- Cache bust #22: 2026-03-07 Claude - FUNCTIONAL FIX x3: (a) rolloverDay() debt entry stored under tomorrow's date so calculateSpoons() finds it next morning; (b) stale-data confirm() replaced with rollover preview modal — night owls past midnight can say Not Yet; (c) onAuthStateChanged guard prevents loadData() re-firing on every 45-min token refresh, fixing visible "loading Firebase" flash -->
+<!-- Cache bust #23: 2026-03-07 Claude - FUNCTIONAL FIX: saveData() was doing a Firestore read before every write — incomingTimestamp=new Date() is always current time so always newer than stored savedAt, meaning the pre-read never blocked the write but cost a full round-trip on every user interaction. Removed the pre-read; now writes directly with set(). -->
