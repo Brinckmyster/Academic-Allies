@@ -1518,21 +1518,28 @@
     const dateKey = getTodayKey();
 
     // A. ARCHIVE: Save current day to Firestore before clearing
+    // Claude: 2026-03-08 — wrapped in try/catch so a permissions error doesn't block carry-forward.
+    // Archive: was bare if-block; Firestore .set() is fire-and-forget but any sync error
+    // (e.g. AA.db undefined during race) could throw and skip carry-forward below.
     const endOfDayBalance = calculateEndOfDayBalance();
     const borrowedSpoons = Math.max(0, -endOfDayBalance);
 
-    if (window.AA && window.AA.db && currentUid) {
-      // Claude: Archive full snapshot to subcollection spoonPal/{uid}/days/{dateKey}
-      window.AA.db.collection('spoonPal').doc(currentUid).collection('days').doc(dateKey).set({
-        timeline,
-        checkIn,
-        spoonDebtHistory,
-        endOfDayBalance,
-        borrowedSpoons,
-        dailyBudget: calculateDailyBudget(),
-        dateKey,
-        archivedAt: new Date().toISOString()
-      }).catch(err => console.error('[SpoonPal] Rollover archive error:', err));
+    try {
+      if (window.AA && window.AA.db && currentUid) {
+        // Claude: Archive full snapshot to subcollection spoonPal/{uid}/days/{dateKey}
+        window.AA.db.collection('spoonPal').doc(currentUid).collection('days').doc(dateKey).set({
+          timeline,
+          checkIn,
+          spoonDebtHistory,
+          endOfDayBalance,
+          borrowedSpoons,
+          dailyBudget: calculateDailyBudget(),
+          dateKey,
+          archivedAt: new Date().toISOString()
+        }).catch(err => console.error('[SpoonPal] Rollover archive error:', err));
+      }
+    } catch (archiveErr) {
+      console.error('[SpoonPal] Rollover archive threw:', archiveErr);
     }
 
     // B. TASK CARRY-FORWARD: Only keep non-complete tasks, assign new times

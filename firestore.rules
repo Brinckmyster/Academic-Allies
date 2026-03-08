@@ -161,6 +161,13 @@ service cloud.firestore {
     match /spoonPal/{uid} {
       allow read: if isOwner(uid) || isBackstageManager();
       allow write: if isOwner(uid) || isBackstageManager();
+
+      // Claude: 2026-03-08 — daily archive subcollection for rolloverDay().
+      // Archive: rule was missing; rolloverDay() writes to spoonPal/{uid}/days/{dateKey}
+      // but Firestore denied it silently (caught by .catch on the client).
+      match /days/{dateKey} {
+        allow read, write: if isOwner(uid) || isBackstageManager();
+      }
     }
 
     // ── Spoon Plan ───────────────────────────────────────────────
