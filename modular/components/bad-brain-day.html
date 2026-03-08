@@ -650,8 +650,12 @@ document.addEventListener('DOMContentLoaded', function() {
         /* Only restore if the user hasn't already picked something this session */
         if (document.querySelector('.energy-item.selected')) return;
         AA.getRecentCheckins(user.uid, 1).then(function(docs) {
-            if (docs.empty) return;
-            var data = docs.docs[0].data();
+            // FUNCTIONAL FIX 2026-03-07 by Claude: getRecentCheckins returns a plain
+            // array of data objects, not a QuerySnapshot. docs.empty is always undefined
+            // (never triggers) and docs.docs[0].data() always throws a TypeError —
+            // so energy was silently never restored. Fixed to use array API.
+            if (!docs || docs.length === 0) return;
+            var data = docs[0];
             if (data.badBrainDayEnergy) {
                 var el = document.querySelector('.energy-item[data-v="' + data.badBrainDayEnergy + '"]');
                 if (el) {
