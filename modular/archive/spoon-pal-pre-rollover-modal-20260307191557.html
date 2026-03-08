@@ -159,16 +159,6 @@
     .modal-actions { margin-top: 1.25rem; display: flex; gap: 1rem; }
     .modal-actions button { flex: 1; padding: 0.65rem 0; }
     #templateList { max-height: 300px; overflow-y: auto; margin-top: 1rem; }
-
-    /* Claude: 2026-03-07 — pre-rollover summary modal */
-    #rolloverSummaryRows { margin: 1rem 0; display: flex; flex-direction: column; gap: 8px; }
-    .ro-row { display: flex; justify-content: space-between; align-items: center;
-              padding: 8px 12px; border-radius: 6px; background: #f7f7f7; font-size: 14px; }
-    .ro-row strong { font-size: 15px; }
-    #rolloverBalanceRow { font-size: 15px; font-weight: 700; padding: 10px 14px; border-radius: 6px; }
-    .ro-ok   { background: #d4edda; color: #155724; }
-    .ro-low  { background: #fff3cd; color: #856404; }
-    .ro-debt { background: #f8d7da; color: #721c24; }
     .template-item { border-bottom: 1px solid #eee; padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
     .template-item span { flex: 1; font-size: 14px; }
     .emoji-preview { font-size: 1.5em; min-height: 1.8em; margin-top: 0.4rem; padding: 0.25rem 0; }
@@ -448,19 +438,6 @@
           <button type="button" id="deleteTemplateBtn" style="background:#d9534f; color:#fff;">Delete</button>
         </div>
       </form>
-    </div>
-  </div>
-
-  <!-- Claude: 2026-03-07 — Pre-rollover day summary modal -->
-  <div id="rolloverPreviewModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="rolloverPreviewTitle">
-    <div class="modal-content">
-      <button class="modal-close" id="rolloverPreviewClose" aria-label="Close">&times;</button>
-      <h2 id="rolloverPreviewTitle">📊 End of Day</h2>
-      <div id="rolloverSummaryRows"></div>
-      <div class="modal-actions">
-        <button id="rolloverCancelBtn" style="background:#e9ecef;color:#333;">Not Yet</button>
-        <button id="rolloverConfirmBtn" style="background:#6CA0A3;color:#fff;">Roll Over →</button>
-      </div>
     </div>
   </div>
 
@@ -1209,9 +1186,9 @@
       manualReschedule(index);
       return;
     }
-    // ZZ rollover trigger — Claude: 2026-03-07: show summary preview first
+    // ZZ rollover trigger
     if (timeline[index] && timeline[index].lmj === 'ZZ' && newStatus === 'complete') {
-      showRolloverPreview(index);
+      rolloverDay();
     }
   }
 
@@ -1334,68 +1311,6 @@
     return fallback;
   }
 
-  /* Claude: 2026-03-07 — pre-rollover summary modal.
-     Called when ZZ is marked complete. Shows day stats before committing to rollover.
-     If user cancels, ZZ status reverts to incomplete. */
-  function showRolloverPreview(zzIndex) {
-    // Count task outcomes
-    const completed  = timeline.filter(t => t.status === 'complete');
-    const partial    = timeline.filter(t => t.status === 'partial');
-    const skipped    = timeline.filter(t => t.status === 'skipped' || t.status === 'interrupted');
-    const carrying   = timeline.filter(t => t.status !== 'complete' && t.lmj !== 'ZZ');
-    const spentTotal = completed.reduce((a, t) => a + (t.spoon || 0), 0)
-                     + partial.reduce((a, t) => a + (t.spoon || 0) / 2, 0);
-    const balance    = calculateEndOfDayBalance();
-    const borrowed   = Math.max(0, -balance);
-
-    // Build rows
-    const rows = document.getElementById('rolloverSummaryRows');
-    rows.innerHTML = '';
-    function addRow(icon, label, value) {
-      const div = document.createElement('div');
-      div.className = 'ro-row';
-      div.innerHTML = `<span>${icon} ${label}</span><strong>${value}</strong>`;
-      rows.appendChild(div);
-    }
-    addRow('✅', 'Completed', `${completed.length} task${completed.length !== 1 ? 's' : ''} (${spentTotal.toFixed(1)} 🥄)`);
-    if (partial.length)  addRow('⚡', 'Partial',   `${partial.length} task${partial.length !== 1 ? 's' : ''}`);
-    if (skipped.length)  addRow('⏭️', 'Skipped',   `${skipped.length} task${skipped.length !== 1 ? 's' : ''}`);
-    addRow('🔄', 'Carrying forward', `${carrying.length} task${carrying.length !== 1 ? 's' : ''}`);
-
-    // Balance row — color coded
-    const balDiv = document.createElement('div');
-    balDiv.id = 'rolloverBalanceRow';
-    if (balance > 0) {
-      balDiv.className = 'ro-ok';
-      balDiv.textContent = `💰 Balance: +${balance.toFixed(1)} spoons`;
-    } else if (balance === 0) {
-      balDiv.className = 'ro-low';
-      balDiv.textContent = `⚖️ Balance: exactly even`;
-    } else {
-      balDiv.className = 'ro-debt';
-      balDiv.textContent = `⚠️ Balance: ${balance.toFixed(1)} spoons — ${borrowed.toFixed(1)} borrowed from tomorrow`;
-    }
-    rows.appendChild(balDiv);
-
-    // Wire buttons
-    const modal = document.getElementById('rolloverPreviewModal');
-    document.getElementById('rolloverConfirmBtn').onclick = function() {
-      modal.style.display = 'none';
-      rolloverDay();
-    };
-    function cancelRollover() {
-      modal.style.display = 'none';
-      // Revert ZZ back to incomplete so user isn't accidentally rolled over
-      if (zzIndex >= 0 && zzIndex < timeline.length) {
-        timeline[zzIndex].status = 'incomplete';
-        calculateSpoons(); renderTimeline(); saveData();
-      }
-    }
-    document.getElementById('rolloverCancelBtn').onclick = cancelRollover;
-    document.getElementById('rolloverPreviewClose').onclick = cancelRollover;
-    modal.style.display = 'block';
-  }
-
   // ── Claude: BUG #7 FIX — Day rollover with carry-forward and spoon debt tracking ──
   function rolloverDay() {
     // Claude: Clear all pending auto-reschedule timers on day rollover
@@ -1457,11 +1372,12 @@
     renderTimeline();
     saveData();
 
-    // D. PROMPT: Offer to load template — Claude: 2026-03-07 replaced native confirm()
-    showToast('🎉 Day rolled over! ' + carryForwardTasks.length + ' task(s) carried forward.' +
-              (borrowedSpoons > 0 ? ` ⚠️ ${borrowedSpoons} spoon(s) borrowed.` : ''), 4000);
-    // Open template loader after a short delay so toast is visible first
-    setTimeout(function() { openLoadDayModal(); }, 600);
+    // D. PROMPT: Offer to load template
+    if (confirm('🎉 Day rolled over! Carried forward ' + carryForwardTasks.length + ' task(s).' +
+                (borrowedSpoons > 0 ? `\n⚠️ ${borrowedSpoons} borrowed spoon(s) from yesterday.\n\n` : '\n\n') +
+                'Load a day template for today?')) {
+      openLoadDayModal();
+    }
   }
 
   // Claude: Helper to calculate end-of-day spoon balance
@@ -1909,5 +1825,3 @@
 <!-- Cache bust #13: 2026-03-06 Claude - Auto-reschedule sequential queue: fixed slot collision for multiple overdue tasks; runs immediately on loadData + every 60s; fixed tasks never auto-rescheduled -->
 <!-- Cache bust #14: 2026-03-07 Claude - findNextAvailableSlot: always searches from now+15min, never the past; fixes infinite reschedule loop where tasks placed in past immediately became overdue again -->
 <!-- Cache bust #15: 2026-03-07 Claude - rolloverDay carry-forward: build new timeline progressively so tasks don't all land on same slot; forNewDay=true bypasses now+15min guard so tomorrow's tasks start at dayStart not tonight's time -->
-<!-- Cache bust #16: 2026-03-07 Claude - Visual budget bar replaces 7-number text wall; progress bar + color-coded remaining badge + baseline breakdown equation -->
-<!-- Cache bust #17: 2026-03-07 Claude - Pre-rollover summary modal: shows completed/partial/skipped/carrying-forward counts + color-coded spoon balance before committing; Cancel reverts ZZ to incomplete; replaces native confirm() -->
