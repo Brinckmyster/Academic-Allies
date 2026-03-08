@@ -562,12 +562,15 @@ function pickFromNetwork() {
 }
 
 /* ── Auth boot ───────────────────────────────────────────────────────────── */
+var _ecUid = null; // UID guard — prevents reload on 45-min token refresh. Claude, 2026-03-07.
 AA.auth.onAuthStateChanged(function(user) {
   if (!user) {
     hide('ec-loading');
     show('auth-gate');
     return;
   }
+  if (user.uid === _ecUid) return; // token refresh — skip re-init
+  _ecUid = user.uid;
 
   _studentUid = window.AA_MIRROR_UID || user.uid;
 

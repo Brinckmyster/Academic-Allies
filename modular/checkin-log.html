@@ -316,6 +316,7 @@ function toggleDay(card) {
 
 /* ── Data loading ───────────────────────────────────────────────────────── */
 var _currentUid = null;
+var _clUid = null; // UID guard — prevents log reload on 45-min token refresh. Claude, 2026-03-07.
 var _unsubLog   = null;
 
 function show(id) {
@@ -405,6 +406,9 @@ waitForAA(function() {
 
     authGate.style.display = 'none';
     controls.style.display = 'flex';
+
+    if (user.uid === _clUid) return; // token refresh — skip log reload
+    _clUid = user.uid;
 
     /* Case 1: support-role mirror already set by aa-mirror.js */
     if (window.AA_MIRROR_UID) {

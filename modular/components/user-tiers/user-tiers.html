@@ -461,6 +461,7 @@
     var currentStudentUid  = null;
     var currentStudentName = null;
     var isPlatformAdmin       = false;
+    var _utUid                = null; // UID guard — prevents getUserDoc() re-run on 45-min token refresh. Claude, 2026-03-07.
     var isMirrorMode          = false;   // true when viewing someone else's network read-only
     var isNetworkLeadMode     = false;   // true when network-lead is viewing their student
     var isViewingOtherStudent = false;   // true when a student is mirroring another student
@@ -492,6 +493,8 @@
            auth from cache, then fires again with the user. Without this line
            the signin-msg would stay visible even after the user is resolved.
            Fixed 2026-02-20 by Claude */
+        if (user.uid === _utUid) return; // token refresh — skip re-init
+        _utUid = user.uid;
         document.getElementById('signin-msg').style.display  = 'none';
         document.getElementById('loading-msg').style.display = 'block';
         document.getElementById('loading-msg').textContent   = 'Loading your network…';

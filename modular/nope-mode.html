@@ -429,6 +429,7 @@
     var nopeActivatedAt = null;   // Date object
     var currentUid      = null;
     var _nopeUnsub      = null;   // unsubscribe fn for onSnapshot
+    var _npUid          = null;   // UID guard — prevents re-init + listener stacking on 45-min token refresh. Claude, 2026-03-07.
 
     // ── Auth gate ──────────────────────────────────────────
     function showAuthGate(visible) {
@@ -439,6 +440,8 @@
     // ── Boot: listen for sign-in ───────────────────────────
     AA.auth.onAuthStateChanged(function (user) {
       if (user) {
+        if (user.uid === _npUid) return; // token refresh — skip re-init + listener stack
+        _npUid = user.uid;
         currentUid = window.AA_MIRROR_UID || user.uid;
         // ── Route meal plan to the right planner per student ──
         // Mary (mbrinck90) has her personal gastroparesis-specific planner.

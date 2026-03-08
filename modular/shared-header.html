@@ -128,6 +128,7 @@ Your disability accommodations and support network">Your disability accommodatio
          _intentionalSignOut skips the grace period when the user clicks Sign Out. */
       var _signOutDebounce  = null;
       var _intentionalSignOut = false;
+      var _shUid = null; // UID guard — prevents role-lookup re-run on 45-min token refresh. Claude, 2026-03-07.
       var adminBtn        = document.getElementById('adminPanelBtn');
       var networkNavLi    = document.getElementById('supportNetworkNavLi');
       var auditLogNavLi   = document.getElementById('auditLogNavLi');
@@ -506,6 +507,9 @@ Your disability accommodations and support network">Your disability accommodatio
 
         /* User is present — cancel any pending grace-period sign-out */
         if (_signOutDebounce) { clearTimeout(_signOutDebounce); _signOutDebounce = null; }
+
+        if (user.uid === _shUid) return; // token refresh — skip role-lookup re-run
+        _shUid = user.uid;
 
         /* Look up role in Firestore */
         window.AA.db.collection('users').doc(user.uid).get()

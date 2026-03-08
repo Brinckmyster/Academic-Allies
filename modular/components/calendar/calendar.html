@@ -194,6 +194,7 @@
     var viewMonth = new Date().getMonth(); // 0-indexed
     var today     = new Date();
     var currentUid = null;
+    var _calUid    = null; // UID guard — prevents refreshCalendar() re-run on 45-min token refresh. Claude, 2026-03-07.
     var selectedDateKey = null;
     var gcalToken  = null;   // Google Calendar OAuth access token
     var gcalEvents = {};     // { 'YYYY-MM-DD': ['Event title', ...] }
@@ -587,6 +588,8 @@
           document.getElementById('cal-loading').textContent = 'Please sign in to view your calendar.';
           return;
         }
+        if (user.uid === _calUid) return; // token refresh — skip re-init
+        _calUid = user.uid;
         currentUid = window.AA_MIRROR_UID || user.uid;
         document.getElementById('cal-loading').style.display = 'none';
         document.getElementById('cal-container').style.display = 'block';

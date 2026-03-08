@@ -540,6 +540,7 @@
     var _roleFilter    = 'both';  // 'both' | 'student' | 'support'
     var _showArchived  = false;   // toggle to show/hide archived records
     var _checkedUsers  = {};      // uid → true, for merge selection
+    var _adminUid      = null;    // UID guard — prevents loadDashboard() re-run on 45-min token refresh. Claude, 2026-03-07.
 
     /* ── Auth gate ──────────────────────────────────────────── */
     AA.auth.onAuthStateChanged(function(user) {
@@ -551,6 +552,8 @@
         show('access-denied');
         return;
       }
+      if (user.uid === _adminUid) return; // token refresh — skip re-init
+      _adminUid = user.uid;
       // Admin confirmed — show dashboard
       show('main-content');
       document.getElementById('admin-email').textContent = user.email;
