@@ -154,6 +154,9 @@
     tr.outoforder { border-left: 5px solid #ffa500; background: #fffaf0; }
     /* Claude: 2026-03-07 — fixed-time tasks get a teal left accent (cache bust #19) */
     tr.task-fixed { border-left: 4px solid #6CA0A3; }
+    /* Claude: 2026-03-07 — next-up task gets warm amber highlight (cache bust #20) */
+    tr.task-nextup { background: #fffbec; }
+    tr.task-nextup td:first-child::before { content: '▶ '; color: #d4870a; font-size: 11px; }
     td.clickable { cursor: pointer; }
 
     /* ── Buttons ────────────────────────────────────── */
@@ -824,6 +827,8 @@
         timeline[idxH].time = formatTime(parseTime(timeline[idxME].time) + 30);
       }
     }
+    // Claude: 2026-03-07 — track whether we've marked the next-up task yet (cache bust #20)
+    let nextUpMarked = false;
     for (let i = 0; i < timeline.length; i++) {
       const t = timeline[i];
       const tr = document.createElement('tr');
@@ -834,6 +839,11 @@
       let adjTaskTime = taskTime;
       if (taskTime < dayStart * 60) adjTaskTime += 1440;
       if (t.status === 'incomplete' && adjTaskTime < now - 15) tr.classList.add('overdue');
+      // Amber highlight on the first upcoming incomplete task — your "do this now" signal
+      if (!nextUpMarked && t.status === 'incomplete' && adjTaskTime >= now - 15) {
+        tr.classList.add('task-nextup');
+        nextUpMarked = true;
+      }
 
       const timeTd = document.createElement('td');
       timeTd.textContent = `${t.time} ${taskTime >= 720 ? '🌙' : '☀️'} ${t.fixed ? '🔒' : '↕️'}`;
@@ -1963,3 +1973,4 @@
 <!-- Cache bust #17: 2026-03-07 Claude - Pre-rollover summary modal: shows completed/partial/skipped/carrying-forward counts + color-coded spoon balance before committing; Cancel reverts ZZ to incomplete; replaces native confirm() -->
 <!-- Cache bust #18: 2026-03-07 Claude - Inline spoon-cost hints on check-in buttons: each pain/fatigue/mood button now shows its spoon delta (e.g. −4 🥄 for High pain) so users see the cost before tapping, not after; zero-cost options show faint ±0 for consistent button height -->
 <!-- Cache bust #19: 2026-03-07 Claude - Fixed-task visual accent: timeline rows for fixed-time tasks (🔒) get a teal left border (4px solid #6CA0A3) so fixed vs flexible layout is readable at a glance without squinting at the icon -->
+<!-- Cache bust #20: 2026-03-07 Claude - Next-up task indicator: first upcoming incomplete task gets warm amber background (#fffbec) + orange ▶ prefix in time cell so you can see your current task at a glance without hunting through the list -->
