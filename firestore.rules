@@ -177,6 +177,16 @@ service cloud.firestore {
       allow write: if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
     }
 
+    // ── Spoon Plan Suggestions ─────────────────────────────────────
+    // Support members suggest plans; student accepts/rejects (student is sudo).
+    // Support can create; student can read + update status; backstage can read all.
+    // Added 2026-03-08 by Claude.
+    match /spoonPlanSuggestions/{studentUid}/pending/{suggestionId} {
+      allow read: if isOwner(studentUid) || isNetworkMember(studentUid) || isBackstageManager();
+      allow create: if isSignedIn() && (isNetworkMember(studentUid) || isBackstageManager());
+      allow update: if isOwner(studentUid) || isBackstageManager();
+    }
+
     // ── Recovery Journal ─────────────────────────────────────────
     // Auto-saved journal entries from recovery-mode.html.
     // Doc ID is a random session key (not uid); uid is stored inside the doc.

@@ -937,6 +937,63 @@
       });
   };
 
+  /* ── Spoon Plan Suggestions ─────────────────────────────────────────────
+     Support members (network-lead, family, support) can SUGGEST a plan
+     for a student, but the student is sudo — they must accept or reject.
+     Collection: spoonPlanSuggestions/{studentUid}/pending/{autoId}
+     Schema: { tasks[], dailySpoons, reason, suggestedBy, suggestedByName,
+               suggestedByRole, createdAt, status: 'pending' }
+     Added 2026-03-08 by Claude.
+  ─────────────────────────────────────────────────────────────────────── */
+  window.AA.suggestSpoonPlan = function (studentUid, data) {
+    var user = auth.currentUser;
+    if (!user) return Promise.reject(new Error('Not signed in'));
+    return db.collection('spoonPlanSuggestions').doc(studentUid)
+      .collection('pending').add(Object.assign({}, data, {
+        suggestedBy: user.uid,
+        suggestedByName: user.displayName || user.email || 'Support',
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }));
+  };
+
+  window.AA.getPendingSuggestions = function (uid) {
+    return db.collection('spoonPlanSuggestions').doc(uid)
+      .collection('pending')
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'desc')
+      .get()
+      .then(function (snap) {
+        var results = [];
+        snap.forEach(function (doc) {
+          results.push(Object.assign({ id: doc.id }, doc.data()));
+        });
+        return results;
+      });
+  };
+
+  window.AA.acceptSuggestion = function (uid, suggestionId) {
+    var ref = db.collection('spoonPlanSuggestions').doc(uid)
+      .collection('pending').doc(suggestionId);
+    return ref.get().then(function (doc) {
+      if (!doc.exists) return Promise.reject(new Error('Suggestion not found'));
+      var data = doc.data();
+      // Apply the suggested plan to the student's real spoonPlans doc
+      return window.AA.saveSpoonPlan(uid, {
+        tasks: data.tasks || [],
+        dailySpoons: data.dailySpoons || 10
+      }).then(function () {
+        return ref.update({ status: 'accepted', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      });
+    });
+  };
+
+  window.AA.rejectSuggestion = function (uid, suggestionId) {
+    return db.collection('spoonPlanSuggestions').doc(uid)
+      .collection('pending').doc(suggestionId)
+      .update({ status: 'rejected', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  };
+
   /* ── Audit Log — HIPAA compliance, logs PHI access ──────────────────────
      Path: /auditLog/{targetUid}/entries/{logId}
      Restructured 2026-03-03 for student visibility (FERPA: students can read

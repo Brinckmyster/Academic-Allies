@@ -469,15 +469,52 @@
             <button class="btn btn-bulk" onclick="duplicateDay()">📋 Duplicate Yesterday</button>
         </div>
 
-        <!-- Confirm Button - Bottom -->
-        <button class="btn btn-confirm" onclick="confirmPlan()">
+        <!-- Confirm Button - Bottom (hidden in mirror mode; replaced by Suggest) -->
+        <button class="btn btn-confirm" id="btn-confirm-plan" onclick="confirmPlan()">
             ✅ Confirm Plan
+        </button>
+
+        <!-- Claude 2026-03-08: Suggest Plan button — shown in mirror mode only -->
+        <button class="btn btn-confirm" id="btn-suggest-plan" style="display:none;background:#a78bfa;" onclick="openSuggestModal()">
+            💡 Suggest This Plan
         </button>
 
         <!-- Back to Recovery Mode -->
         <button class="btn" onclick="backToRecovery()">
             ← Back to Recovery Mode
         </button>
+
+        <!-- Claude 2026-03-08: Pending suggestions banner for students -->
+        <div id="suggestions-banner" style="display:none;background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:20px;margin-top:20px;text-align:center;">
+            <p style="font-size:16pt;font-weight:700;color:#92400e;margin-bottom:10px;">💡 You have plan suggestions!</p>
+            <p id="suggestions-count" style="font-size:14pt;color:#78350f;margin-bottom:15px;"></p>
+            <button class="btn" style="background:#f59e0b;color:#78350f;" onclick="showSuggestions()">Review Suggestions</button>
+        </div>
+    </div>
+
+    <!-- Claude 2026-03-08: Suggest Plan modal — supporter provides reason -->
+    <div class="modal" id="suggest-modal">
+        <div class="modal-content">
+            <h2>💡 Suggest Plan</h2>
+            <p style="font-size:14pt;color:#666;margin-bottom:15px;">The student will see your reason and can accept or reject this plan.</p>
+            <div class="add-task-form">
+                <div class="form-row" style="flex-direction:column;align-items:stretch;">
+                    <label class="form-label">Why are you suggesting this plan?</label>
+                    <textarea id="suggest-reason" class="form-input" rows="3" placeholder="e.g. I noticed you've been overplanning — this lighter plan might help with pacing." style="resize:vertical;font-size:14pt;"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn" style="background:#a78bfa;" onclick="submitSuggestion()">Send Suggestion</button>
+                    <button class="btn btn-cancel" onclick="closeSuggestModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Claude 2026-03-08: Suggestion review modal — student accepts/rejects -->
+    <div class="modal" id="review-modal">
+        <div class="modal-content" id="review-modal-content">
+            <!-- Populated dynamically by showSuggestions() -->
+        </div>
     </div>
 
     <!-- Edit Task Modal -->
@@ -844,17 +881,170 @@
             }
         }
 
+        /* ── Plan Suggestions — Claude 2026-03-08 ──────────────────
+           Support members suggest plans; student is sudo (accept/reject).
+           Supporter must give a reason before the student even sees it.
+        ──────────────────────────────────────────────────────────── */
+        var _pendingSuggestions = [];
+
+        // Swap Confirm ↔ Suggest buttons based on mirror state
+        function updateMirrorUI() {
+            var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
+                && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            var confirmBtn = document.getElementById('btn-confirm-plan');
+            var suggestBtn = document.getElementById('btn-suggest-plan');
+            if (isMirror) {
+                if (confirmBtn) confirmBtn.style.display = 'none';
+                if (suggestBtn) suggestBtn.style.display = '';
+            } else {
+                if (confirmBtn) confirmBtn.style.display = '';
+                if (suggestBtn) suggestBtn.style.display = 'none';
+            }
+        }
+
+        function openSuggestModal() {
+            document.getElementById('suggest-reason').value = '';
+            document.getElementById('suggest-modal').classList.add('show');
+        }
+        function closeSuggestModal() {
+            document.getElementById('suggest-modal').classList.remove('show');
+        }
+
+        function submitSuggestion() {
+            var reason = document.getElementById('suggest-reason').value.trim();
+            if (!reason) { alert('Please provide a reason for your suggestion.'); return; }
+            if (!window.AA || !window.AA_MIRROR_UID) { alert('Not in mirror mode.'); return; }
+            var studentUid = window.AA_MIRROR_UID;
+            AA.suggestSpoonPlan(studentUid, {
+                tasks: tasks,
+                dailySpoons: totalSpoons,
+                reason: reason
+            }).then(function() {
+                closeSuggestModal();
+                alert('Suggestion sent! The student will see it next time they open Spoon Planner.');
+            }).catch(function(err) {
+                console.error('[AA] Suggest plan error:', err);
+                alert('Could not send suggestion: ' + err.message);
+            });
+        }
+
+        // Check for pending suggestions (student's own view, not mirror)
+        function checkForSuggestions() {
+            var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
+                && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            if (isMirror) return; // Only students see their own suggestions
+            if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
+            var uid = AA.auth.currentUser.uid;
+            AA.getPendingSuggestions(uid).then(function(suggestions) {
+                _pendingSuggestions = suggestions;
+                var banner = document.getElementById('suggestions-banner');
+                if (suggestions.length > 0) {
+                    document.getElementById('suggestions-count').textContent =
+                        suggestions.length + ' suggestion' + (suggestions.length > 1 ? 's' : '') +
+                        ' from your support network';
+                    banner.style.display = '';
+                } else {
+                    banner.style.display = 'none';
+                }
+            }).catch(function(err) {
+                console.warn('[AA] Could not check suggestions:', err.message);
+            });
+        }
+
+        function showSuggestions() {
+            var container = document.getElementById('review-modal-content');
+            if (_pendingSuggestions.length === 0) {
+                container.innerHTML = '<h2>No suggestions</h2><button class="btn btn-cancel" onclick="closeReviewModal()">Close</button>';
+                document.getElementById('review-modal').classList.add('show');
+                return;
+            }
+            var s = _pendingSuggestions[0]; // Show one at a time
+            var taskList = (s.tasks || []).map(function(t) {
+                return '<li style="padding:8px 0;border-bottom:1px solid #eee;">' +
+                    '<strong>' + (t.name || 'Task') + '</strong> — ' +
+                    (t.spoons || 0) + ' spoon' + ((t.spoons || 0) !== 1 ? 's' : '') +
+                    (t.time ? ' at ' + t.time : '') +
+                    '</li>';
+            }).join('');
+            var when = s.createdAt && s.createdAt.toDate ? s.createdAt.toDate().toLocaleDateString() : 'recently';
+            container.innerHTML =
+                '<h2>💡 Plan Suggestion</h2>' +
+                '<p style="font-size:14pt;color:#666;margin-bottom:10px;">From <strong>' +
+                    (s.suggestedByName || 'a supporter') + '</strong> (' + when + ')</p>' +
+                '<div style="background:#f8f4ff;border:2px solid #a78bfa;border-radius:8px;padding:15px;margin-bottom:15px;">' +
+                    '<p style="font-size:14pt;font-weight:600;color:#5b21b6;margin-bottom:8px;">Their reason:</p>' +
+                    '<p style="font-size:14pt;color:#333;">' + (s.reason || 'No reason given') + '</p>' +
+                '</div>' +
+                '<p style="font-size:14pt;font-weight:600;margin-bottom:8px;">Proposed tasks (' +
+                    (s.dailySpoons || 10) + ' spoons):</p>' +
+                '<ul style="list-style:none;padding:0;max-height:200px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:8px;padding:10px;">' +
+                    taskList +
+                '</ul>' +
+                '<p style="font-size:13pt;color:#666;margin-top:12px;font-style:italic;">You are in charge of your own plan. Accept only if this feels right for you.</p>' +
+                '<div class="modal-actions" style="margin-top:20px;">' +
+                    '<button class="btn" style="background:#22c55e;" onclick="acceptSuggestion(\'' + s.id + '\')">✅ Accept Plan</button>' +
+                    '<button class="btn" style="background:#ef4444;" onclick="rejectSuggestion(\'' + s.id + '\')">❌ No Thanks</button>' +
+                    '<button class="btn btn-cancel" onclick="closeReviewModal()">Decide Later</button>' +
+                '</div>';
+            document.getElementById('review-modal').classList.add('show');
+        }
+
+        function acceptSuggestion(id) {
+            var uid = AA.auth.currentUser.uid;
+            AA.acceptSuggestion(uid, id).then(function() {
+                closeReviewModal();
+                alert('Plan accepted! Your tasks have been updated.');
+                // Reload the page to show the new plan
+                window.location.reload();
+            }).catch(function(err) {
+                alert('Error accepting: ' + err.message);
+            });
+        }
+
+        function rejectSuggestion(id) {
+            var uid = AA.auth.currentUser.uid;
+            AA.rejectSuggestion(uid, id).then(function() {
+                _pendingSuggestions = _pendingSuggestions.filter(function(s) { return s.id !== id; });
+                closeReviewModal();
+                if (_pendingSuggestions.length > 0) {
+                    showSuggestions(); // Show next one
+                } else {
+                    document.getElementById('suggestions-banner').style.display = 'none';
+                    alert('Suggestion dismissed.');
+                }
+            }).catch(function(err) {
+                alert('Error rejecting: ' + err.message);
+            });
+        }
+
+        function closeReviewModal() {
+            document.getElementById('review-modal').classList.remove('show');
+        }
+
         // Initialize
         loadSavedData();
         renderTasks();
 
-        // ARIA announcements
+        // ARIA announcements + mirror UI + suggestion check
         document.addEventListener('DOMContentLoaded', function() {
             // Make sure all interactive elements are keyboard accessible
             document.querySelectorAll('.task-item').forEach(item => {
                 item.setAttribute('role', 'listitem');
             });
         });
+
+        // Claude 2026-03-08: wait for AA + auth before checking mirror state & suggestions
+        function _initSuggestions() {
+            if (window.AA && AA.auth) {
+                AA.auth.onAuthStateChanged(function() {
+                    updateMirrorUI();
+                    checkForSuggestions();
+                });
+            } else {
+                setTimeout(_initSuggestions, 300);
+            }
+        }
+        _initSuggestions();
     </script>
     <!-- Firebase compat CDN — for cross-device spoon plan sync -->
     <!-- Claude-credit: moved inside </body> 2026-02-26 (was incorrectly placed after </html>) -->
