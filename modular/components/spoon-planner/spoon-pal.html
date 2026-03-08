@@ -731,15 +731,20 @@
     const moodAdjVal = moodAdj[checkIn.mood] || 0;
     const weatherAdj = weather.impact || 0;
 
+    // Claude: 2026-03-07 — read borrowedFromPrevDay BEFORE filter wipes today's entry (cache bust #21)
+    const _todayStr = new Date().toDateString();
+    const _prevEntry = spoonDebtHistory.find(h => h.date === _todayStr);
+    const borrowed = (_prevEntry && _prevEntry.borrowedFromPrevDay) || 0;
+
     let base = 20;
     base -= painAdj;
     base -= fatigueAdj;
     base += sleepAdj;
     base += moodAdjVal;
     base += weatherAdj;
+    base -= borrowed; // repay yesterday's debt — was hardcoded 0, now functional
     base = Math.max(1, base);
 
-    let borrowed = 0;
     let planned = timeline.reduce((acc, t) => acc + (t.spoon || 0), 0);
     let spent = timeline.reduce((acc, t) => {
       if (t.status === 'complete') return acc + (t.spoon || 0);
@@ -747,12 +752,13 @@
       else return acc;
     }, 0);
 
-    const start = base - borrowed;
+    const start = base;
     const remaining = start - spent;
     const depletion = remaining - (planned - spent);
 
-    spoonDebtHistory = spoonDebtHistory.filter(h => h.date !== new Date().toDateString());
-    spoonDebtHistory.push({ date: new Date().toDateString(), base, spent, depletion });
+    // Preserve borrowedFromPrevDay in the new entry so it survives subsequent calculateSpoons() calls
+    spoonDebtHistory = spoonDebtHistory.filter(h => h.date !== _todayStr);
+    spoonDebtHistory.push({ date: _todayStr, base, spent, depletion, borrowedFromPrevDay: borrowed });
 
     let counter = 0;
     for (let i = spoonDebtHistory.length - 1; i >= 0; i--) {
@@ -1537,6 +1543,9 @@
 
   // Claude: Helper to calculate daily budget (without borrowed deduction)
   function calculateDailyBudget() {
+    // Claude: 2026-03-07 — also subtract borrowed spoons so task modal impact matches budget bar (cache bust #21)
+    const _todayEntry = spoonDebtHistory.find(h => h.date === new Date().toDateString());
+    const _borrowed = (_todayEntry && _todayEntry.borrowedFromPrevDay) || 0;
     let base = 20;
     base -= Math.max(0, checkIn.pain - 5);
     base -= Math.max(0, checkIn.fatigue - 5);
@@ -1545,6 +1554,7 @@
     const moodAdj = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
     base += moodAdj[checkIn.mood] || 0;
     base += weather.impact || 0;
+    base -= _borrowed;
     return Math.max(1, base);
   }
 
@@ -1974,3 +1984,4 @@
 <!-- Cache bust #18: 2026-03-07 Claude - Inline spoon-cost hints on check-in buttons: each pain/fatigue/mood button now shows its spoon delta (e.g. −4 🥄 for High pain) so users see the cost before tapping, not after; zero-cost options show faint ±0 for consistent button height -->
 <!-- Cache bust #19: 2026-03-07 Claude - Fixed-task visual accent: timeline rows for fixed-time tasks (🔒) get a teal left border (4px solid #6CA0A3) so fixed vs flexible layout is readable at a glance without squinting at the icon -->
 <!-- Cache bust #20: 2026-03-07 Claude - Next-up task indicator: first upcoming incomplete task gets warm amber background (#fffbec) + orange ▶ prefix in time cell so you can see your current task at a glance without hunting through the list -->
+<!-- Cache bust #21: 2026-03-07 Claude - FUNCTIONAL FIX: spoon debt carry-forward now actually reduces tomorrow's budget. borrowed was hardcoded to 0 in calculateSpoons() — rolloverDay() stored borrowedFromPrevDay in spoonDebtHistory but calculateSpoons() and calculateDailyBudget() never read it back. Fixed both functions. -->
