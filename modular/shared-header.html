@@ -440,11 +440,25 @@ Your disability accommodations and support network">Your disability accommodatio
           var _wantKeep = (localStorage.getItem('AA_KEEP_SIGNED_IN')
                            || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
 
+          /* Claude: 2026-03-08 — loop guard: track re-auth attempts this session.
+             If we've already tried twice and still hitting null, stop auto-signing in
+             and just show the button. Prevents infinite redirect/popup loops. */
+          var _reauthAttempts = parseInt(sessionStorage.getItem('AA_REAUTH_ATTEMPTS') || '0', 10);
+          if (_reauthAttempts >= 2) {
+            console.warn('[AA header] Re-auth loop detected (' + _reauthAttempts + ' attempts) — showing sign-in button');
+            sessionStorage.removeItem('AA_REAUTH_ATTEMPTS');
+            sessionStorage.removeItem('AA_REAUTH_DONE');
+            if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
+            if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
+            return;
+          }
+
           if (lastUser && _wantKeep && !sessionStorage.getItem('AA_REAUTH_DONE')) {
             /* Claude: 2026-03-05 — wait up to 4s for Firebase LOCAL persistence to restore
                the session before triggering re-auth. Bumped from 2.5s — mobile/slow loads
                need more time. Poll every 200ms so we sign in as fast as possible. */
             sessionStorage.setItem('AA_REAUTH_DONE', '1');
+            sessionStorage.setItem('AA_REAUTH_ATTEMPTS', String(_reauthAttempts + 1));
             if (signinBtn) {
               signinBtn.style.display = 'inline-flex';
               signinBtn.disabled = true;
@@ -454,7 +468,8 @@ Your disability accommodations and support network">Your disability accommodatio
             var _persistPoll = setInterval(function () {
               _persistPollCount++;
               if (window.AA.auth.currentUser) {
-                clearInterval(_persistPoll); // persistence kicked in — nothing to do
+                clearInterval(_persistPoll);
+                sessionStorage.removeItem('AA_REAUTH_ATTEMPTS'); // success — reset counter
                 return;
               }
               if (_persistPollCount >= 20) { // ~4000ms (20 × 200ms)
@@ -463,10 +478,10 @@ Your disability accommodations and support network">Your disability accommodatio
               }
             }, 200);
           } else if (lastUser && _wantKeep && lastUser.email) {
-            /* Claude: 2026-03-06 — AA_REAUTH_DONE was set (later in the session), but
-               Firebase still fired null (background token expiry). Auto-sign in silently
-               without requiring the user to click anything. */
-            sessionStorage.removeItem('AA_REAUTH_DONE'); // reset so next load can poll again
+            /* Claude: 2026-03-08 — background token expiry path. Increment attempt counter
+               but do NOT clear AA_REAUTH_DONE — prevents the flip-flop between branches
+               that caused the infinite redirect loop. */
+            sessionStorage.setItem('AA_REAUTH_ATTEMPTS', String(_reauthAttempts + 1));
             _doSignIn(lastUser.email);
           } else {
             if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
@@ -514,6 +529,8 @@ Your disability accommodations and support network">Your disability accommodatio
 
         /* User is present — cancel any pending grace-period sign-out */
         if (_signOutDebounce) { clearTimeout(_signOutDebounce); _signOutDebounce = null; }
+        /* Claude: 2026-03-08 — sign-in succeeded, clear re-auth loop counter */
+        sessionStorage.removeItem('AA_REAUTH_ATTEMPTS');
 
         if (user.uid === _shUid) return; // token refresh — skip role-lookup re-run
         _shUid = user.uid;
