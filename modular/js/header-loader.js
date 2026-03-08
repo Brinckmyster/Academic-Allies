@@ -15,17 +15,21 @@
       return response.text();
     })
     .then(html => {
-      // Find the header placeholder or insert at the beginning of body
-      const placeholder = document.getElementById('header-placeholder');
-      if (placeholder) {
-        placeholder.innerHTML = html;
-      } else {
-        // Insert at beginning of body if no placeholder
-        document.body.insertAdjacentHTML('afterbegin', html);
+      // Claude 2026-03-08: wait for body to exist before inserting
+      function insertHeader() {
+        const placeholder = document.getElementById('header-placeholder');
+        if (placeholder) {
+          placeholder.innerHTML = html;
+        } else {
+          document.body.insertAdjacentHTML('afterbegin', html);
+        }
+        executeScripts(placeholder || document.body);
       }
-      
-      // Execute scripts that were in the loaded HTML
-      executeScripts(placeholder || document.body);
+      if (document.body) {
+        insertHeader();
+      } else {
+        document.addEventListener('DOMContentLoaded', insertHeader);
+      }
     })
     .catch(error => {
       console.error('Failed to load shared header:', error);

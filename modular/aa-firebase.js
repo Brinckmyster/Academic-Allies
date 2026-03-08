@@ -840,7 +840,7 @@
      Returns true if currentUser is assigned as network-lead for the given student. ──────── */
   window.AA.isNetworkLeadFor = function (studentUid) {
     var user = auth.currentUser;
-    if (!user) return false;
+    if (!user) return Promise.resolve(false); /* Claude 2026-03-08: was returning bare boolean, crashing .then() callers */
     return db.collection('users').doc(studentUid).get()
       .then(function (doc) {
         if (!doc.exists) return false;
