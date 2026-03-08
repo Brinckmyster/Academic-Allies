@@ -53,6 +53,8 @@
   var _lastCheckinTs = null;  /* Date | null — timestamp of latest check-in entry */
   /* Claude: rolling average flag — true when displaying historical avg instead of today's data */
   var _isRollingAvg = false;
+  /* UID guard — skip re-init on Firebase ~45-min token refresh. Claude, 2026-03-07. */
+  var _scUid        = null;
 
   /* ── Day-of-week → eligible segments (0=Sun … 6=Sat) ───── */
   var DAY_SEGS = [
@@ -584,6 +586,8 @@
   }
 
   function startWatching(user) {
+    if (user.uid === _scUid) return; // token refresh — skip re-init + listener re-stack. Claude, 2026-03-07.
+    _scUid = user.uid;
     var uid     = window.AA_MIRROR_UID || user.uid;  /* mirror UID if active */
     var dateKey = _localDateKey();
 
