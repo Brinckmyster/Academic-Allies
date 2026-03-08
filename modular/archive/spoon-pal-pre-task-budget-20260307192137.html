@@ -103,15 +103,6 @@
     }
     #spoonBreakdown { font-size: 12px; color: #aaa; margin-top: 2px; }
 
-    /* Claude: 2026-03-07 — task modal live budget impact */
-    #taskBudgetImpact {
-      margin-top: 6px; padding: 7px 10px; border-radius: 6px;
-      font-size: 13px; font-weight: 600; display: none;
-    }
-    #taskBudgetImpact.tbi-ok   { background: #d4edda; color: #155724; }
-    #taskBudgetImpact.tbi-low  { background: #fff3cd; color: #856404; }
-    #taskBudgetImpact.tbi-debt { background: #f8d7da; color: #721c24; }
-
     /* ── Quick-entry check-in — Updated 2026-03-02 by Claude ── */
     .section.checkin { display: flex; flex-direction: column; gap: 12px; }
     .qe-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -398,8 +389,6 @@
         <div class="emoji-preview" id="emojiPreview" aria-label="Auto-detected emoji" title="Emoji auto-detected from description"></div>
         <label for="taskSpoon">Spoon Cost</label>
         <input type="number" id="taskSpoon" name="taskSpoon" step="0.5" min="0" max="20" required />
-        <!-- Claude: 2026-03-07 — live budget impact updates as spoon cost changes -->
-        <div id="taskBudgetImpact" aria-live="polite"></div>
         <label for="taskPriority">Priority</label>
         <select id="taskPriority" name="taskPriority" required>
           <option value="Urgent">Urgent</option>
@@ -883,29 +872,6 @@
     }
   }
 
-  /* Claude: 2026-03-07 — live budget impact in task modal.
-     Shows remaining spoons after this task, color-coded green/yellow/red.
-     Called on modal open and on every change to the spoon cost input. */
-  function updateTaskBudgetImpact() {
-    const div = document.getElementById('taskBudgetImpact');
-    if (!div) return;
-    const newCost = parseFloat(document.getElementById('taskSpoon').value) || 0;
-    const budget  = calculateDailyBudget();
-    // Sum all tasks EXCEPT the one being edited (so edit doesn't double-count)
-    const otherPlanned = timeline.reduce(function(acc, t, i) {
-      if (i === selectedIndex) return acc; // exclude current task
-      return acc + (t.spoon || 0);
-    }, 0);
-    const after = budget - (otherPlanned + newCost);
-    div.style.display = 'block';
-    div.className = after > 2 ? 'tbi-ok' : after >= 0 ? 'tbi-low' : 'tbi-debt';
-    div.textContent = after > 0
-      ? `✅ After saving: ${after.toFixed(1)} spoons remaining`
-      : after === 0
-      ? `⚖️ After saving: exactly even — nothing left`
-      : `⚠️ After saving: ${Math.abs(after).toFixed(1)} spoons into debt`;
-  }
-
   // ── Task Modal functions ──────────────────────────────────────────────────────
   function openTaskModal(index) {
     selectedIndex = index;
@@ -925,17 +891,11 @@
     document.getElementById('taskFixed').value = task.fixed ? 'true' : 'false';
     document.getElementById('taskStatus').value = task.status;
     document.getElementById('taskNotes').value = task.notes || '';
-    // Claude: 2026-03-07 — show budget impact immediately + keep it live
-    updateTaskBudgetImpact();
-    document.getElementById('taskSpoon').oninput = updateTaskBudgetImpact;
     document.getElementById('taskModal').style.display = 'block';
   }
 
   function closeTaskModal() {
     document.getElementById('taskModal').style.display = 'none';
-    document.getElementById('taskSpoon').oninput = null; // cleanup listener
-    const div = document.getElementById('taskBudgetImpact');
-    if (div) div.style.display = 'none';
     selectedIndex = null;
   }
 
