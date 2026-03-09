@@ -27,8 +27,7 @@ Your disability accommodations and support network">Your disability accommodatio
         <li id="audioNotesNavLi" style="display:none"><a href="/Academic-Allies/modular/components/audio-notes/audio-notes.html" title="Audio Notes">Audio Notes</a></li>
       </ul>
     </nav>
-    <!-- Claude: 2026-03-09 — mode buttons wrapper with mobile scroll support -->
-    <div id="mode-buttons-wrapper" style="display:flex;gap:10px;align-items:center;margin-left:20px;flex-wrap:wrap;">
+    <div style="display:flex;gap:10px;align-items:center;margin-left:20px;flex-wrap:wrap;">
       <span style="font-weight:600;color:#555;">Mode:</span>
       <a href="/Academic-Allies/" style="padding:8px 12px;background:#6CA0A3;color:#fff;text-decoration:none;border-radius:6px;display:inline-flex;align-items:center;gap:6px;font-size:14px;"><img src="/Academic-Allies/modular/icons/mode-normal-outline.png" width="20" height="20" alt="Normal">Normal</a>
       <a href="/Academic-Allies/modular/components/recovery-mode.html" style="padding:8px 12px;background:#6CA0A3;color:#fff;text-decoration:none;border-radius:6px;display:inline-flex;align-items:center;gap:6px;font-size:14px;"><img src="/Academic-Allies/modular/icons/mode-recovery.png" width="20" height="20" alt="Recovery">Recovery</a>
@@ -110,9 +109,6 @@ Your disability accommodations and support network">Your disability accommodatio
   <!-- Status Circle Container -->
   <div aria-live="polite" id="status-circle-container" role="status" title="Authentication Status"></div>
 
-  <!-- Claude: 2026-03-09 — mirror mode banner: shown when viewing another user's data -->
-  <div id="aa-mirror-banner" aria-live="polite" style="display: none;"></div>
-
   <!-- ── Firebase Auth (single source of truth for all pages) ── -->
   <!-- Sequential loader: skips SDK loading if the page already loaded Firebase
        (e.g. admin.html loads it in <head>). Works the same on every page. -->
@@ -149,25 +145,6 @@ Your disability accommodations and support network">Your disability accommodatio
       var deleteBtn       = document.getElementById('delete-request-btn');
       var keepSignedInWrap = document.getElementById('aa-keep-signed-in-wrap');
       var keepSignedInBox  = document.getElementById('aa-keep-signed-in');
-      var mirrorBanner    = document.getElementById('aa-mirror-banner');
-
-      /* Claude: 2026-03-09 — Initialize mirror mode banner.
-         Show when AA_MIRROR_UID is set and differs from current user UID. */
-      function _updateMirrorBanner() {
-        if (!mirrorBanner) return;
-        var mirrorUid = window.AA_MIRROR_UID;
-        var currentUid = (window.AA && window.AA.auth && window.AA.auth.currentUser)
-          ? window.AA.auth.currentUser.uid : null;
-        if (!mirrorUid || !currentUid || mirrorUid === currentUid) {
-          mirrorBanner.style.display = 'none';
-          return;
-        }
-        var studentName = (window.AA_MIRROR && window.AA_MIRROR.studentName)
-          ? window.AA_MIRROR.studentName
-          : sessionStorage.getItem('AA_MIRROR_STUDENT_NAME') || 'Student';
-        mirrorBanner.innerHTML = '👁️ Viewing ' + studentName + '\'s data (read-only)';
-        mirrorBanner.style.display = 'block';
-      }
 
       /* Claude: 2026-03-08 — checkbox wired to localStorage + live persistence switch.
          When unchecked while already signed in, immediately switch Firebase persistence
@@ -634,7 +611,6 @@ Your disability accommodations and support network">Your disability accommodatio
             if (audioNotesNavLi) audioNotesNavLi.style.display = 'list-item'; /* Claude: audio notes for all signed-in users */
             setTierIcon(role);
             _watchNavUnread(user.uid); /* start red-dot watcher for unread messages */
-            _updateMirrorBanner(); /* Claude: 2026-03-09 — show mirror mode banner if applicable */
 
             /* Show role-specific cards on home page — updated 2026-02-20 by Claude */
             var adminCard       = document.getElementById('adminCard');
@@ -666,7 +642,6 @@ Your disability accommodations and support network">Your disability accommodatio
             if (nameEl)     nameEl.textContent = first;
             if (signoutBtn) signoutBtn.style.display  = 'inline-block';
             setTierIcon('student');
-            _updateMirrorBanner(); /* Claude: 2026-03-09 — show mirror mode banner if applicable */
           });
       });
     }
@@ -956,24 +931,6 @@ Your disability accommodations and support network">Your disability accommodatio
   pointer-events: none;  /* never blocks clicks */
 }
 
-/* ── Mirror mode banner ─────────────────────────────────── */
-/* Claude: 2026-03-09 — shown below header when viewing another user's data */
-#aa-mirror-banner {
-  position: fixed;
-  top: 68px;
-  left: 0;
-  right: 0;
-  background: #e6d9f0;
-  border-bottom: 2px solid #c99dd9;
-  padding: 10px 20px;
-  text-align: center;
-  font-size: 14px;
-  color: #4a2d5f;
-  font-weight: 500;
-  z-index: 998;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-}
-
 /* ── Attribution footer (all screen sizes) ──────────────── */
 #aa-credit-footer {
   position: fixed;
@@ -993,14 +950,6 @@ Your disability accommodations and support network">Your disability accommodatio
 #aa-credit-footer a { color: #6CA0A3; text-decoration: none; }
 #aa-credit-footer a:hover { text-decoration: underline; }
 
-/* Claude: 2026-03-09 — mode buttons bar overflow handling for mobile */
-#mode-buttons-wrapper {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: nowrap;
-}
-
 @media (max-width: 768px) {
   .header-content {
     justify-content: flex-start;
@@ -1012,42 +961,7 @@ Your disability accommodations and support network">Your disability accommodatio
     justify-content: flex-start;
     gap: 10px;
   }
-
-  /* Claude: 2026-03-09 — mode buttons horizontal scroll on mobile */
-  #mode-buttons-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    flex-wrap: nowrap;
-    padding-bottom: 4px;
-    margin-bottom: -4px;
-  }
-
-  /* Claude: 2026-03-09 — ensure 44px touch targets on mode buttons */
-  #mode-buttons-wrapper a {
-    min-height: 44px;
-    min-width: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* Claude: 2026-03-09 — adjust status circle for mobile screens */
-  #status-circle {
-    width: 36px;
-    height: 36px;
-    top: 12px;
-    right: 12px;
-  }
-
-  #sc-banner {
-    top: 54px; /* adjusted for smaller circle */
-    right: 2px;
-    font-size: 9px;
-    max-width: 140px;
-  }
-}
-</style>
+}</style>
 
 <!-- Claude: 2026-03-06 — register service worker from every modular page -->
 <script>

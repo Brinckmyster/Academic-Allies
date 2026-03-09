@@ -197,11 +197,6 @@
         </div>
       </section>
 
-        <!-- Claude: 2026-03-09 — Supporter banner when viewing student's modes in mirror -->
-      <div id="supporter-banner" style="display:none;background:#fff9e6;border-left:4px solid #f59e0b;padding:12px 16px;margin-bottom:16px;border-radius:4px;">
-        <p style="font-size:0.9rem;color:#92400e;margin:0;">You are viewing <strong id="student-name-banner">this student</strong>'s mode settings (read-only). Supporters cannot modify mode configurations directly — use the suggestion system instead.</p>
-      </div>
-
       <!-- Customize section -->
       <h2 style="font-size:1.15rem;color:var(--teal-dk);margin:0 0 4px;">Customize Each Mode</h2>
       <p style="font-size:0.85rem;color:var(--muted);margin-bottom:16px;">Choose which features stay available in each mode. Your choices are saved to your profile.</p>
@@ -290,9 +285,6 @@
     /* ── Loaded custom settings from Firestore ── */
     var _modeSettings = {};
     var _uid = null;
-    /* Claude: 2026-03-09 — Flag for supporter role checks */
-    var _isSupporterRole = false;
-    var _studentName = '';
 
     function getEffective(modeKey) {
       var defaults = MODE_DEFAULTS[modeKey] || {};
@@ -365,11 +357,6 @@
 
     /* ── Save mode config to Firestore ── */
     window.saveModeConfig = function(modeKey) {
-      /* Claude: 2026-03-09 — Block supporters from saving mode configs */
-      if (_isSupporterRole) {
-        alert('Supporters cannot change mode settings directly. Use the suggestion system.');
-        return;
-      }
       if (!_uid) return;
       var statusEl = document.getElementById('mcstatus-' + modeKey);
 
@@ -403,11 +390,6 @@
 
     /* ── Reset a mode to defaults ── */
     window.resetModeConfig = function(modeKey) {
-      /* Claude: 2026-03-09 — Block supporters from resetting mode configs */
-      if (_isSupporterRole) {
-        alert('Supporters cannot change mode settings directly. Use the suggestion system.');
-        return;
-      }
       if (!_uid) return;
       if (!confirm('Reset ' + modeKey + ' to default features?')) return;
 
@@ -466,55 +448,16 @@
         /* Claude: 2026-03-09 — Use AA_uid() so Network Lead writes to student's doc in mirror mode */
         _uid = window.AA_uid ? window.AA_uid(user.uid) : user.uid;
 
-        /* Claude: 2026-03-09 — Fetch user role and set supporter flag */
-        AA.db.collection('users').doc(user.uid).get().then(function(doc) {
-          var userData = doc.exists ? doc.data() : {};
-          var role = userData.role || 'student';
-          _isSupporterRole = (role === 'family' || role === 'support' || role === 'nearby-help');
-
-          /* Claude: 2026-03-09 — Show banner if supporter viewing student's modes */
-          if (_isSupporterRole && window.AA_uid && _uid !== user.uid) {
-            var bannerEl = document.getElementById('supporter-banner');
-            if (bannerEl) {
-              bannerEl.style.display = 'block';
-              /* Attempt to fetch student name for banner */
-              AA.db.collection('users').doc(_uid).get().then(function(studentDoc) {
-                var studentData = studentDoc.exists ? studentDoc.data() : {};
-                _studentName = studentData.displayName || studentData.email || 'this student';
-                var nameEl = document.getElementById('student-name-banner');
-                if (nameEl) nameEl.textContent = _studentName + "'s";
-              }).catch(function() {
-                /* Fallback if fetch fails */
-                var nameEl = document.getElementById('student-name-banner');
-                if (nameEl) nameEl.textContent = 'this student\'s';
-              });
-            }
+        /* Load custom mode settings */
+        AA.getUserDoc(_uid).then(function(doc) {
+          if (doc.exists && doc.data().modeSettings) {
+            _modeSettings = doc.data().modeSettings;
           }
-
-          /* Load custom mode settings */
-          AA.getUserDoc(_uid).then(function(doc) {
-            if (doc.exists && doc.data().modeSettings) {
-              _modeSettings = doc.data().modeSettings;
-            }
-            renderModeConfigs();
-            highlightActive();
-          }).catch(function() {
-            renderModeConfigs();
-            highlightActive();
-          });
-        }).catch(function(err) {
-          console.error('Failed to fetch user role:', err);
-          /* Continue without role check if fetch fails */
-          AA.getUserDoc(_uid).then(function(doc) {
-            if (doc.exists && doc.data().modeSettings) {
-              _modeSettings = doc.data().modeSettings;
-            }
-            renderModeConfigs();
-            highlightActive();
-          }).catch(function() {
-            renderModeConfigs();
-            highlightActive();
-          });
+          renderModeConfigs();
+          highlightActive();
+        }).catch(function() {
+          renderModeConfigs();
+          highlightActive();
         });
       });
     });

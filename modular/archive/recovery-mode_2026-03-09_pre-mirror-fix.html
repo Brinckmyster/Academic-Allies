@@ -302,12 +302,12 @@
             🥄 Spoons Remaining: <span id="spoons-remaining">10</span> / 10
         </div>
         <!-- Session timestamp — Claude 2026-02-27 -->
-        <div class="session-bar" id="session-bar" data-rm-edit>
+        <div class="session-bar" id="session-bar">
             <span>🕐 Session started: <span id="session-start-display">—</span></span>
             <button class="new-day-btn" onclick="resetSession()">🌅 Start New Day</button>
             <button class="session-tz-btn" onclick="toggleTZPicker()">Change timezone</button>
         </div>
-        <div class="tz-picker-row" id="tz-picker-row" data-rm-edit>
+        <div class="tz-picker-row" id="tz-picker-row">
             <label for="tz-select">Timezone:</label>
             <select id="tz-select" onchange="saveTZ(this.value)"></select>
         </div>
@@ -320,7 +320,7 @@
             </button>
         </div>
         <!-- Energy Check-In -->
-        <div class="card" data-rm-edit>
+        <div class="card">
             <h2>💚 How Exhausted Are You?</h2>
             <p style="margin-bottom: 15px; font-size: 16pt;">Pick the one that feels right:</p>
             <div class="energy-scale" id="energy-scale">
@@ -367,7 +367,7 @@
             </div>
         </div>
         <!-- Minimalist To-Do List -->
-        <div class="card" data-rm-edit>
+        <div class="card">
             <h2>✅ Today's Tasks</h2>
             <div id="todo-list">
                 <!-- Populated by loadSpoonPlan() -->
@@ -394,7 +394,7 @@
             </p>
         </div>
         <!-- Simple Meal Suggestions -->
-        <div class="card" data-rm-edit>
+        <div class="card">
             <h2>🍽️ Easy Meal Ideas</h2>
             <div class="gentle-reminder">
                 Remember: Solids before 5pm, liquids only after 5pm
@@ -424,7 +424,7 @@
             </button>
         </div>
         <!-- Flower Identification Quiz -->
-        <div class="card flower-quiz" data-rm-edit>
+        <div class="card flower-quiz">
             <h2>🌺 Flower Arranging Class Practice</h2>
             <p style="margin-bottom: 10px;">Keep your skills fresh while you rest 💚</p>
             <p style="font-size: 16pt; color: #666; margin-bottom: 15px;">All varieties — every flower gets equal time! 🌸</p>
@@ -450,7 +450,7 @@
         </div>
 
         <!-- Genus Practice Quiz — Added 2026-02-25 by Claude -->
-        <div class="card" data-rm-edit>
+        <div class="card">
             <h2>🌿 Genus Practice</h2>
             <div style="background:#f0f7f8;border-left:4px solid #6CA0A3;border-radius:0 10px 10px 0;padding:10px 14px;font-size:14pt;color:#555;margin-bottom:14px;line-height:1.5;">
                 All quizzes — every flower tested. See a photo — pick the right answer.
@@ -513,7 +513,7 @@
             </button>
         </div>
         <!-- Claude: Gentle journal prompts — 2026-02-27 -->
-        <div class="card" data-rm-edit>
+        <div class="card">
             <h2>📓 A Gentle Moment</h2>
             <p style="font-size:14pt;color:#888;margin-bottom:14px;">No pressure. Just a thought to sit with, if you'd like.</p>
             <div id="journal-prompt" style="background:#f0f7f8;border-left:4px solid #6CA0A3;border-radius:0 10px 10px 0;padding:14px 16px;font-size:16pt;color:#444;line-height:1.6;margin-bottom:4px;"></div>
@@ -540,11 +540,6 @@
         var _rmFlowerUid  = null; // guards listener #1: greeting/meal-options/flower-quiz
         var _rmSpoonUid   = null; // guards listener #2: spoon-plan loader
         var _rmJournalUid = null; // guards _journalUpdateAuth
-        /* Claude: 2026-03-09 — _isSupporterRole flag: true when the signed-in
-           user is family/support/nearby-help. These users can VIEW recovery mode data
-           but all edit/save/journal controls are hidden. This flag is checked before
-           rendering any editable UI. */
-        var _isSupporterRole = false;
         let dailySpoons = 10;
         let remainingSpoons = 10;
         let tasks = [
@@ -585,9 +580,7 @@
             // Firebase sync (silent, non-blocking) — skip in mirror mode (unless dorothy)
             if (window.AA && AA.auth && AA.auth.currentUser) {
                 if (!window.AA_MIRROR_UID || AA.auth.currentUser.email === 'dorothy.brinck@gmail.com') {
-                    /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
-                    var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
-                    AA.patchFlowerQuiz(writeUid, { energyLevel: level });
+                    AA.patchFlowerQuiz(AA.auth.currentUser.uid, { energyLevel: level });
                 }
             }
         }
@@ -744,9 +737,7 @@
                 // Firebase sync (silent, non-blocking) — skip in mirror mode (unless dorothy)
                 if (window.AA && AA.auth && AA.auth.currentUser) {
                     if (!window.AA_MIRROR_UID || AA.auth.currentUser.email === 'dorothy.brinck@gmail.com') {
-                        /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
-                        var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
-                        AA.patchFlowerQuiz(writeUid, { reportedFlowers: reportedFlowers });
+                        AA.patchFlowerQuiz(AA.auth.currentUser.uid, { reportedFlowers: reportedFlowers });
                     }
                 }
                 alert(`✅ Reported: ${currentFlower.name} - Quiz ${currentFlower.quiz}\n\nTotal reports: ${reportedFlowers.length}`);
@@ -822,9 +813,7 @@
                 window._fcTimer = setTimeout(function() {
                     if (window.AA && AA.auth && AA.auth.currentUser) {
                         if (!window.AA_MIRROR_UID || AA.auth.currentUser.email === 'dorothy.brinck@gmail.com') {
-                            /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
-                            var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
-                            AA.patchFlowerQuiz(writeUid, { flowerCount: flowerCount });
+                            AA.patchFlowerQuiz(AA.auth.currentUser.uid, { flowerCount: flowerCount });
                         }
                     }
                 }, 3000);
@@ -978,21 +967,6 @@
                     }
                     if (user.uid === _rmFlowerUid) return; // token refresh — skip re-init
                     _rmFlowerUid = user.uid;
-
-                    /* Claude: 2026-03-09 — fetch user role and set _isSupporterRole flag */
-                    if (window.AA && AA.db) {
-                        AA.db.collection('users').doc(user.uid).get().then(function(doc) {
-                            var role = (doc.exists && doc.data().role) ? doc.data().role : 'pending';
-                            var supporterRoles = ['family', 'support', 'nearby-help'];
-                            _isSupporterRole = (supporterRoles.indexOf(role) !== -1);
-                            /* Hide edit/save/journal controls if supporter */
-                            if (_isSupporterRole) {
-                                var editControls = document.querySelectorAll('[data-rm-edit]');
-                                editControls.forEach(function(el) { el.style.display = 'none'; });
-                            }
-                        });
-                    }
-
                     // ── Personalise greeting with signed-in user's name ──
                     // Added 2026-02-28 by Claude — replace hardcoded 'Mary' with real name
                     var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
@@ -1333,9 +1307,7 @@
                     var _rd = new Date();
                     patch.yesterdayDate = _rd.getFullYear() + '-' + String(_rd.getMonth()+1).padStart(2,'0') + '-' + String(_rd.getDate()).padStart(2,'0');
                 }
-                /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
-                var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
-                AA.saveSpoonPlan(writeUid, patch)
+                AA.saveSpoonPlan(AA.auth.currentUser.uid, patch)
                     .catch(function(err) {
                         console.warn('[AA] Could not reset spoon plan:', err);
                     })
@@ -1399,10 +1371,8 @@
             if (!text) return;
             var statusEl = document.getElementById('journal-saved');
             if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.style.display = 'block'; }
-            /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
-            var journalUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
             var entry = {
-                uid: journalUid,
+                uid: AA.auth.currentUser.uid,
                 prompt: JOURNAL_PROMPTS[_jIdx],
                 response: text,
                 savedAt: new Date().toISOString()
