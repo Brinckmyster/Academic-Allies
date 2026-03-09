@@ -300,21 +300,20 @@
 
 <div id="site-header"></div>
 <script>
-  /* Claude: 2026-03-09 — converted arrow functions to ES5 for project consistency */
-  fetch("/Academic-Allies/modular/shared-header.html?v=20260309a")
-    .then(function(r) { return r.text(); })
-    .then(function(html) {
-      var c = document.getElementById("site-header");
+  fetch("/Academic-Allies/modular/shared-header.html?v=20260307a") /* Claude 2026-03-07: added cache-bust version */
+    .then(r => r.text())
+    .then(html => {
+      const c = document.getElementById("site-header");
       c.innerHTML = html;
-      c.querySelectorAll("script").forEach(function(old) {
-        var s = document.createElement("script");
-        Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+      c.querySelectorAll("script").forEach(old => {
+        const s = document.createElement("script");
+        Array.from(old.attributes).forEach(a => s.setAttribute(a.name, a.value));
         s.textContent = old.textContent;
         old.replaceWith(s);
       });
-      var d = document.createElement("script");
+      const d = document.createElement("script");
       d.src = "/Academic-Allies/modular/js/draggable.js";
-      d.onload = function() { if(typeof initDrag === "function") initDrag(); };
+      d.onload = () => { if(typeof initDrag === "function") initDrag(); };
       document.body.appendChild(d);
     });
 </script>
@@ -376,16 +375,8 @@
     <a class="module-card" href="/Academic-Allies/modular/accommodations.html">
       <span class="module-icon">📝</span><span class="module-name">Accommodations</span>
     </a>
-    <!-- Claude: 2026-03-09 — added Audio Notes card (was missing from home page) -->
-    <a class="module-card" href="/Academic-Allies/modular/components/audio-notes/audio-notes.html">
-      <span class="module-icon">🎙️</span><span class="module-name">Audio Notes</span>
-    </a>
     <a class="module-card" href="/Academic-Allies/modular/components/recovery-mode.html">
       <span class="module-icon"><img src="/Academic-Allies/modular/icons/mode-recovery.png" width="48" height="48" alt="Recovery Mode" style="display:block;"></span><span class="module-name">Recovery Mode</span>
-    </a>
-    <!-- Claude: 2026-03-09 — added Modes customizer card (was missing from home page) -->
-    <a class="module-card" href="/Academic-Allies/modular/components/modes/modes.html">
-      <span class="module-icon">⚙️</span><span class="module-name">Modes</span>
     </a>
     <a class="module-card" href="/Academic-Allies/modular/components/support-dashboard/support-dashboard.html" id="supportDashCard" style="display:none;">
       <span class="module-icon">🪞</span><span class="module-name">Support Dashboard</span>
@@ -443,8 +434,12 @@
     <a class="resource-link" href="/Academic-Allies/modular/static/docs/TEAM-PROFILES.html">
       <span class="ricon">👥</span> About the Team
     </a>
-    <!-- Claude: 2026-03-09 — removed duplicate Recovery Mode (already in module grid)
-         and expired Perplexity S3 link (still on sitemap for reference) -->
+    <a class="resource-link" href="https://ppl-ai-code-interpreter-files.s3.amazonaws.com/web/direct-files/b1abf4ce293b528e9b1e94ec963ca455/f919b088-56e0-4106-b66f-efffb2426b57/index.html?utm_source=perplexity" target="_blank">
+      <span class="ricon">🔗</span> Original Web Help
+    </a>
+    <a class="resource-link" href="/Academic-Allies/modular/components/recovery-mode.html">
+      <img src="/Academic-Allies/modular/icons/mode-recovery.png" width="24" height="24" alt="Recovery Mode" style="display:inline-block;vertical-align:middle;"> Recovery Mode
+    </a>
   </div>
 
 </main>
@@ -479,9 +474,10 @@
     if (out) out.style.display = "inline";
   }
 
-  /* Claude: 2026-03-09 — cleaned up greeting (was setting innerHTML twice with orphaned heroName2) */
-  var heroEl = document.querySelector('.hero-greeting');
-  if (heroEl) heroEl.innerHTML = greeting + ', <span id="heroName">' + firstName + '</span>';
+  document.getElementById('heroName').textContent = firstName;
+  document.getElementById('heroGreeting') && (document.querySelector('.hero-greeting').firstChild.textContent = greeting + ', ');
+  // Fix greeting text
+  document.querySelector('.hero-greeting').innerHTML = greeting + ', <span id="heroName2">' + firstName + '</span>';
 
   document.getElementById('heroDate').textContent = now.toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -694,6 +690,19 @@
 })();
 </script>
 
-<!-- Claude: 2026-03-09 — duplicate SW registration removed; shared-header.html handles it -->
+<!-- Claude: 2026-03-06 — register service worker for offline PWA support -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/Academic-Allies/sw.js', { scope: '/Academic-Allies/' })
+      .then(function (reg) {
+        console.log('[AA] Service worker registered, scope:', reg.scope);
+      })
+      .catch(function (err) {
+        console.warn('[AA] Service worker registration failed:', err.message);
+      });
+  });
+}
+</script>
 </body>
 </html>
