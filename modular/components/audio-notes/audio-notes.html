@@ -1324,6 +1324,12 @@
               transcript = oldText;
               var liveEl = document.getElementById('liveTranscript');
               if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = transcript; }
+              // Claude: 2026-03-08 — show action buttons for recovered draft
+              var da1 = document.getElementById('draftActions');
+              if (da1) { da1.style.display = 'flex'; da1.style.justifyContent = 'center'; da1.style.gap = '8px'; da1.style.flexWrap = 'wrap'; }
+              var se1 = document.getElementById('recordStatus');
+              if (se1) se1.textContent = 'Transcript recovered! Choose what to do below.';
+              showToast('Transcript recovered. Save to Docs or discard.', 8000);
             }
           }
         } catch(e) {}
@@ -1333,14 +1339,20 @@
           if (backupRaw) {
             localStorage.removeItem('AA_AUDIO_TRANSCRIPT_BACKUP');
             var backup = JSON.parse(backupRaw);
-            if (backup.transcript && !transcript) {
-              transcript = backup.transcript;
+            if ((backup.transcript || backup.hasAudio) && !transcript) {
+              transcript = backup.transcript || '';
               var liveEl2 = document.getElementById('liveTranscript');
-              if (liveEl2) { liveEl2.style.display = 'block'; liveEl2.textContent = transcript; }
+              if (liveEl2 && transcript) { liveEl2.style.display = 'block'; liveEl2.textContent = transcript; }
               if (backup.title) {
                 var titleEl = document.getElementById('noteTitleInput');
                 if (titleEl && !titleEl.value) { titleEl.value = backup.title; }
               }
+              // Claude: 2026-03-08 — show action buttons for recovered draft
+              var da2 = document.getElementById('draftActions');
+              if (da2) { da2.style.display = 'flex'; da2.style.justifyContent = 'center'; da2.style.gap = '8px'; da2.style.flexWrap = 'wrap'; }
+              var se2 = document.getElementById('recordStatus');
+              if (se2) se2.textContent = 'Transcript recovered! Choose what to do below.';
+              showToast('Transcript recovered. Save to Docs or discard.', 8000);
             }
           }
         } catch(e) {}
@@ -1363,7 +1375,17 @@
         if (titleEl) titleEl.value = '';
         var draftActions = document.getElementById('draftActions');
         if (draftActions) draftActions.style.display = 'none';
+        // Claude: 2026-03-08 — clear ALL draft storage so garbage doesn't come back
         try { localStorage.removeItem('AA_AUDIO_TRANSCRIPT_BACKUP'); } catch(e) {}
+        try { localStorage.removeItem('AA_AUDIO_DRAFT_TEXT'); } catch(e) {}
+        // Also clear IndexedDB draft so it doesn't resurrect on next sign-in
+        _openDraftDB(function(db) {
+          if (!db) return;
+          try {
+            var tx = db.transaction('drafts', 'readwrite');
+            tx.objectStore('drafts').delete('pending');
+          } catch(e) {}
+        });
         showToast('Draft discarded.', 3000);
       };
 
@@ -1453,7 +1475,8 @@
             document.getElementById('main-body').style.display = 'none';
             noticeEl.style.display = 'block';
             if (unsubNotes) unsubNotes();
-          }, 5000);
+          }, 10000); // Claude: 2026-03-08 — bumped from 5s to 10s; persistence poll in
+                    // shared-header needs up to 6s, and slow mobile connections need more.
           return;
         }
 
