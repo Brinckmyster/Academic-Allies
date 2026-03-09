@@ -1,17 +1,12 @@
 /*
  * migraine-mode.js — Academic Allies
  * Created: 2026-03-05 by Claude
- * Updated: 2026-03-09 by Claude — replaced invert/dark-mode approach with
- *   true dimming: reduced brightness, muted/desaturated colors, warm sepia
- *   tone, no animations, gentle text sizing. This is what migraine sufferers
- *   actually need — a dimmer, not a color flip.
- *   Archive: modular/archive/migraine-mode_2026-03-09_pre-dim-fix.js
  *
  * Migraine mode: reduced-stimulus UI for the student.
- * - Dimmed brightness, warm tone, muted colors, no animations, larger text
+ * - Dark background, dim colors, no animations, larger text
  * - One-tap toggle from the mode bar in shared-header
  * - State saved to Firestore so support network sees a banner
- * - Network sees a banner in mirror view
+ * - Network sees a red "Mary is in migraine mode" banner in mirror view
  */
 
 (function () {
@@ -21,25 +16,20 @@
   var FIRESTORE_FIELD = 'migraineMode'; // boolean on /users/{uid}
 
   /* ── CSS injected into <head> when migraine mode is active ── */
-  /* Claude: 2026-03-09 — TRUE migraine-friendly dimming. No color inversion.
-     brightness(0.55)  = screen dimmer (like turning down a lamp)
-     saturate(0.3)     = muted colors (less visual noise)
-     sepia(0.25)       = warm tone (reduces harsh blue light)
-     contrast(0.85)    = softer contrast (less jarring edges)
-     Together these create a calm, dimmed, warm viewing experience. */
+  // Claude: 2026-03-05 — use CSS filter on entire page; catches ALL colors including
+  // inline styles, yellow cards, etc. invert(1) flips to dark, hue-rotate(180deg)
+  // corrects hue so blues stay blue. brightness(0.85) tones down the result.
+  // Excludes images (re-inverted back) so photos look normal but dimmed.
   var MIGRAINE_CSS = [
-    'html { filter: brightness(0.55) saturate(0.3) sepia(0.25) contrast(0.85) !important; }',
-    // Kill ALL animations and transitions — motion triggers migraines
+    'html { filter: invert(1) hue-rotate(180deg) brightness(0.75) !important; }',
     'body * { animation: none !important; transition: none !important; }',
-    // Slightly larger text + generous line-height for easier reading
-    'body, p, li, td, th, label, span, div { font-size: 110% !important; line-height: 1.65 !important; }',
-    // Soften link colors so nothing pops aggressively
-    'a, a:visited { color: #7a9a9c !important; }',
-    // Tone down any harsh borders or shadows
-    '* { box-shadow: none !important; text-shadow: none !important; }',
-    // Migraine button stays visible so you can turn it off
-    '#aa-migraine-btn { filter: brightness(1.8) !important; background: #8b4513 !important;',
-    '  color: #fff !important; font-weight: 700 !important; border: 2px solid #d2691e !important; }'
+    // Re-invert images so they look natural (not color-inverted)
+    'img, video, canvas { filter: invert(1) hue-rotate(180deg) brightness(0.7) !important; }',
+    // Larger text for easier reading
+    'body, p, li, td, th, label, span, div { font-size: 115% !important; line-height: 1.7 !important; }',
+    // Migraine button stays visible and red
+    '#aa-migraine-btn { filter: none !important; background: #c0392b !important;',
+    '  color: #fff !important; font-weight: 700 !important; border: 2px solid #ff6b6b !important; }'
   ].join('\n');
 
   var _styleEl = null;
@@ -68,8 +58,8 @@
   function updateBtn(active) {
     var btn = document.getElementById('aa-migraine-btn');
     if (!btn) return;
-    btn.textContent = active ? '🌑 Dim: ON' : '🌑 Migraine';
-    btn.title = active ? 'Turn off migraine dim mode' : 'Dim the screen for migraine relief';
+    btn.textContent = active ? '🌑 Migraine: ON' : '🌑 Migraine';
+    btn.title = active ? 'Turn off migraine mode' : 'Turn on migraine mode';
   }
 
   /* ── Save to Firestore so network sees banner ── */
@@ -112,7 +102,7 @@
       'padding:10px 16px;font-size:14px;font-weight:600;',
       'letter-spacing:0.02em;box-shadow:0 2px 8px rgba(0,0,0,0.3);'
     ].join('');
-    b.textContent = '🌑 Migraine mode is active — screen is dimmed and muted for this student';
+    b.textContent = '🌑 Migraine mode is active — reduced-stimulus UI is on for this student';
     document.body.insertBefore(b, document.body.firstChild);
     // Push page content down
     document.body.style.paddingTop = (parseInt(document.body.style.paddingTop || 0) + 44) + 'px';
