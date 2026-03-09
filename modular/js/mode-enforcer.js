@@ -26,9 +26,10 @@
       '.nav-list a[href*="checkin.html"]',
       '#checkinPrompt'
     ],
+    /* Claude: 2026-03-09 — SpoonPal card moved inside Spoon Planner page */
     spoonPlanner: [
       'a.module-card[href*="spoon-planner.html"]',
-      '#spoonpalCard'
+      '#spoonpalLink'
     ],
     mealPlan: [
       'a.module-card[href*="meal-planner"]'

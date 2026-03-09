@@ -60,6 +60,13 @@
       padding: 10px 24px; background: #fff; color: #666; border: 1px solid #ddd;
       border-radius: 8px; font-size: .95rem; cursor: pointer;
     }
+    /* Claude: 2026-03-09 — email button styling */
+    .btn-email {
+      padding: 10px 24px; background: #2d8a4e; color: #fff; border: none;
+      border-radius: 8px; font-size: .95rem; font-weight: 600; cursor: pointer;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-email:hover { background: #24713f; }
 
     .hint { font-size: .8rem; color: var(--muted); margin-bottom: 1rem; }
 
@@ -96,11 +103,12 @@
   <div class="page-wrap">
     <a class="back-link" href="/Academic-Allies/modular/components/templates/templates.html">← Back to Templates</a>
     <h1>🤝 Counselor Outreach Letter</h1>
-    <p class="subtitle">Fill in the blanks, then print or screenshot to give to your school counselor or disability office.</p>
+    <p class="subtitle">Fill in the blanks, then print, email, or screenshot to give to your school counselor or disability office.</p>
     <p class="hint">Tip: Everything stays on your device — nothing is saved or sent.</p>
 
     <div class="btn-row">
       <button class="btn-print" onclick="window.print()">🖨️ Print This Letter</button>
+      <button class="btn-email" onclick="emailLetter()">📧 Email This Letter</button>
       <a class="btn-back" href="/Academic-Allies/modular/components/templates/templates.html">Back to Templates</a>
     </div>
 
@@ -167,8 +175,47 @@
 
     <div class="btn-row">
       <button class="btn-print" onclick="window.print()">🖨️ Print This Letter</button>
+      <button class="btn-email" onclick="emailLetter()">📧 Email This Letter</button>
     </div>
   </div>
+
+  <script>
+  /* Claude: 2026-03-09 — email letter function
+     Extracts filled-in values and opens mailto: with the letter body */
+  function emailLetter() {
+    var recipient = (document.getElementById('fRecipient').value || '').trim();
+    var name = (document.getElementById('fName').value || '').trim() || 'A student';
+    var year = (document.getElementById('fYear').value || '').trim() || '[year]';
+    var school = (document.getElementById('fSchool').value || '').trim() || '[school]';
+    var summary = (document.getElementById('fSummary').value || '').trim() || '[conditions listed here]';
+    var hardTo = (document.getElementById('fHardTo').value || '').trim() || '[challenges]';
+    var docs = (document.getElementById('fDocs').value || '').trim() || '[documentation]';
+    var avail = (document.getElementById('fAvail').value || '').trim() || '[availability]';
+    var date = (document.getElementById('fDate').value || '').trim();
+    var signature = (document.getElementById('fSignature').value || '').trim() || name;
+    var email = (document.getElementById('fEmail').value || '').trim();
+    var phone = (document.getElementById('fPhone').value || '').trim();
+
+    var subject = 'Counselor Outreach — ' + name;
+
+    var body = date + '\n\n';
+    body += 'Dear ' + (recipient || '[Counselor]') + ',\n\n';
+    body += 'My name is ' + name + ' and I am a ' + year + ' at ' + school + '.\n\n';
+    body += 'I am reaching out because I have health conditions that are affecting my ability to succeed academically, and I would like to explore what support and accommodations are available to me.\n\n';
+    body += 'A brief summary of what I am dealing with:\n' + summary + '\n\n';
+    body += 'These conditions make it hard to ' + hardTo + '. On my worst days, I may need to step back entirely, but I am committed to staying on track with the right support in place.\n\n';
+    body += 'I am interested in tools and strategies that can help me stay on track. I would love to talk about what support your office can provide and how we can work together to set me up for success.\n\n';
+    body += 'I have the following documentation available:\n' + docs + '\n\n';
+    body += 'Could we schedule a time to meet? I am available ' + avail + '.\n\n';
+    body += 'Thank you for your time. Having the right accommodations in place would make a real difference for me.\n\n';
+    body += 'Sincerely,\n' + signature;
+    if (email) body += '\n' + email;
+    if (phone) body += '\n' + phone;
+
+    var mailto = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    window.open(mailto, '_blank');
+  }
+  </script>
 
   <script>
   /* Claude: 2026-03-09 — auto-fill today's date */

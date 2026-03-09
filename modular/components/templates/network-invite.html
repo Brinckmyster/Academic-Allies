@@ -129,6 +129,13 @@
       padding: 10px 24px; background: #fff; color: var(--teal-dk); border: 2px solid var(--teal);
       border-radius: 8px; font-size: .95rem; font-weight: 600; cursor: pointer;
     }
+    /* Claude: 2026-03-09 — email button styling */
+    .btn-email {
+      padding: 10px 24px; background: #2d8a4e; color: #fff; border: none;
+      border-radius: 8px; font-size: .95rem; font-weight: 600; cursor: pointer;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-email:hover { background: #24713f; }
 
     /* ── Print: only show the card ── */
     @media print {
@@ -163,7 +170,7 @@
   <div class="page-wrap">
     <a class="back-link" href="/Academic-Allies/modular/components/templates/templates.html">← Back to Templates</a>
     <h1>🔑 Network Invite Card</h1>
-    <p class="subtitle">Generate an invite code, then print or screenshot the card below to hand to someone you want in your support network.</p>
+    <p class="subtitle">Generate an invite code, then print, email, or screenshot the card below to share with someone you want in your support network.</p>
 
     <div id="signinMsg" style="display:none;">Please sign in to generate invite codes.</div>
 
@@ -193,9 +200,10 @@
       <div id="genStatus"></div>
     </div>
 
-    <!-- Print buttons (shown after generation) -->
+    <!-- Action buttons (shown after generation) -->
     <div class="btn-row" id="printRow" style="display:none;">
       <button class="btn-print" onclick="window.print()">🖨️ Print This Card</button>
+      <button class="btn-email" onclick="emailInvite()">📧 Email This Invite</button>
       <button class="btn-copy" onclick="copyCode()">📋 Copy Code</button>
     </div>
 
@@ -320,6 +328,35 @@
         status.textContent = '❌ ' + (err.message || 'Failed to generate code');
         btn.disabled = false;
       });
+    };
+
+    /* Claude: 2026-03-09 — email invite function
+       Composes a mailto: with the invite code, role, and join instructions */
+    window.emailInvite = function() {
+      if (!_generatedCode) return;
+
+      var recipientName = (document.getElementById('recipientName').value || '').trim();
+      var role = document.getElementById('roleSelect').value;
+      var roleName = ROLE_LABELS[role] || role;
+      var expires = document.getElementById('icExpires').textContent || '';
+
+      var subject = _displayName + ' invited you to join their Academic Allies support network';
+
+      var body = 'Hi' + (recipientName ? ' ' + recipientName : '') + ',\n\n';
+      body += _displayName + ' has invited you to join their support network on Academic Allies.\n\n';
+      body += 'Your role: ' + roleName + '\n';
+      body += 'Your invite code: ' + _generatedCode + '\n';
+      body += expires + '\n\n';
+      body += 'How to join:\n';
+      body += '1. Go to https://brinckmyster.github.io/Academic-Allies/\n';
+      body += '2. Sign in with your Google account\n';
+      body += '3. When prompted, enter the code: ' + _generatedCode + '\n';
+      body += '4. You\'re in! You\'ll be connected to the support network.\n\n';
+      body += 'This code can only be used once and expires in 7 days.\n';
+      body += 'If it doesn\'t work, ask for a new one.\n';
+
+      var mailto = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+      window.open(mailto, '_blank');
     };
 
     window.copyCode = function() {
