@@ -1012,6 +1012,8 @@
           duration: duration,
           driveFileId: driveResult ? driveResult.id : null,
           driveLink: driveResult ? driveResult.webViewLink : null,
+          /* Claude: 2026-03-08 — track audio format so UI knows if WAV conversion is needed */
+          audioFormat: driveResult ? 'wav' : null,
           timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
 
@@ -1135,10 +1137,10 @@
         var driveHtml = n.driveLink
           ? '<a href="' + escHtml(n.driveLink) + '" target="_blank" rel="noopener" style="font-size:10pt;color:#1a73e8;text-decoration:none;">▶ Play on Drive</a>'
           : '';
-        // Claude: 2026-03-08 — "Convert to WAV" button for notes with Drive audio (for NotebookLM etc)
-        var wavHtml = (n.driveFileId && !isMirror)
+        // Claude: 2026-03-08 — "Convert to WAV" button only for notes NOT already in WAV format
+        var wavHtml = (n.driveFileId && !isMirror && n.audioFormat !== 'wav')
           ? '<button class="note-to-wav" data-driveid="' + escHtml(n.driveFileId) + '" data-id="' + n._id + '" data-title="' + escHtml(n.title || '').replace(/"/g,'&quot;') + '" style="font-size:10pt;color:#34a853;background:none;border:none;cursor:pointer;padding:0;text-decoration:none;margin-left:6px;">🔄 Convert to WAV</button>'
-          : '';
+          : (n.driveFileId && n.audioFormat === 'wav' && !isMirror ? '<span style="font-size:9pt;color:#34a853;margin-left:6px;">✅ WAV</span>' : '');
         // Claude: 2026-03-08 — "Send to Docs" button for each saved note
         var docsHtml = (n.transcript && !isMirror)
           ? '<button class="note-to-docs" data-id="' + n._id + '" data-title="' + escHtml(n.title || '').replace(/"/g,'&quot;') + '" style="font-size:10pt;color:#1a73e8;background:none;border:none;cursor:pointer;padding:0;text-decoration:none;">📄 Send to Docs</button>'
@@ -1266,10 +1268,10 @@
             })
             .then(function(result) {
               if (result && result.webViewLink) {
-                // Update the Firestore note with the new WAV Drive link
+                // Claude: 2026-03-08 — update Firestore with new WAV Drive link + format tag
                 window.AA.db.collection('audioNotes').doc(writeUid)
                   .collection('notes').doc(noteId)
-                  .update({ driveFileId: result.id, driveLink: result.webViewLink });
+                  .update({ driveFileId: result.id, driveLink: result.webViewLink, audioFormat: 'wav' });
                 showToast('WAV uploaded! Old webm kept in Drive.');
                 window.open(result.webViewLink, '_blank');
               } else {
