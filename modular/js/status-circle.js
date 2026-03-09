@@ -598,10 +598,13 @@
       if (bannerEl) bannerEl.style.display = (role === 'student') ? 'none' : '';
     }).catch(function() {});
 
-    // Claude: audit log — call logAccess when viewing another student's data (mirror mode)
+    // Claude: 2026-03-08 — audit log with mirror context
     if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid) {
       if (window.AA && window.AA.logAccess) {
-        window.AA.logAccess('read', window.AA_MIRROR_UID, 'checkin');
+        window.AA.logAccess('mirror-view', window.AA_MIRROR_UID, 'checkin', {
+          detail: 'Viewed check-in status circle',
+          mirrorOf: window.AA_MIRROR_UID
+        });
       }
     }
 

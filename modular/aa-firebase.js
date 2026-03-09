@@ -350,9 +350,14 @@
 
   /* Real-time listener — callback(data | null) on every change */
   window.AA.watchNope = function (uid, callback) {
-    // Claude: log access to nope (crisis mode) data per compliance requirement
+    // Claude: 2026-03-08 — log access with mirror context if viewing another user's data
     if (auth.currentUser && auth.currentUser.uid) {
-      window.AA.logAccess('read', uid, 'nope');
+      var _meta = {};
+      if (uid !== auth.currentUser.uid) {
+        _meta.mirrorOf = uid;
+        _meta.detail = 'Viewed crisis mode status';
+      }
+      window.AA.logAccess(uid !== auth.currentUser.uid ? 'mirror-view' : 'read', uid, 'nope', _meta);
     }
     return db.collection('nope').doc(uid)
       .onSnapshot(function (doc) {
@@ -549,9 +554,14 @@
   /* Real-time listener for check-ins (calls callback on any change) */
   window.AA.watchCheckins = function (uid, days, callback) {
     days = days || 7;
-    // Claude: log access to check-in data per compliance requirement
+    // Claude: 2026-03-08 — log access with mirror context
     if (auth.currentUser && auth.currentUser.uid) {
-      window.AA.logAccess('read', uid, 'checkin');
+      var _meta = {};
+      if (uid !== auth.currentUser.uid) {
+        _meta.mirrorOf = uid;
+        _meta.detail = 'Viewed check-in data';
+      }
+      window.AA.logAccess(uid !== auth.currentUser.uid ? 'mirror-view' : 'read', uid, 'checkin', _meta);
     }
     return db.collection('checkins').doc(uid)
       .collection('days')
@@ -590,9 +600,14 @@
 
   /* Real-time listener for today's meal log */
   window.AA.watchMealLog = function (uid, dateKey, callback) {
-    // Claude: log access to meal log data per compliance requirement
+    // Claude: 2026-03-08 — log access with mirror context
     if (auth.currentUser && auth.currentUser.uid) {
-      window.AA.logAccess('read', uid, 'mealLog');
+      var _meta = {};
+      if (uid !== auth.currentUser.uid) {
+        _meta.mirrorOf = uid;
+        _meta.detail = 'Viewed meal log';
+      }
+      window.AA.logAccess(uid !== auth.currentUser.uid ? 'mirror-view' : 'read', uid, 'mealLog', _meta);
     }
     return db.collection('mealLogs').doc(uid)
       .collection('days').doc(dateKey)
@@ -614,9 +629,14 @@
   };
 
   window.AA.watchSpoonPal = function (uid, callback) {
-    // Claude: log access to spoonPal data per compliance requirement
+    // Claude: 2026-03-08 — log access with mirror context
     if (auth.currentUser && auth.currentUser.uid) {
-      window.AA.logAccess('read', uid, 'spoonPal');
+      var _meta = {};
+      if (uid !== auth.currentUser.uid) {
+        _meta.mirrorOf = uid;
+        _meta.detail = 'Viewed SpoonPal data';
+      }
+      window.AA.logAccess(uid !== auth.currentUser.uid ? 'mirror-view' : 'read', uid, 'spoonPal', _meta);
     }
     return db.collection('spoonPal').doc(uid)
       .onSnapshot(function (doc) {
@@ -948,6 +968,11 @@
   window.AA.suggestSpoonPlan = function (studentUid, data) {
     var user = auth.currentUser;
     if (!user) return Promise.reject(new Error('Not signed in'));
+    // Claude: 2026-03-08 — audit log: suggestion created
+    window.AA.logAccess('suggest', studentUid, 'spoonPlan', {
+      detail: 'Suggested a spoon plan (' + (data.tasks || []).length + ' tasks)',
+      mirrorOf: studentUid
+    });
     return db.collection('spoonPlanSuggestions').doc(studentUid)
       .collection('pending').add(Object.assign({}, data, {
         suggestedBy: user.uid,
@@ -978,6 +1003,10 @@
     return ref.get().then(function (doc) {
       if (!doc.exists) return Promise.reject(new Error('Suggestion not found'));
       var data = doc.data();
+      // Claude: 2026-03-08 — audit log: student accepted a plan suggestion
+      window.AA.logAccess('accept', uid, 'spoonPlan', {
+        detail: 'Accepted spoon plan suggestion from ' + (data.suggestedByName || 'supporter')
+      });
       // Apply the suggested plan to the student's real spoonPlans doc
       return window.AA.saveSpoonPlan(uid, {
         tasks: data.tasks || [],
@@ -989,6 +1018,10 @@
   };
 
   window.AA.rejectSuggestion = function (uid, suggestionId) {
+    // Claude: 2026-03-08 — audit log: student rejected a plan suggestion
+    window.AA.logAccess('reject', uid, 'spoonPlan', {
+      detail: 'Rejected spoon plan suggestion'
+    });
     return db.collection('spoonPlanSuggestions').doc(uid)
       .collection('pending').doc(suggestionId)
       .update({ status: 'rejected', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -1004,6 +1037,12 @@
   window.AA.suggestMode = function (studentUid, mode, semiVisible) {
     var user = auth.currentUser;
     if (!user) return Promise.reject(new Error('Not signed in'));
+    // Claude: 2026-03-08 — audit log: mode suggestion created
+    var modeLabel = mode === 'nope' ? 'Nope Mode' : mode === 'semi-nope' ? 'Semi-Nope' : 'Cancel Nope';
+    window.AA.logAccess('suggest', studentUid, 'nope', {
+      detail: 'Suggested ' + modeLabel,
+      mirrorOf: studentUid
+    });
     return db.collection('modeSuggestions').doc(studentUid)
       .collection('pending').add({
         mode: mode,
@@ -1029,6 +1068,10 @@
   };
 
   window.AA.respondModeSuggestion = function (uid, suggestionId, accepted) {
+    // Claude: 2026-03-08 — audit log: student responded to mode suggestion
+    window.AA.logAccess(accepted ? 'accept' : 'reject', uid, 'nope', {
+      detail: accepted ? 'Accepted mode suggestion' : 'Dismissed mode suggestion'
+    });
     return db.collection('modeSuggestions').doc(uid)
       .collection('pending').doc(suggestionId)
       .update({ status: accepted ? 'accepted' : 'dismissed', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -1044,6 +1087,11 @@
   window.AA.suggestMeals = function (studentUid, dateKey, meals) {
     var user = auth.currentUser;
     if (!user) return Promise.reject(new Error('Not signed in'));
+    // Claude: 2026-03-08 — audit log: meal suggestion created
+    window.AA.logAccess('suggest', studentUid, 'mealPlan', {
+      detail: 'Suggested ' + meals.length + ' meal(s) for ' + dateKey,
+      mirrorOf: studentUid
+    });
     return db.collection('mealSuggestions').doc(studentUid)
       .collection('pending').add({
         meals: meals,
@@ -1069,62 +1117,122 @@
   };
 
   window.AA.respondMealSuggestion = function (uid, suggestionId, accepted) {
+    // Claude: 2026-03-08 — audit log: student responded to meal suggestion
+    window.AA.logAccess(accepted ? 'accept' : 'reject', uid, 'mealPlan', {
+      detail: accepted ? 'Accepted meal suggestion' : 'Dismissed meal suggestion'
+    });
     return db.collection('mealSuggestions').doc(uid)
       .collection('pending').doc(suggestionId)
       .update({ status: accepted ? 'accepted' : 'dismissed', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
   };
 
-  /* ── Audit Log — HIPAA compliance, logs PHI access ──────────────────────
+  /* ── Audit Log — FERPA/HIPAA compliance, logs PHI access ────────────────
      Path: /auditLog/{targetUid}/entries/{logId}
      Restructured 2026-03-03 for student visibility (FERPA: students can read
      their own audit trail to see who accessed their data).
-     Kept minimal: who, what, when. Not logged: actual data content.
-     Do not log self-access (owner reading own data) — log cross-user access only.
-     Added 2026-03-03 by Claude.
+     Reworked 2026-03-08 by Claude — fixed role race condition, added mirror
+     context, richer action types (suggest, accept, reject, mode-change),
+     and optional detail field for human-readable context.
   ─────────────────────────────────────────────────────────────────────── */
-  // Claude: 2026-03-05 — queue for entries that arrive before auth is ready
+
+  // Claude: 2026-03-08 — role cache: resolved once per session, used by all entries
+  var _roleResolved = false;
+  var _rolePromise  = null;
+
+  /**
+   * Ensure we have the actor's role before writing audit entries.
+   * If shared-header already set _currentRole, use it immediately.
+   * Otherwise, fetch it from Firestore (one-time) so we never write "unknown".
+   */
+  function _ensureRole(user) {
+    if (window.AA._currentRole && window.AA._currentRole !== 'pending') {
+      return Promise.resolve(window.AA._currentRole);
+    }
+    if (_rolePromise) return _rolePromise;
+    _rolePromise = db.collection('users').doc(user.uid).get()
+      .then(function(doc) {
+        var role = doc.exists ? (doc.data().role || 'student') : 'student';
+        window.AA._currentRole = role;
+        _roleResolved = true;
+        return role;
+      })
+      .catch(function() { return 'unknown'; });
+    return _rolePromise;
+  }
+
+  // Claude: 2026-03-08 — queue for entries that arrive before auth is ready
   var _auditQueue = [];
 
-  function _writeAuditEntry(user, targetUid, action, dataType) {
-    db.collection('auditLog').doc(targetUid)
-      .collection('entries').add({
+  /**
+   * Write a single audit entry. Waits for role resolution first.
+   * @param {Object} user         - Firebase auth user
+   * @param {string} targetUid    - Student whose data was accessed
+   * @param {string} action       - read | write | suggest | accept | reject | mode-change | mirror-view
+   * @param {string} dataType     - checkin | mealLog | mealPlan | spoonPlan | nope | audioNote | etc.
+   * @param {Object} [meta]       - Optional extra context
+   * @param {string} [meta.detail]      - Human-readable detail ("Suggested Nope mode")
+   * @param {string} [meta.mirrorOf]    - Student UID being mirrored (if applicable)
+   * @param {string} [meta.mirrorName]  - Student display name being mirrored
+   */
+  function _writeAuditEntry(user, targetUid, action, dataType, meta) {
+    meta = meta || {};
+    _ensureRole(user).then(function(role) {
+      var entry = {
         actorUid:   user.uid,
         actorEmail: user.email || '',
-        actorRole:  window.AA._currentRole || '',
+        actorRole:  role,
         targetUid:  targetUid,
         dataType:   dataType,
         action:     action,
         timestamp:  firebase.firestore.FieldValue.serverTimestamp()
-      }).catch(function(err) {
-        console.warn('[AA] auditLog write failed:', err.code, err.message);
-      });
+      };
+      // Claude: 2026-03-08 — optional rich fields
+      if (meta.detail)     entry.detail     = meta.detail;
+      if (meta.mirrorOf)   entry.mirrorOf   = meta.mirrorOf;
+      if (meta.mirrorName) entry.mirrorName = meta.mirrorName;
+
+      db.collection('auditLog').doc(targetUid)
+        .collection('entries').add(entry)
+        .catch(function(err) {
+          console.warn('[AA] auditLog write failed:', err.code, err.message);
+        });
+    });
   }
 
-  // Claude: flush the queue once auth is confirmed
+  // Claude: 2026-03-08 — flush the queue once auth is confirmed (now waits for role too)
   auth.onAuthStateChanged(function(user) {
     if (!user || !_auditQueue.length) return;
-    var queued = _auditQueue.splice(0);
-    queued.forEach(function(entry) {
-      _writeAuditEntry(user, entry.targetUid, entry.action, entry.dataType);
+    _ensureRole(user).then(function() {
+      var queued = _auditQueue.splice(0);
+      queued.forEach(function(entry) {
+        _writeAuditEntry(user, entry.targetUid, entry.action, entry.dataType, entry.meta);
+      });
     });
   });
 
-  window.AA.logAccess = function(action, targetUid, dataType) {
+  /**
+   * Public API: log a data access event.
+   * @param {string} action     - read | write | suggest | accept | reject | mode-change | mirror-view
+   * @param {string} targetUid  - Student whose data was accessed
+   * @param {string} dataType   - Type of data accessed
+   * @param {Object} [meta]     - Optional: { detail, mirrorOf, mirrorName }
+   */
+  window.AA.logAccess = function(action, targetUid, dataType, meta) {
     var user = auth.currentUser;
     if (!user) {
-      // Claude: queue it — auth may not be ready yet on page load
-      _auditQueue.push({ action: action, targetUid: targetUid, dataType: dataType });
+      _auditQueue.push({ action: action, targetUid: targetUid, dataType: dataType, meta: meta || {} });
       return;
     }
-    _writeAuditEntry(user, targetUid, action, dataType);
+    _writeAuditEntry(user, targetUid, action, dataType, meta);
   };
 
-  /* Get the last 50 audit log entries for a given student (FERPA audit viewer) */
+  /* Get the last 100 audit log entries for a given student (FERPA audit viewer)
+     Claude: 2026-03-08 — bumped from 50 to 100 for better audit coverage */
   window.AA.getAuditLog = function(targetUid) {
     return db.collection('auditLog').doc(targetUid)
       .collection('entries')
       .orderBy('timestamp', 'desc')
-      .limit(50)
+      .limit(100)
       .get()
       .then(function(snap) {
         return snap.docs.map(function(doc) { return Object.assign({id: doc.id}, doc.data()); });
