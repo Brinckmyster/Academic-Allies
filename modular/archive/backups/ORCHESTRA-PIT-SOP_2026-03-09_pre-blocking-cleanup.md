@@ -34,7 +34,14 @@ Stage Manager (CAj) personality is always persistent and always referenced, but 
 
 
 
-<!-- Claude: 2026-03-09 — Resolved merge conflict, kept deduplicated version -->
+<<<<<<< HEAD
+## Meta: Orchestra Pit SOP Process Requirements
+- All rules (SOP) must be listed here and shown in every CAj answer’s footer.
+- Before changing any file anywhere in this project, ALWAYS make a backup copy into modular/archive/backups.
+- Only push changes to the repo when you are ready for them to go live. No “local” check is needed—changes go live as soon as you push.
+- Never give a bunch of Bash codes if one code needs another to work first.
+=======
+>>>>>>> 30faf36 (CAj: Remove duplicated intro/preamble blocks, keep only one labeled SOP Intro at top; dedupe Meta and Footer sections.)
 
 ## General SOP Principles
 - Keep It Simple, Stupid! (KISS)
@@ -52,17 +59,16 @@ Stage Manager (CAj) personality is always persistent and always referenced, but 
 - REQUIRED: The very last thing in every CAj answer, always, must be “The Pit” footer, with all current rules.
 
 ## Blocking: Issues Still Being Tracked
-<!-- Claude: 2026-03-09 — Cleared resolved items from blocking list -->
-- ~~Headers that should be footers~~ — Resolved
-- ~~Status circle dragability~~ — Resolved
-- ~~True header content~~ — Resolved (header fully built with nav, auth, mode bar, branding)
-- ~~Firebase/GitHub sync~~ — Resolved
-- ~~.gitignore problems~~ — Resolved
-- ~~Messages system~~ — Resolved
-- ~~Spoon planner module~~ — Resolved
-- ~~Modes module~~ — Resolved (all 6 modes working: Normal, Recovery, Bad Brain, Semi-Nope, NOPE, Migraine)
-- ~~Templates system~~ — Resolved (3 templates with print + email)
-- ~~User-tiers system~~ — Resolved (5-tier system with color badges, mirror mode, permissions panel)
-- ~~success guide CSS~~ — No actionable CSS exists. Archive PDF is a personal accommodations reference doc (May 2025), not a web design template. Leaving as-is unless a design is provided later.
-- ~~index cleanup~~ — Resolved
+- Headers that should be footers
+- Status circle dragability
+- True header content
+- Firebase/GitHub sync
+- .gitignore problems
+- Messages system
+- Spoon planner module
+- Modes module
+- Templates system
+- User-tiers system
+- success guide CSS
+- index cleanup
 - Any others you notice—just add to this list
