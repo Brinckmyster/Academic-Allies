@@ -26,9 +26,11 @@
       '.nav-list a[href*="checkin.html"]',
       '#checkinPrompt'
     ],
+    /* Claude: 2026-03-09 — #spoonpalCard removed from here.
+       SpoonPal is role-gated (admin-only via shared-header), NOT mode-gated.
+       The enforcer was overriding the role-based display:none and showing it to students. */
     spoonPlanner: [
-      'a.module-card[href*="spoon-planner.html"]',
-      '#spoonpalCard'
+      'a.module-card[href*="spoon-planner.html"]'
     ],
     mealPlan: [
       'a.module-card[href*="meal-planner"]'
