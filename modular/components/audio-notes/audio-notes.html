@@ -61,11 +61,16 @@
     .note-rename-input { flex: 1; padding: 4px 8px; border: 1.5px solid #6CA0A3; border-radius: 6px; font-size: 11pt; font-family: inherit; }
     .note-rename-save { background: #6CA0A3; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 10pt; }
     .note-rename-cancel { background: none; border: none; color: #aaa; cursor: pointer; font-size: 10pt; }
+    /* Claude: 2026-03-08 — added max-height + overflow so recovered drafts
+       don't push the notes list off-screen */
     #liveTranscript {
       margin: 12px auto; max-width: 560px; min-height: 48px; padding: 10px 14px;
       background: #fff; border: 1px solid #e1e5e9; border-radius: 8px;
       font-size: 12pt; color: #555; white-space: pre-wrap; display: none;
+      max-height: 200px; overflow-y: auto;
     }
+    /* Draft action buttons */
+    #draftActions button:hover { opacity: 0.9; }
     #liveTranscript .interim { color: #aaa; font-style: italic; }
 
     /* ── Category modal ── */
@@ -170,6 +175,11 @@
         <div id="speechWarning"></div>
       </div>
       <div id="liveTranscript"></div>
+      <!-- Claude: 2026-03-08 — action buttons for live/recovered transcripts -->
+      <div id="draftActions" style="display:none;text-align:center;margin:10px auto;max-width:560px;display:none;">
+        <button id="saveToDocsBtn" onclick="window._saveTranscriptToDocs()" style="padding:8px 18px;background:#1a73e8;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-right:8px;">📄 Save transcript to Docs</button>
+        <button id="discardDraftBtn" onclick="window._discardDraft()" style="padding:8px 18px;background:#dc3545;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Discard draft</button>
+      </div>
 
       <!-- Search / filter -->
       <div class="filter-bar">
@@ -411,6 +421,50 @@
         })
         .catch(function(err) {
           console.warn('[AudioNotes] Drive upload failed:', err);
+          return null;
+        });
+    }
+
+    /* Claude: 2026-03-08 — create a Google Doc from transcript text.
+       Uses Drive API v3 multipart upload with convert-to-Docs mimeType.
+       Returns { id, webViewLink } or null on failure. */
+    function createGoogleDoc(title, text) {
+      return getDriveToken()
+        .then(function(token) {
+          return getOrCreateDriveFolder(token).then(function(folderId) {
+            var boundary = 'aa_doc_' + Date.now();
+            var metadata = JSON.stringify({
+              name: title || 'Audio Note Transcript',
+              parents: [folderId],
+              mimeType: 'application/vnd.google-apps.document'
+            });
+            var textBlob = new Blob([text], { type: 'text/plain' });
+            var body = new Blob([
+              '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',
+              metadata,
+              '\r\n--' + boundary + '\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n',
+              textBlob,
+              '\r\n--' + boundary + '--'
+            ]);
+            return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'multipart/related; boundary=' + boundary
+              },
+              body: body
+            }).then(function(r) {
+              if (r.status === 401) {
+                driveToken = null;
+                throw new Error('Drive token expired');
+              }
+              if (!r.ok) throw new Error('Docs create HTTP ' + r.status);
+              return r.json();
+            });
+          });
+        })
+        .catch(function(err) {
+          console.warn('[AudioNotes] Google Doc creation failed:', err);
           return null;
         });
     }
@@ -1159,17 +1213,19 @@
             if (noteTitleInput) noteTitleInput.value = noteTitle;
             if (liveEl && transcript) { liveEl.style.display = 'block'; liveEl.textContent = transcript; }
 
+            /* Claude: 2026-03-08 — show discard button so user can clear junk drafts */
+            var discardBtn = document.getElementById('discardDraftBtn');
+            if (discardBtn) discardBtn.style.display = 'block';
+
             if (draft.audioBlob) {
-              /* Restore audio blob so the normal save flow (Drive upload + Firestore) runs */
               audioChunks    = [draft.audioBlob];
               recordingMimeType = draft.mimeType || 'audio/webm';
               recordStartTime   = Date.now() - (draft.duration || 0) * 1000;
-              if (statusEl) statusEl.textContent = 'Recording recovered — tap a category to save';
-              showToast('Recording recovered! Tap a category button to save it.', 10000);
+              if (statusEl) statusEl.textContent = 'Recording recovered — tap a category to save, or discard below';
+              showToast('Recording recovered! Tap a category to save, or discard it.', 10000);
             } else {
-              /* Audio blob didn't survive — transcript only */
-              if (statusEl) statusEl.textContent = 'Transcript recovered — tap a category to save';
-              showToast('Transcript recovered from last session. Tap a category to save.', 8000);
+              if (statusEl) statusEl.textContent = 'Transcript recovered — tap a category to save, or discard below';
+              showToast('Transcript recovered. Tap a category to save, or discard it.', 8000);
             }
           };
         });
@@ -1203,6 +1259,27 @@
           }
         } catch(e) {}
       }
+
+      /* Claude: 2026-03-08 — discard recovered draft (clears transcript, audio, and UI) */
+      window._discardDraft = function() {
+        transcript = '';
+        audioChunks = [];
+        noteTitle = '';
+        recordingGps = null;
+        recordingAddress = null;
+        recordStartTime = null;
+        var liveEl = document.getElementById('liveTranscript');
+        if (liveEl) { liveEl.style.display = 'none'; liveEl.textContent = ''; }
+        var statusEl = document.getElementById('recordStatus');
+        if (statusEl) statusEl.textContent = 'Tap to start recording';
+        var titleEl = document.getElementById('noteTitleInput');
+        if (titleEl) titleEl.value = '';
+        var discardBtn = document.getElementById('discardDraftBtn');
+        if (discardBtn) discardBtn.style.display = 'none';
+        /* Also clear any lingering localStorage backup */
+        try { localStorage.removeItem('AA_AUDIO_TRANSCRIPT_BACKUP'); } catch(e) {}
+        showToast('Draft discarded.', 3000);
+      };
 
       window.AA.auth.onAuthStateChanged(function(user) {
         if (!user) {
