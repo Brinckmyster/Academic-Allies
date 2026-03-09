@@ -135,30 +135,6 @@
     /* State messages */
     #loading-msg, #signin-msg { text-align: center; padding: 40px; color: #aaa; font-size: 1rem; }
 
-    /* ── Permissions Reference Panel ── Claude: 2026-03-09 ── */
-    #permissions-ref { display: none; margin-bottom: 24px; }
-    .perms-section {
-      background: #fff; border: 1px solid #e1e5e9; border-radius: 10px;
-      padding: 18px 20px; margin-bottom: 12px;
-    }
-    .perms-section h3 { margin: 0 0 12px; font-size: 1rem; }
-    .perms-section.perms-student h3  { color: #4a7f82; }
-    .perms-section.perms-nl h3       { color: #6366f1; }
-    .perms-section.perms-family h3   { color: #f59e0b; }
-    .perms-section.perms-support h3  { color: #10b981; }
-    .perms-section.perms-nearby h3   { color: #f97316; }
-    .perms-section.perms-sudo h3     { color: #b45309; }
-    .perms-list { list-style: none; padding: 0; margin: 0; }
-    .perms-list li {
-      padding: 6px 0; font-size: 0.88rem; color: #444;
-      border-bottom: 1px solid #f5f5f5;
-      display: flex; align-items: flex-start; gap: 8px;
-    }
-    .perms-list li:last-child { border-bottom: none; }
-    .perms-icon { flex-shrink: 0; width: 20px; text-align: center; }
-    .perms-toggle { font-size: 0.82rem; color: #1a73e8; cursor: pointer; margin-top: 8px; display: inline-block; }
-    .perms-toggle:hover { text-decoration: underline; }
-
     /* ── Invite generator (student-only) ── Added 2026-02-26 by Claude ── */
     #invite-section { margin-top: 16px; }
     .invite-panel { background: #fff; border: 1px solid #e1e5e9; border-radius: 10px; padding: 18px 20px; }
@@ -292,12 +268,6 @@
       </select>
     </div>
     <div id="nl-student-heading"></div>
-
-    <!-- Claude: 2026-03-09 — Permissions Reference Panel
-         Rendered by JS based on the viewer's role.
-         Student sees ALL tiers explained. Network Lead sees theirs.
-         Other tiers see only their own permissions. -->
-    <div id="permissions-ref"></div>
 
     <!-- Platform admin: pick which student's network to manage -->
     <div id="student-picker-wrap">
@@ -543,8 +513,6 @@
           }
 
           if (data.role === 'student') {
-            /* Claude: 2026-03-09 — show full permissions reference for students */
-            renderPermissionsRef('student');
             /* Student = sudo over their OWN network.
                But if a ?student=uid param points to someone else, check whether
                the signed-in student is in that person's supportNetwork.
@@ -582,8 +550,6 @@
             }
 
           } else if (isPlatformAdmin) {
-            /* Claude: 2026-03-09 — show full permissions reference for sudo */
-            renderPermissionsRef('backstage-manager');
             /* Platform admin = can edit any student's network on their behalf.
                Student always has override power — they can change it back. */
             isMirrorMode = false;
@@ -593,8 +559,6 @@
             document.getElementById('loading-msg').style.display = 'none';
 
           } else if (data.role === 'network-lead') {
-            /* Claude: 2026-03-09 — show network-lead permissions reference */
-            renderPermissionsRef('network-lead');
             /* Network Lead → full edit access to their student's network + profile.
                Updated 2026-02-28 by Claude: isMirrorMode false so tier selectors, save,
                remove, and add-panel are all visible. Invite section stays student-only
@@ -604,8 +568,6 @@
             activateNetworkLeadMode(data.displayName || user.displayName || 'You');
 
           } else if (MIRROR_ROLES.indexOf(data.role) !== -1) {
-            /* Claude: 2026-03-09 — show just their own permissions */
-            renderPermissionsRef(data.role);
             /* Support / Family / Nearby Help → pure read-only mirror */
             isMirrorMode = true;
             activateMirrorMode(data.role, data.displayName || user.displayName || 'You');
@@ -622,151 +584,6 @@
       'family':       'Family Member',
       'nearby-help':  'Nearby Help'
     };
-
-    /* ── Permissions Reference ─── Claude: 2026-03-09 ──────────────────
-       Builds a role-appropriate explanation of what each tier can do.
-       Student + Backstage Manager see ALL tiers. Network Lead sees theirs
-       plus the tiers below. Family/Support/Nearby-Help see only their own.
-    ──────────────────────────────────────────────────────────────────── */
-    var PERM_DATA = {
-      student: {
-        title: '👑 Student (You)',
-        cls: 'perms-student',
-        items: [
-          ['👑', 'Full control over your own support network — add, remove, or change anyone\'s tier'],
-          ['🔒', 'Only you can grant Network Lead access to someone'],
-          ['🎫', 'Generate and revoke invite codes for new supporters'],
-          ['📋', 'Edit your own Student Profile (conditions, notes, modules, check-in prompts)'],
-          ['🔵', 'Set your own status circle, mode (NOPE, Recovery, Bad Brain, etc.)'],
-          ['🍽️', 'Full access to Meal Planner, Spoon Planner, Calendar, Messages'],
-          ['🎙️', 'Record and manage Audio Notes, send transcripts to Google Docs'],
-          ['📊', 'View your own Check-in Log and daily check-ins'],
-          ['🚨', 'Manage your Emergency Contacts'],
-          ['✅', 'Accept or reject suggestions from your support network'],
-          ['🔄', 'Override any change a Network Lead or Backstage Manager makes — you always have final say']
-        ]
-      },
-      'backstage-manager': {
-        title: '⚙️ Backstage Manager (Sudo)',
-        cls: 'perms-sudo',
-        items: [
-          ['⚙️', 'Platform-level admin — can view and manage ALL students\' networks'],
-          ['👤', 'Change any user\'s platform role (student, network-lead, family, support, nearby-help, pending, archived)'],
-          ['📧', 'Pre-register emails so new users get the right role on first sign-in'],
-          ['📦', 'Archive or restore user accounts'],
-          ['🔀', 'Merge duplicate accounts'],
-          ['📋', 'Edit any student\'s profile (conditions, notes, modules, prompts)'],
-          ['📊', 'View audit logs for any user'],
-          ['🔍', 'View any student\'s check-ins, meal plans, spoon plans, audio notes'],
-          ['🥄', 'Access SpoonPal (personal backstage tool)'],
-          ['⚠️', 'Student can always override your changes — you\'re a helper, not a dictator']
-        ]
-      },
-      'network-lead': {
-        title: '🌟 Network Lead',
-        cls: 'perms-nl',
-        items: [
-          ['🌟', 'Trusted support lead for one (or more) specific students'],
-          ['👥', 'Add, remove, and change tiers for members in your student\'s network'],
-          ['📋', 'Edit your student\'s profile — conditions, notes, modules, check-in prompts'],
-          ['🎫', 'Generate and revoke invite codes on behalf of your student'],
-          ['📊', 'View your student\'s live status, check-ins, meals, and flower quiz progress'],
-          ['💬', 'Send messages to your student and their network'],
-          ['🍽️', 'View and manage your student\'s meal plans'],
-          ['🚨', 'View and manage your student\'s emergency contacts'],
-          ['🛑', 'View your student\'s NOPE/Semi-NOPE status'],
-          ['📝', 'View your student\'s check-in log'],
-          ['🤖', 'Use AI Suggestions tool to get profile recommendations'],
-          ['⚠️', 'Student can always override your changes — they have final say']
-        ]
-      },
-      family: {
-        title: '👨‍👩‍👧 Family',
-        cls: 'perms-family',
-        items: [
-          ['👁️', 'View your student\'s support network (read-only — can\'t add or remove members)'],
-          ['📊', 'View your student\'s live status and check-in history'],
-          ['💬', 'Send messages and encouragement'],
-          ['🍽️', 'View meal plans and logged meals'],
-          ['📝', 'View check-in log entries'],
-          ['🎙️', 'View (but not edit) audio note transcripts'],
-          ['💡', 'Send suggestions for spoon plans, modes, and meals — student accepts or rejects'],
-          ['🚫', 'Cannot edit the student\'s profile, network, or settings']
-        ]
-      },
-      support: {
-        title: '🏫 Support (School Staff / Counselor)',
-        cls: 'perms-support',
-        items: [
-          ['👁️', 'Read-only view of the student\'s support network'],
-          ['📊', 'View the student\'s live status and check-in history'],
-          ['💬', 'Send messages and encouragement'],
-          ['📝', 'View check-in log entries'],
-          ['💡', 'Send suggestions — student accepts or rejects'],
-          ['🚫', 'Cannot edit profile, manage network, or access audio notes']
-        ]
-      },
-      'nearby-help': {
-        title: '🏘️ Nearby Help',
-        cls: 'perms-nearby',
-        items: [
-          ['🚨', 'Receive emergency alerts when the student needs local help'],
-          ['👁️', 'View the student\'s live status (limited)'],
-          ['💬', 'Send messages'],
-          ['💡', 'Send suggestions — student accepts or rejects'],
-          ['🚫', 'Cannot view detailed check-ins, meal plans, audio notes, or edit anything']
-        ]
-      }
-    };
-
-    function renderPermissionsRef(viewerRole) {
-      var el = document.getElementById('permissions-ref');
-      if (!el) return;
-
-      var sections = [];
-      if (viewerRole === 'student' || viewerRole === 'backstage-manager') {
-        /* Student and sudo see ALL tiers */
-        sections = ['student', 'backstage-manager', 'network-lead', 'family', 'support', 'nearby-help'];
-      } else if (viewerRole === 'network-lead') {
-        /* Network Lead sees their tier + the tiers below */
-        sections = ['network-lead', 'family', 'support', 'nearby-help'];
-      } else {
-        /* Everyone else sees just their own */
-        sections = [viewerRole];
-      }
-
-      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
-        + '<h2 style="margin:0;font-size:1.1rem;color:#4a7f82;">📖 Permissions Reference</h2>'
-        + '<span class="perms-toggle" id="perms-toggle-btn" onclick="togglePermissionsRef()">▼ Hide</span>'
-        + '</div>';
-      html += '<div id="perms-inner">';
-
-      sections.forEach(function(key) {
-        var p = PERM_DATA[key];
-        if (!p) return;
-        html += '<div class="perms-section ' + p.cls + '">';
-        html += '<h3>' + p.title + '</h3>';
-        html += '<ul class="perms-list">';
-        p.items.forEach(function(item) {
-          html += '<li><span class="perms-icon">' + item[0] + '</span><span>' + item[1] + '</span></li>';
-        });
-        html += '</ul></div>';
-      });
-
-      html += '</div>';
-      el.innerHTML = html;
-      el.style.display = 'block';
-    }
-
-    var _permsCollapsed = false;
-    function togglePermissionsRef() {
-      var inner = document.getElementById('perms-inner');
-      var btn   = document.getElementById('perms-toggle-btn');
-      if (!inner || !btn) return;
-      _permsCollapsed = !_permsCollapsed;
-      inner.style.display = _permsCollapsed ? 'none' : 'block';
-      btn.textContent = _permsCollapsed ? '▶ Show Permissions' : '▼ Hide';
-    }
 
     /* Admin edit mode banner — admin can edit on behalf of student */
     function activateAdminEditBanner(name) {
