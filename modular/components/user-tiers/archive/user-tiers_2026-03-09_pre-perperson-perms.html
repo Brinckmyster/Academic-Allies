@@ -159,48 +159,6 @@
     .perms-toggle { font-size: 0.82rem; color: #1a73e8; cursor: pointer; margin-top: 8px; display: inline-block; }
     .perms-toggle:hover { text-decoration: underline; }
 
-    /* ── Per-person permissions toggles ── Claude: 2026-03-09 ── */
-    .card-perms-wrap {
-      display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0; width: 100%;
-    }
-    .card-perms-wrap.open { display: block; }
-    .perm-toggle-row {
-      display: flex; align-items: center; gap: 8px; padding: 5px 0;
-      font-size: 0.85rem; color: #444;
-    }
-    .perm-toggle-row label { flex: 1; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-    .perm-switch {
-      position: relative; display: inline-block; width: 36px; height: 20px; flex-shrink: 0;
-    }
-    .perm-switch input { opacity: 0; width: 0; height: 0; }
-    .perm-slider {
-      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-      background: #ccc; border-radius: 20px; transition: 0.2s;
-    }
-    .perm-slider:before {
-      position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
-      background: #fff; border-radius: 50%; transition: 0.2s;
-    }
-    .perm-switch input:checked + .perm-slider { background: #4a7f82; }
-    .perm-switch input:checked + .perm-slider:before { transform: translateX(16px); }
-    .perm-switch input:disabled + .perm-slider { background: #e0e0e0; cursor: not-allowed; }
-    .btn-perms-toggle {
-      padding: 3px 10px; background: #fff; color: #4a7f82; border: 1px solid #b2d4d7;
-      border-radius: 5px; font-size: 11px; cursor: pointer; white-space: nowrap;
-    }
-    .btn-perms-toggle:hover { background: #f0f8f8; }
-    .btn-perms-save {
-      padding: 5px 14px; background: #4a7f82; color: #fff; border: none;
-      border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px; margin-right: 6px;
-    }
-    .btn-perms-save:hover { background: #3d6e71; }
-    .btn-perms-reset {
-      padding: 5px 14px; background: #fff; color: #888; border: 1px solid #ddd;
-      border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px;
-    }
-    .perm-revoked { color: #c0392b; text-decoration: line-through; opacity: 0.6; }
-    .perm-status { font-size: 0.78rem; margin-top: 6px; min-height: 16px; }
-
     /* ── Invite generator (student-only) ── Added 2026-02-26 by Claude ── */
     #invite-section { margin-top: 16px; }
     .invite-panel { background: #fff; border: 1px solid #e1e5e9; border-radius: 10px; padding: 18px 20px; }
@@ -810,186 +768,6 @@
       btn.textContent = _permsCollapsed ? '▶ Show Permissions' : '▼ Hide';
     }
 
-    /* ── Per-Person Permissions ─── Claude: 2026-03-09 ──────────────────
-       Each permission key has an icon, label, and boolean default per tier.
-       Stored in Firestore at users/{studentUid}.networkPermissions.{memberUid}.{key}
-       Tier sets the defaults; student/admin can override per person.
-    ──────────────────────────────────────────────────────────────────── */
-    var PERM_KEYS = [
-      { key: 'viewNetwork',     icon: '👥', label: 'View support network',         defaults: { 'network-lead': true,  family: true,  support: true,  'nearby-help': false } },
-      { key: 'viewCheckins',    icon: '📊', label: 'View check-in history',        defaults: { 'network-lead': true,  family: true,  support: true,  'nearby-help': false } },
-      { key: 'viewMealPlans',   icon: '🍽️', label: 'View meal plans',              defaults: { 'network-lead': true,  family: true,  support: false, 'nearby-help': false } },
-      { key: 'viewAudioNotes',  icon: '🎙️', label: 'View audio note transcripts',  defaults: { 'network-lead': true,  family: true,  support: false, 'nearby-help': false } },
-      { key: 'viewSpoonPlans',  icon: '🥄', label: 'View spoon plans',             defaults: { 'network-lead': true,  family: true,  support: false, 'nearby-help': false } },
-      { key: 'viewEmergency',   icon: '🚨', label: 'View emergency contacts',      defaults: { 'network-lead': true,  family: true,  support: false, 'nearby-help': true  } },
-      { key: 'viewStatus',      icon: '🔵', label: 'View live status & mode',      defaults: { 'network-lead': true,  family: true,  support: true,  'nearby-help': true  } },
-      { key: 'sendMessages',    icon: '💬', label: 'Send messages',                defaults: { 'network-lead': true,  family: true,  support: true,  'nearby-help': true  } },
-      { key: 'sendSuggestions',  icon: '💡', label: 'Send suggestions',             defaults: { 'network-lead': true,  family: true,  support: true,  'nearby-help': true  } },
-      { key: 'editProfile',     icon: '📋', label: 'Edit student profile',         defaults: { 'network-lead': true,  family: false, support: false, 'nearby-help': false } },
-      { key: 'manageNetwork',   icon: '🔧', label: 'Add/remove network members',   defaults: { 'network-lead': true,  family: false, support: false, 'nearby-help': false } },
-      { key: 'generateInvites', icon: '🎫', label: 'Generate invite codes',        defaults: { 'network-lead': true,  family: false, support: false, 'nearby-help': false } },
-      { key: 'editMealPlans',   icon: '🍽️', label: 'Edit meal plans',              defaults: { 'network-lead': true,  family: false, support: false, 'nearby-help': false } },
-      { key: 'editEmergency',   icon: '🚨', label: 'Edit emergency contacts',      defaults: { 'network-lead': true,  family: false, support: false, 'nearby-help': false } }
-    ];
-
-    /* Cache of loaded permissions per student */
-    var _loadedNetworkPerms = {};
-
-    /* Get effective permissions for a member: merge tier defaults with any overrides */
-    function getEffectivePerms(memberUid, tier) {
-      var overrides = (_loadedNetworkPerms && _loadedNetworkPerms[memberUid]) || {};
-      var result = {};
-      PERM_KEYS.forEach(function(pk) {
-        var tierDefault = pk.defaults[tier];
-        if (tierDefault === undefined) tierDefault = false;
-        /* If there's a per-person override, use it; otherwise use tier default */
-        result[pk.key] = (overrides[pk.key] !== undefined) ? overrides[pk.key] : tierDefault;
-      });
-      return result;
-    }
-
-    /* Check if a permission has been explicitly overridden (not just tier default) */
-    function isPermOverridden(memberUid, key) {
-      var overrides = (_loadedNetworkPerms && _loadedNetworkPerms[memberUid]) || {};
-      return overrides[key] !== undefined;
-    }
-
-    /* Build the per-person permissions toggle HTML for a member card */
-    function buildPermsToggleHtml(memberUid, tier) {
-      var perms = getEffectivePerms(memberUid, tier);
-      var html = '<div class="card-perms-wrap" id="perms-wrap-' + memberUid + '">';
-      html += '<div style="font-size:0.8rem;color:#888;margin-bottom:8px;">Toggle individual permissions for this person. Tier defaults shown in grey.</div>';
-
-      PERM_KEYS.forEach(function(pk) {
-        var isOn = perms[pk.key];
-        var tierDefault = pk.defaults[tier];
-        if (tierDefault === undefined) tierDefault = false;
-        var overridden = isPermOverridden(memberUid, pk.key);
-        var overrideTag = overridden
-          ? '<span style="font-size:0.7rem;color:#b45309;margin-left:4px;">(custom)</span>'
-          : '';
-
-        html += '<div class="perm-toggle-row' + (!isOn ? ' perm-revoked' : '') + '" id="ptr-' + memberUid + '-' + pk.key + '">';
-        html += '<label for="perm-' + memberUid + '-' + pk.key + '">';
-        html += '<span style="width:20px;text-align:center;">' + pk.icon + '</span>';
-        html += '<span>' + pk.label + overrideTag + '</span>';
-        html += '</label>';
-        html += '<span class="perm-switch">';
-        html += '<input type="checkbox" id="perm-' + memberUid + '-' + pk.key + '" '
-          + (isOn ? 'checked ' : '')
-          + (isMirrorMode ? 'disabled ' : '')
-          + 'onchange="onPermToggle(\'' + memberUid + '\', \'' + pk.key + '\', this.checked)">';
-        html += '<span class="perm-slider"></span>';
-        html += '</span>';
-        html += '</div>';
-      });
-
-      if (!isMirrorMode) {
-        html += '<div style="margin-top:10px;">';
-        html += '<button class="btn-perms-save" onclick="savePersonPerms(\'' + memberUid + '\')">Save Permissions</button>';
-        html += '<button class="btn-perms-reset" onclick="resetPersonPerms(\'' + memberUid + '\', \'' + tier + '\')">Reset to Tier Defaults</button>';
-        html += '</div>';
-      }
-      html += '<div class="perm-status" id="perm-status-' + memberUid + '"></div>';
-      html += '</div>';
-      return html;
-    }
-
-    /* Toggle a permission checkbox — updates the visual state immediately */
-    function onPermToggle(memberUid, key, checked) {
-      var row = document.getElementById('ptr-' + memberUid + '-' + key);
-      if (row) {
-        if (checked) row.classList.remove('perm-revoked');
-        else row.classList.add('perm-revoked');
-      }
-    }
-
-    /* Toggle the permissions panel open/closed */
-    function togglePersonPerms(memberUid) {
-      var wrap = document.getElementById('perms-wrap-' + memberUid);
-      if (!wrap) return;
-      wrap.classList.toggle('open');
-    }
-
-    /* Save per-person permissions to Firestore */
-    function savePersonPerms(memberUid) {
-      if (!currentStudentUid) return;
-      var statusEl = document.getElementById('perm-status-' + memberUid);
-
-      /* Gather current toggle states */
-      var perms = {};
-      PERM_KEYS.forEach(function(pk) {
-        var cb = document.getElementById('perm-' + memberUid + '-' + pk.key);
-        if (cb) perms[pk.key] = cb.checked;
-      });
-
-      /* Figure out which are overrides vs tier defaults */
-      var tier = _getMemberTier(memberUid);
-      var overrides = {};
-      PERM_KEYS.forEach(function(pk) {
-        var tierDefault = pk.defaults[tier];
-        if (tierDefault === undefined) tierDefault = false;
-        /* Only store the override if it differs from tier default */
-        if (perms[pk.key] !== tierDefault) {
-          overrides[pk.key] = perms[pk.key];
-        }
-      });
-
-      if (statusEl) { statusEl.style.color = '#888'; statusEl.textContent = 'Saving…'; }
-
-      /* Write to Firestore: users/{studentUid}.networkPermissions.{memberUid} */
-      var update = {};
-      update['networkPermissions.' + memberUid] = overrides;
-      AA.db.collection('users').doc(currentStudentUid).update(update)
-        .then(function() {
-          _loadedNetworkPerms[memberUid] = overrides;
-          if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Permissions saved!'; }
-          setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 3000);
-          /* Claude: 2026-03-09 — audit log */
-          if (AA.logAccess) AA.logAccess('write', currentStudentUid, 'networkPermissions');
-        })
-        .catch(function(err) {
-          if (statusEl) { statusEl.style.color = '#c0392b'; statusEl.textContent = '❌ ' + err.message; }
-        });
-    }
-
-    /* Reset a person's permissions back to their tier defaults */
-    function resetPersonPerms(memberUid, tier) {
-      if (!confirm('Reset all permissions for this person to the ' + (TIERS[tier] ? TIERS[tier].label : tier) + ' tier defaults?')) return;
-
-      /* Clear overrides in Firestore */
-      var update = {};
-      update['networkPermissions.' + memberUid] = firebase.firestore.FieldValue.delete();
-      AA.db.collection('users').doc(currentStudentUid).update(update)
-        .then(function() {
-          delete _loadedNetworkPerms[memberUid];
-          /* Re-render the toggles with tier defaults */
-          var wrap = document.getElementById('perms-wrap-' + memberUid);
-          if (wrap) {
-            var parent = wrap.parentElement;
-            var newHtml = buildPermsToggleHtml(memberUid, tier);
-            wrap.outerHTML = newHtml;
-            /* Re-open the panel */
-            var newWrap = document.getElementById('perms-wrap-' + memberUid);
-            if (newWrap) newWrap.classList.add('open');
-          }
-          var statusEl = document.getElementById('perm-status-' + memberUid);
-          if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Reset to defaults!'; }
-          setTimeout(function() { var s = document.getElementById('perm-status-' + memberUid); if (s) s.textContent = ''; }, 3000);
-        })
-        .catch(function(err) {
-          alert('Reset failed: ' + err.message);
-        });
-    }
-
-    /* Helper: look up a member's current tier from their card's dropdown */
-    function _getMemberTier(memberUid) {
-      var sel = document.getElementById('tier-' + memberUid);
-      if (sel) return sel.value;
-      /* Fallback: check the loaded network */
-      return 'support';
-    }
-
     /* Admin edit mode banner — admin can edit on behalf of student */
     function activateAdminEditBanner(name) {
       var banner = document.getElementById('mirror-banner');
@@ -1212,8 +990,6 @@
         if (!doc.exists) { showError('No profile found.'); return; }
         var data    = doc.data();
         var network = data.supportNetwork || {};
-        /* Claude: 2026-03-09 — load per-person permission overrides */
-        _loadedNetworkPerms = data.networkPermissions || {};
 
         /* Collect member uids to look up */
         var memberUids = Object.keys(network);
@@ -1275,13 +1051,9 @@
           'style="font-size:12px;color:#4a7f82;text-decoration:none;border:1px solid #b2d4d7;' +
           'border-radius:5px;padding:4px 9px;white-space:nowrap;" title="View their dashboard">👁 View</a>';
 
-        /* Claude: 2026-03-09 — permissions toggle button added to actions */
-        var permsBtn = '<button class="btn-perms-toggle" onclick="togglePersonPerms(\'' + m.uid + '\')" title="Edit individual permissions">⚙️ Permissions</button>';
-
         var actionsHtml = isMirrorMode
-          ? '<div class="card-actions">' + permsBtn + '<span style="font-size:12px;color:#818cf8;">read-only</span></div>'
+          ? '<div class="card-actions"><span style="font-size:12px;color:#818cf8;">read-only</span></div>'
           : '<div class="card-actions">' +
-              permsBtn +
               viewBtn +
               '<select class="tier-select-sm" id="tier-' + m.uid + '" onchange="updateBadge(\'' + m.uid + '\', this.value)">' +
                 tierOpts +
@@ -1290,11 +1062,6 @@
               '<button class="btn-remove" onclick="removeMember(\'' + m.uid + '\', \'' + esc(name) + '\')">Remove</button>' +
             '</div>';
 
-        /* Claude: 2026-03-09 — build per-person permissions toggle panel */
-        var permsHtml = buildPermsToggleHtml(m.uid, m.tier);
-
-        /* Card uses flex-wrap so the permissions panel drops below */
-        card.style.flexWrap = 'wrap';
         card.innerHTML =
           '<span class="tier-badge ' + tierInfo.badge + '">' + tierInfo.label + '</span>' +
           '<div class="card-info">' +
@@ -1302,8 +1069,7 @@
             '<div class="card-email">' + esc(email) + '</div>' +
             '<div class="card-desc">' + tierInfo.desc + '</div>' +
           '</div>' +
-          actionsHtml +
-          permsHtml;
+          actionsHtml;
 
         list.appendChild(card);
       });
