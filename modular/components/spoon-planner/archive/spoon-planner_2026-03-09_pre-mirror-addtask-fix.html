@@ -692,9 +692,6 @@
         }
 
         // Add new task
-        /* Claude: 2026-03-09 — addTask allowed in mirror mode so supporters can
-           build a plan to suggest. saveTasks() blocks Firestore writes in mirror,
-           and Confirm is hidden / replaced by "Suggest This Plan". */
         function addTask() {
             const name = document.getElementById('new-task-name').value.trim();
             const spoons = parseFloat(document.getElementById('new-task-spoons').value) || 1;
@@ -765,7 +762,6 @@
         }
 
         // Bulk actions
-        /* Claude: 2026-03-09 — clearAll allowed in mirror mode (local only, no Firestore write) */
         function clearAllTasks() {
             if (confirm('Clear all tasks? This cannot be undone.')) {
                 tasks = [];
@@ -892,16 +888,12 @@
         ──────────────────────────────────────────────────────────── */
         var _pendingSuggestions = [];
 
-        /* Claude: 2026-03-09 — supporters can build a plan (add/clear/rearrange tasks)
-           but can ONLY submit it as a suggestion, never confirm directly.
-           saveTasks() blocks Firestore writes in mirror mode.
-           Archive: spoon-planner_2026-03-09_pre-mirror-addtask-fix.html */
+        // Swap Confirm ↔ Suggest buttons based on mirror state
         function updateMirrorUI() {
             var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
                 && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
             var confirmBtn = document.getElementById('btn-confirm-plan');
             var suggestBtn = document.getElementById('btn-suggest-plan');
-            /* Swap Confirm ↔ Suggest — only action that changes */
             if (isMirror) {
                 if (confirmBtn) confirmBtn.style.display = 'none';
                 if (suggestBtn) suggestBtn.style.display = '';
@@ -937,42 +929,27 @@
             });
         }
 
-        /* Claude: 2026-03-09 — real-time listener so students see suggestions
-           even if they already have the page open when a supporter sends one.
-           Archive: spoon-planner_2026-03-09_pre-mirror-addtask-fix.html */
-        var _suggestionsUnsub = null;
+        // Check for pending suggestions (student's own view, not mirror)
         function checkForSuggestions() {
             var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
                 && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
             if (isMirror) return; // Only students see their own suggestions
             if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
             var uid = AA.auth.currentUser.uid;
-            /* Unsubscribe any previous listener */
-            if (_suggestionsUnsub) { _suggestionsUnsub(); _suggestionsUnsub = null; }
-            /* Live listener — fires immediately with current data, then on every change */
-            _suggestionsUnsub = AA.db.collection('spoonPlanSuggestions').doc(uid)
-                .collection('pending')
-                .where('status', '==', 'pending')
-                .onSnapshot(function(snapshot) {
-                    var suggestions = [];
-                    snapshot.forEach(function(doc) {
-                        var d = doc.data();
-                        d.id = doc.id;
-                        suggestions.push(d);
-                    });
-                    _pendingSuggestions = suggestions;
-                    var banner = document.getElementById('suggestions-banner');
-                    if (suggestions.length > 0) {
-                        document.getElementById('suggestions-count').textContent =
-                            suggestions.length + ' suggestion' + (suggestions.length > 1 ? 's' : '') +
-                            ' from your support network';
-                        banner.style.display = '';
-                    } else {
-                        banner.style.display = 'none';
-                    }
-                }, function(err) {
-                    console.warn('[AA] Suggestion listener error:', err.message);
-                });
+            AA.getPendingSuggestions(uid).then(function(suggestions) {
+                _pendingSuggestions = suggestions;
+                var banner = document.getElementById('suggestions-banner');
+                if (suggestions.length > 0) {
+                    document.getElementById('suggestions-count').textContent =
+                        suggestions.length + ' suggestion' + (suggestions.length > 1 ? 's' : '') +
+                        ' from your support network';
+                    banner.style.display = '';
+                } else {
+                    banner.style.display = 'none';
+                }
+            }).catch(function(err) {
+                console.warn('[AA] Could not check suggestions:', err.message);
+            });
         }
 
         function showSuggestions() {
