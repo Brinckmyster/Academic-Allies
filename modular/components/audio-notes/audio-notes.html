@@ -805,7 +805,38 @@
        We reset the 30-min inactivity timer immediately AND restart SpeechRecognition
        (which Chrome stops in background tabs) so transcription resumes seamlessly. */
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) return; // nothing to do when going to background
+      /* Claude: 2026-03-08 — when page goes HIDDEN during recording, immediately
+         save draft to IndexedDB + localStorage. This is the #1 most reliable event
+         on mobile — it fires on pull-to-refresh, tab switch, swipe-away, and
+         screen-lock. beforeunload/pagehide often DON'T fire on mobile phones.
+         Archive: previously only handled visibility-restored (SR restart). */
+      if (document.hidden) {
+        var isRec = mediaRecorder && mediaRecorder.state === 'recording';
+        var hasChunks = audioChunks && audioChunks.length > 0;
+        var hasTxt = transcript && transcript.trim();
+        if (isRec || hasChunks || hasTxt) {
+          // Flush any buffered partial chunk
+          if (isRec) { try { mediaRecorder.requestData(); } catch(ex) {} }
+          // Sync save transcript to localStorage (always completes)
+          try {
+            localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
+              transcript: (transcript || '').trim(),
+              title: (document.getElementById('noteTitleInput') || {}).value || '',
+              hasAudio: hasChunks || isRec,
+              savedAt: new Date().toISOString()
+            }));
+          } catch(ex) {}
+          // Async save full draft (audio + transcript) to IndexedDB
+          var blob = (hasChunks || isRec)
+            ? new Blob(audioChunks, { type: recordingMimeType })
+            : null;
+          _saveEmergencyDraft(blob);
+          console.log('[AA] Page hidden during recording — emergency draft saved');
+        }
+        return;
+      }
+
+      // ── Page becoming visible again ──
       // Reset session timer so screen-lock can't trigger a sign-out
       if (window.AA_isRecording || sessionStorage.getItem('AA_RECORDING_ACTIVE')) {
         if (window.AA_resetSessionTimer) {
@@ -1188,6 +1219,48 @@
       setTimeout(function() { waitForAA(cb, n + 1); }, 200);
     }
 
+    /* Claude: 2026-03-08 — MOVED to outer IIFE scope so beforeunload / pagehide /
+       visibilitychange handlers can call them. Previously these were inside the
+       waitForAA callback (block-scoped in strict mode), meaning all unload-time
+       saves silently threw ReferenceError and saved NOTHING. This was the root
+       cause of lost recordings on mobile refresh.
+       Archive: were inside waitForAA(function() { ... }) */
+    var _draftDB = null;
+    function _openDraftDB(cb) {
+      if (_draftDB) { cb(_draftDB); return; }
+      var req = indexedDB.open('AA_AudioDrafts', 1);
+      req.onupgradeneeded = function(e) {
+        e.target.result.createObjectStore('drafts', { keyPath: 'id' });
+      };
+      req.onsuccess = function(e) { _draftDB = e.target.result; cb(_draftDB); };
+      req.onerror   = function()  { cb(null); };
+    }
+
+    function _saveEmergencyDraft(audioBlob) {
+      var draft = {
+        id: 'pending',
+        uid: writeUid || '',
+        transcript: (transcript || '').trim(),
+        audioBlob: audioBlob || null,
+        mimeType: recordingMimeType || 'audio/webm',
+        title: noteTitle || '',
+        gps: recordingGps || null,
+        address: recordingAddress || null,
+        duration: recordStartTime ? Math.round((Date.now() - recordStartTime) / 1000) : 0,
+        savedAt: new Date().toISOString()
+      };
+      _openDraftDB(function(db) {
+        if (!db) {
+          /* IndexedDB unavailable — fall back to transcript-only via localStorage */
+          try { localStorage.setItem('AA_AUDIO_DRAFT_TEXT', draft.transcript); } catch(e) {}
+          return;
+        }
+        var tx = db.transaction('drafts', 'readwrite');
+        tx.objectStore('drafts').put(draft);
+        // Silent on background saves; toasts only on sign-out path
+      });
+    }
+
     waitForAA(function() {
       /* Claude: 2026-03-06 — grace period for auth null events, matching shared-header.
          Firebase fires onAuthStateChanged(null) transiently when the token expires in
@@ -1196,53 +1269,6 @@
          If we're genuinely signed out after 5s AND a recording was in progress,
          we save the transcript to localStorage as an emergency draft so it is never lost. */
       var _anGracePeriod = null;
-
-      /* Claude: 2026-03-06 — IndexedDB draft store (replaces localStorage version).
-         IndexedDB can hold the full audio blob (no size limit), so the actual
-         recording is saved, not just the transcript. */
-      var _draftDB = null;
-      function _openDraftDB(cb) {
-        if (_draftDB) { cb(_draftDB); return; }
-        var req = indexedDB.open('AA_AudioDrafts', 1);
-        req.onupgradeneeded = function(e) {
-          e.target.result.createObjectStore('drafts', { keyPath: 'id' });
-        };
-        req.onsuccess = function(e) { _draftDB = e.target.result; cb(_draftDB); };
-        req.onerror   = function()  { cb(null); };
-      }
-
-      function _saveEmergencyDraft(audioBlob) {
-        /* Stop speech recognition and collect any remaining audio first */
-        try { stopSpeechRecognition(); } catch(e) {}
-        var draft = {
-          id: 'pending',
-          uid: writeUid || '',
-          transcript: (transcript || '').trim(),
-          audioBlob: audioBlob || null,
-          mimeType: recordingMimeType || 'audio/webm',
-          title: noteTitle || '',
-          gps: recordingGps || null,
-          address: recordingAddress || null,
-          duration: recordStartTime ? Math.round((Date.now() - recordStartTime) / 1000) : 0,
-          savedAt: new Date().toISOString()
-        };
-        _openDraftDB(function(db) {
-          if (!db) {
-            /* IndexedDB unavailable — fall back to transcript-only via localStorage */
-            try { localStorage.setItem('AA_AUDIO_DRAFT_TEXT', draft.transcript); } catch(e) {}
-            showToast('Session ended — transcript saved as draft. Sign back in to recover.', 8000);
-            return;
-          }
-          var tx = db.transaction('drafts', 'readwrite');
-          tx.objectStore('drafts').put(draft);
-          tx.oncomplete = function() {
-            showToast('Session ended while recording — audio + transcript saved. Sign back in to continue.', 8000);
-          };
-          tx.onerror = function() {
-            showToast('Session ended — could not save audio draft.', 6000);
-          };
-        });
-      }
 
       function _restoreEmergencyDraft() {
         _openDraftDB(function(db) {
@@ -1279,12 +1305,14 @@
               audioChunks    = [draft.audioBlob];
               recordingMimeType = draft.mimeType || 'audio/webm';
               recordStartTime   = Date.now() - (draft.duration || 0) * 1000;
-              if (statusEl) statusEl.textContent = 'Recording recovered — tap a category to save, or discard below';
-              showToast('Recording recovered! Tap a category to save, or discard it.', 10000);
+              if (statusEl) statusEl.textContent = 'Recording recovered! Choose what to do below.';
+              showToast('Recording recovered! Save to Docs, Drive, or discard.', 10000);
             } else {
-              if (statusEl) statusEl.textContent = 'Transcript recovered — tap a category to save, or discard below';
-              showToast('Transcript recovered. Tap a category to save, or discard it.', 8000);
+              if (statusEl) statusEl.textContent = 'Transcript recovered! Choose what to do below.';
+              showToast('Transcript recovered. Save to Docs or discard.', 8000);
             }
+            /* Also add flexWrap for mobile layout */
+            if (draftActions) draftActions.style.flexWrap = 'wrap';
           };
         });
         /* Also clear any old localStorage fallback draft */
@@ -1310,7 +1338,7 @@
               var liveEl2 = document.getElementById('liveTranscript');
               if (liveEl2) { liveEl2.style.display = 'block'; liveEl2.textContent = transcript; }
               if (backup.title) {
-                var titleEl = document.getElementById('note-title');
+                var titleEl = document.getElementById('noteTitleInput');
                 if (titleEl && !titleEl.value) { titleEl.value = backup.title; }
               }
             }
@@ -1492,19 +1520,23 @@
       if (!isRecording && !hasChunks && !hasTxt) return; // nothing to protect
 
       // 1. Synchronous localStorage save — survives even if IndexedDB doesn't finish
-      if (hasTxt) {
+      // Claude: 2026-03-08 — save even if transcript is empty (Android has no SR)
+      // so we at least mark that audio exists for recovery
+      if (hasTxt || hasChunks || isRecording) {
         try {
           localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
-            transcript: transcript.trim(),
-            title:      (document.getElementById('note-title') || {}).value || '',
+            transcript: (transcript || '').trim(),
+            title:      (document.getElementById('noteTitleInput') || {}).value || '',
+            hasAudio:   hasChunks || isRecording,
             savedAt:    new Date().toISOString()
           }));
         } catch(ex) {}
       }
 
       // 2. Async IndexedDB save — best-effort (most browsers honour it in beforeunload)
-      if (hasChunks || hasTxt) {
-        var blob = hasChunks ? new Blob(audioChunks, { type: recordingMimeType }) : null;
+      if (hasChunks || hasTxt || isRecording) {
+        if (isRecording) { try { mediaRecorder.requestData(); } catch(ex) {} }
+        var blob = audioChunks.length ? new Blob(audioChunks, { type: recordingMimeType }) : null;
         _saveEmergencyDraft(blob);
       }
 
@@ -1539,10 +1571,12 @@
        If Sign Out is clicked (or forced sign-out fires) while a recording is active,
        stop the recorder cleanly, collect the blob, and save the full audio draft to
        IndexedDB before auth is cleared — same as the grace period path. */
-    /* Claude: 2026-03-06 — periodic transcript backup every 30 s during recording.
-       Saves transcript + title to localStorage so words survive even if the device
-       dies before IndexedDB can write the audio blob (unstable-device resilience).
-       AA_AUDIO_TRANSCRIPT_BACKUP is consumed by _restoreEmergencyDraft() on sign-in. */
+    /* Claude: 2026-03-08 — periodic FULL backup every 10s during recording.
+       Saves audio blob + transcript to IndexedDB AND transcript to localStorage.
+       Previous version only saved transcript to localStorage every 30s, which
+       meant Android (no speech recognition = no transcript) got ZERO backup,
+       and audio was only saved at unload time (too late on mobile refresh).
+       Archive: old version saved transcript-only to localStorage every 30s. */
     var _transcriptBackupTimer = null;
 
     function _startTranscriptBackup() {
@@ -1554,15 +1588,50 @@
         if (window.AA_resetSessionTimer) window.AA_resetSessionTimer();
 
         var t = (transcript || '').trim();
-        if (!t) return;
-        try {
-          localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
-            transcript: t,
-            title:      (document.getElementById('note-title') || {}).value || '',
-            savedAt:    new Date().toISOString()
-          }));
-        } catch (e) {}
-      }, 30000); // every 30 seconds
+        var hasChunks = audioChunks && audioChunks.length > 0;
+
+        // Claude: 2026-03-08 — save transcript to localStorage (fast, synchronous)
+        // Even if transcript is empty, save a marker that audio exists
+        if (t || hasChunks) {
+          try {
+            localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
+              transcript: t,
+              title:      (document.getElementById('noteTitleInput') || {}).value || '',
+              hasAudio:   hasChunks,
+              savedAt:    new Date().toISOString()
+            }));
+          } catch (e) {}
+        }
+
+        // Claude: 2026-03-08 — save FULL draft (audio + transcript) to IndexedDB
+        // This is the critical fix: on mobile, unload events are unreliable,
+        // so we save during recording instead of waiting for page death.
+        if (hasChunks || t) {
+          try {
+            var blob = hasChunks ? new Blob(audioChunks, { type: recordingMimeType }) : null;
+            _openDraftDB(function(db) {
+              if (!db) return;
+              var draft = {
+                id: 'pending',
+                uid: writeUid || '',
+                transcript: t,
+                audioBlob: blob,
+                mimeType: recordingMimeType || 'audio/webm',
+                title: noteTitle || '',
+                gps: recordingGps || null,
+                address: recordingAddress || null,
+                duration: recordStartTime ? Math.round((Date.now() - recordStartTime) / 1000) : 0,
+                savedAt: new Date().toISOString()
+              };
+              var tx = db.transaction('drafts', 'readwrite');
+              tx.objectStore('drafts').put(draft);
+              // Silent — no toast, this is background save
+            });
+          } catch(e) {
+            console.warn('[AudioNotes] Periodic IndexedDB backup failed:', e);
+          }
+        }
+      }, 10000); // every 10 seconds (was 30s — tighter window for mobile survival)
     }
 
     function _stopTranscriptBackup() {
