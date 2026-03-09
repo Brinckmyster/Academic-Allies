@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- ============================================================
      audio-notes/audio-notes.html — Academic Allies Audio Notes
-     Updated: 2026-03-05 by Claude
+     Updated: 2026-03-08 by Claude
        - Android beep suppression via AudioContext silence buffer trick:
          play near-silent 50ms buffer before each recognition.start()
          to prevent Android Chrome's system chime on SR re-acquisition.
@@ -176,9 +176,12 @@
       </div>
       <div id="liveTranscript"></div>
       <!-- Claude: 2026-03-08 — action buttons for live/recovered transcripts -->
-      <div id="draftActions" style="display:none;text-align:center;margin:10px auto;max-width:560px;display:none;">
+      <!-- Claude: 2026-03-08 — action buttons for live/recovered transcripts
+           Three options: save transcript to Google Docs, save audio to Drive, or discard -->
+      <div id="draftActions" style="display:none;text-align:center;margin:10px auto;max-width:560px;">
         <button id="saveToDocsBtn" onclick="window._saveTranscriptToDocs()" style="padding:8px 18px;background:#1a73e8;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-right:8px;">📄 Save transcript to Docs</button>
-        <button id="discardDraftBtn" onclick="window._discardDraft()" style="padding:8px 18px;background:#dc3545;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Discard draft</button>
+        <button id="saveToDriveBtn" onclick="window._saveToDriveViaCategory()" style="padding:8px 18px;background:#34a853;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-right:8px;">🎵 Save audio to Drive</button>
+        <button id="discardDraftBtn" onclick="window._discardDraft()" style="padding:8px 18px;background:#dc3545;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">🗑️ Discard</button>
       </div>
 
       <!-- Search / filter -->
@@ -775,10 +778,18 @@
       recordBtn.textContent = '🎙️';
       recordBtn.classList.remove('recording');
       recordBtn.title = 'Tap to record';
-      recordStatus.textContent = 'Select a category…';
+      recordStatus.textContent = 'What would you like to do with this recording?';
       noteTitleInput.disabled = false; // Claude: re-enable title input after recording
 
-      catModal.classList.add('open');
+      // Claude: 2026-03-08 — show all three options (Docs / Drive / Discard)
+      // instead of auto-opening catModal. User picks their action.
+      var draftActions = document.getElementById('draftActions');
+      if (draftActions) {
+        draftActions.style.display = 'flex';
+        draftActions.style.justifyContent = 'center';
+        draftActions.style.gap = '8px';
+        draftActions.style.flexWrap = 'wrap';
+      }
     }
 
     recordBtn.onclick = function() {
@@ -822,17 +833,27 @@
 
     document.getElementById('cancelCat').onclick = function() {
       catModal.classList.remove('open');
-      audioChunks = [];
-      transcript = '';
-      interimText = '';
-      noteTitle = '';
-      noteTitleInput.value = '';
-      noteTitleInput.disabled = false;
-      liveTranscript.style.display = 'none';
-      speechWarning.style.display = 'none';
-      gpsStatusEl.textContent = '';
-      recordStatus.textContent = 'Recording discarded';
-      setTimeout(function() { recordStatus.textContent = 'Tap to start recording'; }, 2000);
+      // Claude: 2026-03-08 — re-show draftActions so user can still pick Docs or Discard
+      var draftAct = document.getElementById('draftActions');
+      if (draftAct && (transcript || (audioChunks && audioChunks.length))) {
+        draftAct.style.display = 'flex';
+        draftAct.style.justifyContent = 'center';
+        draftAct.style.gap = '8px';
+        draftAct.style.flexWrap = 'wrap';
+        recordStatus.textContent = 'What would you like to do with this recording?';
+      } else {
+        audioChunks = [];
+        transcript = '';
+        interimText = '';
+        noteTitle = '';
+        noteTitleInput.value = '';
+        noteTitleInput.disabled = false;
+        liveTranscript.style.display = 'none';
+        speechWarning.style.display = 'none';
+        gpsStatusEl.textContent = '';
+        recordStatus.textContent = 'Recording discarded';
+        setTimeout(function() { recordStatus.textContent = 'Tap to start recording'; }, 2000);
+      }
     };
 
     // ── Save note ──────────────────────────────────────────────────────────────
@@ -908,6 +929,9 @@
             liveTranscript.style.display = 'none';
             speechWarning.style.display = 'none';
             gpsStatusEl.textContent = '';
+            // Claude: 2026-03-08 — hide draft action buttons after successful save
+            var draftAct = document.getElementById('draftActions');
+            if (draftAct) draftAct.style.display = 'none';
             audioChunks = [];
             transcript = '';
             interimText = '';
@@ -1001,6 +1025,10 @@
         var driveHtml = n.driveLink
           ? '<a href="' + escHtml(n.driveLink) + '" target="_blank" rel="noopener" style="font-size:10pt;color:#1a73e8;text-decoration:none;">▶ Play on Drive</a>'
           : '';
+        // Claude: 2026-03-08 — "Send to Docs" button for each saved note
+        var docsHtml = (n.transcript && !isMirror)
+          ? '<button class="note-to-docs" data-id="' + n._id + '" data-title="' + escHtml(n.title || '').replace(/"/g,'&quot;') + '" style="font-size:10pt;color:#1a73e8;background:none;border:none;cursor:pointer;padding:0;text-decoration:none;">📄 Send to Docs</button>'
+          : '';
 
         // Claude: 2026-03-05 — title row with inline rename button (own notes only)
         var titleHtml = '';
@@ -1025,6 +1053,7 @@
           + '<div class="note-footer">'
           +   '<span class="note-loc">' + locStr + '</span>'
           +   driveHtml
+          +   docsHtml
           +   deleteHtml
           + '</div>'
           + '</div>';
@@ -1093,6 +1122,33 @@
             if (e.key === 'Escape') cancelBtn.click();
           };
           cancelBtn.onclick = function() { renderNotes(); }; // restore view
+        };
+      });
+
+      // Claude: 2026-03-08 — wire "Send to Docs" buttons for saved notes
+      notesList.querySelectorAll('.note-to-docs').forEach(function(btn) {
+        btn.onclick = function() {
+          var noteId = btn.getAttribute('data-id');
+          var noteTitle = btn.getAttribute('data-title') || '';
+          // Find the full transcript from the allNotes array
+          var note = allNotes.find(function(n) { return n._id === noteId; });
+          if (!note || !note.transcript) {
+            showToast('No transcript to send');
+            return;
+          }
+          btn.disabled = true;
+          btn.textContent = 'Sending…';
+          var docTitle = (noteTitle || 'Audio Note') + ' — ' + new Date().toLocaleDateString();
+          createGoogleDoc(docTitle, note.transcript).then(function(result) {
+            if (result && result.webViewLink) {
+              showToast('Saved to Google Docs!');
+              window.open(result.webViewLink, '_blank');
+            } else {
+              showToast('Could not create Doc — check permissions');
+            }
+            btn.disabled = false;
+            btn.textContent = '📄 Send to Docs';
+          });
         };
       });
     }
@@ -1213,9 +1269,11 @@
             if (noteTitleInput) noteTitleInput.value = noteTitle;
             if (liveEl && transcript) { liveEl.style.display = 'block'; liveEl.textContent = transcript; }
 
-            /* Claude: 2026-03-08 — show discard button so user can clear junk drafts */
-            var discardBtn = document.getElementById('discardDraftBtn');
-            if (discardBtn) discardBtn.style.display = 'block';
+            /* Claude: 2026-03-08 — show draft action buttons (Save to Docs + Discard) */
+            var draftActions = document.getElementById('draftActions');
+            if (draftActions) draftActions.style.display = 'flex';
+            /* Justify center */
+            if (draftActions) { draftActions.style.justifyContent = 'center'; draftActions.style.gap = '8px'; }
 
             if (draft.audioBlob) {
               audioChunks    = [draft.audioBlob];
@@ -1261,6 +1319,7 @@
       }
 
       /* Claude: 2026-03-08 — discard recovered draft (clears transcript, audio, and UI) */
+      /* Claude: 2026-03-08 — discard recovered draft */
       window._discardDraft = function() {
         transcript = '';
         audioChunks = [];
@@ -1274,11 +1333,60 @@
         if (statusEl) statusEl.textContent = 'Tap to start recording';
         var titleEl = document.getElementById('noteTitleInput');
         if (titleEl) titleEl.value = '';
-        var discardBtn = document.getElementById('discardDraftBtn');
-        if (discardBtn) discardBtn.style.display = 'none';
-        /* Also clear any lingering localStorage backup */
+        var draftActions = document.getElementById('draftActions');
+        if (draftActions) draftActions.style.display = 'none';
         try { localStorage.removeItem('AA_AUDIO_TRANSCRIPT_BACKUP'); } catch(e) {}
         showToast('Draft discarded.', 3000);
+      };
+
+      /* Claude: 2026-03-08 — save transcript to Google Docs */
+      window._saveTranscriptToDocs = function() {
+        var text = (transcript || '').trim();
+        if (!text) {
+          showToast('No transcript to save.', 3000);
+          return;
+        }
+        var title = (noteTitle || '').trim();
+        var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        var docTitle = title
+          ? 'Audio Note — ' + title
+          : 'Audio Note Transcript — ' + ts;
+
+        var btn = document.getElementById('saveToDocsBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving to Docs…'; }
+
+        createGoogleDoc(docTitle, text).then(function(result) {
+          if (result && result.webViewLink) {
+            showToast('Transcript saved to Google Docs!', 5000);
+            /* Open the doc in a new tab */
+            window.open(result.webViewLink, '_blank');
+            /* Clear the transcript UI since it's been saved */
+            var liveEl = document.getElementById('liveTranscript');
+            if (liveEl) { liveEl.style.display = 'none'; liveEl.textContent = ''; }
+            transcript = '';
+            var draftActions = document.getElementById('draftActions');
+            if (draftActions) draftActions.style.display = 'none';
+            var statusEl = document.getElementById('recordStatus');
+            if (statusEl) statusEl.textContent = 'Tap to start recording';
+          } else {
+            showToast('Could not save to Docs. Check your Google permissions.', 5000);
+          }
+          if (btn) { btn.disabled = false; btn.textContent = '📄 Save transcript to Docs'; }
+        });
+      };
+
+      /* Claude: 2026-03-08 — open category modal so user can save audio to Drive
+         (the normal save-note flow handles Drive upload after category selection) */
+      window._saveToDriveViaCategory = function() {
+        if (!audioChunks || audioChunks.length === 0) {
+          showToast('No audio recorded to save.', 3000);
+          return;
+        }
+        var draftActions = document.getElementById('draftActions');
+        if (draftActions) draftActions.style.display = 'none';
+        var statusEl = document.getElementById('recordStatus');
+        if (statusEl) statusEl.textContent = 'Select a category…';
+        catModal.classList.add('open');
       };
 
       window.AA.auth.onAuthStateChanged(function(user) {
