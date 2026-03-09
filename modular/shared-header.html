@@ -137,14 +137,28 @@ Your disability accommodations and support network">Your disability accommodatio
       var keepSignedInWrap = document.getElementById('aa-keep-signed-in-wrap');
       var keepSignedInBox  = document.getElementById('aa-keep-signed-in');
 
-      /* Claude: 2026-03-06 — checkbox wired to localStorage + sessionStorage mirror */
+      /* Claude: 2026-03-08 — checkbox wired to localStorage + live persistence switch.
+         When unchecked while already signed in, immediately switch Firebase persistence
+         to SESSION so the session won't survive a browser close. When re-checked,
+         switch back to LOCAL so the session persists again. */
       if (keepSignedInBox) {
         var stored = localStorage.getItem('AA_KEEP_SIGNED_IN');
         keepSignedInBox.checked = stored !== 'false'; /* default: checked */
         keepSignedInBox.addEventListener('change', function () {
           var val = keepSignedInBox.checked ? 'true' : 'false';
           localStorage.setItem('AA_KEEP_SIGNED_IN', val);
-          sessionStorage.setItem('AA_KEEP_SIGNED_IN_SS', val); /* keep mirror in sync */
+          sessionStorage.setItem('AA_KEEP_SIGNED_IN_SS', val);
+          /* Live-switch persistence for the current session */
+          if (window.AA && window.AA.auth) {
+            var pType = keepSignedInBox.checked
+              ? firebase.auth.Auth.Persistence.LOCAL
+              : firebase.auth.Auth.Persistence.SESSION;
+            window.AA.auth.setPersistence(pType).then(function() {
+              console.log('[AA] Persistence switched to', keepSignedInBox.checked ? 'LOCAL' : 'SESSION');
+            }).catch(function(err) {
+              console.warn('[AA] setPersistence failed:', err.message);
+            });
+          }
         });
       }
       var welcomeBack    = document.getElementById('aa-welcome-back');
@@ -428,10 +442,11 @@ Your disability accommodations and support network">Your disability accommodatio
 
           /* Claude: 2026-03-06 — show welcome-back banner whenever a previous session is detected.
              Fixed: use lastUser.displayName (not .name — that field doesn't exist). */
-          if (lastUser && lastUser.displayName && welcomeBack && welcomeBackMsg) {
-            welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '! Tap "Sign in with Google" to continue.';
-            welcomeBack.style.display = 'flex';
-          }
+          /* Claude: 2026-03-08 — only show welcome-back if NOT auto-re-authing.
+             Previously showed welcome banner + disabled sign-in button simultaneously
+             which looked contradictory. Now: auto-re-auth shows a subtle "Resuming…"
+             message instead; welcome-back only appears if user must manually sign in. */
+          var _showWelcome = lastUser && lastUser.displayName && welcomeBack && welcomeBackMsg;
 
           /* Claude: 2026-03-08 — respect "Keep me signed in" checkbox.
              Only attempt auto re-auth when LOCAL persistence is active.
@@ -448,6 +463,10 @@ Your disability accommodations and support network">Your disability accommodatio
             console.warn('[AA header] Re-auth loop detected (' + _reauthAttempts + ' attempts) — showing sign-in button');
             sessionStorage.removeItem('AA_REAUTH_ATTEMPTS');
             sessionStorage.removeItem('AA_REAUTH_DONE');
+            if (_showWelcome) {
+              welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '!';
+              welcomeBack.style.display = 'flex';
+            }
             if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
             if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
             return;
@@ -459,10 +478,14 @@ Your disability accommodations and support network">Your disability accommodatio
                need more time. Poll every 200ms so we sign in as fast as possible. */
             sessionStorage.setItem('AA_REAUTH_DONE', '1');
             sessionStorage.setItem('AA_REAUTH_ATTEMPTS', String(_reauthAttempts + 1));
+            /* Claude: 2026-03-08 — show clean "Resuming…" in welcome banner, hide sign-in
+               button entirely during auto-re-auth to avoid contradictory UI */
+            if (_showWelcome) {
+              welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '! Resuming your session\u2026';
+              welcomeBack.style.display = 'flex';
+            }
             if (signinBtn) {
-              signinBtn.style.display = 'inline-flex';
-              signinBtn.disabled = true;
-              signinBtn.textContent = 'Resuming session\u2026';
+              signinBtn.style.display = 'none';
             }
             var _persistPollCount = 0;
             var _persistPoll = setInterval(function () {
@@ -484,11 +507,20 @@ Your disability accommodations and support network">Your disability accommodatio
             sessionStorage.setItem('AA_REAUTH_ATTEMPTS', String(_reauthAttempts + 1));
             _doSignIn(lastUser.email);
           } else {
+            /* Claude: 2026-03-08 — manual sign-in needed: show welcome + sign-in button */
+            if (_showWelcome) {
+              welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '!';
+              welcomeBack.style.display = 'flex';
+            }
             if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
             if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
           }
         }).catch(function (err) {
           console.warn('[AA header] getRedirectResult error:', err);
+          if (_showWelcome) {
+            welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '!';
+            welcomeBack.style.display = 'flex';
+          }
           if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
           if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
         });

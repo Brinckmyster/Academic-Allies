@@ -145,7 +145,10 @@
   <div id="site-header"></div>
 
   <div class="container">
-    <div id="signin-notice" style="text-align:center;padding:60px 0;color:#888;">Loading…</div>
+    <!-- Claude: 2026-03-08 — starts hidden; shown only after auth confirms no user.
+         Previously showed "Loading…" immediately which conflicted with shared-header's
+         own welcome-back/sign-in UI, creating contradictory messages. -->
+    <div id="signin-notice" style="text-align:center;padding:60px 0;color:#888;display:none;"></div>
 
     <div id="main-body" style="display:none;">
       <h1>🎙️ Audio Notes</h1>
@@ -1062,10 +1065,16 @@
     categoryFilter.onchange = renderNotes;
 
     // ── Auth + Init ────────────────────────────────────────────────────────────
+    // Claude: 2026-03-08 — on failure, show signin-notice (it starts hidden now)
     function waitForAA(cb, n) {
       n = n || 0;
       if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-      if (n > 40) { document.getElementById('signin-notice').textContent = 'Failed to load. Please refresh.'; return; }
+      if (n > 40) {
+        var el = document.getElementById('signin-notice');
+        el.textContent = 'Failed to load. Please refresh.';
+        el.style.display = 'block';
+        return;
+      }
       setTimeout(function() { waitForAA(cb, n + 1); }, 200);
     }
 
@@ -1224,9 +1233,12 @@
                 _saveEmergencyDraft(blob);
               }
             }
-            document.getElementById('signin-notice').textContent = 'Please sign in to use Audio Notes.';
+            /* Claude: 2026-03-08 — only show sign-in notice after confirmed sign-out
+               (grace period expired). Don't flash it during transient auth nulls. */
+            var noticeEl = document.getElementById('signin-notice');
+            noticeEl.textContent = 'Please sign in to use Audio Notes.';
             document.getElementById('main-body').style.display = 'none';
-            document.getElementById('signin-notice').style.display = 'block';
+            noticeEl.style.display = 'block';
             if (unsubNotes) unsubNotes();
           }, 5000);
           return;
