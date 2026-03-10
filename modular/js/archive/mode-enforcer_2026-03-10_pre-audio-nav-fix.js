@@ -43,11 +43,9 @@
       'a.module-card[href*="calendar.html"]',
       '.nav-list a[href*="calendar.html"]'
     ],
-    /* Claude: 2026-03-10 — selector changed from '#audioNotesNavLi a' to '#audioNotesNavLi'
-       to match shared-header which controls the <li> visibility, not the inner <a> */
     audioNotes: [
       'a.module-card[href*="audio-notes"]',
-      '#audioNotesNavLi'
+      '#audioNotesNavLi a'
     ],
     emergency: [
       'a.module-card[href*="emergency.html"]',
@@ -236,18 +234,12 @@
         if (doc.exists && doc.data().modeSettings) {
           _modeSettings = doc.data().modeSettings;
         }
-        /* Claude: 2026-03-10 — re-apply with 300ms delay to ensure shared-header's
-           auth handler has finished showing nav items (race condition fix).
-           Without this, mode-enforcer can skip elements that are still display:none
-           from their HTML default, then shared-header shows them, and nobody hides
-           them again for the active mode. */
-        setTimeout(function() {
-          var mode = getCurrentMode();
-          if (mode !== 'normal') {
-            _showAll();
-            applyMode(mode);
-          }
-        }, 300);
+        /* Re-apply now that we have custom settings */
+        var mode = getCurrentMode();
+        if (mode !== 'normal') {
+          _showAll();
+          applyMode(mode);
+        }
       }).catch(function() {
         /* Firestore failed — defaults already applied */
       });
@@ -260,15 +252,6 @@
     localStorage.setItem('appMode', modeKey);
     _showAll();
     applyMode(modeKey);
-  };
-  /* Claude: 2026-03-10 — re-apply current mode (called by shared-header after
-     showing nav items, to ensure mode-enforcer has the final say on visibility) */
-  window.AA_reapplyMode = function() {
-    var mode = getCurrentMode();
-    if (mode !== 'normal') {
-      _showAll();
-      applyMode(mode);
-    }
   };
 
 })();
