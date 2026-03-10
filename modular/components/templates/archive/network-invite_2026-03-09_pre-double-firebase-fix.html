@@ -14,7 +14,11 @@
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
 
-  <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. -->
+  <!-- Firebase SDK (needed for invite generation) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -255,13 +259,14 @@
       'network-lead': 'Network Lead (main coordinator)'
     };
 
-    /* Claude: 2026-03-09 — poll for window.AA (loaded by shared-header) */
-    function _waitForAA(cb) {
-      if (window.AA && AA.auth) { cb(); return; }
-      setTimeout(function() { _waitForAA(cb); }, 100);
+    function waitForAA(cb, tries) {
+      tries = tries || 0;
+      if (window.AA && window.AA.auth) { cb(); return; }
+      if (tries > 40) return;
+      setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
     }
 
-    _waitForAA(function() {
+    waitForAA(function() {
       AA.auth.onAuthStateChanged(function(user) {
         if (!user) {
           document.getElementById('signinMsg').style.display = 'block';
