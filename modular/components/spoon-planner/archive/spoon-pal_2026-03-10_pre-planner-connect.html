@@ -1740,11 +1740,6 @@
 
   // ── Save/load — Firestore-backed (Claude / aa-firebase.js integration) ─────────
   // Claude: BUG #1 FIX — timestamp-aware save to prevent last-write-wins from page refresh
-  /* Claude: 2026-03-10 — saveData now writes ONLY tracking data to spoonPal/{uid}.
-     Task definitions (name, spoons, time, priority) live in spoonPlans/{uid}
-     and are managed by SpoonPlanner. SpoonPal saves its overlay: per-task
-     tracking (lmj, fixed, status, notes) plus budget/check-in/debt/weather.
-     Archive: spoon-pal_2026-03-10_pre-planner-connect.html */
   function saveData() {
     // Skip save during initial load to prevent overwriting remote data
     if (isInitialLoad) {
@@ -1752,131 +1747,83 @@
       return;
     }
 
-    // Build per-task tracking array (indexes match SpoonPlanner task order)
-    var taskTracking = timeline.map(function(t) {
-      return {
-        matchName: t.description,  // for merge verification on load
-        lmj: t.lmj || '',
-        fixed: t.fixed || false,
-        status: t.status || 'incomplete',
-        notes: t.notes || ''
-      };
-    });
-
-    var obj = {
-      taskTracking: taskTracking,
-      checkIn: checkIn,
-      spoonDebtHistory: spoonDebtHistory,
-      dayStart: dayStart,
-      dayEnd: dayEnd,
-      weather: weather,
-      templates: templates,
-      dateKey: getTodayKey(),
-      savedAt: new Date().toISOString()
+    const incomingTimestamp = new Date();
+    const obj = {
+      timeline,
+      checkIn,
+      spoonDebtHistory,
+      dayStart,
+      dayEnd,
+      weather,
+      templates,
+      dateKey: getTodayKey(), // Fix #5: stale-data detection
+      savedAt: incomingTimestamp.toISOString()
     };
     if (window.AA && window.AA.db && currentUid) {
+      // FUNCTIONAL FIX 2026-03-07 by Claude: removed unnecessary pre-read before every write.
+      // incomingTimestamp = new Date() is always the current time, so it was always newer
+      // than any stored savedAt — the read never blocked the write but cost a full Firestore
+      // round-trip on every user interaction. Direct set() is correct here.
       window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
         .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
     }
   }
 
-  /* Claude: 2026-03-10 — loadData now reads from TWO Firestore sources:
-     1. spoonPlans/{uid} — task list (name, spoons, time, priority) from SpoonPlanner
-     2. spoonPal/{uid}   — tracking overlay (lmj, fixed, status, notes, checkIn, budget, debt)
-     SpoonPlanner is the source of truth for WHAT the plan is.
-     SpoonPal adds the tracking layer for HOW the day is going.
-     Archive: spoon-pal_2026-03-10_pre-planner-connect.html */
+  // Claude: BUG #1 FIX — timestamp-aware load with isInitialLoad flag
+  // Claude: BUG #5 FIX — filter out individual task templates on load
   function loadData(callback) {
     if (window.AA && window.AA.db && currentUid) {
-      // Read both sources in parallel
-      var plannerPromise = window.AA.db.collection('spoonPlans').doc(currentUid).get();
-      var trackingPromise = window.AA.db.collection('spoonPal').doc(currentUid).get();
-
-      Promise.all([plannerPromise, trackingPromise]).then(function(results) {
-        var plannerDoc = results[0];
-        var trackingDoc = results[1];
-
-        // 1. Build timeline from SpoonPlanner tasks
-        var plannerTasks = [];
-        if (plannerDoc.exists) {
-          var plannerData = plannerDoc.data();
-          plannerTasks = plannerData.tasks || [];
-        }
-
-        timeline = plannerTasks.map(function(pt) {
-          // Map SpoonPlanner format → SpoonPal timeline format
-          var timeStr = (pt.time || '');
-          // SpoonPlanner may store as HH:MM (24h) or "8:30 AM" — handle both
-          if (timeStr && /^\d{2}:\d{2}$/.test(timeStr)) {
-            timeStr = from24h(timeStr);
-          }
-          return {
-            time: timeStr,
-            lmj: '',
-            description: stripLeadingEmoji(pt.name || ''),
-            spoon: pt.spoons || 0,
-            priority: pt.priority || 'Medium',
-            fixed: false,
-            status: pt.completed ? 'complete' : 'incomplete',
-            notes: ''
-          };
-        });
-
-        // 2. Overlay tracking data from SpoonPal
-        if (trackingDoc.exists) {
-          var tracking = trackingDoc.data();
-          var taskTracking = tracking.taskTracking || [];
-
-          // Merge per-task tracking by index, verified by matchName
-          timeline.forEach(function(t, i) {
-            if (taskTracking[i]) {
-              var tr = taskTracking[i];
-              // If matchName matches (or no matchName stored), overlay tracking
-              if (!tr.matchName || tr.matchName === t.description) {
-                t.lmj = tr.lmj || '';
-                t.fixed = tr.fixed || false;
-                t.status = tr.status || t.status;
-                t.notes = tr.notes || '';
+      window.AA.db.collection('spoonPal').doc(currentUid).get()
+        .then(function(doc) {
+          if (doc.exists) {
+            const obj = doc.data();
+            // Claude 2026-03-06: strip any emoji baked into descriptions on load
+            // so old Firestore data with emoji in description fields is cleaned up
+            // automatically. Archive: timeline = obj.timeline || [];
+            timeline = (obj.timeline || []).map(function(t) {
+              return Object.assign({}, t, { description: stripLeadingEmoji(t.description || '') });
+            });
+            checkIn = obj.checkIn || checkIn;
+            spoonDebtHistory = obj.spoonDebtHistory || [];
+            dayStart = obj.dayStart || 8;
+            dayEnd = obj.dayEnd || 25;
+            weather = obj.weather || { desc: 'Loading...', impact: -1 };
+            // Claude: BUG #5 — only load day templates (type === 'day' or has tasks array)
+            const loadedTemplates = obj.templates || templates;
+            templates = {};
+            for (const key in loadedTemplates) {
+              const temp = loadedTemplates[key];
+              if (temp.type === 'day' || temp.tasks) {
+                templates[key] = temp;
               }
             }
-          });
-
-          // Load non-task tracking data
-          checkIn = tracking.checkIn || checkIn;
-          spoonDebtHistory = tracking.spoonDebtHistory || [];
-          dayStart = tracking.dayStart || 8;
-          dayEnd = tracking.dayEnd || 25;
-          weather = tracking.weather || { desc: 'Loading...', impact: -1 };
-
-          // Load day templates
-          var loadedTemplates = tracking.templates || templates;
-          templates = {};
-          for (var key in loadedTemplates) {
-            var temp = loadedTemplates[key];
-            if (temp.type === 'day' || temp.tasks) {
-              templates[key] = temp;
+            // Fix #5: stale-data detection
+            // Claude: 2026-03-07 — replaced blocking confirm() with auto-rollover + toast. Cache bust #22.
+            //   Archive: if (confirm(`Old data detected from ...`)) { rolloverDay(); }
+            //   confirm() can be silently blocked by browsers; auto-rollover is the correct behavior
+            //   since data from a past day should always carry forward to today.
+            const storedDateKey = obj.dateKey || null;
+            const todayKey = getTodayKey();
+            if (storedDateKey && storedDateKey < todayKey) {
+              isInitialLoad = false;
+              if (callback) callback();
+              // Claude: 2026-03-07 — reuse rollover preview modal so user can choose.
+              //   Pass -1 so cancelRollover() skips the ZZ-status revert (no ZZ task here).
+              //   Archive: auto-rollover + toast removed — night owls past midnight
+              //   would lose their active session with no way to say "not yet".
+              setTimeout(() => { showRolloverPreview(-1); }, 800);
+              return;
             }
           }
-
-          // Stale-data / day rollover check
-          var storedDateKey = tracking.dateKey || null;
-          var todayKey = getTodayKey();
-          if (storedDateKey && storedDateKey < todayKey) {
-            isInitialLoad = false;
-            if (callback) callback();
-            setTimeout(function() { showRolloverPreview(-1); }, 800);
-            return;
-          }
-        }
-
-        // Mark end of initial load
-        isInitialLoad = false;
-        if (callback) callback();
-      }).catch(function(err) {
-        console.error('[SpoonPal] Load error:', err);
-        isInitialLoad = false;
-        if (callback) callback();
-      });
+          // Mark end of initial load — saveData() can proceed from here on
+          isInitialLoad = false;
+          if (callback) callback();
+        })
+        .catch(function(err) {
+          console.error('[SpoonPal] Firestore load error:', err);
+          isInitialLoad = false;
+          if (callback) callback();
+        });
     } else {
       isInitialLoad = false;
       if (callback) callback();
