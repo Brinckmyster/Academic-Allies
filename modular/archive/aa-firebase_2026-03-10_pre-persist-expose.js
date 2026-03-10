@@ -79,11 +79,6 @@
   window.AA.auth       = auth;
   window.AA.FieldValue = firebase.firestore.FieldValue;
   window.AA.Timestamp  = firebase.firestore.Timestamp;
-  /* Claude: 2026-03-10 — expose persistence promise so shared-header can wait
-     for auth restoration before setting up onAuthStateChanged. Without this,
-     shared-header gets an immediate null and shows the sign-in button before
-     Firebase finishes restoring the session from IndexedDB. */
-  window.AA._persistenceReady = _persistenceReady;
 
   /* ── Auth helpers ───────────────────────────────────────── */
 
