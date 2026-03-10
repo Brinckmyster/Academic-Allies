@@ -527,13 +527,21 @@
         </div>
     </div>
 
-    <!-- Firebase compat CDN — silent background sync -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="/Academic-Allies/modular/aa-firebase.js"></script>
+    <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags.
+         shared-header.html is the single source of truth for Firebase loading.
+         Old tags caused double-loading → auth/argument-error. Archived version:
+         recovery-mode_2026-03-09_pre-double-firebase-fix.html -->
     <script src="/Academic-Allies/modular/js/aa-mirror.js"></script>
 
+    <script>
+        /* Claude: 2026-03-09 — poll for window.AA (loaded by shared-header).
+           Replaces the old one-shot if(window.AA) checks that broke when
+           direct Firebase script tags were removed. */
+        function _waitForAA(cb) {
+            if (window.AA && AA.auth) { cb(); return; }
+            setTimeout(function() { _waitForAA(cb); }, 100);
+        }
+    </script>
     <script>
         // Spoon Management
         // UID guards — prevent full re-init on Firebase ~45-min token refresh. Claude, 2026-03-07.
@@ -969,7 +977,8 @@
             // Recovery mode works fully without sign-in (localStorage).
             // When signed in, Firebase loads the latest data and keeps
             // it in sync across the student's devices.
-            if (window.AA && AA.auth) {
+            /* Claude: 2026-03-09 — switched to _waitForAA polling (shared-header loads Firebase) */
+            _waitForAA(function() {
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) {
                         // Not signed in — load from localStorage only
@@ -1048,7 +1057,7 @@
                         console.warn('[AA] FlowerQuiz load error (non-critical):', err);
                     });
                 });
-            }
+            });
         });
     </script>
     <script>
@@ -1095,7 +1104,8 @@
             // Show localStorage immediately (fast)
             loadSpoonPlanFromStorage();
 
-            if (window.AA && AA.auth) {
+            /* Claude: 2026-03-09 — switched to _waitForAA polling (shared-header loads Firebase) */
+            _waitForAA(function() {
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) return;
                     if (user.uid === _rmSpoonUid) return; // token refresh — skip re-load
@@ -1111,7 +1121,7 @@
                         console.warn('[AA] Could not load spoon plan:', err);
                     });
                 });
-            }
+            });
         }
         // ── End Spoon Plan loader ──────────────────────────────────────────────
     </script>
@@ -1135,7 +1145,8 @@
             { image: "../icons/flowers/flower14-1 Liatris.png",              genus: "Liatris",         common: "Liatris" },
             { image: "../icons/flowers/flower15-1 Gladiola.png",             genus: "Gladiolus",       common: "Gladiola" },
             { image: "../icons/flowers/flower16-1 Stock.png",                genus: "Matthiola",       common: "Stock" },
-            { image: "../icons/flowers/flower17-1 Queen Anne’s Lace.png", genus: "Daucus",        common: "Queen Anne’s Lace" },
+            /* Claude: 2026-03-10 — genus corrected from Daucus to Ammi per Mary’s note */
+            { image: "../icons/flowers/flower17-1 Queen Anne’s Lace.png", genus: "Ammi",          common: "Queen Anne’s Lace" },
             { image: "../icons/flowers/flower18-1 Sea Holly.png",            genus: "Eryngium",        common: "Sea Holly" },
             { image: "../icons/flowers/flower19-1 Hypericum Berries.png",    genus: "Hypericum",       common: "Hypericum Berries" },
             { image: "../icons/flowers/flower20-1 Pixie Carnation.png",      genus: "Dianthus",        common: "Pixie Carnation" },
@@ -1441,11 +1452,10 @@
                     _journalSaveTimer = setTimeout(_journalAutoSave, 2000);
                 });
             }
-            if (window.AA && AA.auth) {
+            /* Claude: 2026-03-09 — switched to _waitForAA polling (shared-header loads Firebase) */
+            _waitForAA(function() {
                 AA.auth.onAuthStateChanged(_journalUpdateAuth);
-            } else {
-                _journalUpdateAuth(null);
-            }
+            });
         });
         if (document.readyState !== 'loading') { journalShowPrompt(); }
     </script>
