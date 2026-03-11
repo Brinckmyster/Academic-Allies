@@ -302,7 +302,7 @@
 <script>
   /* Claude: 2026-03-09 — converted arrow functions to ES5 for project consistency */
   /* Claude: 2026-03-10 — cache-bust bump for persistence fix */
-  fetch("/Academic-Allies/modular/shared-header.html?v=20260311a")
+  fetch("/Academic-Allies/modular/shared-header.html?v=20260311c")
     .then(function(r) { return r.text(); })
     .then(function(html) {
       var c = document.getElementById("site-header");
@@ -322,7 +322,7 @@
 
 <!-- ── Hero ──────────────────────────────────────── -->
 <div class="hero">
-  <div class="hero-greeting">👋 Hi, <span id="heroNameStatic">there</span></div>
+  <div class="hero-greeting">👋 <span id="heroGreetingText"></span></div>
   <div class="hero-date" id="heroDate"></div>
   <!-- Claude: 2026-03-09 — removed duplicate heroName ID; JS creates it dynamically at line 490 -->
 
@@ -475,21 +475,34 @@
   var h = now.getHours();
   var greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 
-  var user = sessionStorage.getItem("academicAlliesUser");
-  var firstName = 'there';
-  if (user) {
-    try {
-      var u = JSON.parse(user);
-      firstName = (u.name || '').split(' ')[0] || 'there';
-    } catch(e) {}
-    // Role-specific cards are shown by shared-header auth callback, not here
-    var out = document.getElementById("footerSignOut");
-    if (out) out.style.display = "inline";
-  }
+  /* Claude: 2026-03-11 — show time-of-day greeting immediately, but don't show
+     a name until onAuthStateChanged fires. The shared-header auth callback sets
+     heroName once auth resolves, so we just prepare the structure here. */
+  var greetEl = document.getElementById('heroGreetingText');
+  if (greetEl) greetEl.innerHTML = greeting + ', <span id="heroName" style="display:none;">there</span>';
 
-  /* Claude: 2026-03-09 — cleaned up greeting (was setting innerHTML twice with orphaned heroName2) */
-  var heroEl = document.querySelector('.hero-greeting');
-  if (heroEl) heroEl.innerHTML = greeting + ', <span id="heroName">' + firstName + '</span>';
+  /* Wait for auth to show the name — shared-header's onAuthStateChanged sets
+     heroName.textContent and we unhide it here via a MutationObserver or the
+     auth callback itself. We hook into AA's auth to set name + footer sign-out. */
+  function _onAuthReady() {
+    if (!window.AA || !window.AA.auth) {
+      setTimeout(_onAuthReady, 200);
+      return;
+    }
+    window.AA.auth.onAuthStateChanged(function (user) {
+      var heroName = document.getElementById('heroName');
+      var out = document.getElementById('footerSignOut');
+      if (user) {
+        var first = (user.displayName || user.email || '').split(' ')[0] || 'there';
+        if (heroName) { heroName.textContent = first; heroName.style.display = ''; }
+        if (out) out.style.display = 'inline';
+      } else {
+        if (heroName) { heroName.textContent = 'there'; heroName.style.display = ''; }
+        if (out) out.style.display = 'none';
+      }
+    });
+  }
+  _onAuthReady();
 
   document.getElementById('heroDate').textContent = now.toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
