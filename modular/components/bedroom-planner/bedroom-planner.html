@@ -116,32 +116,32 @@
 </div>
 <script>
 // ═══════════════════════════════════════════════════════
-// ROOM SPEC — inches. y=0 = TV wall / entry side (top).
+// ROOM SPEC — inches. y=0 = B wall / balcony side (top).
 // Source: Room_measurements_.csv  |  Claude 2026-03-09
 // ═══════════════════════════════════════════════════════
 /* Claude: 2026-03-10 — LEFT-RIGHT MIRROR FLIP applied.
-   Claude: 2026-03-11 — TOP-BOTTOM VERTICAL FLIP applied.
+   Claude: 2026-03-11 — SIDE-WALL VERTICAL FLIP applied (features on L/R walls
+   flipped along y-axis). Entry stays BOTTOM, Balcony stays TOP.
    Standing at entry looking in: window = RIGHT, bath/closet = LEFT.
-   Entry door = TOP wall, Balcony = BOTTOM wall.
    Archives: bedroom-planner_2026-03-10_pre-mirror-flip.html
              bedroom-planner_2026-03-11_pre-vertical-flip.html */
 const ROOM = {
   w: 189.5,
   h: 152.5,
-  // Doors: pos = distance along wall from its origin corner (left=0)
+  // Doors on top/bottom walls — unchanged from LR flip
   doors: [
-    { id:'entry',   label:'Entry 36"',   wall:'top',    pos:0,     size:36, hinge:'start' },  // hinge at x=0 (BC wall side, left)
-    { id:'balcony', label:'Balcony 37"', wall:'bottom', pos:118.5, size:37, hinge:'start' },  // W-wall side
+    { id:'entry',   label:'Entry 36"',   wall:'bottom', pos:0,     size:36, hinge:'start' },  // hinge at x=0 (BC wall side, left)
+    { id:'balcony', label:'Balcony 37"', wall:'top',    pos:118.5, size:37, hinge:'start' },  // W-wall side
   ],
-  window: { wall:'right', pos:54.5, size:42, sill:36 },  // flipped: 152.5-56-42=54.5
+  window: { wall:'right', pos:54.5, size:42, sill:36 },  // side-flip: 152.5-56-42=54.5
   // Outswing doors — swing OUT of bedroom, no arc inside. On LEFT wall.
   outswing: [
-    { id:'bathroom', label:'Bath 29"', wall:'left', pos:87,  size:29 },   // flipped: 152.5-36.5-29=87
-    { id:'closet',   label:'Closet 30"', wall:'left', pos:-3, size:30 },  // flipped: 152.5-125.5-30=-3 (corner)
+    { id:'bathroom', label:'Bath 29"', wall:'left', pos:87,  size:29 },   // side-flip: 152.5-36.5-29=87
+    { id:'closet',   label:'Closet 30"', wall:'left', pos:-3, size:30 },  // side-flip: 152.5-125.5-30=-3 (corner)
   ],
   // sill:36 means furniture ≤36" tall is fine in front of window
   baseboard: { y:0, h:54.5, clearance:12, wall:'right' },
-  // Baseboard runs y=0→54.5 on RIGHT wall (top-right zone)
+  // Baseboard runs y=0→54.5 on RIGHT wall (top-right zone, near balcony end)
   // Furniture must stay 12" from right wall in that zone
 };
 // Hinge point in inches
@@ -303,12 +303,12 @@ function drawFeatures(){
     ctx.restore();
     ctx.restore();
   }
-  // ── Wall labels (mirrored LR + flipped TB: TV=top, B=bottom, BC=left, W=right) ──
+  // ── Wall labels (LR mirror + side-wall flip: B=top, TV=bottom, BC=left, W=right) ──
   ctx.font='9px DM Mono,monospace';
   ctx.fillStyle='#7a6e5f';
   ctx.textAlign='center';
-  ctx.fillText('TV Wall — Entry Side — 189.5"', W/2, -20);
-  ctx.fillText('B Wall — Balcony Side — 189"', W/2, H+30);
+  ctx.fillText('B Wall — Balcony Side — 189"', W/2, -20);
+  ctx.fillText('TV Wall — Entry Side — 189.5"', W/2, H+30);
   ctx.save(); ctx.translate(-52,H/2); ctx.rotate(-Math.PI/2);
   ctx.fillText('BC Wall — Bath / Closet',0,0); ctx.restore();
   ctx.save(); ctx.translate(W+56,H/2); ctx.rotate(Math.PI/2);
@@ -478,38 +478,39 @@ document.getElementById('btnReset').addEventListener('click',()=>{placed={};sel=
 //   Floor:   Hamper near BC wall
 // Suggested layout v3 — TV sightlines + chronic pain aware — Claude 2026-03-09
 // Design principles:
-//   • Both beds against B wall (BOTTOM) — headboards to wall, no floating
+//   • Both beds against B wall (TOP) — headboards to wall, no floating
 //   • Mary's bed in left B-wall corner (closest to bathroom for night trips)
 //   • Bruise's bunk right of Mary's bed area (bottom bunk faces room for easy exit)
 //   • Nightstand right of bunk, before balcony door
-//   • TV wall (TOP) = LOW furniture only — vanity (28") + small dresser (45")
+//   • TV wall (BOTTOM) = LOW furniture only — vanity (28") + small dresser (45")
 //     Bookcase 1 on far-right TV wall, away from TV sightlines from both beds
 //   • Both beds have clear sightline to TV: bunk straight-on, Mary slightly diagonal
 //   • Right-center floor RESERVED for Mary's extra unnamed dressers
 //   • Baseboard heat clearance maintained throughout
 /* Claude: 2026-03-10 — suggested layout mirrored left-right.
-   Claude: 2026-03-11 — suggested layout flipped top-bottom.
-   TV wall (top): entry door + low furniture.
-   B wall (bottom): balcony door + both beds.
+   Claude: 2026-03-11 — side-wall vertical flip (baseboard now top-right).
+   B wall (top): balcony door + both beds.
+   TV wall (bottom): entry door + low furniture.
    W wall (right): window + baseboard. BC wall (left): bath/closet. */
 const SUGGESTED = [
-  // W wall (RIGHT side) — bookcase below window + desk at window height
-  { id:'bookcase2',   x:176.5, y:115.5, rotated:false },  // W wall below window (13d x 37l)
-  { id:'desk',        x:144.5, y:79.5,  rotated:true  },  // W wall at window (45l x 20d, 30" < 36" sill)
-  // B wall (BOTTOM now) — both beds, headboards against wall:
+  // W wall (RIGHT side) — desk at window, bookcase below window
+  // (baseboard zone y:0→54.5, so bookcase2 moved below window to avoid it)
+  { id:'bookcase2',   x:176.5, y:97,    rotated:false },  // W wall below window (13d x 37l)
+  { id:'desk',        x:144.5, y:55,    rotated:true  },  // W wall at window (45l x 20d, 30" < 36" sill)
+  // B wall (TOP) — both beds, headboards against wall:
   // Mary bed | dresser | bunk | nightstand | [balcony door]
-  { id:'hbed',        x:0,     y:109.5, rotated:true  },  // left corner, Mary's bed — closest to bath
-  { id:'hdresser',    x:36.5,  y:132.5, rotated:true  },  // between Mary bed and bunk
-  { id:'bunk',        x:53.5,  y:66.5,  rotated:false },  // Bruise's recovery bunk (49w x 86l)
-  { id:'nightstand',  x:118,   y:137.5, rotated:true  },  // right of bunk
-  // TV wall (TOP now) — LOW furniture only, clear sightlines to mounted TV
-  { id:'smdresser',   x:67.5,  y:11,    rotated:true  },  // (30l x 19d, 45" tall)
-  { id:'vanity',      x:97.5,  y:0,     rotated:true  },  // (47l x 20d, 28" tall — fine under TV)
-  { id:'bookcase1',   x:144.5, y:18,    rotated:true  },  // far right (33l x 15d, 71" tall — away from TV center)
+  { id:'hbed',        x:0,     y:0,     rotated:true  },  // left corner, Mary's bed — closest to bath
+  { id:'hdresser',    x:36.5,  y:0,     rotated:true  },  // between Mary bed and bunk
+  { id:'bunk',        x:53.5,  y:0,     rotated:false },  // Bruise's recovery bunk (49w x 86l)
+  { id:'nightstand',  x:118,   y:0,     rotated:true  },  // right of bunk
+  // TV wall (BOTTOM) — LOW furniture only, clear sightlines to mounted TV
+  { id:'smdresser',   x:67.5,  y:122.5, rotated:true  },  // (30l x 19d, 45" tall)
+  { id:'vanity',      x:97.5,  y:132.5, rotated:true  },  // (47l x 20d, 28" tall — fine under TV)
+  { id:'bookcase1',   x:144.5, y:119.5, rotated:true  },  // far right (33l x 15d, 71" tall — away from TV center)
   // BC wall (LEFT side) — Big Bookcase between bath and closet doors
-  { id:'bigbookcase', x:0,     y:40.5,  rotated:false },
+  { id:'bigbookcase', x:0,     y:70,    rotated:false },
   // Hamper — near closet, out of traffic
-  { id:'hamper',      x:17.5,  y:22.5,  rotated:false },
+  { id:'hamper',      x:17.5,  y:110,   rotated:false },
 ];
 document.getElementById('btnSuggest').addEventListener('click',()=>{
   placed = {};
