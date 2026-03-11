@@ -112,6 +112,11 @@
         <div id="bb" style="position:absolute;left:0;z-index:2;pointer-events:none;"></div>
       </div>
     </div>
+    <!-- Claude: 2026-03-11 — Walk-in closet drop zone -->
+    <div class="clabel" style="margin-top:24px;">Walk-in Closet — 48" × 48" (4' × 4') — drag pieces here too</div>
+    <div class="router" id="closetRouter">
+      <div class="room" id="closetRoom"></div>
+    </div>
   </div>
 </div>
 <script>
@@ -153,6 +158,10 @@ function hingeInches(door) {
   return {x:0,y:0};
 }
 // ═══════════════════════════════════════════════════════
+// CLOSET SPEC — 4' × 4' walk-in closet   Claude 2026-03-11
+// ═══════════════════════════════════════════════════════
+const CLOSET = { w: 48, h: 48 };
+// ═══════════════════════════════════════════════════════
 // FURNITURE  — height used only for window-blocking check
 // w = depth into room, l = run along wall
 // ═══════════════════════════════════════════════════════
@@ -176,12 +185,16 @@ const DEFS_SMALL = [
 const ALL = [...DEFS_MASTER, ...DEFS_SMALL];
 const def = id => ALL.find(d=>d.id===id);
 // State
-let placed={}, sel=null, dragging=null, sdrag=null, doff={x:0,y:0};
-let RPX={w:0,h:0};
+let placed={}, sel=null, dragging=null, sdrag=null, doff={x:0,y:0}, dragRoom='master';
+let RPX={w:0,h:0}, CRPX={w:0,h:0};
 const px  = i => i/ROOM.w*RPX.w;
 const py  = i => i/ROOM.h*RPX.h;
 const inX = p => p/RPX.w*ROOM.w;
 const inY = p => p/RPX.h*ROOM.h;
+const cpx  = i => i/CLOSET.w*CRPX.w;
+const cpy  = i => i/CLOSET.h*CRPX.h;
+const cinX = p => p/CRPX.w*CLOSET.w;
+const cinY = p => p/CRPX.h*CLOSET.h;
 const cw  = id => { const d=def(id),p=placed[id]; return p?.rotated?d.l:d.w; };
 const ch  = id => { const d=def(id),p=placed[id]; return p?.rotated?d.w:d.l; };
 // ── Collision detection ──────────────────────────────────────────
@@ -218,9 +231,23 @@ function getCollisions(id, x, y) {
     if(Math.hypot(nx-hx,ny-hy)<door.size)
       msgs.push(`In ${door.label} swing arc`);
   }
-  // Furniture overlap
+  // Furniture overlap (master room only)
   for(const [oid,op] of Object.entries(placed)){
-    if(oid===id) continue;
+    if(oid===id||op.room==='closet') continue;
+    if(x<op.x+cw(oid)&&x+w>op.x&&y<op.y+ch(oid)&&y+h>op.y)
+      msgs.push(`Overlaps ${def(oid).name}`);
+  }
+  return msgs;
+}
+// ── Closet collision detection (bounds + overlap only) ──────────
+function getClosetCollisions(id, x, y) {
+  const msgs=[], w=cw(id), h=ch(id);
+  if(x<0) msgs.push('Past left wall');
+  if(y<0) msgs.push('Past top wall');
+  if(x+w>CLOSET.w) msgs.push('Past right wall');
+  if(y+h>CLOSET.h) msgs.push('Past bottom wall');
+  for(const [oid,op] of Object.entries(placed)){
+    if(oid===id||op.room!=='closet') continue;
     if(x<op.x+cw(oid)&&x+w>op.x&&y<op.y+ch(oid)&&y+h>op.y)
       msgs.push(`Overlaps ${def(oid).name}`);
   }
@@ -330,16 +357,21 @@ function render(){
   document.querySelectorAll('.furn').forEach(e=>e.remove());
   for(const [id,pos] of Object.entries(placed)){
     const d=def(id); if(!d) continue;
+    const inC=pos.room==='closet';
     const w=cw(id),h=ch(id);
-    const cols=getCollisions(id,pos.x,pos.y);
+    const cols=inC?getClosetCollisions(id,pos.x,pos.y):getCollisions(id,pos.x,pos.y);
     const el=document.createElement('div');
     el.className=['furn',d.color,sel===id?'sel':'',cols.length?'bad':'',dragging===id?'drag':''].filter(Boolean).join(' ');
     el.dataset.id=id;
-    el.style.cssText=`left:${px(pos.x)}px;top:${py(pos.y)}px;width:${px(w)}px;height:${py(h)}px;`;
+    if(inC){
+      el.style.cssText=`left:${cpx(pos.x)}px;top:${cpy(pos.y)}px;width:${cpx(w)}px;height:${cpy(h)}px;`;
+    } else {
+      el.style.cssText=`left:${px(pos.x)}px;top:${py(pos.y)}px;width:${px(w)}px;height:${py(h)}px;`;
+    }
     el.innerHTML=`<div class="fi"><span class="fn">${d.name}</span><span class="fd">${w}"×${h}"</span></div>`;
     el.addEventListener('mousedown',onFurnDown);
     el.addEventListener('touchstart',onFurnTouch,{passive:false});
-    document.getElementById('room').appendChild(el);
+    document.getElementById(inC?'closetRoom':'room').appendChild(el);
   }
   updateSidebar(); updateInfo(); updateBtns();
 }
@@ -368,10 +400,11 @@ function updateInfo(){
     return;
   }
   const d=def(sel),pos=placed[sel],w=cw(sel),h=ch(sel);
-  const cols=getCollisions(sel,pos.x,pos.y);
-  const winOk=d.height<=ROOM.window.sill;
+  const inC=pos.room==='closet';
+  const cols=inC?getClosetCollisions(sel,pos.x,pos.y):getCollisions(sel,pos.x,pos.y);
+  const winOk=!inC&&d.height<=ROOM.window.sill;
   box.innerHTML=`
-    <strong>${d.name}</strong><br>
+    <strong>${d.name}</strong> <span style="color:var(--muted);font-size:.55rem;">${inC?'(closet)':'(bedroom)'}</span><br>
     Size: ${w}"×${h}"${pos.rotated?' (rotated)':''}<br>
     Height: ${d.height}" · Pos: (${pos.x.toFixed(0)}", ${pos.y.toFixed(0)}")<br>
     ${winOk?`<div class="ok">✓ ${d.height}" tall — fine in front of window</div>`:''}
@@ -386,72 +419,104 @@ function updateBtns(){
   document.getElementById('btnRem').disabled=!ok;
 }
 // ── Drop from sidebar ────────────────────
-function dropAt(id,rpx,rpy){
+function dropAt(id,rpx,rpy,targetRoom){
   if(!id) return;
+  targetRoom=targetRoom||'master';
   const d=def(id); if(!d) return;
   const rot=placed[id]?.rotated??false;
+  const rm=targetRoom==='closet'?CLOSET:ROOM;
+  const toInX=targetRoom==='closet'?cinX:inX;
+  const toInY=targetRoom==='closet'?cinY:inY;
   const w=rot?d.l:d.w, h=rot?d.w:d.l;
-  let ix=inX(rpx)-w/2, iy=inY(rpy)-h/2;
-  ix=Math.max(0,Math.min(ROOM.w-w,ix));
-  iy=Math.max(0,Math.min(ROOM.h-h,iy));
-  placed[id]={x:ix,y:iy,rotated:rot};
+  let ix=toInX(rpx)-w/2, iy=toInY(rpy)-h/2;
+  ix=Math.max(0,Math.min(rm.w-w,ix));
+  iy=Math.max(0,Math.min(rm.h-h,iy));
+  placed[id]={x:ix,y:iy,rotated:rot,room:targetRoom};
   sel=id; sdrag=null; render();
 }
 // ── Drag / drop events ───────────────────
 const room=document.getElementById('room');
+const croom=document.getElementById('closetRoom');
 room.addEventListener('dragover',e=>e.preventDefault());
+croom.addEventListener('dragover',e=>e.preventDefault());
 room.addEventListener('drop',e=>{
   e.preventDefault();
   const r=room.getBoundingClientRect();
-  dropAt(sdrag,e.clientX-r.left,e.clientY-r.top);
+  dropAt(sdrag,e.clientX-r.left,e.clientY-r.top,'master');
+});
+croom.addEventListener('drop',e=>{
+  e.preventDefault();
+  const r=croom.getBoundingClientRect();
+  dropAt(sdrag,e.clientX-r.left,e.clientY-r.top,'closet');
 });
 function onFurnDown(e){
   if(e.button!==0)return; e.preventDefault(); e.stopPropagation();
   const id=e.currentTarget.dataset.id;
   sel=id; dragging=id;
+  dragRoom=placed[id]?.room||'master';
   const r=e.currentTarget.getBoundingClientRect();
   doff={x:e.clientX-r.left,y:e.clientY-r.top};
   render();
 }
 document.addEventListener('mousemove',e=>{
   if(!dragging)return;
-  const r=room.getBoundingClientRect();
+  const inC=dragRoom==='closet';
+  const r=(inC?croom:room).getBoundingClientRect();
+  const rm=inC?CLOSET:ROOM;
+  const toInX=inC?cinX:inX;
+  const toInY=inC?cinY:inY;
   const w=cw(dragging),h=ch(dragging);
-  placed[dragging].x=Math.max(0,Math.min(ROOM.w-w,inX(e.clientX-r.left-doff.x)));
-  placed[dragging].y=Math.max(0,Math.min(ROOM.h-h,inY(e.clientY-r.top-doff.y)));
+  placed[dragging].x=Math.max(0,Math.min(rm.w-w,toInX(e.clientX-r.left-doff.x)));
+  placed[dragging].y=Math.max(0,Math.min(rm.h-h,toInY(e.clientY-r.top-doff.y)));
   render();
 });
 document.addEventListener('mouseup',e=>{
   if(sdrag){
     const r=room.getBoundingClientRect();
-    if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom)
-      dropAt(sdrag,e.clientX-r.left,e.clientY-r.top);
+    if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){
+      dropAt(sdrag,e.clientX-r.left,e.clientY-r.top,'master');
+    } else {
+      const cr=croom.getBoundingClientRect();
+      if(e.clientX>=cr.left&&e.clientX<=cr.right&&e.clientY>=cr.top&&e.clientY<=cr.bottom)
+        dropAt(sdrag,e.clientX-cr.left,e.clientY-cr.top,'closet');
+    }
     sdrag=null;
   }
   if(dragging){dragging=null;render();}
 });
 room.addEventListener('mousedown',e=>{if(e.target===room){sel=null;render();}});
+croom.addEventListener('mousedown',e=>{if(e.target===croom){sel=null;render();}});
 function onFurnTouch(e){
   e.preventDefault();
   const t=e.touches[0],id=e.currentTarget.dataset.id;
   sel=id;dragging=id;
+  dragRoom=placed[id]?.room||'master';
   const r=e.currentTarget.getBoundingClientRect();
   doff={x:t.clientX-r.left,y:t.clientY-r.top};
   render();
 }
 document.addEventListener('touchmove',e=>{
   if(!dragging)return;
-  const t=e.touches[0],r=room.getBoundingClientRect();
+  const inC=dragRoom==='closet';
+  const t=e.touches[0],r=(inC?croom:room).getBoundingClientRect();
+  const rm=inC?CLOSET:ROOM;
+  const toInX=inC?cinX:inX;
+  const toInY=inC?cinY:inY;
   const w=cw(dragging),h=ch(dragging);
-  placed[dragging].x=Math.max(0,Math.min(ROOM.w-w,inX(t.clientX-r.left-doff.x)));
-  placed[dragging].y=Math.max(0,Math.min(ROOM.h-h,inY(t.clientY-r.top-doff.y)));
+  placed[dragging].x=Math.max(0,Math.min(rm.w-w,toInX(t.clientX-r.left-doff.x)));
+  placed[dragging].y=Math.max(0,Math.min(rm.h-h,toInY(t.clientY-r.top-doff.y)));
   render();
 },{passive:false});
 document.addEventListener('touchend',e=>{
   if(sdrag){
-    const t=e.changedTouches[0],r=room.getBoundingClientRect();
-    if(t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom)
-      dropAt(sdrag,t.clientX-r.left,t.clientY-r.top);
+    const r=room.getBoundingClientRect();
+    const cr=croom.getBoundingClientRect();
+    const t=e.changedTouches[0];
+    if(t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom){
+      dropAt(sdrag,t.clientX-r.left,t.clientY-r.top,'master');
+    } else if(t.clientX>=cr.left&&t.clientX<=cr.right&&t.clientY>=cr.top&&t.clientY<=cr.bottom){
+      dropAt(sdrag,t.clientX-cr.left,t.clientY-cr.top,'closet');
+    }
     sdrag=null;
   }
   if(dragging){dragging=null;render();}
@@ -460,8 +525,9 @@ document.addEventListener('touchend',e=>{
 document.getElementById('btnRot').addEventListener('click',()=>{
   if(!sel||!(sel in placed))return;
   const p=placed[sel]; p.rotated=!p.rotated;
-  p.x=Math.max(0,Math.min(ROOM.w-cw(sel),p.x));
-  p.y=Math.max(0,Math.min(ROOM.h-ch(sel),p.y));
+  const rm=p.room==='closet'?CLOSET:ROOM;
+  p.x=Math.max(0,Math.min(rm.w-cw(sel),p.x));
+  p.y=Math.max(0,Math.min(rm.h-ch(sel),p.y));
   render();
 });
 document.getElementById('btnRem').addEventListener('click',()=>{
@@ -471,46 +537,45 @@ document.getElementById('btnRem').addEventListener('click',()=>{
 document.getElementById('btnReset').addEventListener('click',()=>{placed={};sel=null;render();});
 // ── Suggested Layout — Claude 2026-03-09 ─────────────────────────
 // Logic:
-//   W wall:  Bookcase 2 (above window) + Desk rotated under window
-//   B wall:  Bookcase 1 | Heritage Dresser | Vanity  (left→right, clear of balcony arc)
-//   TV wall: Heritage Bed | Nightstand | Bunk Bed | Small Dresser  (left→right)
+//   W wall:  Bookcase 2 (below window) + Desk at window
+//   B wall:  Both beds + dresser + nightstand
+//   TV wall: Vanity + Bookcase 1 (low furniture, clear sightlines)
 //   BC wall: Big Bookcase between bath and closet doors
-//   Floor:   Hamper near BC wall
-// Suggested layout v3 — TV sightlines + chronic pain aware — Claude 2026-03-09
+//   Closet:  Small Dresser + Hamper
+// Suggested layout v4 — with closet — Claude 2026-03-11
 // Design principles:
 //   • Both beds against B wall (TOP) — headboards to wall, no floating
 //   • Mary's bed in left B-wall corner (closest to bathroom for night trips)
 //   • Bruise's bunk right of Mary's bed area (bottom bunk faces room for easy exit)
 //   • Nightstand right of bunk, before balcony door
-//   • TV wall (BOTTOM) = LOW furniture only — vanity (28") + small dresser (45")
+//   • TV wall (BOTTOM) = LOW furniture only — vanity (28")
 //     Bookcase 1 on far-right TV wall, away from TV sightlines from both beds
+//   • Small Dresser + Hamper moved into walk-in closet (frees floor space)
 //   • Both beds have clear sightline to TV: bunk straight-on, Mary slightly diagonal
 //   • Right-center floor RESERVED for Mary's extra unnamed dressers
 //   • Baseboard heat clearance maintained throughout
 /* Claude: 2026-03-10 — suggested layout mirrored left-right.
    Claude: 2026-03-11 — side-wall vertical flip (baseboard now top-right).
-   B wall (top): balcony door + both beds.
-   TV wall (bottom): entry door + low furniture.
-   W wall (right): window + baseboard. BC wall (left): bath/closet. */
+   Claude: 2026-03-11 — closet zone added; hamper + small dresser moved there. */
 const SUGGESTED = [
   // W wall (RIGHT side) — desk at window, bookcase below window
   // (baseboard zone y:0→54.5, so bookcase2 moved below window to avoid it)
-  { id:'bookcase2',   x:176.5, y:97,    rotated:false },  // W wall below window (13d x 37l)
-  { id:'desk',        x:144.5, y:55,    rotated:true  },  // W wall at window (45l x 20d, 30" < 36" sill)
+  { id:'bookcase2',   x:176.5, y:97,    rotated:false, room:'master' },
+  { id:'desk',        x:144.5, y:55,    rotated:true,  room:'master' },
   // B wall (TOP) — both beds, headboards against wall:
   // Mary bed | dresser | bunk | nightstand | [balcony door]
-  { id:'hbed',        x:0,     y:0,     rotated:true  },  // left corner, Mary's bed — closest to bath
-  { id:'hdresser',    x:36.5,  y:0,     rotated:true  },  // between Mary bed and bunk
-  { id:'bunk',        x:53.5,  y:0,     rotated:false },  // Bruise's recovery bunk (49w x 86l)
-  { id:'nightstand',  x:118,   y:0,     rotated:true  },  // right of bunk
+  { id:'hbed',        x:0,     y:0,     rotated:true,  room:'master' },
+  { id:'hdresser',    x:36.5,  y:0,     rotated:true,  room:'master' },
+  { id:'bunk',        x:53.5,  y:0,     rotated:false, room:'master' },
+  { id:'nightstand',  x:118,   y:0,     rotated:true,  room:'master' },
   // TV wall (BOTTOM) — LOW furniture only, clear sightlines to mounted TV
-  { id:'smdresser',   x:67.5,  y:122.5, rotated:true  },  // (30l x 19d, 45" tall)
-  { id:'vanity',      x:97.5,  y:132.5, rotated:true  },  // (47l x 20d, 28" tall — fine under TV)
-  { id:'bookcase1',   x:144.5, y:119.5, rotated:true  },  // far right (33l x 15d, 71" tall — away from TV center)
+  { id:'vanity',      x:97.5,  y:132.5, rotated:true,  room:'master' },
+  { id:'bookcase1',   x:144.5, y:119.5, rotated:true,  room:'master' },
   // BC wall (LEFT side) — Big Bookcase between bath and closet doors
-  { id:'bigbookcase', x:0,     y:70,    rotated:false },
-  // Hamper — near closet, out of traffic
-  { id:'hamper',      x:17.5,  y:110,   rotated:false },
+  { id:'bigbookcase', x:0,     y:70,    rotated:false, room:'master' },
+  // Walk-in Closet — small items that fit in the 48"×48" space
+  { id:'smdresser',   x:0,     y:0,     rotated:false, room:'closet' },
+  { id:'hamper',      x:21,    y:0,     rotated:false, room:'closet' },
 ];
 document.getElementById('btnSuggest').addEventListener('click',()=>{
   placed = {};
@@ -519,10 +584,10 @@ document.getElementById('btnSuggest').addEventListener('click',()=>{
     if (!d) return;
     const w = s.rotated ? d.l : d.w;
     const h = s.rotated ? d.w : d.l;
-    // Clamp to room bounds
-    const x = Math.max(0, Math.min(ROOM.w - w, s.x));
-    const y = Math.max(0, Math.min(ROOM.h - h, s.y));
-    placed[s.id] = { x, y, rotated: s.rotated };
+    const rm = s.room==='closet' ? CLOSET : ROOM;
+    const x = Math.max(0, Math.min(rm.w - w, s.x));
+    const y = Math.max(0, Math.min(rm.h - h, s.y));
+    placed[s.id] = { x, y, rotated: s.rotated, room: s.room||'master' };
   });
   sel = null;
   render();
@@ -535,6 +600,14 @@ function layoutRoom(){
   RPX={w:W,h:H};
   room.style.setProperty('--gx',px(12)+'px');
   room.style.setProperty('--gy',py(12)+'px');
+  // Closet — scaled to match master room's inches-to-pixels ratio
+  const scale=W/ROOM.w;
+  const CW=Math.round(CLOSET.w*scale);
+  const CH=Math.round(CLOSET.h*scale);
+  croom.style.width=CW+'px'; croom.style.height=CH+'px';
+  CRPX={w:CW,h:CH};
+  croom.style.setProperty('--gx',cpx(12)+'px');
+  croom.style.setProperty('--gy',cpy(12)+'px');
   drawFeatures(); drawBaseboard(); render();
 }
 window.addEventListener('resize',layoutRoom);
