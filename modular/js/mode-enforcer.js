@@ -43,11 +43,10 @@
       'a.module-card[href*="calendar.html"]',
       '.nav-list a[href*="calendar.html"]'
     ],
-    /* Claude: 2026-03-10 — selector changed from '#audioNotesNavLi a' to '#audioNotesNavLi'
-       to match shared-header which controls the <li> visibility, not the inner <a> */
+    /* Claude: 2026-03-11 — nav link removed from mode-enforcer. Audio Notes nav
+       should always be visible (like Audit Log). Module card on index still mode-gated. */
     audioNotes: [
-      'a.module-card[href*="audio-notes"]',
-      '#audioNotesNavLi'
+      'a.module-card[href*="audio-notes"]'
     ],
     emergency: [
       'a.module-card[href*="emergency.html"]',
