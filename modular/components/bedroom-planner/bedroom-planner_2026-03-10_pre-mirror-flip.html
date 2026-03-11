@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Master Bedroom Layout Planner — Academic Allies</title>
+<title>Master Bedroom Layout Planner — Claude, 2026-03-09</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@500;700&display=swap');
   :root {
@@ -42,7 +42,7 @@
   .legend{padding:9px;display:flex;flex-direction:column;gap:5px;}
   .leg{display:flex;align-items:center;gap:7px;font-size:.62rem;color:var(--muted);}
   .sw{width:13px;height:13px;border-radius:2px;flex-shrink:0;}
-  .cwrap{background:var(--paper);border:1.5px solid rgba(26,18,8,.12);border-radius:5px;padding:14px 72px 40px 72px;}
+  .cwrap{background:var(--paper);border:1.5px solid rgba(26,18,8,.12);border-radius:5px;padding:14px 14px 40px 72px;}
   .clabel{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:28px;}
   .router{position:relative;}
   .room{position:relative;background:#fefcf5;border:3px solid var(--ink);}
@@ -64,25 +64,8 @@
 </style>
 </head>
 <body>
-<!-- Claude: 2026-03-10 — shared header -->
-<div id="site-header"></div>
-<script>
-  fetch('/Academic-Allies/modular/shared-header.html?v=20260310c')
-    .then(function(r) { return r.text(); })
-    .then(function(html) {
-      var c = document.getElementById('site-header');
-      c.innerHTML = html;
-      c.querySelectorAll('script').forEach(function(old) {
-        var s = document.createElement('script');
-        Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
-        s.textContent = old.textContent;
-        old.replaceWith(s);
-      });
-    });
-</script>
-
 <h1>Master Bedroom Layout Planner</h1>
-<p class="sub">Clean slate · specs from CSV · door swing arcs · short furniture OK at window · Claude 2026-03-10</p>
+<p class="sub">Clean slate · specs from CSV · door swing arcs · short furniture OK at window · Claude 2026-03-09</p>
 <div class="layout">
   <div class="sidebar">
     <div class="panel"><div class="ph">→ Master Bedroom</div><div class="pb"><div class="flist" id="masterList"></div></div></div>
@@ -119,34 +102,33 @@
 // ROOM SPEC — inches. y=0 = balcony/top wall.
 // Source: Room_measurements_.csv  |  Claude 2026-03-09
 // ═══════════════════════════════════════════════════════
-/* Claude: 2026-03-10 — LEFT-RIGHT MIRROR FLIP applied.
-   Standing at entry looking in: window = RIGHT, bath/closet = LEFT.
-   Original (pre-flip) archived: bedroom-planner_2026-03-10_pre-mirror-flip.html */
 const ROOM = {
   w: 189.5,
   h: 152.5,
-  // Doors: pos = distance along wall from its origin corner (left=0)
+  // Doors: pos = distance along wall from its origin corner
+  // hinge: which end of the opening has the hinge ('start'|'end')
   doors: [
-    { id:'entry',   label:'Entry 36"',   wall:'bottom', pos:0,     size:36, hinge:'start' },  // hinge at x=0 (BC wall side, left)
-    { id:'balcony', label:'Balcony 37"', wall:'top',    pos:118.5, size:37, hinge:'start' },  // mirrored from pos:34
+    { id:'entry',   label:'Entry 36"',   wall:'bottom', pos:153.5, size:36, hinge:'end'   },  // hinge at x=189.5 (BC wall side) — confirmed from photo, door swings toward bathroom
+    { id:'balcony', label:'Balcony 37"', wall:'top',    pos:34,    size:37, hinge:'end'   },
+    // Bathroom + closet swing OUT of bedroom — no arc inside room
+    // Just keep the opening itself unblocked — Fixed by Claude 2026-03-09
   ],
-  window: { wall:'right', pos:56, size:42, sill:36 },  // was left wall, now right
-  // Outswing doors — swing OUT of bedroom, no arc inside. Now on LEFT wall.
+  window: { wall:'left', pos:56, size:42, sill:36 },
+  // Outswing doors — swing OUT of bedroom, so no arc inside. Just keep opening unblocked.
   outswing: [
-    { id:'bathroom', label:'Bath 29"', wall:'left', pos:36.5,  size:29 },
-    { id:'closet',   label:'Closet 30"', wall:'left', pos:125.5, size:30 },
+    { id:'bathroom', label:'Bath 29"', wall:'right', pos:36.5,  size:29 },
+    { id:'closet',   label:'Closet 30"', wall:'right', pos:125.5, size:30 },  // 30" per sketch — 3" rounding gap noted
   ],
   // sill:36 means furniture ≤36" tall is fine in front of window
-  baseboard: { y:98, h:54.5, clearance:12, wall:'right' },
-  // Baseboard runs y=98→152.5 on RIGHT wall (was left)
-  // Furniture must stay 12" from right wall in that zone
+  baseboard: { y:98, h:54.5, clearance:12 },
+  // Baseboard runs y=98→152.5 on left wall, flush to wall
+  // Furniture must stay 12" away from left wall in that zone
 };
 // Hinge point in inches
 function hingeInches(door) {
-  if (door.wall==='bottom') return door.hinge==='start' ? {x:door.pos,  y:ROOM.h} : {x:door.pos+door.size, y:ROOM.h};
-  if (door.wall==='top')    return door.hinge==='start' ? {x:door.pos,  y:0}      : {x:door.pos+door.size, y:0};
-  if (door.wall==='right')  return door.hinge==='start' ? {x:ROOM.w, y:door.pos}  : {x:ROOM.w, y:door.pos+door.size};
-  if (door.wall==='left')   return door.hinge==='start' ? {x:0, y:door.pos}       : {x:0, y:door.pos+door.size};
+  if (door.wall==='bottom') return door.hinge==='start' ? {x:door.pos,        y:ROOM.h} : {x:door.pos+door.size, y:ROOM.h};
+  if (door.wall==='top')    return door.hinge==='start' ? {x:door.pos,        y:0}      : {x:door.pos+door.size, y:0};
+  if (door.wall==='right')  return door.hinge==='start' ? {x:ROOM.w, y:door.pos}        : {x:ROOM.w, y:door.pos+door.size};
   return {x:0,y:0};
 }
 // ═══════════════════════════════════════════════════════
@@ -194,17 +176,17 @@ function getCollisions(id, x, y) {
   if(y<0)        msgs.push('Past top wall');
   if(x+w>ROOM.w) msgs.push('Past right wall');
   if(y+h>ROOM.h) msgs.push('Past bottom wall');
-  // Baseboard — only fires within the heater zone on RIGHT wall (mirrored)
-  if(x+w > ROOM.w-ROOM.baseboard.clearance && y+h>ROOM.baseboard.y && y<ROOM.baseboard.y+ROOM.baseboard.h)
-    msgs.push('Baseboard heat — keep 12" from right wall here');
-  // Window (RIGHT wall) — short furniture (≤ sill height) is totally fine here
+  // Baseboard — only fires within the heater zone on left wall
+  if(x<ROOM.baseboard.clearance && y+h>ROOM.baseboard.y && y<ROOM.baseboard.y+ROOM.baseboard.h)
+    msgs.push('Baseboard heat — keep 12" from left wall here');
+  // Window — short furniture (≤ sill height) is totally fine here
   const win=ROOM.window;
-  if(x+w > ROOM.w-10 && y+h>win.pos && y<win.pos+win.size && d.height>win.sill)
+  if(x<10 && y+h>win.pos && y<win.pos+win.size && d.height>win.sill)
     msgs.push(`Blocks window — ${d.height}" tall > ${win.sill}" sill`);
-  // Outswing doors (LEFT wall) — no arc inside bedroom, just don't block the opening
+  // Outswing doors — no arc inside bedroom, just don't block the opening
   for(const door of ROOM.outswing){
-    if(x < 2 && y < door.pos+door.size && y+h > door.pos)
-      msgs.push(`Blocks ${door.label} opening`);
+    if(x+w > ROOM.w-2 && y < door.pos+door.size && y+h > door.pos)
+      msgs.push();
   }
   // Inswing door swing arcs — quarter circle, radius = door opening size
   for(const door of ROOM.doors){
@@ -235,12 +217,13 @@ function drawFeatures(){
   for(const door of ROOM.doors){
     const {x:hx,y:hy}=hingeInches(door);
     const hxp=px(hx), hyp=py(hy);
-    // Swing arc angles (canvas: 0=east, CW positive) — Claude 2026-03-10 mirror flip
+    // Swing arc angles (canvas: 0=east, CW positive)
     let a0, a1;
-    if(door.wall==='bottom' && door.hinge==='start'){ a0=-Math.PI/2; a1=0;         } // hinge at left, sweeps north→east
-    if(door.wall==='bottom' && door.hinge==='end')  { a0=-Math.PI;   a1=-Math.PI/2;} // hinge at right, sweeps west→north
-    if(door.wall==='top'    && door.hinge==='start'){ a0=0;          a1=Math.PI/2; } // hinge at left, sweeps east→south
-    if(door.wall==='top'    && door.hinge==='end')  { a0=Math.PI/2;  a1=Math.PI;   } // hinge at right, sweeps south→west
+    if(door.wall==='bottom' && door.hinge==='start'){ a0=-Math.PI;  a1=-Math.PI/2; } // sweeps west→north
+    if(door.wall==='bottom' && door.hinge==='end')  { a0=0; a1=-Math.PI/2;        } // sweeps east→north (toward BC wall) — Fixed by Claude 2026-03-09
+    if(door.wall==='top'    && door.hinge==='end')  { a0= Math.PI/2; a1= Math.PI;  } // sweeps south→west
+    if(door.wall==='right'  && door.hinge==='start'){ a0= Math.PI/2; a1= Math.PI;           } // sweeps south→west
+    if(door.wall==='right'  && door.hinge==='end')  { a0=-Math.PI/2; a1=-Math.PI; } // sweeps north→west (upward) — Fixed by Claude 2026-03-09
     // Use average px/py radius so arc looks right on non-square canvas
     const rp = (px(door.size)+py(door.size))/2;
     // Filled arc (pie slice)
@@ -262,7 +245,6 @@ function drawFeatures(){
     ctx.fillStyle='#c49a3c';
     if(door.wall==='bottom') ctx.fillRect(px(door.pos),H-5,px(door.size),5);
     if(door.wall==='top')    ctx.fillRect(px(door.pos),0,px(door.size),5);
-    if(door.wall==='left')   ctx.fillRect(0,py(door.pos),5,py(door.size));
     if(door.wall==='right')  ctx.fillRect(W-5,py(door.pos),5,py(door.size));
     // Label
     ctx.save();
@@ -274,49 +256,46 @@ function drawFeatures(){
     // (right-wall door labels handled in outswing section below)
     ctx.restore();
   }
-  // ── Window (RIGHT wall — mirrored) ──
+  // ── Window (left wall) ──
   const win=ROOM.window;
   ctx.fillStyle='#4a87b8';
-  ctx.fillRect(W-5, py(win.pos), 5, py(win.size));
+  ctx.fillRect(0, py(win.pos), 5, py(win.size));
   ctx.font='8.5px DM Mono,monospace';
   ctx.fillStyle='#2a5a88';
-  ctx.textAlign='left';
-  ctx.fillText('Window 42"', W+7, py(win.pos+win.size/2)-3);
-  ctx.fillText('short furn OK', W+7, py(win.pos+win.size/2)+8);
-  // ── Outswing door openings on LEFT wall (no arc — they swing out of bedroom) ──
+  ctx.textAlign='right';
+  ctx.fillText('Window 42"', -7, py(win.pos+win.size/2)-3);
+  ctx.fillText(`short furn OK`, -7, py(win.pos+win.size/2)+8);
+  // ── Outswing door openings (no arc — they swing out of bedroom) ──
   for(const door of ROOM.outswing){
-    // Gold bar on left wall showing the opening
+    // Gold bar on right wall showing the opening
     ctx.fillStyle='#c49a3c';
-    ctx.fillRect(0, py(door.pos), 5, py(door.size));
+    ctx.fillRect(W-5, py(door.pos), 5, py(door.size));
     // Label
     ctx.save();
     ctx.font='9px DM Mono,monospace';
     ctx.fillStyle='#8a6a10';
     ctx.save();
-    ctx.translate(-44, py(door.pos+door.size/2));
-    ctx.rotate(-Math.PI/2);
+    ctx.translate(W+44, py(door.pos+door.size/2));
+    ctx.rotate(Math.PI/2);
     ctx.textAlign='center';
     ctx.fillText(door.label+' (out)', 0, 0);
     ctx.restore();
     ctx.restore();
   }
-  // ── Wall labels (mirrored: BC=left, W=right) ──
+  // ── Wall labels ──
   ctx.font='9px DM Mono,monospace';
   ctx.fillStyle='#7a6e5f';
   ctx.textAlign='center';
   ctx.fillText('B Wall — Balcony Side — 189"', W/2, -20);
   ctx.fillText('TV Wall — Entry Side — 189.5"', W/2, H+30);
   ctx.save(); ctx.translate(-52,H/2); ctx.rotate(-Math.PI/2);
-  ctx.fillText('BC Wall — Bath / Closet',0,0); ctx.restore();
-  ctx.save(); ctx.translate(W+56,H/2); ctx.rotate(Math.PI/2);
   ctx.fillText('W Wall — 152.5"  🔥',0,0); ctx.restore();
+  ctx.save(); ctx.translate(W+56,H/2); ctx.rotate(Math.PI/2);
+  ctx.fillText('BC Wall — Bath / Closet',0,0); ctx.restore();
 }
 function drawBaseboard(){
   const el=document.getElementById('bb');
   el.style.top   =py(ROOM.baseboard.y)+'px';
-  // Baseboard now on RIGHT wall (mirrored)
-  el.style.left  ='auto';
-  el.style.right ='0';
   el.style.width =px(ROOM.baseboard.clearance)+'px';
   el.style.height=py(ROOM.baseboard.h)+'px';
   el.style.background='repeating-linear-gradient(45deg,#e07030,#e07030 5px,rgba(224,112,48,.3) 5px,rgba(224,112,48,.3) 10px)';
@@ -484,27 +463,24 @@ document.getElementById('btnReset').addEventListener('click',()=>{placed={};sel=
 //   • Both beds have clear sightline to TV: bunk straight-on, Mary slightly diagonal
 //   • Right-center floor RESERVED for Mary's extra unnamed dressers
 //   • Baseboard heat clearance maintained throughout
-/* Claude: 2026-03-10 — suggested layout mirrored left-right.
-   W wall (now right): window + baseboard side.
-   BC wall (now left): bath/closet side. */
 const SUGGESTED = [
-  // W wall (RIGHT side now) — bookcase above window + desk under window
-  { id:'bookcase2',   x:176.5, y:0,     rotated:false },  // W wall above window (13d x 37l)
-  { id:'desk',        x:144.5, y:53,    rotated:true  },  // W wall under window (45l x 20d)
-  // B wall — both beds, right to left (mirrored):
-  // Mary bed | dresser gap | bunk | nightstand | [balcony door]
-  { id:'hbed',        x:0,     y:0,     rotated:true  },  // left corner (43l x 84w), Mary's bed — closest to bath
-  { id:'hdresser',    x:36.5,  y:0,     rotated:true  },  // gap between Mary bed and bunk (33l x 20d)
-  { id:'bunk',        x:53.5,  y:0,     rotated:false },  // Bruise's recovery bunk (49w x 86l)
-  { id:'nightstand',  x:118,   y:0,     rotated:true  },  // right of bunk (14.5l x 15d)
+  // W wall
+  { id:'bookcase2',   x:0,     y:0,     rotated:false },  // W wall above window (13d x 37l)
+  { id:'desk',        x:0,     y:53,    rotated:true  },  // W wall under window (45l x 20d), y=53-98 ✓
+  // B wall — both beds, left to right:
+  // [balcony door x=34-71] | nightstand | bunk | dresser gap | Mary bed
+  { id:'nightstand',  x:56.5,  y:0,     rotated:true  },  // left of bunk (14.5l x 15d)
+  { id:'bunk',        x:71,    y:0,     rotated:false },  // right of balcony door (49w x 86l), Bruise's recovery bunk
+  { id:'hdresser',    x:120,   y:0,     rotated:true  },  // gap between bunk and Mary bed (33l x 20d)
+  { id:'hbed',        x:146.5, y:0,     rotated:true  },  // right corner (43l x 84w deep), Mary's bed
   // TV wall — LOW furniture only, clear sightlines to mounted TV
-  { id:'smdresser',   x:67.5,  y:122.5, rotated:true  },  // (30l x 19d, 45" tall)
-  { id:'vanity',      x:97.5,  y:132.5, rotated:true  },  // (47l x 20d, 28" tall — fine under TV)
-  { id:'bookcase1',   x:144.5, y:119.5, rotated:true  },  // far right (33l x 15d, 71" tall — away from TV center)
-  // BC wall (LEFT side now) — Big Bookcase between bath and closet doors
-  { id:'bigbookcase', x:0,     y:70,    rotated:false },
+  { id:'bookcase1',   x:12,    y:119.5, rotated:true  },  // far left (33l x 15d, 71" tall — away from TV center)
+  { id:'vanity',      x:45,    y:132.5, rotated:true  },  // (47l x 20d, 28" tall — fine under TV)
+  { id:'smdresser',   x:92,    y:122.5, rotated:true  },  // (30l x 19d, 45" tall — acceptable height)
+  // BC wall — Big Bookcase between bath and closet (confirmed in photos)
+  { id:'bigbookcase', x:176.5, y:70,    rotated:false },
   // Hamper — near closet, out of traffic
-  { id:'hamper',      x:17.5,  y:110,   rotated:false },
+  { id:'hamper',      x:160,   y:110,   rotated:false },
 ];
 document.getElementById('btnSuggest').addEventListener('click',()=>{
   placed = {};
