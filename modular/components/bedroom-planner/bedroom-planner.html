@@ -225,13 +225,27 @@ function getCollisions(id, x, y) {
       msgs.push(`Blocks ${door.label} opening`);
   }
   // Inswing door swing arcs — quarter circle, radius = door opening size
+  /* Claude: 2026-03-11 — arc check limited to correct 90° quadrant only.
+     Doors swing inward from free end, not a full 360° circle.
+     E.g., balcony hinge at x:118.5 swings RIGHT+DOWN — furniture
+     to the LEFT of x:118.5 is never in the swing path. */
   for(const door of ROOM.doors){
     const {x:hx,y:hy}=hingeInches(door);
-    // Nearest point on furniture rect to hinge point
     const nx=Math.max(x,Math.min(hx,x+w));
     const ny=Math.max(y,Math.min(hy,y+h));
-    if(Math.hypot(nx-hx,ny-hy)<door.size)
-      msgs.push(`In ${door.label} swing arc`);
+    if(Math.hypot(nx-hx,ny-hy)>=door.size) continue;
+    // Only flag if nearest point is in the door's 90° sweep quadrant
+    var inQ=true;
+    if(door.wall==='bottom'||door.wall==='top'){
+      var sx=door.hinge==='start'?1:-1, sy=door.wall==='bottom'?-1:1;
+      if((sx>0&&nx<hx)||(sx<0&&nx>hx)) inQ=false;
+      if((sy>0&&ny<hy)||(sy<0&&ny>hy)) inQ=false;
+    } else {
+      var sx=door.wall==='left'?1:-1, sy=door.hinge==='start'?1:-1;
+      if((sx>0&&nx<hx)||(sx<0&&nx>hx)) inQ=false;
+      if((sy>0&&ny<hy)||(sy<0&&ny>hy)) inQ=false;
+    }
+    if(inQ) msgs.push(`In ${door.label} swing arc`);
   }
   // Furniture overlap (master room only)
   for(const [oid,op] of Object.entries(placed)){
@@ -537,59 +551,75 @@ document.getElementById('btnRem').addEventListener('click',()=>{
   delete placed[sel];sel=null;render();
 });
 document.getElementById('btnReset').addEventListener('click',()=>{placed={};sel=null;render();});
-// ── Suggested Layout — Claude 2026-03-11 — CHRONIC PAIN OPTIMIZED ──
-// Redesigned with focus on chronic pain management (requirements A-E):
+// ── Suggested Layout — Claude 2026-03-11 — CHRONIC PAIN v8 ──────
+// BOTH BEDS FLUSH AGAINST WALLS — NO beds in front of doors — center OPEN.
+// Arc detection fix: 90° quadrant only (not full 360° circle) unlocks
+// the B wall for the bunk — furniture LEFT of balcony hinge is never
+// in the door's swing path.
+//
+// Requirements A-E:
 //   A. Heritage bed: CLOSEST to entry door, TV sightline, migraine/chronic pain
 //   B. Desk: near baseboard OK (empty leg space = airflow)
 //   C. Bunk bed (lower bunk only): fractured fibula, TV sightline bonus
-//   D. All bookshelves except big bookshelf optional (all 3 fit!)
+//   D. Bookshelves optional except big bookshelf — dropped for floor space
 //   E. Claude is a master of space and functionality specializing in
 //      chronic pain management.
 //
 // Layout logic — Claude 2026-03-11:
-//   TV wall (BOTTOM): Heritage bed rotated, headboard against wall,
-//     starts at x:37 — literally 1" from entry door swing arc.
-//     Person with migraines/chronic pain can reach door in <1 step.
-//   B wall (TOP-LEFT): Bunk bed at x:14, headboard toward B wall,
-//     lower bunk faces south → direct TV sightline.
-//     Fibula patient exits right side into wide 126"+ open pathway.
+//   TV wall (BOTTOM): Heritage bed ROTATED (84" long × 43" deep).
+//     Long side along TV wall, only 43" into room.
+//     x:37 — 1" past entry door swing arc.
+//     Migraine/chronic-pain person reaches door in <1 step.
+//   B wall (TOP): Bunk ROTATED (86" long × 49" deep) at x:30, y:0.
+//     Long side FLUSH against B wall, only 49" into room (32%).
+//     x:30 leaves 30" walkway to LEFT wall for closet + bathroom doors.
+//     Person on lower bunk looks SOUTH → direct TV sightline.
+//     Fibula patient exits south side into wide open room → entry door.
+//     Arc fix: bunk ends at x:116, left of balcony hinge (118.5) = no arc.
 //   Nightstand at heritage bed head (x:22, y:96) — meds/water/phone
 //     within arm's reach without getting up.
-//   Heritage dresser at foot of heritage bed for easy clothing access.
+//   Heritage dresser at foot of heritage bed — easy clothing access.
+//   Vanity (28" low) on TV wall right of dresser — no TV blockage.
 //   Desk against RIGHT wall in baseboard zone y:98–152.5 (intentional —
 //     open leg space allows heat airflow, collision warning expected).
-//   Vanity (28" low) on TV wall, doesn't block TV sightlines.
-//   Big bookcase on LEFT wall between closet + bathroom doors.
-//   Bookcase 2 + 1 tucked against B wall and W wall (bonus — all fit).
+//   Big bookcase on RIGHT wall upper corner — above window zone.
+//   Optional bookshelves DROPPED — fewer obstacles = safer for crutches.
 //   Small Dresser + Hamper in walk-in closet.
-//   Central floor area CLEAR — 36"+ pathways for crutches/mobility.
+//   CENTER FLOOR OPEN: x:30–169, y:49–109 = huge clear zone.
+//     30"+ walkway to every door. Wide paths for crutches/mobility aids.
+//   DOOR ACCESS: entry ✓ balcony ✓ closet (30" path) ✓ bathroom (30" path) ✓
 /* Claude: 2026-03-10 — suggested layout mirrored left-right.
    Claude: 2026-03-11 — side-wall vertical flip.
    Claude: 2026-03-11 — closet zone added.
-   Claude: 2026-03-11 — baseboard moved to y:98→152.5 (near entry/TV wall).
-   Claude: 2026-03-11 — CHRONIC PAIN REDESIGN v5. */
+   Claude: 2026-03-11 — baseboard moved to y:98→152.5.
+   Claude: 2026-03-11 — v5 (beds perpendicular, center cluttered).
+   Claude: 2026-03-11 — v6 (bunk long-side on left wall, blocked closet door).
+   Claude: 2026-03-11 — v7 (bunk rotated between doors, bathroom too tight).
+   Claude: 2026-03-11 — v8: fixed arc to 90° quadrant, bunk FLUSH on B wall,
+     30" walkway to left-wall doors, all doors fully accessible. */
 const SUGGESTED = [
-  // TV wall (BOTTOM) — Heritage bed closest to entry door
-  // Rotated 84×43: headboard against TV wall, x:37 clears 36" door swing
+  // ── TV wall (BOTTOM) — Heritage bed closest to entry door ──
+  // Rotated: 84" long side along wall, 43" deep into room
+  // x:37 clears 36" entry door swing arc by 1"
   { id:'hbed',        x:37,    y:109.5, rotated:true,  room:'master' },
-  // Heritage dresser at foot of bed — easy clothing access for pain patient
+  // Heritage dresser at foot of bed — clothing access without walking
   { id:'hdresser',    x:121,   y:109.5, rotated:true,  room:'master' },
-  // Vanity (28" low) — doesn't block TV sightlines from either bed
+  // Vanity (28" low) right of dresser — doesn't block TV sightlines
   { id:'vanity',      x:121,   y:132.5, rotated:true,  room:'master' },
-  // Nightstand at heritage bed head — meds/water/phone within arm's reach
+  // Nightstand at heritage bed head — meds/water/phone arm's reach
   { id:'nightstand',  x:22,    y:96,    rotated:false, room:'master' },
-  // B wall (TOP-LEFT) — Bunk bed, lower bunk faces south → TV sightline
-  // x:14 clears closet outswing, headboard toward B wall
-  { id:'bunk',        x:14,    y:0,     rotated:false, room:'master' },
-  // W wall (RIGHT) — Desk in baseboard zone (legs allow airflow)
-  // Collision warning expected and intentional per requirement B
+  // ── B wall (TOP) — Bunk ROTATED, flush against wall ──
+  // 86" long side along B wall, 49" deep into room (32% of depth)
+  // x:30 = 30" walkway to left wall for closet + bathroom access
+  // Ends at x:116 — LEFT of balcony hinge (118.5) = no arc conflict
+  { id:'bunk',        x:30,    y:0,     rotated:true,  room:'master' },
+  // ── W wall (RIGHT) — Desk in baseboard zone ──
+  // Legs allow airflow past baseboard — collision warning is intentional
   { id:'desk',        x:169.5, y:107.5, rotated:false, room:'master' },
-  // BC wall (LEFT) — Big Bookcase between closet + bathroom doors
-  { id:'bigbookcase', x:0,     y:30,    rotated:false, room:'master' },
-  // BONUS bookshelves — all fit! (requirement D)
-  { id:'bookcase2',   x:68,    y:0,     rotated:false, room:'master' },
-  { id:'bookcase1',   x:174.5, y:0,     rotated:false, room:'master' },
-  // Walk-in Closet — small items in the 48"×48" space
+  // ── W wall (RIGHT) upper — Big Bookcase above window zone ──
+  // x:176.5, y:0→42 — clears window (starts y:54.5) and baseboard (y:98+)
+  { id:'bigbookcase', x:176.5, y:0,     rotated:false, room:'master' },
+  // ── Walk-in Closet ──
   { id:'smdresser',   x:0,     y:0,     rotated:false, room:'closet' },
   { id:'hamper',      x:21,    y:0,     rotated:false, room:'closet' },
 ];
