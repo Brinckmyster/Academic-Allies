@@ -82,7 +82,7 @@
 </script>
 
 <h1>Master Bedroom Layout Planner</h1>
-<p class="sub">Chronic pain optimized · specs from CSV · door swing arcs · short furniture OK at window · Claude 2026-03-11</p>
+<p class="sub">Clean slate · specs from CSV · door swing arcs · short furniture OK at window · Claude 2026-03-10</p>
 <div class="layout">
   <div class="sidebar">
     <div class="panel"><div class="ph">→ Master Bedroom</div><div class="pb"><div class="flist" id="masterList"></div></div></div>
@@ -129,8 +129,7 @@
    flipped along y-axis). Entry stays BOTTOM, Balcony stays TOP.
    Standing at entry looking in: window = RIGHT, bath/closet = LEFT.
    Archives: bedroom-planner_2026-03-10_pre-mirror-flip.html
-             bedroom-planner_2026-03-11_pre-vertical-flip.html
-             bedroom-planner_2026-03-11_pre-baseboard-move.html */
+             bedroom-planner_2026-03-11_pre-vertical-flip.html */
 const ROOM = {
   w: 189.5,
   h: 152.5,
@@ -146,10 +145,9 @@ const ROOM = {
     { id:'closet',   label:'Closet 30"', wall:'left', pos:-3, size:30 },  // side-flip: 152.5-125.5-30=-3 (corner)
   ],
   // sill:36 means furniture ≤36" tall is fine in front of window
-  baseboard: { y:98, h:54.5, clearance:12, wall:'right' },
-  /* Claude: 2026-03-11 — Baseboard moved from y:0→54.5 to y:98→152.5
-     on RIGHT wall (bottom-right zone, near entry/TV wall).
-     Furniture must stay 12" from right wall in y:98–152.5 */
+  baseboard: { y:0, h:54.5, clearance:12, wall:'right' },
+  // Baseboard runs y=0→54.5 on RIGHT wall (top-right zone, near balcony end)
+  // Furniture must stay 12" from right wall in that zone
 };
 // Hinge point in inches
 function hingeInches(door) {
@@ -203,7 +201,7 @@ const ch  = id => { const d=def(id),p=placed[id]; return p?.rotated?d.w:d.l; };
 // Rules:
 //   1. Don't go out of bounds
 //   2. Don't enter a door's swing arc (quarter-circle)
-//   3. Baseboard zone: stay 12" from right wall in y=98–152.5
+//   3. Baseboard zone: stay 12" from right wall in y=0–54.5
 //   4. Window: only flag if furniture is TALLER than the sill height
 //   5. No furniture-on-furniture overlap
 function getCollisions(id, x, y) {
@@ -537,59 +535,45 @@ document.getElementById('btnRem').addEventListener('click',()=>{
   delete placed[sel];sel=null;render();
 });
 document.getElementById('btnReset').addEventListener('click',()=>{placed={};sel=null;render();});
-// ── Suggested Layout — Claude 2026-03-11 — CHRONIC PAIN OPTIMIZED ──
-// Redesigned with focus on chronic pain management (requirements A-E):
-//   A. Heritage bed: CLOSEST to entry door, TV sightline, migraine/chronic pain
-//   B. Desk: near baseboard OK (empty leg space = airflow)
-//   C. Bunk bed (lower bunk only): fractured fibula, TV sightline bonus
-//   D. All bookshelves except big bookshelf optional (all 3 fit!)
-//   E. Claude is a master of space and functionality specializing in
-//      chronic pain management.
-//
-// Layout logic — Claude 2026-03-11:
-//   TV wall (BOTTOM): Heritage bed rotated, headboard against wall,
-//     starts at x:37 — literally 1" from entry door swing arc.
-//     Person with migraines/chronic pain can reach door in <1 step.
-//   B wall (TOP-LEFT): Bunk bed at x:14, headboard toward B wall,
-//     lower bunk faces south → direct TV sightline.
-//     Fibula patient exits right side into wide 126"+ open pathway.
-//   Nightstand at heritage bed head (x:22, y:96) — meds/water/phone
-//     within arm's reach without getting up.
-//   Heritage dresser at foot of heritage bed for easy clothing access.
-//   Desk against RIGHT wall in baseboard zone y:98–152.5 (intentional —
-//     open leg space allows heat airflow, collision warning expected).
-//   Vanity (28" low) on TV wall, doesn't block TV sightlines.
-//   Big bookcase on LEFT wall between closet + bathroom doors.
-//   Bookcase 2 + 1 tucked against B wall and W wall (bonus — all fit).
-//   Small Dresser + Hamper in walk-in closet.
-//   Central floor area CLEAR — 36"+ pathways for crutches/mobility.
+// ── Suggested Layout — Claude 2026-03-09 ─────────────────────────
+// Logic:
+//   W wall:  Bookcase 2 (below window) + Desk at window
+//   B wall:  Both beds + dresser + nightstand
+//   TV wall: Vanity + Bookcase 1 (low furniture, clear sightlines)
+//   BC wall: Big Bookcase between bath and closet doors
+//   Closet:  Small Dresser + Hamper
+// Suggested layout v4 — with closet — Claude 2026-03-11
+// Design principles:
+//   • Both beds against B wall (TOP) — headboards to wall, no floating
+//   • Mary's bed in left B-wall corner (closest to bathroom for night trips)
+//   • Bruise's bunk right of Mary's bed area (bottom bunk faces room for easy exit)
+//   • Nightstand right of bunk, before balcony door
+//   • TV wall (BOTTOM) = LOW furniture only — vanity (28")
+//     Bookcase 1 on far-right TV wall, away from TV sightlines from both beds
+//   • Small Dresser + Hamper moved into walk-in closet (frees floor space)
+//   • Both beds have clear sightline to TV: bunk straight-on, Mary slightly diagonal
+//   • Right-center floor RESERVED for Mary's extra unnamed dressers
+//   • Baseboard heat clearance maintained throughout
 /* Claude: 2026-03-10 — suggested layout mirrored left-right.
-   Claude: 2026-03-11 — side-wall vertical flip.
-   Claude: 2026-03-11 — closet zone added.
-   Claude: 2026-03-11 — baseboard moved to y:98→152.5 (near entry/TV wall).
-   Claude: 2026-03-11 — CHRONIC PAIN REDESIGN v5. */
+   Claude: 2026-03-11 — side-wall vertical flip (baseboard now top-right).
+   Claude: 2026-03-11 — closet zone added; hamper + small dresser moved there. */
 const SUGGESTED = [
-  // TV wall (BOTTOM) — Heritage bed closest to entry door
-  // Rotated 84×43: headboard against TV wall, x:37 clears 36" door swing
-  { id:'hbed',        x:37,    y:109.5, rotated:true,  room:'master' },
-  // Heritage dresser at foot of bed — easy clothing access for pain patient
-  { id:'hdresser',    x:121,   y:109.5, rotated:true,  room:'master' },
-  // Vanity (28" low) — doesn't block TV sightlines from either bed
-  { id:'vanity',      x:121,   y:132.5, rotated:true,  room:'master' },
-  // Nightstand at heritage bed head — meds/water/phone within arm's reach
-  { id:'nightstand',  x:22,    y:96,    rotated:false, room:'master' },
-  // B wall (TOP-LEFT) — Bunk bed, lower bunk faces south → TV sightline
-  // x:14 clears closet outswing, headboard toward B wall
-  { id:'bunk',        x:14,    y:0,     rotated:false, room:'master' },
-  // W wall (RIGHT) — Desk in baseboard zone (legs allow airflow)
-  // Collision warning expected and intentional per requirement B
-  { id:'desk',        x:169.5, y:107.5, rotated:false, room:'master' },
-  // BC wall (LEFT) — Big Bookcase between closet + bathroom doors
-  { id:'bigbookcase', x:0,     y:30,    rotated:false, room:'master' },
-  // BONUS bookshelves — all fit! (requirement D)
-  { id:'bookcase2',   x:68,    y:0,     rotated:false, room:'master' },
-  { id:'bookcase1',   x:174.5, y:0,     rotated:false, room:'master' },
-  // Walk-in Closet — small items in the 48"×48" space
+  // W wall (RIGHT side) — desk at window, bookcase below window
+  // (baseboard zone y:0→54.5, so bookcase2 moved below window to avoid it)
+  { id:'bookcase2',   x:176.5, y:97,    rotated:false, room:'master' },
+  { id:'desk',        x:144.5, y:55,    rotated:true,  room:'master' },
+  // B wall (TOP) — both beds, headboards against wall:
+  // Mary bed | dresser | bunk | nightstand | [balcony door]
+  { id:'hbed',        x:0,     y:0,     rotated:true,  room:'master' },
+  { id:'hdresser',    x:36.5,  y:0,     rotated:true,  room:'master' },
+  { id:'bunk',        x:53.5,  y:0,     rotated:false, room:'master' },
+  { id:'nightstand',  x:118,   y:0,     rotated:true,  room:'master' },
+  // TV wall (BOTTOM) — LOW furniture only, clear sightlines to mounted TV
+  { id:'vanity',      x:97.5,  y:132.5, rotated:true,  room:'master' },
+  { id:'bookcase1',   x:144.5, y:119.5, rotated:true,  room:'master' },
+  // BC wall (LEFT side) — Big Bookcase between bath and closet doors
+  { id:'bigbookcase', x:0,     y:70,    rotated:false, room:'master' },
+  // Walk-in Closet — small items that fit in the 48"×48" space
   { id:'smdresser',   x:0,     y:0,     rotated:false, room:'closet' },
   { id:'hamper',      x:21,    y:0,     rotated:false, room:'closet' },
 ];
