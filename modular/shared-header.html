@@ -123,7 +123,7 @@ Your disability accommodations and support network">Your disability accommodatio
        Pages that rely on shared-header for Firebase (calendar, support-dashboard, user-tiers,
        message-system) were receiving 9.23.0 via this dynamic loader instead of the required 10.7.1. */
     var FB_BASE   = 'https://www.gstatic.com/firebasejs/10.7.1/';
-    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260310a'; /* Claude: 2026-03-10 — expose _persistenceReady */
+    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260311b'; /* Claude: 2026-03-11 — diagnostic logging for persistence */
 
     /* ── 3. Wire up the header UI once window.AA is ready ── */
     function initAuthUI() {
@@ -540,7 +540,12 @@ Your disability accommodations and support network">Your disability accommodatio
          eventually showing the sign-in button even when the user IS signed in.
          Falls back to immediate setup if _persistenceReady isn't available. */
       function _setupAuthListener() {
+      /* Claude: 2026-03-11 — diagnostic logging for persistence debugging */
+      var _authStartMs = Date.now();
+      console.log('[AA auth] onAuthStateChanged listener registered at +0ms');
       window.AA.auth.onAuthStateChanged(function (user) {
+        var _elapsed = Date.now() - _authStartMs;
+        console.log('[AA auth] onAuthStateChanged fired: ' + (user ? 'USER (' + user.email + ')' : 'null') + ' at +' + _elapsed + 'ms');
         if (!user) {
           /* Claude: 2026-03-06 — grace period before accepting null as a real sign-out.
              Firebase fires onAuthStateChanged(null) transiently when the auth token
@@ -570,6 +575,7 @@ Your disability accommodations and support network">Your disability accommodatio
           }
 
           var _graceMs = (_graceKeep && _graceUser) ? 12000 : 5000;
+          console.log('[AA auth] Grace period: ' + _graceMs + 'ms | keepSignedIn=' + _graceKeep + ' | lastUser=' + !!_graceUser);
           _signOutDebounce = setTimeout(function () {
             _signOutDebounce = null;
             if (!window.AA.auth.currentUser) {
