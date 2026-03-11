@@ -493,21 +493,56 @@ Your disability accommodations and support network">Your disability accommodatio
           var _wantKeep = (localStorage.getItem('AA_KEEP_SIGNED_IN')
                            || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
 
-          /* Claude: 2026-03-11 — removed the 10-second persistence poll.
-             The grace period (now 12s for LOCAL persistence) already gives Firebase
-             enough time for the token refresh network round-trip. If onAuthStateChanged(user)
-             fires at ANY point — even after we show the sign-in button — lines 633-646
-             will self-correct the UI. No poll needed.
-             Archive: shared-header_2026-03-11_pre-persistence-fix.html */
-          if (_showWelcome) {
-            welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '!';
-            welcomeBack.style.display = 'flex';
+          if (lastUser && _wantKeep) {
+            /* Claude: 2026-03-08 — wait up to 6s for Firebase LOCAL persistence to
+               restore the session. If it doesn't, just show the sign-in button.
+               Archive: old version tried auto-re-auth via _doSignIn after 4s, which
+               triggered popup (blocked by browser → redirect → loop → gave up).
+               New approach: Firebase LOCAL persistence handles it; we just wait patiently
+               and fall back to manual sign-in if it doesn't resolve. No redirects. */
+            if (_showWelcome) {
+              welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '! Resuming your session\u2026';
+              welcomeBack.style.display = 'flex';
+            }
+            if (signinBtn) {
+              signinBtn.style.display = 'none';
+            }
+            var _persistPollCount = 0;
+            var _persistPoll = setInterval(function () {
+              _persistPollCount++;
+              if (window.AA.auth.currentUser) {
+                clearInterval(_persistPoll);
+                /* Signed in — hide welcome banner, onAuthStateChanged handles the rest */
+                if (welcomeBack) welcomeBack.style.display = 'none';
+                return;
+              }
+              /* Claude: 2026-03-10 — bumped from 30 (6s) to 50 (10s). Firebase LOCAL
+                 persistence on GitHub Pages can take 7-8s on slower connections. */
+              if (_persistPollCount >= 50) { // ~10000ms (50 × 200ms)
+                clearInterval(_persistPoll);
+                /* Persistence didn't restore — show sign-in button for manual action.
+                   Do NOT auto-trigger _doSignIn (causes redirect loops on mobile). */
+                console.log('[AA header] Persistence did not restore session — showing sign-in button');
+                if (_showWelcome) {
+                  welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '!';
+                }
+                if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
+                if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
+              }
+            }, 200);
+          } else {
+            /* Claude: 2026-03-08 — manual sign-in needed: show welcome + sign-in button */
+            if (_showWelcome) {
+              welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '!';
+              welcomeBack.style.display = 'flex';
+            }
+            if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
+            if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
           }
-          console.log('[AA header] Grace period expired — showing sign-in button');
-          if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
-          if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
         }).catch(function (err) {
           console.warn('[AA header] getRedirectResult error:', err);
+          /* Claude: 2026-03-08 — on error, just show sign-in button.
+             _showWelcome / lastUser are scoped inside .then — use fresh lookup here. */
           var _errUser = null;
           try { _errUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch(e) {}
           if (_errUser && _errUser.displayName && welcomeBack && welcomeBackMsg) {
@@ -554,28 +589,12 @@ Your disability accommodations and support network">Your disability accommodatio
             return;
           }
           if (_signOutDebounce) return; // already waiting — don't stack timers
-          /* Claude: 2026-03-11 — show "Resuming…" immediately for LOCAL persistence
-             users so they get visual feedback during the wait, not after it.
-             Extended grace from 5s → 12s because the Firebase token refresh requires
-             a network round-trip that can take 7-10s on slow mobile/GitHub Pages. */
-          var _graceKeep = (localStorage.getItem('AA_KEEP_SIGNED_IN')
-                             || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
-          var _graceUser = null;
-          try { _graceUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch(e) {}
-
-          if (_graceKeep && _graceUser && _graceUser.displayName) {
-            if (welcomeBackMsg) welcomeBackMsg.textContent = 'Welcome back, ' + _graceUser.displayName.split(' ')[0] + '! Resuming your session\u2026';
-            if (welcomeBack) welcomeBack.style.display = 'flex';
-            if (signinBtn) signinBtn.style.display = 'none';
-          }
-
-          var _graceMs = (_graceKeep && _graceUser) ? 12000 : 5000;
           _signOutDebounce = setTimeout(function () {
             _signOutDebounce = null;
             if (!window.AA.auth.currentUser) {
               _doSignOutUI(); // still null after grace period — it's a real sign-out
             }
-          }, _graceMs);
+          }, 5000); // 5s grace period
           return;
         }
 
