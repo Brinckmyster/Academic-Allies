@@ -54,32 +54,15 @@
   /* Resolve: prefer localStorage; fall back to sessionStorage mirror if LS was cleared. */
   var _keepSignedIn = (localStorage.getItem('AA_KEEP_SIGNED_IN')
                        || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
-  console.log('[AA] Persistence preference: ' + (_keepSignedIn ? 'LOCAL' : 'SESSION') + ' | AA_KEEP_SIGNED_IN=' + localStorage.getItem('AA_KEEP_SIGNED_IN'));
-
-  /* Only call setPersistence when the user opted into SESSION (non-default).
-     LOCAL is Firebase's default — calling setPersistence(LOCAL) redundantly
-     interferes with the in-flight session restoration from IndexedDB, causing
-     onAuthStateChanged to fire with null and never deliver the restored user. */
-  var _typeReady = _keepSignedIn
-    ? Promise.resolve()
-    : auth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
-        .then(function () { console.log('[AA] setPersistence(SESSION) resolved OK'); })
-        .catch(function (err) {
-          console.warn('[AA] Auth persistence set failed:', err.code);
-        });
-
-  /* _persistenceReady resolves when onAuthStateChanged first fires — this is the
-     true "session resolved" signal. setPersistence only sets the TYPE; the session
-     restoration from IndexedDB is a separate async process signalled by onAuthStateChanged. */
-  var _persistenceReady = _typeReady.then(function () {
-    return new Promise(function (resolve) {
-      var unsub = auth.onAuthStateChanged(function (user) {
-        unsub();
-        console.log('[AA] Auth state resolved: ' + (user ? 'USER (' + user.email + ')' : 'null'));
-        resolve(user);
-      });
+  var _persistenceType = _keepSignedIn
+    ? firebase.auth.Auth.Persistence.LOCAL
+    : firebase.auth.Auth.Persistence.SESSION;
+  console.log('[AA] setPersistence: type=' + (_keepSignedIn ? 'LOCAL' : 'SESSION') + ' | AA_KEEP_SIGNED_IN=' + localStorage.getItem('AA_KEEP_SIGNED_IN'));
+  var _persistenceReady = auth.setPersistence(_persistenceType)
+    .then(function () { console.log('[AA] setPersistence resolved OK'); })
+    .catch(function (err) {
+      console.warn('[AA] Auth persistence set failed:', err.code);
     });
-  });
 
   /* Enable offline persistence (IndexedDB) so the app works without
      internet and picks up where it left off when reconnected.

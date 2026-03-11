@@ -493,18 +493,24 @@
   });
   function _attachAuthListener() {
     console.log('[AA] index.html heroName listener registering');
+    var _nullTimeout = null;
     window.AA.auth.onAuthStateChanged(function (user) {
       var heroName = document.getElementById('heroName');
       var out = document.getElementById('footerSignOut');
       if (user) {
+        if (_nullTimeout) { clearTimeout(_nullTimeout); _nullTimeout = null; }
         var first = (user.displayName || user.email || '').split(' ')[0] || 'there';
         console.log('[AA] index.html heroName: set to "' + first + '" (user=' + user.email + ')');
         if (heroName) heroName.textContent = first;
         if (out) out.style.display = 'inline';
       } else {
-        console.log('[AA] index.html heroName: no user — set to "there"');
-        if (heroName) heroName.textContent = 'there';
-        if (out) out.style.display = 'none';
+        console.log('[AA] index.html heroName: null — waiting 500ms before defaulting to "there"');
+        _nullTimeout = setTimeout(function () {
+          _nullTimeout = null;
+          console.log('[AA] index.html heroName: 500ms elapsed, no user — set to "there"');
+          if (heroName) heroName.textContent = 'there';
+          if (out) out.style.display = 'none';
+        }, 500);
       }
     });
   }
