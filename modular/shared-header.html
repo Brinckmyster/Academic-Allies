@@ -71,12 +71,12 @@ Your disability accommodations and support network">Your disability accommodatio
 
       <!-- Firebase Sign-In Button (hidden once signed in) -->
       <button id="aa-signin-btn" title="Sign in with Google"
-        style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:#fff;color:#444;border:1px solid #dadce0;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+        style="display:none;align-items:center;gap:8px;padding:7px 14px;background:#fff;color:#444;border:1px solid #dadce0;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.1);">
         <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
         Sign in with Google
       </button>
       <!-- Claude: 2026-03-05 — "Keep me signed in" checkbox, saves to localStorage -->
-      <div id="aa-keep-signed-in-wrap" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+      <div id="aa-keep-signed-in-wrap" style="display:none;flex-direction:column;align-items:flex-start;gap:2px;">
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#555;cursor:pointer;">
           <input type="checkbox" id="aa-keep-signed-in" checked
             style="width:14px;height:14px;cursor:pointer;">
@@ -123,7 +123,7 @@ Your disability accommodations and support network">Your disability accommodatio
        Pages that rely on shared-header for Firebase (calendar, support-dashboard, user-tiers,
        message-system) were receiving 9.23.0 via this dynamic loader instead of the required 10.7.1. */
     var FB_BASE   = 'https://www.gstatic.com/firebasejs/10.7.1/';
-    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260311b'; /* Claude: 2026-03-11 — diagnostic logging for persistence */
+    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260311c'; /* Claude: 2026-03-11 — remove grace period, hide sign-in until auth resolves */
 
     /* ── 3. Wire up the header UI once window.AA is ready ── */
     function initAuthUI() {
@@ -134,13 +134,6 @@ Your disability accommodations and support network">Your disability accommodatio
       var nameEl          = document.getElementById('userNameDisplay');
       var tierIconEl      = document.getElementById('userTierIcon');
       var signoutBtn      = document.getElementById('signOutButton');
-      /* Claude: 2026-03-06 — grace period timer for background sign-out debounce.
-         Firebase fires onAuthStateChanged(null) when the token expires in a background tab.
-         We wait 5s before accepting null as a real sign-out, giving Firebase time to
-         auto-refresh the token and fire onAuthStateChanged(user) again.
-         _intentionalSignOut skips the grace period when the user clicks Sign Out. */
-      var _signOutDebounce  = null;
-      var _intentionalSignOut = false;
       var _shUid = null; // UID guard — prevents role-lookup re-run on 45-min token refresh. Claude, 2026-03-07.
       var adminBtn        = document.getElementById('adminPanelBtn');
       var networkNavLi    = document.getElementById('supportNetworkNavLi');
@@ -269,8 +262,6 @@ Your disability accommodations and support network">Your disability accommodatio
           sessionStorage.removeItem('AA_REAUTH_DONE');
           localStorage.removeItem('AA_LAST_USER');
           if (welcomeBack) welcomeBack.style.display = 'none';
-          _intentionalSignOut = true;
-          if (_signOutDebounce) { clearTimeout(_signOutDebounce); _signOutDebounce = null; }
           /* Claude: 2026-03-06 — autosave before signing out */
           _runPresignout(function () { window.AA.signOut(); });
         });
@@ -455,55 +446,28 @@ Your disability accommodations and support network">Your disability accommodatio
         if (badge) badge.style.display = 'none';
       }
 
-      /* Helper: run the actual signed-out UI (called after grace period) */
+      /* Helper: show the signed-out UI. Called by onAuthStateChanged(null)
+         after persistence has already resolved, so this is the definitive state. */
       function _doSignOutUI() {
         /* Claude: 2026-03-06 — autosave any unsaved page work before tearing down UI */
         _runPresignout(function () { _doSignOutUIInner(); });
       }
       function _doSignOutUIInner() {
-        /* Claude: 2026-03-06 — abort if Firebase recovered during the presignout delay.
-           Without this check, the sign-in panel briefly appears (triggering Chrome's
-           native "Reload site?" form-protection dialog) even when the user is signed in. */
+        /* Abort if Firebase recovered during the presignout delay */
         if (window.AA && window.AA.auth && window.AA.auth.currentUser) return;
-        /* Claude: check getRedirectResult() first — if user just came back from
-           signInWithRedirect, auth state fires null before redirect resolves.
-           Only show sign-in button if redirect also returns no user. */
+        /* Check getRedirectResult() — if user just came back from
+           signInWithRedirect, auth state fires null before redirect resolves. */
         window.AA.auth.getRedirectResult().then(function (result) {
-          if (result && result.user) return; // redirect resolved — onAuthStateChanged will re-fire with user
-          /* Claude: 2026-03-08 — if LOCAL persistence already restored the session
-             (onAuthStateChanged already fired with a user), don't show welcome/sign-in UI.
-             This was the root cause of the contradictory "Welcome back" + signed-in state. */
+          if (result && result.user) return;
           if (window.AA.auth.currentUser) return;
 
           var lastUser = null;
           try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
 
-          /* Claude: 2026-03-06 — show welcome-back banner whenever a previous session is detected.
-             Fixed: use lastUser.displayName (not .name — that field doesn't exist). */
-          /* Claude: 2026-03-08 — only show welcome-back if NOT auto-re-authing.
-             Previously showed welcome banner + disabled sign-in button simultaneously
-             which looked contradictory. Now: auto-re-auth shows a subtle "Resuming…"
-             message instead; welcome-back only appears if user must manually sign in. */
-          var _showWelcome = lastUser && lastUser.displayName && welcomeBack && welcomeBackMsg;
-
-          /* Claude: 2026-03-08 — respect "Keep me signed in" checkbox.
-             Only attempt auto re-auth when LOCAL persistence is active.
-             SESSION persistence means user chose NOT to stay signed in,
-             so we show the sign-in button and let them decide. */
-          var _wantKeep = (localStorage.getItem('AA_KEEP_SIGNED_IN')
-                           || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
-
-          /* Claude: 2026-03-11 — removed the 10-second persistence poll.
-             The grace period (now 12s for LOCAL persistence) already gives Firebase
-             enough time for the token refresh network round-trip. If onAuthStateChanged(user)
-             fires at ANY point — even after we show the sign-in button — lines 633-646
-             will self-correct the UI. No poll needed.
-             Archive: shared-header_2026-03-11_pre-persistence-fix.html */
-          if (_showWelcome) {
+          if (lastUser && lastUser.displayName && welcomeBack && welcomeBackMsg) {
             welcomeBackMsg.textContent = 'Welcome back, ' + lastUser.displayName.split(' ')[0] + '!';
             welcomeBack.style.display = 'flex';
           }
-          console.log('[AA header] Grace period expired — showing sign-in button');
           if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
           if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
         }).catch(function (err) {
@@ -518,10 +482,7 @@ Your disability accommodations and support network">Your disability accommodatio
           if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
         });
 
-        /* Claude: 2026-03-09 — only reset to signed-out state if onAuthStateChanged
-           hasn't already set up the signed-in UI. Fixes race condition where
-           getRedirectResult.then() resolves AFTER onAuthStateChanged, undoing the
-           correct signed-in UI. Archive: shared-header_2026-03-09_pre-race-fix.html */
+        /* Reset signed-in elements to hidden */
         if (!window.AA.auth.currentUser) {
           if (infoWrap)         infoWrap.style.display         = 'none';
           if (signoutBtn)       signoutBtn.style.display       = 'none';
@@ -534,59 +495,18 @@ Your disability accommodations and support network">Your disability accommodatio
         }
       }
 
-      /* Claude: 2026-03-10 — wait for persistence to resolve before listening for
-         auth state changes. Without this, onAuthStateChanged fires null immediately
-         (before IndexedDB restores the session), triggering the grace period and
-         eventually showing the sign-in button even when the user IS signed in.
-         Falls back to immediate setup if _persistenceReady isn't available. */
+      /* Claude: 2026-03-11 — wait for persistence to resolve before listening for
+         auth state changes. The sign-in button and keep-signed-in checkbox start hidden;
+         nothing is shown until onAuthStateChanged fires, then we show either the
+         signed-in UI or the sign-in button based on what Firebase actually returns.
+         No grace period timer — persistence is resolved before the listener registers,
+         so the first onAuthStateChanged callback has the real auth state. */
       function _setupAuthListener() {
-      /* Claude: 2026-03-11 — diagnostic logging for persistence debugging */
-      var _authStartMs = Date.now();
-      console.log('[AA auth] onAuthStateChanged listener registered at +0ms');
       window.AA.auth.onAuthStateChanged(function (user) {
-        var _elapsed = Date.now() - _authStartMs;
-        console.log('[AA auth] onAuthStateChanged fired: ' + (user ? 'USER (' + user.email + ')' : 'null') + ' at +' + _elapsed + 'ms');
         if (!user) {
-          /* Claude: 2026-03-06 — grace period before accepting null as a real sign-out.
-             Firebase fires onAuthStateChanged(null) transiently when the auth token
-             expires in a background tab; it then auto-refreshes and fires user again.
-             Wait 5s before treating null as definitive — if user fires within that
-             window the timer is cancelled and nothing changes visually.
-             _intentionalSignOut (set by the Sign Out button) bypasses the grace period. */
-          if (_intentionalSignOut) {
-            _intentionalSignOut = false;
-            _doSignOutUI();
-            return;
-          }
-          if (_signOutDebounce) return; // already waiting — don't stack timers
-          /* Claude: 2026-03-11 — show "Resuming…" immediately for LOCAL persistence
-             users so they get visual feedback during the wait, not after it.
-             Extended grace from 5s → 12s because the Firebase token refresh requires
-             a network round-trip that can take 7-10s on slow mobile/GitHub Pages. */
-          var _graceKeep = (localStorage.getItem('AA_KEEP_SIGNED_IN')
-                             || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
-          var _graceUser = null;
-          try { _graceUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch(e) {}
-
-          if (_graceKeep && _graceUser && _graceUser.displayName) {
-            if (welcomeBackMsg) welcomeBackMsg.textContent = 'Welcome back, ' + _graceUser.displayName.split(' ')[0] + '! Resuming your session\u2026';
-            if (welcomeBack) welcomeBack.style.display = 'flex';
-            if (signinBtn) signinBtn.style.display = 'none';
-          }
-
-          var _graceMs = (_graceKeep && _graceUser) ? 12000 : 5000;
-          console.log('[AA auth] Grace period: ' + _graceMs + 'ms | keepSignedIn=' + _graceKeep + ' | lastUser=' + !!_graceUser);
-          _signOutDebounce = setTimeout(function () {
-            _signOutDebounce = null;
-            if (!window.AA.auth.currentUser) {
-              _doSignOutUI(); // still null after grace period — it's a real sign-out
-            }
-          }, _graceMs);
+          _doSignOutUI();
           return;
         }
-
-        /* User is present — cancel any pending grace-period sign-out */
-        if (_signOutDebounce) { clearTimeout(_signOutDebounce); _signOutDebounce = null; }
         /* Claude: 2026-03-08 — sign-in succeeded, clear re-auth loop counter */
         sessionStorage.removeItem('AA_REAUTH_ATTEMPTS');
 

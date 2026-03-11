@@ -56,10 +56,7 @@
   var _persistenceType = _keepSignedIn
     ? firebase.auth.Auth.Persistence.LOCAL
     : firebase.auth.Auth.Persistence.SESSION;
-  /* Claude: 2026-03-11 — diagnostic logging for persistence debugging */
-  console.log('[AA] setPersistence: type=' + (_keepSignedIn ? 'LOCAL' : 'SESSION') + ' | AA_KEEP_SIGNED_IN=' + localStorage.getItem('AA_KEEP_SIGNED_IN'));
   var _persistenceReady = auth.setPersistence(_persistenceType)
-    .then(function () { console.log('[AA] setPersistence resolved OK'); })
     .catch(function (err) {
       console.warn('[AA] Auth persistence set failed:', err.code);
     });
@@ -236,10 +233,7 @@
      This prevents onAuthStateChanged from firing with null while
      IndexedDB is still loading the persisted session. */
   _persistenceReady.then(function () {
-  /* Claude: 2026-03-11 — diagnostic: log auth.currentUser state when listener registers */
-  console.log('[AA] aa-firebase onAuthStateChanged registering. currentUser=' + (auth.currentUser ? auth.currentUser.email : 'null'));
   auth.onAuthStateChanged(function (user) {
-    console.log('[AA] aa-firebase onAuthStateChanged: ' + (user ? 'USER (' + user.email + ')' : 'null'));
     /* Claude: cache last signed-in user to localStorage for re-auth fallback.
        If Firebase persistence fails (virtual desktops, cleared IndexedDB),
        shared-header can read this to attempt silent re-auth. */
