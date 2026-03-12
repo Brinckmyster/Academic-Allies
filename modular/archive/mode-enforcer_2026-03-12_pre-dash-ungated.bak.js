@@ -59,12 +59,9 @@
       'a.module-card[href*="recovery-mode.html"]'
     ],
     flowerQuiz: [],  /* no DOM element yet — ready for when it's added */
-    /* Claude: 2026-03-12 — #supportDashCard removed from mode-enforcer.
-       Support Dashboard is role-gated (shared-header controls visibility for
-       backstage-manager, network-lead, support roles). Mode-enforcer was
-       overriding the role-based show and hiding it for non-normal modes.
-       Same pattern as SpoonPal exclusion above (line 29). */
-    supportDash: []
+    supportDash: [
+      '#supportDashCard'
+    ]
   };
 
   /* ── Same defaults as modes.html — keep in sync ── */
