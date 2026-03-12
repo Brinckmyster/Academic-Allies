@@ -27,7 +27,6 @@
     var startClientX = 0, startClientY = 0;
     var startLeft    = 0, startTop     = 0;
     var dragging     = false;
-    var didMove      = false;  /* Claude: 2026-03-12 — true if mouse moved >4px during drag */
 
     /* ── Mouse events ────────────────────────────────────── */
     el.addEventListener('mousedown', function (e) {
@@ -65,16 +64,6 @@
       endDrag(el);
     });
 
-    /* Claude: 2026-03-12 — suppress the click that fires after a real drag.
-       Without this, every drag toggles ring↔solid in status-circle.js.
-       Uses capture phase so it fires BEFORE the status-circle click handler. */
-    el.addEventListener('click', function (e) {
-      if (didMove) {
-        e.stopImmediatePropagation();
-        didMove = false;
-      }
-    }, true); /* true = capture phase */
-
     /* ── Double-click / double-tap reset ─────────────────── */
     el.addEventListener('dblclick', function () {
       resetPosition(el);
@@ -83,7 +72,6 @@
     /* ── Drag helpers ────────────────────────────────────── */
     function startDrag(cx, cy) {
       dragging     = true;
-      didMove      = false;  /* Claude: 2026-03-12 — reset move flag each drag start */
       startClientX = cx;
       startClientY = cy;
       startLeft    = parseInt(el.style.left, 10) || 0;
@@ -95,11 +83,6 @@
     function moveTo(cx, cy) {
       var dx = cx - startClientX;
       var dy = cy - startClientY;
-      /* Claude: 2026-03-12 — flag as a real drag once mouse moves >4px.
-         This prevents drag-end from firing a click that toggles the view. */
-      if (!didMove && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
-        didMove = true;
-      }
       var newLeft = startLeft + dx;
       var newTop  = startTop  + dy;
 
