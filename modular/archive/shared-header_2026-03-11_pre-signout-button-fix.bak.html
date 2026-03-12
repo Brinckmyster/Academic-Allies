@@ -506,13 +506,11 @@ Your disability accommodations and support network">Your disability accommodatio
       function _setupAuthListener() {
       window.AA.auth.onAuthStateChanged(function (user) {
         if (!user) {
-          /* Claude: 2026-03-11 — sign-in button ALWAYS shows when no user.
-             _intentionalSignOut only gates the full sign-out UI (welcome-back
-             message, clearing cached display name, etc.). */
-          if (signinBtn) { signinBtn.style.display = 'inline-flex'; signinBtn.disabled = false; }
-          if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
+          /* Claude: 2026-03-11 — only show sign-out UI if the user explicitly
+             clicked Sign Out. Otherwise keep showing the last known signed-in
+             state from AA_LAST_USER (profile switch, timing race, etc.). */
           if (_intentionalSignOut) {
-            _intentionalSignOut = false;
+            _intentionalSignOut = false; // reset for next session
             _doSignOutUI();
           }
           return;
