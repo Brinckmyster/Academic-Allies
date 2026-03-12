@@ -124,7 +124,7 @@ Your disability accommodations and support network">Your disability accommodatio
        Pages that rely on shared-header for Firebase (calendar, support-dashboard, user-tiers,
        message-system) were receiving 9.23.0 via this dynamic loader instead of the required 10.7.1. */
     var FB_BASE   = 'https://www.gstatic.com/firebasejs/10.7.1/';
-    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260312f'; /* Claude: 2026-03-12 — last-seen heartbeat + mode notifications */
+    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260312e'; /* Claude: 2026-03-12 — notifications system added */
 
     /* ── 3. Wire up the header UI once window.AA is ready ── */
     function initAuthUI() {
@@ -564,22 +564,6 @@ Your disability accommodations and support network">Your disability accommodatio
             setTierIcon(role);
             _watchNavUnread(user.uid); /* start red-dot watcher for unread messages */
             _updateMirrorBanner(); /* Claude: 2026-03-09 — show mirror mode banner if applicable */
-
-            /* Claude: 2026-03-12 — last-seen heartbeat. Writes timestamp + page to Firestore
-               so supporters see when this student was last active. Throttled to 1 write/60s. */
-            (function _lastSeenHeartbeat() {
-              var lsKey = 'AA_LAST_SEEN_TS';
-              var now = Date.now();
-              var prev = parseInt(localStorage.getItem(lsKey) || '0', 10);
-              if (now - prev < 60000) return; /* throttle: max once per minute */
-              localStorage.setItem(lsKey, String(now));
-              var targetUid = window.AA_MIRROR_UID || user.uid;
-              if (window.AA && window.AA.updateLastSeen) {
-                window.AA.updateLastSeen(targetUid).catch(function (e) {
-                  console.warn('[AA] lastSeen write failed:', e.message);
-                });
-              }
-            })();
 
             /* Show role-specific cards on home page — updated 2026-02-20 by Claude */
             var adminCard       = document.getElementById('adminCard');

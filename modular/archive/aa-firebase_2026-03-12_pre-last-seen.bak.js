@@ -1257,39 +1257,6 @@
       });
   };
 
-  /* ── Last Seen — lightweight heartbeat for support dashboard ────────────
-     Claude: 2026-03-12 — Each page load writes a small doc to Firestore so
-     supporters can see when a student was last active and which page they were on.
-     Path: /users/{uid} → lastSeen: { timestamp, page, pageName }
-     Written by shared-header.html on every authenticated page load.
-     Read by support-dashboard to display "Last active: X ago on Y page".
-  ─────────────────────────────────────────────────────────────────────── */
-
-  /**
-   * Update the student's lastSeen field on their user doc.
-   * Called from shared-header on every page load (throttled to 1 write/60s).
-   */
-  window.AA.updateLastSeen = function (uid, pageName) {
-    return db.collection('users').doc(uid).update({
-      lastSeen: {
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        page: window.location.pathname,
-        pageName: pageName || document.title.split(' — ')[0] || document.title
-      }
-    });
-  };
-
-  /**
-   * Get the lastSeen data for a student (supporters call this).
-   * Returns { timestamp, page, pageName } or null.
-   */
-  window.AA.getLastSeen = function (uid) {
-    return db.collection('users').doc(uid).get().then(function (doc) {
-      if (!doc.exists) return null;
-      return doc.data().lastSeen || null;
-    });
-  };
-
   /* ── Audit Log — FERPA/HIPAA compliance, logs PHI access ────────────────
      Path: /auditLog/{targetUid}/entries/{logId}
      Restructured 2026-03-03 for student visibility (FERPA: students can read

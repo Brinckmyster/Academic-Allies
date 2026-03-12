@@ -162,24 +162,7 @@
     .notif-item.type-yellow_flag { border-left: 4px solid #ffc107; background: #fffbeb; }
     .notif-item.type-nope_activated { border-left: 4px solid #6b21a8; background: #faf5ff; color: #581c87; }
     .notif-item.type-nope_canceled { border-left: 4px solid #22c55e; background: #f0fdf4; color: #166534; }
-    .notif-item.type-mode_recovery { border-left: 4px solid #20c997; background: #ecfdf5; color: #065f46; }
-    .notif-item.type-mode_bad_brain { border-left: 4px solid #8b5cf6; background: #f5f3ff; color: #5b21b6; }
     .notif-time { font-size: 0.72rem; color: #aaa; margin-left: auto; flex-shrink: 0; }
-
-    /* Claude: 2026-03-12 — last-seen indicator */
-    .last-seen-bar {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 16px; margin-bottom: 14px;
-      background: #f0f8ff; border: 1px solid #bde0fe; border-radius: 10px;
-      font-size: 0.85rem; color: #1e6091;
-    }
-    .last-seen-bar .ls-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .last-seen-bar .ls-dot.recent { background: #22c55e; }
-    .last-seen-bar .ls-dot.stale  { background: #f59e0b; }
-    .last-seen-bar .ls-dot.old    { background: #9ca3af; }
 
     /* Loading / states */
     #loading-msg, #signin-msg { text-align: center; padding: 50px; color: #aaa; font-size: 1rem; }
@@ -198,12 +181,6 @@
       <!-- Mirror notice — Claude 2026-03-07: NL-aware -->
       <div class="mirror-notice mirror-readonly" id="dash-mirror-notice">
         🪞 <span>You're in <strong>read-only mirror mode</strong> — you can view but not change anything here.</span>
-      </div>
-
-      <!-- Claude: 2026-03-12 — last-seen indicator -->
-      <div id="last-seen-bar" class="last-seen-bar" style="display:none;">
-        <span class="ls-dot" id="ls-dot"></span>
-        <span id="ls-text">Checking last activity…</span>
       </div>
 
       <!-- Claude: 2026-03-11 — missing check-in alert banner -->
@@ -450,7 +427,6 @@
       loadQuizProgress();
       startMealListener();
       startNotificationListener(); /* Claude: 2026-03-12 — active alert notifications */
-      loadLastSeen(uid); /* Claude: 2026-03-12 — last activity indicator */
       checkCheckinAlert(uid, name); /* Claude: 2026-03-11 — missing check-in alert */
     }
 
@@ -722,58 +698,6 @@
         if (panel) panel.style.display = 'none';
       }).catch(function (err) {
         console.warn('[AA] clear notifs failed:', err.message);
-      });
-    }
-
-    /* ── Claude: 2026-03-12 — Last-seen indicator ─────────────────────────
-       Shows when the student was last active and what page they were on.
-       Green dot = active in last 15 min, amber = last hour, grey = older. */
-    function loadLastSeen(uid) {
-      var bar  = document.getElementById('last-seen-bar');
-      var dot  = document.getElementById('ls-dot');
-      var text = document.getElementById('ls-text');
-      if (!bar || !AA.getLastSeen) return;
-
-      AA.getLastSeen(uid).then(function (ls) {
-        if (!ls || !ls.timestamp) {
-          bar.style.display = 'none';
-          return;
-        }
-        var ts = ls.timestamp.toDate ? ls.timestamp.toDate() : new Date(ls.timestamp);
-        var diffMs  = Date.now() - ts.getTime();
-        var diffMin = Math.floor(diffMs / 60000);
-        var diffHr  = Math.floor(diffMin / 60);
-
-        /* Dot color */
-        if (diffMin < 15) {
-          dot.className = 'ls-dot recent';
-        } else if (diffMin < 60) {
-          dot.className = 'ls-dot stale';
-        } else {
-          dot.className = 'ls-dot old';
-        }
-
-        /* Time label */
-        var agoStr;
-        if (diffMin < 1)       agoStr = 'just now';
-        else if (diffMin < 60) agoStr = diffMin + ' min ago';
-        else if (diffHr < 24)  agoStr = diffHr + 'h ago';
-        else                   agoStr = ts.toLocaleDateString([], { month: 'short', day: 'numeric' });
-
-        /* Page label */
-        var pageName = ls.pageName || '';
-        if (!pageName && ls.page) {
-          /* Extract friendly name from path */
-          var parts = ls.page.replace(/\.html$/, '').split('/');
-          pageName = parts[parts.length - 1].replace(/-/g, ' ');
-          pageName = pageName.charAt(0).toUpperCase() + pageName.slice(1);
-        }
-
-        text.textContent = 'Last active: ' + agoStr + (pageName ? ' on ' + pageName : '');
-        bar.style.display = 'flex';
-      }).catch(function (err) {
-        console.warn('[AA] lastSeen load failed:', err.message);
-        bar.style.display = 'none';
       });
     }
 
