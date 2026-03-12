@@ -123,7 +123,7 @@ Your disability accommodations and support network">Your disability accommodatio
        Pages that rely on shared-header for Firebase (calendar, support-dashboard, user-tiers,
        message-system) were receiving 9.23.0 via this dynamic loader instead of the required 10.7.1. */
     var FB_BASE   = 'https://www.gstatic.com/firebasejs/10.7.1/';
-    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260312d'; /* Claude: 2026-03-12 — persistence diagnostic for sign-out pattern tracking */
+    var AA_JS     = '/Academic-Allies/modular/aa-firebase.js?v=20260311c'; /* Claude: 2026-03-11 — remove grace period, hide sign-in until auth resolves */
 
     /* ── 3. Wire up the header UI once window.AA is ready ── */
     function initAuthUI() {
@@ -775,10 +775,67 @@ Your disability accommodations and support network">Your disability accommodatio
 <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260303b"></script>
 <script src="/Academic-Allies/modular/js/status-circle.js?v=20260312c"></script> <!-- Claude: 2026-03-12 — dual scenario logic: 7 calendar days (scenario 2) vs 7 check-ins (scenario 3) -->
 
-<!-- Claude: 2026-03-12 — duplicate caution diamond script REMOVED. Was racing with
-     status-circle.js render(), causing flash-then-disappear. All 3 scenarios (today's data,
-     7-day avg, caution diamond) are now handled natively in status-circle.js.
-     Archived: shared-header_2026-03-12_pre-remove-dupe-caution.bak.html -->
+<!-- Claude: 2026-03-11 — missing check-in diamond alert for mirror/support viewers.
+     When AA_MIRROR_UID is set and the mirrored student's last check-in exceeds their
+     alertThreshold, transform #status-circle into a yellow caution diamond in-place. -->
+<script>
+(function () {
+  'use strict';
+  function _pollAA(cb, n) {
+    n = n || 0;
+    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+    if (n > 50) return;
+    setTimeout(function () { _pollAA(cb, n + 1); }, 200);
+  }
+
+  _pollAA(function () {
+    var mirrorUid = window.AA_MIRROR_UID;
+    if (!mirrorUid) return;
+
+    window.AA.db.collection('users').doc(mirrorUid).get().then(function (doc) {
+      if (!doc.exists) return;
+      var data = doc.data();
+      if (data.role !== 'student') return;
+
+      var threshold = data.alertThreshold || 5;
+
+      window.AA.getRecentCheckins(mirrorUid, 1).then(function (days) {
+        if (!days || days.length === 0) return;
+
+        var lastDate = days[0].date;
+        var now = new Date();
+        var todayStr = now.getFullYear() + '-' +
+          String(now.getMonth() + 1).padStart(2, '0') + '-' +
+          String(now.getDate()).padStart(2, '0');
+        var last  = new Date(lastDate + 'T00:00:00');
+        var today = new Date(todayStr + 'T00:00:00');
+        var diffDays = Math.round((today - last) / (1000 * 60 * 60 * 24));
+
+        if (diffDays < threshold) return;
+
+        /* Transform existing #status-circle into diamond — keeps draggable */
+        var circle = document.getElementById('status-circle');
+        if (!circle) return;
+        circle.style.transform = 'rotate(45deg)';
+        circle.style.background = '#f5c518';
+        circle.style.border = '2px solid #1a1a1a';
+        circle.style.borderRadius = '0';
+        circle.style.display = 'flex';
+        circle.style.alignItems = 'center';
+        circle.style.justifyContent = 'center';
+        circle.innerHTML = '<span style="transform:rotate(-45deg);font-size:18px;line-height:1;">⚠️</span>';
+        circle.title = diffDays + ' days without check-in';
+
+        var scBanner = document.getElementById('sc-banner');
+        if (scBanner) {
+          scBanner.innerHTML = '<strong>Check-In Missing</strong><br>' + diffDays + ' days';
+          scBanner.style.color = '#92400e';
+        }
+      });
+    });
+  });
+})();
+</script>
 
   <!-- auth-system.js retired 2026-02-20 — was creating duplicate 'pending' user docs
        and conflicting with aa-firebase.js. Archived as archive/auth-system-RETIRED-*.js -->

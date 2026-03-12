@@ -76,6 +76,18 @@
       var unsub = auth.onAuthStateChanged(function (user) {
         unsub();
         console.log('[AA] Auth state resolved: ' + (user ? 'USER (' + user.email + ')' : 'null'));
+        /* Claude: 2026-03-12 — diagnostic: if LOCAL persistence was expected but no session
+           was restored, log a warning with context so we can track the sign-out pattern. */
+        if (!user && _keepSignedIn) {
+          var lastUser = null;
+          try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
+          if (lastUser && lastUser.email) {
+            console.warn('[AA] PERSISTENCE DIAGNOSTIC: Expected LOCAL session for ' + lastUser.email +
+              ' but auth resolved null. IndexedDB may have been cleared by the browser.' +
+              ' AA_KEEP_SIGNED_IN=' + localStorage.getItem('AA_KEEP_SIGNED_IN') +
+              ' | Last login: ' + (lastUser.lastLogin || 'unknown'));
+          }
+        }
         resolve(user);
       });
     });
