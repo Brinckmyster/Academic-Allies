@@ -135,7 +135,6 @@ Your disability accommodations and support network">Your disability accommodatio
       var tierIconEl      = document.getElementById('userTierIcon');
       var signoutBtn      = document.getElementById('signOutButton');
       var _shUid = null; // UID guard — prevents role-lookup re-run on 45-min token refresh. Claude, 2026-03-07.
-      var _intentionalSignOut = false; // Claude: 2026-03-11 — gate sign-out UI on explicit click
       var adminBtn        = document.getElementById('adminPanelBtn');
       var networkNavLi    = document.getElementById('supportNetworkNavLi');
       var auditLogNavLi   = document.getElementById('auditLogNavLi');
@@ -259,7 +258,6 @@ Your disability accommodations and support network">Your disability accommodatio
       /* Sign-out click */
       if (signoutBtn) {
         signoutBtn.addEventListener('click', function () {
-          _intentionalSignOut = true; // Claude: 2026-03-11 — flag so onAuthStateChanged(null) shows sign-out UI
           sessionStorage.removeItem('academicAlliesUser');
           sessionStorage.removeItem('AA_REAUTH_DONE');
           localStorage.removeItem('AA_LAST_USER');
@@ -506,13 +504,7 @@ Your disability accommodations and support network">Your disability accommodatio
       function _setupAuthListener() {
       window.AA.auth.onAuthStateChanged(function (user) {
         if (!user) {
-          /* Claude: 2026-03-11 — only show sign-out UI if the user explicitly
-             clicked Sign Out. Otherwise keep showing the last known signed-in
-             state from AA_LAST_USER (profile switch, timing race, etc.). */
-          if (_intentionalSignOut) {
-            _intentionalSignOut = false; // reset for next session
-            _doSignOutUI();
-          }
+          _doSignOutUI();
           return;
         }
         /* Claude: 2026-03-08 — sign-in succeeded, clear re-auth loop counter */
