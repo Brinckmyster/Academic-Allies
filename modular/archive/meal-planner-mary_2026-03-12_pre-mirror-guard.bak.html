@@ -108,35 +108,8 @@
       `).join('');
     }
 
-    /* Claude: 2026-03-12 — mirror mode guard. Supporters view read-only;
-       student is sudo. Hide edit UI for mirrors, block write functions. */
-    function _isMaryMirror() {
-      return !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
-        && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
-    }
-    (function _guardMirror() {
-      function _applyGuard() {
-        if (!window.AA || !AA.auth) { setTimeout(_applyGuard, 300); return; }
-        AA.auth.onAuthStateChanged(function(user) {
-          if (!user) return;
-          if (_isMaryMirror()) {
-            var entry = document.querySelector('.meal-entry');
-            var controls = document.querySelector('.meal-controls');
-            if (entry) entry.style.display = 'none';
-            if (controls) controls.style.display = 'none';
-            var h1 = document.querySelector('h1');
-            if (h1) h1.insertAdjacentHTML('afterend',
-              '<div style="background:#e8eeff;border:2px solid #a5b4fc;border-radius:10px;padding:12px 18px;margin:12px 0;color:#4338ca;font-size:0.9rem;">' +
-              '🪞 <strong>Read-only mirror view</strong> — you can view Mary\'s meals but not change them.</div>');
-          }
-        });
-      }
-      _applyGuard();
-    })();
-
     // ── Add meal ──────────────────────────────────────────────
     function addMeal() {
-      if (_isMaryMirror()) { alert('Mirror mode — view only.'); return; }
       const name  = document.getElementById('mealName').value.trim();
       const time  = document.getElementById('mealTime').value;
       const notes = document.getElementById('mealNotes').value.trim();
@@ -157,7 +130,6 @@
 
     // ── Remove individual meal ────────────────────────────────
     function removeMeal(index) {
-      if (_isMaryMirror()) { alert('Mirror mode — view only.'); return; }
       todaysMeals.splice(index, 1);
       localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
       displayMeals();
@@ -165,7 +137,6 @@
 
     // ── Reset all ─────────────────────────────────────────────
     function resetPlan() {
-      if (_isMaryMirror()) { alert('Mirror mode — view only.'); return; }
       if (confirm('Clear all meals for today?')) {
         todaysMeals = [];
         localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
