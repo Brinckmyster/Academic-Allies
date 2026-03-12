@@ -151,19 +151,6 @@
     }
     .checkin-alert-bar .alert-view-btn:hover { background: #d97706; }
 
-    /* Claude: 2026-03-12 — notification items */
-    .notif-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px; margin-bottom: 6px;
-      background: #fffbeb; border: 1px solid #fde68a;
-      border-radius: 8px; font-size: 0.88rem; color: #78350f;
-    }
-    .notif-item.type-red_flag { border-left: 4px solid #dc3545; background: #fef2f2; }
-    .notif-item.type-yellow_flag { border-left: 4px solid #ffc107; background: #fffbeb; }
-    .notif-item.type-nope_activated { border-left: 4px solid #6b21a8; background: #faf5ff; color: #581c87; }
-    .notif-item.type-nope_canceled { border-left: 4px solid #22c55e; background: #f0fdf4; color: #166534; }
-    .notif-time { font-size: 0.72rem; color: #aaa; margin-left: auto; flex-shrink: 0; }
-
     /* Loading / states */
     #loading-msg, #signin-msg { text-align: center; padding: 50px; color: #aaa; font-size: 1rem; }
     .empty-msg { color: #bbb; font-size: 0.88rem; text-align: center; padding: 14px 0; }
@@ -185,18 +172,6 @@
 
       <!-- Claude: 2026-03-11 — missing check-in alert banner -->
       <div id="checkin-alert-banner" style="display:none;"></div>
-
-      <!-- Claude: 2026-03-12 — real-time notification panel for active alerts -->
-      <div id="notif-panel" style="display:none;margin-bottom:18px;">
-        <div style="font-weight:700;font-size:0.95rem;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
-          🔔 <span>Active Alerts</span>
-          <button id="notif-clear-btn" onclick="clearAllNotifs()"
-            style="margin-left:auto;font-size:0.75rem;padding:4px 10px;background:#fff;border:1px solid #d97706;border-radius:4px;color:#92400e;cursor:pointer;">
-            Mark all read
-          </button>
-        </div>
-        <div id="notif-list"></div>
-      </div>
 
       <!-- Student picker (shown when in multiple networks) -->
       <div id="student-picker-wrap" style="display:none;">
@@ -426,7 +401,6 @@
       loadCheckins();
       loadQuizProgress();
       startMealListener();
-      startNotificationListener(); /* Claude: 2026-03-12 — active alert notifications */
       checkCheckinAlert(uid, name); /* Claude: 2026-03-11 — missing check-in alert */
     }
 
@@ -655,49 +629,6 @@
             banner.style.display = 'block';
           });
         });
-      });
-    }
-
-    /* ── Claude: 2026-03-12 — Real-time notification listener ──────────────
-       Shows active alerts (red/yellow flags, nope activated/canceled) for the
-       student being viewed. Supporters see these instantly without refreshing. */
-    var unsubNotif = null;
-
-    function startNotificationListener() {
-      if (unsubNotif) { unsubNotif(); }
-      var panel = document.getElementById('notif-panel');
-      var list  = document.getElementById('notif-list');
-      if (!panel || !list) return;
-
-      unsubNotif = AA.watchNotifications(studentUid, function (notifs) {
-        if (!notifs || notifs.length === 0) {
-          panel.style.display = 'none';
-          list.innerHTML = '';
-          return;
-        }
-        panel.style.display = 'block';
-        list.innerHTML = '';
-        notifs.forEach(function (n) {
-          var timeStr = '';
-          if (n.createdAt && n.createdAt.toDate) {
-            timeStr = n.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          }
-          var div = document.createElement('div');
-          div.className = 'notif-item type-' + (n.type || '');
-          div.innerHTML = '<span>' + esc(n.message || n.type) + '</span>' +
-            '<span class="notif-time">' + timeStr + '</span>';
-          list.appendChild(div);
-        });
-      });
-    }
-
-    function clearAllNotifs() {
-      if (!studentUid) return;
-      AA.markAllNotificationsRead(studentUid).then(function () {
-        var panel = document.getElementById('notif-panel');
-        if (panel) panel.style.display = 'none';
-      }).catch(function (err) {
-        console.warn('[AA] clear notifs failed:', err.message);
       });
     }
 

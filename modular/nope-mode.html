@@ -235,7 +235,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="/Academic-Allies/modular/aa-firebase.js?v=20260312d"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js?v=20260312e"></script>
   <script src="/Academic-Allies/modular/js/aa-mirror.js"></script>
 
   <script>
@@ -338,6 +338,10 @@
       if (currentUid) {
         AA.setNopeMode(currentUid, 'nope', {}, AA.Timestamp.fromDate(nopeActivatedAt));
         AA.addNopeLog(currentUid, 'nope_day_set');
+        /* Claude: 2026-03-12 — actively notify supporters that nope day was activated */
+        AA.addNotification(currentUid, 'nope_activated',
+          '🛑 Nope Day activated at ' + nopeActivatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        ).catch(function (err) { console.warn('[AA] nope notification failed:', err.message); });
       }
     }
 
@@ -370,6 +374,10 @@
       if (currentUid) {
         AA.addNopeLog(currentUid, 'nope_canceled');
         AA.clearNope(currentUid);
+        /* Claude: 2026-03-12 — notify supporters that student canceled nope (good news!) */
+        AA.addNotification(currentUid, 'nope_canceled',
+          '✅ Nope Day canceled — student is back'
+        ).catch(function (err) { console.warn('[AA] cancel notification failed:', err.message); });
       }
       currentMode = null;
       window.location.href = '/Academic-Allies/';
