@@ -127,30 +127,6 @@
       display: flex; align-items: center; gap: 10px;
     }
 
-    /* Claude: 2026-03-11 — missing check-in alert banner */
-    .checkin-alert-bar {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 18px; margin-bottom: 16px;
-      background: #fffbeb; border-left: 4px solid #f59e0b;
-      border-radius: 0 8px 8px 0; font-size: 0.9rem; color: #92400e;
-    }
-    .checkin-alert-bar .alert-icon { font-size: 1.3rem; flex-shrink: 0; }
-    .checkin-alert-bar .alert-body { flex: 1; }
-    .checkin-alert-bar .alert-body strong { display: block; margin-bottom: 2px; }
-    .checkin-alert-bar .alert-dismiss {
-      background: none; border: 1px solid #d97706; border-radius: 4px;
-      padding: 4px 10px; font-size: 0.78rem; color: #92400e; cursor: pointer;
-      flex-shrink: 0;
-    }
-    .checkin-alert-bar .alert-dismiss:hover { background: #fef3c7; }
-    .checkin-alert-bar .alert-view-btn {
-      display: inline-block; margin-top: 6px;
-      padding: 5px 14px; background: #f59e0b; color: #fff;
-      border: none; border-radius: 6px; font-size: 0.82rem;
-      font-weight: 600; text-decoration: none; cursor: pointer;
-    }
-    .checkin-alert-bar .alert-view-btn:hover { background: #d97706; }
-
     /* Loading / states */
     #loading-msg, #signin-msg { text-align: center; padding: 50px; color: #aaa; font-size: 1rem; }
     .empty-msg { color: #bbb; font-size: 0.88rem; text-align: center; padding: 14px 0; }
@@ -169,9 +145,6 @@
       <div class="mirror-notice mirror-readonly" id="dash-mirror-notice">
         🪞 <span>You're in <strong>read-only mirror mode</strong> — you can view but not change anything here.</span>
       </div>
-
-      <!-- Claude: 2026-03-11 — missing check-in alert banner -->
-      <div id="checkin-alert-banner" style="display:none;"></div>
 
       <!-- Student picker (shown when in multiple networks) -->
       <div id="student-picker-wrap" style="display:none;">
@@ -401,7 +374,6 @@
       loadCheckins();
       loadQuizProgress();
       startMealListener();
-      checkCheckinAlert(uid, name); /* Claude: 2026-03-11 — missing check-in alert */
     }
 
     /* ── ① Nope / Status real-time listener ───────────── */
@@ -582,54 +554,6 @@
 
     function esc(s) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    /* Claude: 2026-03-11 — check-in alert for support viewers */
-    function checkCheckinAlert(uid, name) {
-      var banner = document.getElementById('checkin-alert-banner');
-      if (!banner) return;
-      banner.style.display = 'none';
-      banner.innerHTML = '';
-
-      AA.db.collection('users').doc(uid).get().then(function (doc) {
-        if (!doc.exists) return;
-        var data = doc.data();
-        var threshold = data.alertThreshold || 5;
-        var recipients = data.alertRecipients || ['family', 'network-lead'];
-
-        /* Check if viewer's role is in alertRecipients */
-        AA.db.collection('users').doc(viewerUid).get().then(function (vDoc) {
-          if (!vDoc.exists) return;
-          var viewerRole = vDoc.data().role || '';
-          if (recipients.indexOf(viewerRole) === -1 && viewerRole !== 'backstage-manager') return;
-
-          AA.getRecentCheckins(uid, 1).then(function (days) {
-            if (!days || days.length === 0) return; /* no check-ins ever */
-            var lastDate = days[0].date;
-            var now = new Date();
-            var todayStr = now.getFullYear() + '-' +
-              String(now.getMonth() + 1).padStart(2, '0') + '-' +
-              String(now.getDate()).padStart(2, '0');
-            var last = new Date(lastDate + 'T00:00:00');
-            var today = new Date(todayStr + 'T00:00:00');
-            var diffDays = Math.round((today - last) / (1000 * 60 * 60 * 24));
-
-            if (diffDays < threshold) return;
-
-            banner.innerHTML =
-              '<div class="checkin-alert-bar">' +
-                '<span class="alert-icon">⚠️</span>' +
-                '<div class="alert-body">' +
-                  '<strong>' + esc(name) + ' — Check-In Missing</strong>' +
-                  diffDays + ' days without a check-in (threshold: ' + threshold + ' days).' +
-                  '<br><a class="alert-view-btn" href="/Academic-Allies/modular/components/user-tiers/user-tiers.html">View Profile</a>' +
-                '</div>' +
-                '<button class="alert-dismiss" onclick="this.closest(\'.checkin-alert-bar\').remove()" title="Dismiss">✕ Dismiss</button>' +
-              '</div>';
-            banner.style.display = 'block';
-          });
-        });
-      });
     }
 
     waitForAA(boot);
