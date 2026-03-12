@@ -566,20 +566,16 @@ Your disability accommodations and support network">Your disability accommodatio
             _updateMirrorBanner(); /* Claude: 2026-03-09 — show mirror mode banner if applicable */
 
             /* Claude: 2026-03-12 — last-seen heartbeat. Writes timestamp + page to Firestore
-               so supporters see when this student was last active. Throttled to 1 write/60s.
-               Claude: 2026-03-12 — fix: only write OWN lastSeen (user.uid), never the
-               student's doc from mirror mode. Supporters don't have write permission to
-               another user's doc, and a supporter browsing shouldn't fake the student's
-               last-active time. */
+               so supporters see when this student was last active. Throttled to 1 write/60s. */
             (function _lastSeenHeartbeat() {
-              if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid) return; /* skip in mirror mode */
               var lsKey = 'AA_LAST_SEEN_TS';
               var now = Date.now();
               var prev = parseInt(localStorage.getItem(lsKey) || '0', 10);
               if (now - prev < 60000) return; /* throttle: max once per minute */
               localStorage.setItem(lsKey, String(now));
+              var targetUid = window.AA_MIRROR_UID || user.uid;
               if (window.AA && window.AA.updateLastSeen) {
-                window.AA.updateLastSeen(user.uid).catch(function (e) {
+                window.AA.updateLastSeen(targetUid).catch(function (e) {
                   console.warn('[AA] lastSeen write failed:', e.message);
                 });
               }

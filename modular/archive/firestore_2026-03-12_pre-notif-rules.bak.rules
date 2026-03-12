@@ -341,23 +341,6 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
-    // ── Alert Notifications (supporter-facing inbox) ──────────────
-    // Path: /notifications/{studentUid}/entries/{notifId}
-    // Written by the student's own code (flags, nope, missed meals, low spoons).
-    // Read by the student's support network so they see alerts.
-    // Claude: 2026-03-12 — added missing rule (writes were silently failing).
-    match /notifications/{studentUid} {
-      allow read: if isOwner(studentUid) || isNetworkMember(studentUid) || isBackstageManager();
-      allow write: if false; // no direct writes to container doc
-
-      match /entries/{notifId} {
-        allow read: if isOwner(studentUid) || isNetworkMember(studentUid) || isBackstageManager();
-        allow create: if isSignedIn();
-        allow update: if isOwner(studentUid) || isNetworkMember(studentUid) || isBackstageManager();
-        allow delete: if isOwner(studentUid) || isBackstageManager();
-      }
-    }
-
     // ── Audit Log — student-scoped, append-only ───────────────────
     // Path: /auditLog/{targetUid}/entries/{logId}
     // Students can read their own audit trail (FERPA right to know who accessed records).

@@ -303,18 +303,14 @@
         if (user.uid === _npUid) return; // token refresh guard
         _npUid = user.uid;
         currentUid = window.AA_MIRROR_UID || user.uid;
-        /* Claude: 2026-03-12 — fix: route meal planner per student profile, not
-           hardcoded email. The old check used user.email (the viewer's email) which
-           broke in mirror mode and routed non-Mary students to Mary's planner. */
-        AA.db.collection('users').doc(currentUid).get().then(function(uDoc) {
-          var studentEmail = uDoc.exists ? uDoc.data().email : '';
-          if (studentEmail === 'mbrinck90@gmail.com') {
-            SECTIONS.meals.url = '/Academic-Allies/modular/components/meal-planner-mary/index.html';
-          } else if (uDoc.exists && uDoc.data().mealPlannerUrl) {
-            SECTIONS.meals.url = uDoc.data().mealPlannerUrl;
-          }
-          renderLinks();
-        }).catch(function() { /* meal routing lookup failed — use default */ });
+        // Route meal plan per student
+        if (user.email === 'mbrinck90@gmail.com') {
+          SECTIONS.meals.url = '/Academic-Allies/modular/components/meal-planner-mary/index.html';
+        } else {
+          AA.getStudentProfile(currentUid).then(function(p) {
+            if (p && p.mealPlannerUrl) SECTIONS.meals.url = p.mealPlannerUrl;
+          }).catch(function() {});
+        }
         showAuthGate(false);
         subscribeToNope();
       } else {
@@ -336,9 +332,8 @@
           /* Student went back to full NOPE — redirect */
           window.location.href = '/Academic-Allies/modular/nope-mode.html';
         } else {
-          /* Claude: 2026-03-12 — exit to recovery, not straight to normal */
-          localStorage.setItem('appMode', 'recovery');
-          window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
+          /* Nope cancelled or not active — go home */
+          window.location.href = '/Academic-Allies/';
         }
       });
     }
@@ -433,9 +428,7 @@
         AA.addNopeLog(currentUid, 'nope_canceled');
         AA.clearNope(currentUid);
       }
-      /* Claude: 2026-03-12 — exit to recovery, not straight to normal */
-      localStorage.setItem('appMode', 'recovery');
-      window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
+      window.location.href = '/Academic-Allies/';
     }
 
     /* ── Mode Suggestion Flash — Claude 2026-03-12 ─────────────────
@@ -479,9 +472,7 @@
         } else if (mode === 'cancel') {
           AA.addNopeLog(uid, 'nope_canceled');
           AA.clearNope(uid);
-          /* Claude: 2026-03-12 — exit to recovery, not normal */
-          localStorage.setItem('appMode', 'recovery');
-          window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
+          window.location.href = '/Academic-Allies/';
         }
       }).catch(function(err) { alert('Error: ' + err.message); });
     }

@@ -272,7 +272,7 @@
 <body>
 <div id="site-header"></div>
 <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260312j')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260312i')
       .then(response => response.text())
       .then(html => {
         const container = document.getElementById('site-header');
@@ -1022,16 +1022,15 @@
                         if (nameEl) nameEl.textContent = firstName;
                         document.title = 'Recovery Mode \u2014 ' + firstName + '\u2019s Safe Space';
                     }
-                    /* Claude: 2026-03-12 — fix: check the STUDENT's email (via Firestore),
-                       not the viewer's email. In mirror mode, user.email is the supporter's
-                       email, which wrongly gave all students Mary's gastroparesis meals. */
-                    var _readUid = window.AA_MIRROR_UID || user.uid;
-                    AA.db.collection('users').doc(_readUid).get().then(function(sDoc) {
-                      var studentEmail = sDoc.exists ? sDoc.data().email : '';
-                      if (studentEmail !== 'mbrinck90@gmail.com') {
+                    // ── Swap meal options for non-Mary students ──────────
+                    // Mary (mbrinck90) keeps her gastroparesis-specific brands.
+                    // Everyone else gets the generic low-effort options.
+                    // Added 2026-02-28 by Claude.
+                    if (user.email !== 'mbrinck90@gmail.com') {
                         mealOptions = genericMealOptions;
-                      }
-                    }).catch(function() { mealOptions = genericMealOptions; });
+                    }
+                    /* Claude: use student UID in mirror mode — 2026-02-28 */
+                    var _readUid = window.AA_MIRROR_UID || user.uid;
                     var quizUid  = (window.AA_flower_uid && !window.AA_MIRROR_UID)
                         ? window.AA_flower_uid(user.uid, user.email) : _readUid;
                     AA.getFlowerQuiz(quizUid).then(function(doc) {
