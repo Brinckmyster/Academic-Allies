@@ -42,7 +42,7 @@ You turn ideas into reality. Never ask her to read, edit, or search code manuall
 
 ## Key Patterns
 - Shared header: fetched async via `fetch('/Academic-Allies/modular/shared-header.html?v=YYYYMMDD')`
-- Shared footer: fetched async via `fetch('/Academic-Allies/modular/shared-footer.html')`
+- Shared footer: fetched by shared-header via `fetch('/Academic-Allies/modular/shared-footer.html?v=YYYYMMDD')`
 - Auth hook: use `AA.auth.onAuthStateChanged()` — never create a competing Firebase listener
 - Cache-busting: when shared-header.html changes, bump the version string on ALL live pages
 - Archive directory: `modular/archive/`
