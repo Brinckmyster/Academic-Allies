@@ -43,9 +43,6 @@
 
   /* Claude: number of past days to include in rolling average when today has no check-in */
   var ROLLING_DAYS = 7;
-  /* Claude: 2026-03-12 — days without a check-in before solid view shows caution diamond.
-     Configurable per-user via Firestore alertThreshold field; this is the fallback default. */
-  var CAUTION_DAYS = 5;
 
   /* ── Runtime state ─────────────────────────────────────── */
   var _view         = 'ring';
@@ -56,9 +53,6 @@
   var _lastCheckinTs = null;  /* Date | null — timestamp of latest check-in entry */
   /* Claude: rolling average flag — true when displaying historical avg instead of today's data */
   var _isRollingAvg = false;
-  /* Claude: 2026-03-12 — caution flag: true when last check-in was > CAUTION_DAYS ago.
-     Solid view shows caution diamond; segmented view shows rolling 7-day average. */
-  var _isCaution    = false;
   /* UID guard — skip re-init on Firebase ~45-min token refresh. Claude, 2026-03-07. */
   var _scUid        = null;
 
@@ -302,15 +296,14 @@
                           String(d.getMonth() + 1).padStart(2, '0') + '-' +
                           String(d.getDate()).padStart(2, '0');
 
-            /* Claude: 2026-03-12 — return { entry, daysAgo } so caller can
-               determine if the most recent check-in is older than CAUTION_DAYS */
             var promise = window.AA.db
               .collection('checkins').doc(uid)
               .collection('days').doc(dateKey)
               .get()
               .then(function (doc) {
                 if (doc.exists && Array.isArray(doc.data().entries) && doc.data().entries.length > 0) {
-                  return { entry: doc.data().entries[doc.data().entries.length - 1], daysAgo: dayIndex };
+                  /* Return the last (most recent) entry from this day */
+                  return doc.data().entries[doc.data().entries.length - 1];
                 }
                 return null;
               })
@@ -324,16 +317,8 @@
         return promises;
       })()
     ).then(function (results) {
-      /* Claude: 2026-03-12 — filter nulls, find most recent check-in day,
-         and return { entries: [...], newestDaysAgo: number } */
-      var hits = results.filter(function (r) { return r !== null; });
-      var newestDaysAgo = hits.length > 0
-        ? Math.min.apply(null, hits.map(function (h) { return h.daysAgo; }))
-        : ROLLING_DAYS + 1; /* no data at all = beyond caution threshold */
-      return {
-        entries: hits.map(function (h) { return h.entry; }),
-        newestDaysAgo: newestDaysAgo
-      };
+      /* Filter out nulls and return non-null entries */
+      return results.filter(function (e) { return e !== null; });
     });
   }
 
@@ -345,14 +330,10 @@
 
     var viewLabel = (_view === 'ring') ? 'All 5 segments' : 'Overall status';
     if (_nope) viewLabel = 'NOPE mode';
-    /* Claude: 2026-03-12 — override view label when caution + solid view */
-    if (_isCaution && _view === 'solid') viewLabel = '\u26A0\uFE0F Caution';
 
     var timeLabel;
     /* Claude: update banner text when showing rolling average */
-    if (_isCaution) {
-      timeLabel = CAUTION_DAYS + '+ days without check-in';
-    } else if (_isRollingAvg) {
+    if (_isRollingAvg) {
       timeLabel = 'Avg of last ' + ROLLING_DAYS + ' days · No check-in today';
     } else if (!_lastCheckinTs) {
       timeLabel = 'No check-in today';
@@ -493,12 +474,6 @@
     el.style.animation  = '';
     el.style.background = 'transparent';
     el.innerHTML        = '';
-    /* Claude: 2026-03-12 — reset caution diamond styles so they don't leak into other views */
-    el.style.borderRadius   = '50%';
-    el.style.transform      = '';
-    el.style.display        = '';
-    el.style.alignItems     = '';
-    el.style.justifyContent = '';
     /* Claude: dim opacity when showing rolling average instead of live data */
     el.style.opacity    = _isRollingAvg ? '0.6' : '1';
 
@@ -521,32 +496,16 @@
       el.title = lbl + ' · click for overall view · double-click to reset position';
     } else {
       /* Solid overall view */
-      /* Claude: 2026-03-12 — when no check-in within CAUTION_DAYS, solid view
-         shows a caution diamond instead of a plain average color. This makes it
-         visually obvious that check-in data is stale. */
-      if (_isCaution) {
-        el.style.borderRadius = '0';
-        el.style.transform    = 'rotate(45deg)';
-        el.style.background   = '#f5c518';
-        el.style.border       = '2px solid #1a1a1a';
-        el.style.display      = 'flex';
-        el.style.alignItems   = 'center';
-        el.style.justifyContent = 'center';
-        el.innerHTML = '<span style="transform:rotate(-45deg);font-size:18px;line-height:1;">\u26A0\uFE0F</span>';
-        el.setAttribute('aria-label', 'Caution: No check-in in ' + CAUTION_DAYS + '+ days');
-        el.title = 'No check-in in ' + CAUTION_DAYS + '+ days · click for 7-day segments · double-click to reset position';
+      var color = avgColor(_segData);
+      if (color) {
+        el.style.background = color;
+        el.setAttribute('aria-label', 'Status: ' + (SOLID_LABEL[color] || ''));
+        el.title = (SOLID_LABEL[color] || '') +
+                   ' · click for segments · double-click to reset position';
       } else {
-        var color = avgColor(_segData);
-        if (color) {
-          el.style.background = color;
-          el.setAttribute('aria-label', 'Status: ' + (SOLID_LABEL[color] || ''));
-          el.title = (SOLID_LABEL[color] || '') +
-                     ' · click for segments · double-click to reset position';
-        } else {
-          el.innerHTML = EMPTY_SVG;
-          el.setAttribute('aria-label', 'Status: No check-in yet');
-          el.title = 'No check-in yet · double-click to reset position';
-        }
+        el.innerHTML = EMPTY_SVG;
+        el.setAttribute('aria-label', 'Status: No check-in yet');
+        el.title = 'No check-in yet · double-click to reset position';
       }
     }
   }
@@ -589,14 +548,12 @@
       /* Claude: if today has entries, return them; else try rolling average from localStorage */
       if (entries.length > 0) {
         _isRollingAvg = false;
-        _isCaution = false;
         return fromEntries(entries);
       }
 
       /* No entries today — try to build rolling average from past days' localStorage */
       var now = new Date();
       var recentEntries = [];
-      var newestDaysAgo = ROLLING_DAYS + 1;  /* Claude: 2026-03-12 — track for caution flag */
       var i;
       for (i = 1; i <= ROLLING_DAYS; i++) {
         var d = new Date(now);
@@ -610,8 +567,6 @@
             var dayEntries = JSON.parse(dayRaw);
             if (Array.isArray(dayEntries) && dayEntries.length > 0) {
               recentEntries.push(dayEntries[dayEntries.length - 1]);
-              /* Claude: 2026-03-12 — track most recent day with data for caution flag */
-              if (i < newestDaysAgo) newestDaysAgo = i;
             }
           } catch (e) {}
         }
@@ -619,16 +574,13 @@
 
       if (recentEntries.length > 0) {
         _isRollingAvg = true;
-        _isCaution = newestDaysAgo > CAUTION_DAYS;
         return fromRollingEntries(recentEntries);
       }
 
       _isRollingAvg = false;
-      _isCaution = false;
       return {};
     } catch (e) {
       _isRollingAvg = false;
-      _isCaution = false;
       return {};
     }
   }
@@ -640,14 +592,7 @@
     var dateKey = _localDateKey();
 
     /* Claude: hide sc-banner for student role — support/admin see it, student doesn't — 2026-02-28 */
-    /* Claude: 2026-03-12 — also load alertThreshold for configurable caution days */
-    window.AA.getUserDoc(uid).then(function(doc) {
-      if (doc.exists && doc.data().alertThreshold) {
-        CAUTION_DAYS = doc.data().alertThreshold;
-      }
-      /* Banner visibility based on viewer's role, not the target uid */
-      return window.AA.getUserDoc(user.uid);
-    }).then(function(doc) {
+    window.AA.getUserDoc(user.uid).then(function(doc) {
       var role     = (doc.exists && doc.data().role) || 'student';
       var bannerEl = document.getElementById('sc-banner');
       if (bannerEl) bannerEl.style.display = (role === 'student') ? 'none' : '';
@@ -684,23 +629,19 @@
         if (entries.length > 0) {
           _segData = fromEntries(entries);
           _isRollingAvg = false;
-          _isCaution = false;  /* Claude: 2026-03-12 — checked in today, no caution */
           render();
         } else {
           /* Claude: no check-in today — fetch recent entries for rolling average */
-          fetchRecentEntries(uid, dateKey).then(function (result) {
-            var recentEntries = result.entries;
+          fetchRecentEntries(uid, dateKey).then(function (recentEntries) {
             _segData = fromRollingEntries(recentEntries);
             _isRollingAvg = recentEntries.length > 0;
-            /* Claude: 2026-03-12 — set caution flag if newest check-in is older than threshold */
-            _isCaution = result.newestDaysAgo > CAUTION_DAYS;
+            /* Only show rolling avg if we found recent data; otherwise empty is fine */
             _lastCheckinTs = null;
             render();
           }).catch(function (err) {
             console.warn('[status-circle] rolling average fetch failed:', err);
             _segData = {};
             _isRollingAvg = false;
-            _isCaution = false;
             _lastCheckinTs = null;
             render();
           });
