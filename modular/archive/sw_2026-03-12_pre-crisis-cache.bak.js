@@ -9,8 +9,7 @@
      • Activate: purge stale caches from previous SW versions
    ================================================================ */
 
-/* Claude: 2026-03-12 — bumped cache version to force re-install with new crisis pages */
-var CACHE   = 'aa-shell-v2';
+var CACHE   = 'aa-shell-v1';
 var SCOPE   = '/Academic-Allies/';
 
 /* Pages and assets to pre-cache on install */
@@ -25,7 +24,6 @@ var SHELL = [
 
   /* Shared infrastructure */
   '/Academic-Allies/modular/shared-header.html',
-  '/Academic-Allies/modular/shared-footer.html',
   '/Academic-Allies/modular/aa-firebase.js',
 
   /* Core pages */
@@ -33,11 +31,6 @@ var SHELL = [
   '/Academic-Allies/modular/accommodations.html',
   '/Academic-Allies/modular/emergency.html',
   '/Academic-Allies/modular/resources.html',
-
-  /* Crisis mode pages — must be available offline
-     Claude: 2026-03-12 — added nope + semi-nope for offline crisis access */
-  '/Academic-Allies/modular/nope-mode.html',
-  '/Academic-Allies/modular/semi-nope.html',
 
   /* Feature pages */
   '/Academic-Allies/modular/components/audio-notes/audio-notes.html',

@@ -183,15 +183,6 @@
       </p>
     </div>
 
-    <!-- Claude: 2026-03-12 — Emergency always visible, not behind checkbox -->
-    <a href="/Academic-Allies/modular/emergency.html"
-       style="display:block;background:rgba(220,53,69,0.15);color:#e88a94;border:1px solid rgba(220,53,69,0.35);border-radius:14px;padding:14px 20px;font-size:14pt;text-decoration:none;text-align:center;width:100%;max-width:420px;transition:background 0.2s;"
-       onmouseenter="this.style.background='rgba(220,53,69,0.25)'"
-       onmouseleave="this.style.background='rgba(220,53,69,0.15)'"
-       aria-label="Emergency Contacts — always available">
-      🆘 Emergency Contacts
-    </a>
-
     <div class="checklist-card">
       <h3>What do you want to bring back?</h3>
 
@@ -220,8 +211,11 @@
                aria-label="Show Messages">
         <span class="check-label">💬 Messages</span>
       </label>
-      <!-- Claude: 2026-03-12 — Emergency removed from checklist per user spec:
-           "everything hidden except emergency" — emergency always visible -->
+      <label class="check-item" id="item-emergency">
+        <input type="checkbox" onchange="toggleSection('emergency', this.checked)"
+               aria-label="Show Emergency Contacts">
+        <span class="check-label">🆘 Emergency Contacts</span>
+      </label>
       <label class="check-item" id="item-comfort">
         <input type="checkbox" onchange="toggleSection('comfort', this.checked)"
                aria-label="Show A Word of Comfort">
@@ -245,13 +239,8 @@
     </div>
   </div>
 
-  <!-- Claude: 2026-03-12 — Firebase SDK loaded directly. This page skips shared-header.html
-       (dark minimal UI for crisis mode) so Firebase must be loaded here.
-       Archive: semi-nope_2026-03-12_pre-firebase-restore.bak.html -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="/Academic-Allies/modular/aa-firebase.js?v=20260312d"></script>
+  <!-- Claude: 2026-03-12 — shared-header not loaded here; Firebase comes from aa-firebase.js
+       loaded inline via the same CDN pattern as nope-mode.html. -->
   <script src="/Academic-Allies/modular/js/aa-mirror.js"></script>
 
   <script>
@@ -430,69 +419,6 @@
       }
       window.location.href = '/Academic-Allies/';
     }
-
-    /* ── Mode Suggestion Flash — Claude 2026-03-12 ─────────────────
-       Check for pending mode suggestions (supporter may have suggested
-       going back to nope or canceling). Same pattern as nope-mode.html. */
-    function checkModeSuggestions() {
-      if (_isMirror()) return;
-      if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
-      var uid = AA.auth.currentUser.uid;
-      AA.getPendingModeSuggestions(uid).then(function(suggestions) {
-        if (!suggestions || suggestions.length === 0) return;
-        var s = suggestions[0];
-        var modeLabel = s.mode === 'nope' ? 'going back to Nope' : s.mode === 'cancel' ? 'cancelling Nope mode' : s.mode;
-        var flash = document.createElement('div');
-        flash.id = 'mode-suggestion-flash';
-        flash.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;' +
-          'background:#fef3c7;border:2px solid #f59e0b;border-radius:16px;padding:20px 28px;' +
-          'max-width:400px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);' +
-          'animation:flashIn 0.4s ease-out;';
-        flash.innerHTML =
-          '<style>@keyframes flashIn { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }</style>' +
-          '<p style="font-size:15pt;font-weight:700;color:#92400e;margin-bottom:8px;">Suggestion from ' + (s.suggestedByName || 'your supporter') + '</p>' +
-          '<p style="font-size:14pt;color:#78350f;margin-bottom:16px;">They suggest ' + modeLabel + '</p>' +
-          '<div style="display:flex;gap:10px;justify-content:center;">' +
-            '<button onclick="acceptModeSuggestion(\'' + s.id + '\',\'' + s.mode + '\')" style="background:#22c55e;color:white;border:none;border-radius:12px;padding:12px 24px;font-size:14pt;font-weight:600;cursor:pointer;min-height:19mm;">Accept</button>' +
-            '<button onclick="dismissModeSuggestion(\'' + s.id + '\')" style="background:#999;color:white;border:none;border-radius:12px;padding:12px 24px;font-size:14pt;font-weight:600;cursor:pointer;min-height:19mm;">Dismiss</button>' +
-          '</div>';
-        document.body.appendChild(flash);
-      }).catch(function(err) { console.warn('[AA] mode suggestion check:', err.message); });
-    }
-
-    function acceptModeSuggestion(id, mode) {
-      var uid = AA.auth.currentUser.uid;
-      AA.respondModeSuggestion(uid, id, true).then(function() {
-        var flash = document.getElementById('mode-suggestion-flash');
-        if (flash) flash.remove();
-        if (mode === 'nope') {
-          AA.setNopeMode(uid, 'nope', {});
-          AA.addNopeLog(uid, 'returned_to_nope');
-          window.location.href = '/Academic-Allies/modular/nope-mode.html';
-        } else if (mode === 'cancel') {
-          AA.addNopeLog(uid, 'nope_canceled');
-          AA.clearNope(uid);
-          window.location.href = '/Academic-Allies/';
-        }
-      }).catch(function(err) { alert('Error: ' + err.message); });
-    }
-
-    function dismissModeSuggestion(id) {
-      var uid = AA.auth.currentUser.uid;
-      AA.respondModeSuggestion(uid, id, false).then(function() {
-        var flash = document.getElementById('mode-suggestion-flash');
-        if (flash) flash.remove();
-      }).catch(function(err) { alert('Error: ' + err.message); });
-    }
-
-    function _initModeSuggestions() {
-      if (window.AA && AA.auth && AA.auth.currentUser) {
-        checkModeSuggestions();
-      } else {
-        setTimeout(_initModeSuggestions, 400);
-      }
-    }
-    _initModeSuggestions();
   </script>
 </body>
 </html>
