@@ -112,7 +112,102 @@
     }
     .btn-semi-nope:hover { color: #9a9abc; border-color: #6a6a8a; }
 
-    /* Claude: 2026-03-12 — Semi-Nope CSS removed. Now lives in semi-nope.html. */
+    /* ── Semi-Nope Screen ────────────────────────────────── */
+    #semi-nope-screen {
+      background: #16192a;
+      min-height: 100vh;
+      padding: 40px 20px;
+      justify-content: flex-start;
+      gap: 24px;
+    }
+
+    .semi-heading {
+      font-size: 26pt;
+      font-weight: 700;
+      color: #c8d8e8;
+    }
+    .semi-sub {
+      font-size: 13pt;
+      color: #7a8aaa;
+      line-height: 1.6;
+      max-width: 340px;
+    }
+
+    .checklist-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 20px 24px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .checklist-card h3 {
+      font-size: 12pt;
+      color: #7a8aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] {
+      width: 22px; height: 22px;
+      accent-color: #6CA0A3;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .check-label {
+      font-size: 14pt;
+      color: #c0c8d8;
+      user-select: none;
+    }
+    .check-item.active .check-label { color: #ffffff; }
+
+    /* Semi-nope controls: "Go Back to Nope" top-left style, "Cancel Nope" bottom */
+    .semi-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      max-width: 420px;
+      margin-top: 8px;
+    }
+    .btn-go-back {
+      background: rgba(220, 53, 69, 0.15);
+      color: #e88a94;
+      border: 1px solid rgba(220, 53, 69, 0.35);
+      border-radius: 50px;
+      padding: 12px 32px;
+      font-size: 12pt;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      align-self: flex-start;
+    }
+    .btn-go-back:hover { background: rgba(220,53,69,0.25); color: #f0a0aa; }
+
+    .btn-cancel-semi {
+      background: #2d6a6d;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 16px 44px;
+      font-size: 15pt;
+      font-family: inherit;
+      cursor: pointer;
+      min-height: 19mm;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    .btn-cancel-semi:hover { background: #3a8285; }
 
     /* ── Confirm overlay ─────────────────────────────────── */
     .confirm-overlay {
@@ -226,18 +321,107 @@
     <p style="font-size:10pt;color:#3a3a5a;margin-top:8px;" id="nope-timestamp"></p>
   </div>
 
-  <!-- Claude: 2026-03-12 — Semi-Nope screen removed. Now lives at semi-nope.html. -->
+  <!-- ── SEMI-NOPE SCREEN ───────────────────────────────── -->
+  <div id="semi-nope-screen" class="screen" role="main" aria-label="Semi-nope day screen">
+
+    <div>
+      <div class="semi-heading">Coming back slowly…</div>
+      <p class="semi-sub" style="margin-top:10px;">
+        Check what you're ready to see. No pressure.<br>
+        Nothing is required.
+      </p>
+    </div>
+
+    <div class="checklist-card">
+      <h3>What do you want to bring back?</h3>
+
+      <label class="check-item" id="item-checkin">
+        <input type="checkbox" onchange="toggleSection('checkin', this.checked)"
+               aria-label="Show Daily Check-In">
+        <span class="check-label">📋 Daily Check-In</span>
+      </label>
+      <label class="check-item" id="item-meals">
+        <input type="checkbox" onchange="toggleSection('meals', this.checked)"
+               aria-label="Show Meal Plan">
+        <span class="check-label">🍽️ My Meal Plan</span>
+      </label>
+      <label class="check-item" id="item-spoons">
+        <input type="checkbox" onchange="toggleSection('spoons', this.checked)"
+               aria-label="Show Spoon Planner">
+        <span class="check-label">🥄 Spoon Planner</span>
+      </label>
+      <label class="check-item" id="item-calendar">
+        <input type="checkbox" onchange="toggleSection('calendar', this.checked)"
+               aria-label="Show Calendar">
+        <span class="check-label">📅 My Calendar</span>
+      </label>
+      <label class="check-item" id="item-messages">
+        <input type="checkbox" onchange="toggleSection('messages', this.checked)"
+               aria-label="Show Messages">
+        <span class="check-label">💬 Messages</span>
+      </label>
+      <label class="check-item" id="item-emergency">
+        <input type="checkbox" onchange="toggleSection('emergency', this.checked)"
+               aria-label="Show Emergency Contacts">
+        <span class="check-label">🆘 Emergency Contacts</span>
+      </label>
+      <label class="check-item" id="item-comfort">
+        <input type="checkbox" onchange="toggleSection('comfort', this.checked)"
+               aria-label="Show A Word of Comfort">
+        <span class="check-label">📖 A Word of Comfort</span>
+      </label>
+    </div>
+
+    <!-- Inline comfort section (appears when checked) -->
+    <div id="section-comfort"
+         style="display:none;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px 24px;max-width:420px;width:100%;font-size:14pt;color:#c8d8d0;font-style:italic;line-height:1.8;"
+         aria-live="polite">
+    </div>
+
+    <!-- Visible links for checked sections -->
+    <div id="semi-links" style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:420px;">
+      <!-- links injected by JS -->
+    </div>
+
+    <div class="semi-controls">
+      <button class="btn-go-back" onclick="goBackToNope()" aria-label="Return to full nope day">
+        ← Go back to nope
+      </button>
+      <button class="btn-cancel-semi" onclick="cancelNope()" aria-label="Cancel nope day and return to app">
+        Cancel Nope Day
+      </button>
+    </div>
+  </div>
 
   <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. -->
   <!-- Academic Allies Firebase layer -->
   <script src="/Academic-Allies/modular/js/aa-mirror.js"></script>
 
   <script>
-    /* Claude: 2026-03-12 — SECTIONS, comfortVerses, and semi-nope JS removed.
-       Now lives in semi-nope.html. */
+    // ── Section links ──────────────────────────────────────
+    // meals URL defaults to generic planner; swapped to Mary's personal planner on auth.
+    // Updated 2026-02-28 by Claude — fix broken link + dynamic per-student routing.
+    var SECTIONS = {
+      checkin:   { label: '📋 Daily Check-In',     url: '/Academic-Allies/modular/checkin.html' },
+      meals:     { label: '🍽️ My Meal Plan',        url: '/Academic-Allies/modular/components/meal-planner/meal-planner.html' },
+      spoons:    { label: '🥄 Spoon Planner',       url: '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html' },
+      calendar:  { label: '📅 My Calendar',         url: '/Academic-Allies/modular/components/calendar/calendar.html' },
+      messages:  { label: '💬 Messages',            url: '/Academic-Allies/modular/components/message-system/message-system.html' }, /* Claude: 2026-03-05 audit fix — was broken link to nonexistent messages.html */
+      emergency: { label: '🆘 Emergency Contacts',  url: '/Academic-Allies/modular/emergency.html' },
+      comfort:   { label: '📖 A Word of Comfort',   url: null } // inline
+    };
+
+    var comfortVerses = [
+      { text: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.", ref: "Matthew 11:28" },
+      { text: "Peace I leave with you, my peace I give unto you. Let not your heart be troubled, neither let it be afraid.", ref: "John 14:27" },
+      { text: "The Lord is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit.", ref: "Psalm 34:18" },
+      { text: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee.", ref: "Isaiah 41:10" },
+      { text: "Cast thy burden upon the Lord, and he shall sustain thee.", ref: "Psalm 55:22" }
+    ];
 
     // ── Firebase-backed state ──────────────────────────────
-    var currentMode     = null;   // 'nope' | null (semi-nope redirects to its own page)
+    var currentMode     = null;   // 'nope' | 'semi-nope' | null
+    var semiVisible     = {};
     var nopeActivatedAt = null;   // Date object
     var currentUid      = null;
     var _nopeUnsub      = null;   // unsubscribe fn for onSnapshot
@@ -255,7 +439,18 @@
         if (user.uid === _npUid) return; // token refresh — skip re-init + listener stack
         _npUid = user.uid;
         currentUid = window.AA_MIRROR_UID || user.uid;
-        /* Claude: 2026-03-12 — meal plan routing moved to semi-nope.html */
+        // ── Route meal plan to the right planner per student ──
+        // Mary (mbrinck90) has her personal gastroparesis-specific planner.
+        // Everyone else uses the generic uid-based planner.
+        // studentProfile.mealPlannerUrl can also override for future students.
+        // Added 2026-02-28 by Claude.
+        if (user.email === 'mbrinck90@gmail.com') {
+          SECTIONS.meals.url = '/Academic-Allies/modular/components/meal-planner-mary/index.html';
+        } else {
+          AA.getStudentProfile(currentUid).then(function(p) {
+            if (p && p.mealPlannerUrl) SECTIONS.meals.url = p.mealPlannerUrl;
+          }).catch(function() {});
+        }
         showAuthGate(false);
         subscribeToNope();
       } else {
@@ -271,9 +466,11 @@
       _nopeUnsub = AA.watchNope(currentUid, function (data) {
         if (data && data.mode) {
           currentMode     = data.mode;
+          semiVisible     = data.semi_nope_visible || {};
           nopeActivatedAt = data.activatedAt ? data.activatedAt.toDate() : null;
         } else {
           currentMode     = null;
+          semiVisible     = {};
           nopeActivatedAt = null;
         }
         route();
@@ -291,8 +488,9 @@
         showScreen('nope-screen');
         updateTimestamp();
       } else if (currentMode === 'semi-nope') {
-        /* Claude: 2026-03-12 — redirect to standalone semi-nope page */
-        window.location.href = '/Academic-Allies/modular/semi-nope.html';
+        showScreen('semi-nope-screen');
+        restoreCheckboxes();
+        renderLinks();
       } else {
         document.getElementById('confirmOverlay').classList.add('open');
       }
@@ -336,20 +534,38 @@
     }
 
     // ── Nope → Semi-Nope ───────────────────────────────────
-    /* Claude: 2026-03-12 — sets mode in Firestore then redirects to semi-nope.html */
     function goSemiNope() {
       if (_isMirror()) {
-        AA.suggestMode(window.AA_MIRROR_UID, 'semi-nope', {}).then(function() {
+        AA.suggestMode(window.AA_MIRROR_UID, 'semi-nope', semiVisible).then(function() {
           alert('Suggestion sent!');
         }).catch(function(err) { alert('Could not send: ' + err.message); });
         return;
       }
       currentMode = 'semi-nope';
       if (currentUid) {
-        AA.setNopeMode(currentUid, 'semi-nope', {});
+        AA.setNopeMode(currentUid, 'semi-nope', semiVisible);
         AA.addNopeLog(currentUid, 'semi_nope_started');
       }
-      window.location.href = '/Academic-Allies/modular/semi-nope.html';
+      showScreen('semi-nope-screen');
+      restoreCheckboxes();
+      renderLinks();
+    }
+
+    // ── Semi-Nope → Nope ───────────────────────────────────
+    function goBackToNope() {
+      if (_isMirror()) {
+        AA.suggestMode(window.AA_MIRROR_UID, 'nope', semiVisible).then(function() {
+          alert('Suggestion sent!');
+        }).catch(function(err) { alert('Could not send: ' + err.message); });
+        return;
+      }
+      currentMode = 'nope';
+      if (currentUid) {
+        AA.setNopeMode(currentUid, 'nope', semiVisible);
+        AA.addNopeLog(currentUid, 'returned_to_nope');
+      }
+      showScreen('nope-screen');
+      updateTimestamp();
     }
 
     // ── Cancel everything ──────────────────────────────────
@@ -369,8 +585,67 @@
       window.location.href = '/Academic-Allies/';
     }
 
-    /* Claude: 2026-03-12 — toggleSection, restoreCheckboxes, renderLinks
-       removed. Now live in semi-nope.html. */
+    // ── Semi-nope section toggle ───────────────────────────
+    function toggleSection(key, checked) {
+      if (_isMirror()) return; /* read-only for supporters — they use Suggest */
+      semiVisible[key] = checked;
+      if (currentUid) {
+        AA.setNopeMode(currentUid, 'semi-nope', semiVisible);
+      }
+      var item = document.getElementById('item-' + key);
+      if (item) item.classList.toggle('active', checked);
+
+      // Inline comfort section
+      if (key === 'comfort') {
+        var el = document.getElementById('section-comfort');
+        if (el) {
+          if (checked) {
+            var v = comfortVerses[Math.floor(Math.random() * comfortVerses.length)];
+            el.innerHTML = '"' + v.text + '"<div style="margin-top:12px;font-style:normal;font-size:12pt;color:#6a8a80;">— ' + v.ref + '</div>';
+            el.style.display = 'block';
+          } else {
+            el.style.display = 'none';
+          }
+        }
+      }
+      renderLinks();
+    }
+
+    function restoreCheckboxes() {
+      Object.keys(semiVisible).forEach(function(key) {
+        var checkbox = document.querySelector('#item-' + key + ' input[type="checkbox"]');
+        if (checkbox) {
+          checkbox.checked = semiVisible[key];
+          var item = document.getElementById('item-' + key);
+          if (item) item.classList.toggle('active', semiVisible[key]);
+        }
+        if (key === 'comfort' && semiVisible[key]) {
+          var el = document.getElementById('section-comfort');
+          if (el) {
+            var v = comfortVerses[Math.floor(Math.random() * comfortVerses.length)];
+            el.innerHTML = '"' + v.text + '"<div style="margin-top:12px;font-style:normal;font-size:12pt;color:#6a8a80;">— ' + v.ref + '</div>';
+            el.style.display = 'block';
+          }
+        }
+      });
+    }
+
+    function renderLinks() {
+      var container = document.getElementById('semi-links');
+      container.innerHTML = '';
+      Object.keys(SECTIONS).forEach(function(key) {
+        var sec = SECTIONS[key];
+        if (semiVisible[key] && sec.url) {
+          var a = document.createElement('a');
+          a.href = sec.url;
+          a.textContent = sec.label;
+          a.style.cssText = 'display:block;background:rgba(108,160,163,0.18);color:#a8d4d6;border:1px solid rgba(108,160,163,0.35);border-radius:14px;padding:14px 20px;font-size:14pt;text-decoration:none;text-align:center;transition:background 0.2s;';
+          a.onmouseenter = function() { this.style.background = 'rgba(108,160,163,0.3)'; };
+          a.onmouseleave = function() { this.style.background = 'rgba(108,160,163,0.18)'; };
+          container.appendChild(a);
+        }
+      });
+    }
 
     // ── Timestamp display ──────────────────────────────────
     function updateTimestamp() {
