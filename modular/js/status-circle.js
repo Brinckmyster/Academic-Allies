@@ -41,8 +41,8 @@
   var DEV_KEY  = 'aa-status-dev';
   var VIEW_KEY = 'aa-status-view';  /* 'ring' | 'solid' */
 
-  /* Claude: number of past days to include in rolling average when today has no check-in */
-  var ROLLING_DAYS = 7;
+  /* Claude: 2026-03-12 — ROLLING_DAYS removed; replaced by ROLLING_COUNT (7 check-ins)
+     and MAX_LOOKBACK (30 days) in fetchRecentEntries / localData. */
   /* Claude: 2026-03-12 — days without a check-in before solid view shows caution diamond.
      Configurable per-user via Firestore alertThreshold field; this is the fallback default. */
   var CAUTION_DAYS = 5;
@@ -268,68 +268,53 @@
     return out;
   }
 
-  /* Claude: fetch recent entries from past ROLLING_DAYS for rolling average fallback */
+  /* Claude: 2026-03-12 — rewritten: find last ROLLING_COUNT check-ins (not days).
+     Searches backwards from yesterday up to MAX_LOOKBACK days, collecting one entry
+     per day that has data, stopping when we have ROLLING_COUNT entries or hit the limit.
+     Returns { entries: [...], newestDaysAgo: number }. */
+  var ROLLING_COUNT  = 7;   /* number of check-in entries to average */
+  var MAX_LOOKBACK   = 30;  /* max calendar days to search back */
+
   function fetchRecentEntries(uid, todayDateKey) {
     var now = new Date();
-    var entries = [];
-    var i;
 
-    /* Iterate backwards from yesterday, up to ROLLING_DAYS ago */
-    for (i = 1; i <= ROLLING_DAYS; i++) {
+    /* Build date keys for up to MAX_LOOKBACK days back */
+    var dayKeys = [];
+    var i;
+    for (i = 1; i <= MAX_LOOKBACK; i++) {
       var d = new Date(now);
       d.setDate(d.getDate() - i);
-      var dateKey = d.getFullYear() + '-' +
-                    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                    String(d.getDate()).padStart(2, '0');
-
-      /* Try to fetch from Firestore */
-      var docRef = window.AA.db
-        .collection('checkins').doc(uid)
-        .collection('days').doc(dateKey);
-
-      /* Synchronous attempt won't work; use async approach below */
+      dayKeys.push({
+        dateKey: d.getFullYear() + '-' +
+                 String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                 String(d.getDate()).padStart(2, '0'),
+        daysAgo: i
+      });
     }
 
-    /* Use Promise to fetch all days */
+    /* Fetch all days in parallel, then pick the most recent ROLLING_COUNT */
     return Promise.all(
-      (function () {
-        var promises = [];
-        for (i = 1; i <= ROLLING_DAYS; i++) {
-          (function (dayIndex) {
-            var d = new Date(now);
-            d.setDate(d.getDate() - dayIndex);
-            var dateKey = d.getFullYear() + '-' +
-                          String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                          String(d.getDate()).padStart(2, '0');
-
-            /* Claude: 2026-03-12 — return { entry, daysAgo } so caller can
-               determine if the most recent check-in is older than CAUTION_DAYS */
-            var promise = window.AA.db
-              .collection('checkins').doc(uid)
-              .collection('days').doc(dateKey)
-              .get()
-              .then(function (doc) {
-                if (doc.exists && Array.isArray(doc.data().entries) && doc.data().entries.length > 0) {
-                  return { entry: doc.data().entries[doc.data().entries.length - 1], daysAgo: dayIndex };
-                }
-                return null;
-              })
-              .catch(function () {
-                return null;
-              });
-
-            promises.push(promise);
-          })(i);
-        }
-        return promises;
-      })()
+      dayKeys.map(function (dk) {
+        return window.AA.db
+          .collection('checkins').doc(uid)
+          .collection('days').doc(dk.dateKey)
+          .get()
+          .then(function (doc) {
+            if (doc.exists && Array.isArray(doc.data().entries) && doc.data().entries.length > 0) {
+              return { entry: doc.data().entries[doc.data().entries.length - 1], daysAgo: dk.daysAgo };
+            }
+            return null;
+          })
+          .catch(function () { return null; });
+      })
     ).then(function (results) {
-      /* Claude: 2026-03-12 — filter nulls, find most recent check-in day,
-         and return { entries: [...], newestDaysAgo: number } */
-      var hits = results.filter(function (r) { return r !== null; });
-      var newestDaysAgo = hits.length > 0
-        ? Math.min.apply(null, hits.map(function (h) { return h.daysAgo; }))
-        : ROLLING_DAYS + 1; /* no data at all = beyond caution threshold */
+      /* Sort hits by daysAgo ascending (most recent first), take up to ROLLING_COUNT */
+      var hits = results
+        .filter(function (r) { return r !== null; })
+        .sort(function (a, b) { return a.daysAgo - b.daysAgo; })
+        .slice(0, ROLLING_COUNT);
+
+      var newestDaysAgo = hits.length > 0 ? hits[0].daysAgo : MAX_LOOKBACK + 1;
       return {
         entries: hits.map(function (h) { return h.entry; }),
         newestDaysAgo: newestDaysAgo
@@ -353,7 +338,7 @@
     if (_isCaution) {
       timeLabel = CAUTION_DAYS + '+ days without check-in';
     } else if (_isRollingAvg) {
-      timeLabel = 'Avg of last ' + ROLLING_DAYS + ' days · No check-in today';
+      timeLabel = 'Avg of last ' + ROLLING_COUNT + ' check-ins';
     } else if (!_lastCheckinTs) {
       timeLabel = 'No check-in today';
     } else {
@@ -593,12 +578,13 @@
         return fromEntries(entries);
       }
 
-      /* No entries today — try to build rolling average from past days' localStorage */
+      /* Claude: 2026-03-12 — find last ROLLING_COUNT check-ins from localStorage,
+         searching up to MAX_LOOKBACK days back. Matches Firestore fetch logic. */
       var now = new Date();
       var recentEntries = [];
-      var newestDaysAgo = ROLLING_DAYS + 1;  /* Claude: 2026-03-12 — track for caution flag */
+      var newestDaysAgo = MAX_LOOKBACK + 1;
       var i;
-      for (i = 1; i <= ROLLING_DAYS; i++) {
+      for (i = 1; i <= MAX_LOOKBACK && recentEntries.length < ROLLING_COUNT; i++) {
         var d = new Date(now);
         d.setDate(d.getDate() - i);
         var dateKey = d.getFullYear() + '-' +
@@ -610,7 +596,6 @@
             var dayEntries = JSON.parse(dayRaw);
             if (Array.isArray(dayEntries) && dayEntries.length > 0) {
               recentEntries.push(dayEntries[dayEntries.length - 1]);
-              /* Claude: 2026-03-12 — track most recent day with data for caution flag */
               if (i < newestDaysAgo) newestDaysAgo = i;
             }
           } catch (e) {}
