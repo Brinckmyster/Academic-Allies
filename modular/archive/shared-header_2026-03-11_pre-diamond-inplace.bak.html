@@ -775,7 +775,7 @@ Your disability accommodations and support network">Your disability accommodatio
 
 <!-- Claude: 2026-03-11 — missing check-in diamond alert for mirror/support viewers.
      When AA_MIRROR_UID is set and the mirrored student's last check-in exceeds their
-     alertThreshold, transform #status-circle into a yellow caution diamond in-place. -->
+     alertThreshold, replace the status circle with a yellow caution diamond on ALL pages. -->
 <script>
 (function () {
   'use strict';
@@ -787,6 +787,7 @@ Your disability accommodations and support network">Your disability accommodatio
   }
 
   _pollAA(function () {
+    /* Only runs for mirror/support viewers */
     var mirrorUid = window.AA_MIRROR_UID;
     if (!mirrorUid) return;
 
@@ -798,7 +799,7 @@ Your disability accommodations and support network">Your disability accommodatio
       var threshold = data.alertThreshold || 5;
 
       window.AA.getRecentCheckins(mirrorUid, 1).then(function (days) {
-        if (!days || days.length === 0) return;
+        if (!days || days.length === 0) return; /* no check-ins ever — new user */
 
         var lastDate = days[0].date;
         var now = new Date();
@@ -811,24 +812,30 @@ Your disability accommodations and support network">Your disability accommodatio
 
         if (diffDays < threshold) return;
 
-        /* Transform existing #status-circle into diamond — keeps draggable */
-        var circle = document.getElementById('status-circle');
-        if (!circle) return;
-        circle.style.transform = 'rotate(45deg)';
-        circle.style.background = '#f5c518';
-        circle.style.border = '2px solid #1a1a1a';
-        circle.style.borderRadius = '0';
-        circle.style.display = 'flex';
-        circle.style.alignItems = 'center';
-        circle.style.justifyContent = 'center';
-        circle.innerHTML = '<span style="transform:rotate(-45deg);font-size:18px;line-height:1;">⚠️</span>';
-        circle.title = diffDays + ' days without check-in';
-
+        /* Hide status circle + banner, show diamond */
+        var circle   = document.getElementById('status-circle');
         var scBanner = document.getElementById('sc-banner');
-        if (scBanner) {
-          scBanner.innerHTML = '<strong>Check-In Missing</strong><br>' + diffDays + ' days';
-          scBanner.style.color = '#92400e';
-        }
+        if (circle)   circle.style.display   = 'none';
+        if (scBanner) scBanner.style.display = 'none';
+
+        var diamond = document.createElement('div');
+        diamond.style.cssText = 'position:fixed;top:8px;right:8px;z-index:1001;' +
+          'width:48px;height:48px;background:#fbbf24;border:2px solid #333;' +
+          'transform:rotate(45deg);display:flex;align-items:center;justify-content:center;cursor:default;';
+        diamond.title = diffDays + ' days without check-in';
+        var inner = document.createElement('span');
+        inner.style.cssText = 'transform:rotate(-45deg);font-size:20px;line-height:1;';
+        inner.textContent = '⚠️';
+        diamond.appendChild(inner);
+        document.body.appendChild(diamond);
+
+        var label = document.createElement('div');
+        label.style.cssText = 'position:fixed;top:62px;right:4px;z-index:1000;' +
+          'text-align:right;max-width:160px;font-size:10px;color:#92400e;' +
+          'background:rgba(254,243,199,0.95);border:1px solid #fbbf24;border-radius:4px;' +
+          'padding:3px 7px;line-height:1.4;pointer-events:none;';
+        label.innerHTML = '<strong>Check-In Missing</strong><br>' + diffDays + ' days without check-in.';
+        document.body.appendChild(label);
       });
     });
   });
