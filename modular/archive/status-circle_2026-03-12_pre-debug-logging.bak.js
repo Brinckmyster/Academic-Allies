@@ -717,9 +717,6 @@
         console.warn('[status-circle] nope listener:', err);
       });
 
-    /* Claude: 2026-03-12 — debug logging to trace empty circle bug */
-    console.log('[status-circle] Listening on checkins/' + uid + '/days/' + dateKey);
-
     _unsubDay = window.AA.db
       .collection('checkins').doc(uid)
       .collection('days').doc(dateKey)
@@ -727,18 +724,9 @@
         var entries = (doc.exists && Array.isArray(doc.data().entries))
           ? doc.data().entries : [];
 
-        console.log('[status-circle] Snapshot fired — doc.exists:', doc.exists,
-          '| entries.length:', entries.length,
-          '| uid:', uid, '| dateKey:', dateKey);
-        if (entries.length > 0) {
-          console.log('[status-circle] Latest entry keys:', Object.keys(entries[entries.length - 1]));
-          console.log('[status-circle] Latest entry:', JSON.stringify(entries[entries.length - 1]).substring(0, 500));
-        }
-
         /* Claude: if today has check-ins, use them normally */
         if (entries.length > 0) {
           _segData = fromEntries(entries);
-          console.log('[status-circle] fromEntries result:', JSON.stringify(_segData));
           _isRollingAvg = false;
           _isCaution = false;  /* Claude: 2026-03-12 — checked in today, no caution */
           render();
@@ -772,7 +760,7 @@
           });
         }
       }, function (err) {
-        console.warn('[status-circle] checkin listener ERROR:', err.code, err.message);
+        console.warn('[status-circle] checkin listener:', err);
         _segData = localData();
         _isRollingAvg = false;
         render();
@@ -879,7 +867,6 @@
      Forces teardown + re-init of Firestore listeners on the new UID. */
   window.AA_refreshStatusCircle = function () {
     if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
-    console.log('[status-circle] refreshStatusCircle called, mirror UID:', window.AA_MIRROR_UID);
     _watchingDataUid = null; /* force fresh start */
     startWatching(window.AA.auth.currentUser, true);
   };
