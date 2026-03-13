@@ -467,28 +467,53 @@
     }
 
     /* ── ① Nope / Status real-time listener ───────────── */
+    /* Claude: 2026-03-12 — combined mode + alert count in status label.
+       _currentMode and _activeAlertCount are updated by their respective
+       listeners; refreshStatusLabel() merges them into a single display. */
+    var _currentMode = null;
+    var _activeAlertCount = 0;
+
     var STATUS_COLORS = {
       'nope':     '#dc3545',
       'semi':     '#fd7e14',
       'recovery': '#20c997',
       null:       '#9E9E9E'
     };
-    var STATUS_LABELS = {
+    var MODE_LABELS = {
       'nope':     '🔴 Nope Mode active',
       'semi':     '🟠 Semi-Nope (limited)',
-      'recovery': '🌿 Recovery Mode',
-      null:       '🟢 Normal mode'
+      'recovery': '🌿 Recovery Mode'
     };
+
+    function refreshStatusLabel() {
+      var dotEl   = document.getElementById('status-dot');
+      var labelEl = document.getElementById('status-label');
+      if (!dotEl || !labelEl) return;
+
+      if (_currentMode) {
+        /* Active mode takes priority */
+        dotEl.style.background = STATUS_COLORS[_currentMode] || STATUS_COLORS[null];
+        var modeText = MODE_LABELS[_currentMode] || '';
+        if (_activeAlertCount > 0) {
+          modeText += ' · ' + _activeAlertCount + ' alert' + (_activeAlertCount > 1 ? 's' : '');
+        }
+        labelEl.textContent = modeText;
+      } else if (_activeAlertCount > 0) {
+        /* No mode but alerts exist */
+        dotEl.style.background = '#ffc107';
+        labelEl.textContent = '🔔 ' + _activeAlertCount + ' active alert' + (_activeAlertCount > 1 ? 's' : '');
+      } else {
+        /* All clear */
+        dotEl.style.background = STATUS_COLORS[null];
+        labelEl.textContent = '🟢 Normal mode';
+      }
+    }
 
     function startNopeListener() {
       if (unsubNope) { unsubNope(); }
       unsubNope = AA.watchNope(studentUid, function(data) {
-        var mode  = data ? data.mode : null;
-        var color = STATUS_COLORS[mode] || STATUS_COLORS[null];
-        var label = STATUS_LABELS[mode] || STATUS_LABELS[null];
-
-        document.getElementById('status-dot').style.background = color;
-        document.getElementById('status-label').textContent     = label;
+        _currentMode = data ? data.mode : null;
+        refreshStatusLabel();
 
         var sinceEl   = document.getElementById('status-since');
         var detailsEl = document.getElementById('nope-details');
@@ -500,9 +525,9 @@
           sinceEl.textContent = '';
         }
 
-        if (mode === 'nope' || mode === 'semi') {
+        if (_currentMode === 'nope' || _currentMode === 'semi') {
           detailsEl.style.display = 'block';
-          detailsEl.innerHTML = '<strong>' + (mode === 'nope' ? 'Full Nope' : 'Semi-Nope') + '</strong> — ' +
+          detailsEl.innerHTML = '<strong>' + (_currentMode === 'nope' ? 'Full Nope' : 'Semi-Nope') + '</strong> — ' +
             studentName + ' has limited capacity right now. Please check in gently.';
           detailsEl.className = 'nope-details';
         } else {
@@ -706,6 +731,10 @@
       if (!panel || !list) return;
 
       unsubNotif = AA.watchNotifications(studentUid, function (notifs) {
+        /* Claude: 2026-03-12 — update alert count and refresh status label */
+        _activeAlertCount = (notifs && notifs.length) ? notifs.length : 0;
+        refreshStatusLabel();
+
         if (!notifs || notifs.length === 0) {
           panel.style.display = 'none';
           list.innerHTML = '';
