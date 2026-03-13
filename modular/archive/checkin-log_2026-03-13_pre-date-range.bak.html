@@ -173,8 +173,7 @@
   <div class="log-controls" id="log-controls" style="display:none">
     <label for="days-select">Show:</label>
     <!-- Updated 2026-02-28 by Claude: extended to full-semester and all-time options -->
-    <!-- Claude: 2026-03-13 — added custom date range option -->
-    <select id="days-select" onchange="onRangeChange()">
+    <select id="days-select" onchange="loadLog()">
       <option value="7">Last 7 days</option>
       <option value="14">Last 14 days</option>
       <option value="30" selected>Last 30 days</option>
@@ -184,15 +183,7 @@
       <option value="180">Last 180 days (6 months)</option>
       <option value="365">Last year</option>
       <option value="9999">All time</option>
-      <option value="custom">Custom range…</option>
     </select>
-    <span id="custom-range" style="display:none; gap:.4rem; align-items:center; flex-wrap:wrap;">
-      <label for="date-from" style="font-size:.82rem;color:var(--muted)">From:</label>
-      <input type="date" id="date-from" style="padding:.35rem .5rem;border-radius:6px;border:1px solid var(--border);font-size:.85rem;" />
-      <label for="date-to" style="font-size:.82rem;color:var(--muted)">To:</label>
-      <input type="date" id="date-to" style="padding:.35rem .5rem;border-radius:6px;border:1px solid var(--border);font-size:.85rem;" />
-      <button onclick="loadLog()" style="padding:.35rem .7rem;font-size:.82rem;background:var(--teal);color:#fff;border:none;border-radius:6px;cursor:pointer;">Go</button>
-    </span>
     <button id="refresh-btn" onclick="loadLog()">↻ Refresh</button>
   </div>
 
@@ -330,31 +321,10 @@ function show(id) {
   });
 }
 
-/* Claude: 2026-03-13 — show/hide custom date range inputs */
-function onRangeChange() {
-  var sel = document.getElementById('days-select');
-  var custom = document.getElementById('custom-range');
-  if (sel.value === 'custom') {
-    custom.style.display = 'flex';
-    /* Default: last 30 days range pre-filled */
-    var today = new Date();
-    var from  = new Date(today);
-    from.setDate(from.getDate() - 30);
-    var toEl   = document.getElementById('date-to');
-    var fromEl = document.getElementById('date-from');
-    if (!toEl.value)   toEl.value   = today.toISOString().split('T')[0];
-    if (!fromEl.value) fromEl.value = from.toISOString().split('T')[0];
-  } else {
-    custom.style.display = 'none';
-    loadLog();
-  }
-}
-
 /* Updated 2026-02-28 by Claude: supports unlimited "all time" option */
-/* Claude: 2026-03-13 — added custom date range support */
 function loadLog() {
   if (!_currentUid) return;
-  var sel  = document.getElementById('days-select').value;
+  var days = parseInt(document.getElementById('days-select').value, 10) || 30;
 
   if (_unsubLog) { _unsubLog(); _unsubLog = null; }
   show('log-loading');
@@ -363,17 +333,8 @@ function loadLog() {
     .collection('days')
     .orderBy('date', 'desc');
 
-  if (sel === 'custom') {
-    /* Custom date range: filter by date field */
-    var fromVal = document.getElementById('date-from').value;
-    var toVal   = document.getElementById('date-to').value;
-    if (fromVal) query = query.where('date', '>=', fromVal);
-    if (toVal)   query = query.where('date', '<=', toVal);
-  } else {
-    var days = parseInt(sel, 10) || 30;
-    /* "All time" (9999) = no limit; otherwise cap to selected days */
-    if (days < 9999) { query = query.limit(days); }
-  }
+  /* "All time" (9999) = no limit; otherwise cap to selected days */
+  if (days < 9999) { query = query.limit(days); }
 
   _unsubLog = query
     .onSnapshot(function(snap) {
