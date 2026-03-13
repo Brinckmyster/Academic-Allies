@@ -620,19 +620,41 @@ emojiTargets.forEach(function(id) {
   buildEmojiRow(id);
 });
 
-/* Claude: 2026-03-13 — added role and aria-label to emoji rows for screen readers */
+/* Claude: 2026-03-13 — added role, aria-label, and keyboard navigation to emoji rows */
 function buildEmojiRow(containerId) {
   var wrap = document.getElementById(containerId);
   if (!wrap) return;
-  wrap.setAttribute('role', 'group');
+  wrap.setAttribute('role', 'radiogroup');
   wrap.setAttribute('aria-label', 'How depleted does it feel? Select a level from 1 to 10');
   EMOJIS.forEach(function(em, idx) {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'emoji-btn';
-    btn.setAttribute('aria-label', em.lbl);
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', 'false');
+    btn.setAttribute('aria-label', em.lbl + ' (' + (idx + 1) + ' of 10)');
+    btn.setAttribute('tabindex', idx === 0 ? '0' : '-1');
     btn.innerHTML = '<span class="em">' + em.e + '</span><span class="lbl">' + em.lbl + '</span>';
     btn.onclick = function() { selEmoji(containerId, btn, idx); };
+    /* Claude: 2026-03-13 — arrow key navigation between emoji options */
+    btn.onkeydown = function(e) {
+      var btns = wrap.querySelectorAll('.emoji-btn');
+      var cur = idx;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        cur = (idx + 1) % btns.length;
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        cur = (idx - 1 + btns.length) % btns.length;
+      } else if (e.key === 'Home') {
+        e.preventDefault(); cur = 0;
+      } else if (e.key === 'End') {
+        e.preventDefault(); cur = btns.length - 1;
+      } else { return; }
+      btns[cur].focus();
+      btns[cur].setAttribute('tabindex', '0');
+      btn.setAttribute('tabindex', '-1');
+    };
     wrap.appendChild(btn);
   });
 }
@@ -669,10 +691,14 @@ function selEmoji(containerId, btn, idx) {
   // Deselect all in this row
   wrap.querySelectorAll('.emoji-btn').forEach(function(b) {
     b.className = 'emoji-btn';
+    b.setAttribute('aria-checked', 'false'); /* Claude: 2026-03-13 — a11y */
+    b.setAttribute('tabindex', '-1');
   });
   // Select clicked
   var em = EMOJIS[idx];
   btn.className = 'emoji-btn sel-' + em.t;
+  btn.setAttribute('aria-checked', 'true'); /* Claude: 2026-03-13 — a11y */
+  btn.setAttribute('tabindex', '0');
   catEmoji[containerId] = em.v;
 
   // Store mood label per category (use the container prefix)
