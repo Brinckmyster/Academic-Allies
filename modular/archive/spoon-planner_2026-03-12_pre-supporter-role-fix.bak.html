@@ -557,9 +557,6 @@
         let totalSpoons = 10;
         let editingTaskIndex = -1;
         let originalTasks = []; // For cancel functionality
-        /* Claude: 2026-03-12 — moved to script scope so updateMirrorUI() can access it.
-           Was inside loadSavedData() causing ReferenceError when _initSuggestions() ran. */
-        var _isSupporterRole = false;
 
         // Load saved data — localStorage first (fast), then Firebase if signed in
         function loadSavedData() {
@@ -575,8 +572,11 @@
             // Then try Firebase — overrides localStorage if data is fresher
             // Updated 2026-03-08 by Claude: use AA_uid() so mirror mode works —
             // support members mirroring a student now see the student's spoon plan.
-            /* Claude: 2026-03-09 — _isSupporterRole flag set by role check below.
-               Supporters can build plans but can ONLY submit as suggestions. */
+            /* Claude: 2026-03-09 — _isSupporterRole flag: true when the signed-in
+               user is family/support/nearby-help. These users can build plans but
+               can ONLY submit them as suggestions — never save directly. This flag
+               is checked alongside the mirror check in saveTasks() and updateMirrorUI(). */
+            var _isSupporterRole = false;
             if (window.AA && AA.auth) {
                 var _spPlannerUid = null;
                 AA.auth.onAuthStateChanged(function(user) {
