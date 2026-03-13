@@ -574,19 +574,17 @@
             if (savedSpoons) totalSpoons = parseInt(savedSpoons);
             renderTasks();
 
-            /* Claude: 2026-03-12 — poll for AA + auth before fetching from Firebase.
-               shared-header.html loads Firebase async, so window.AA is rarely ready
-               on first call. Without retry, Firestore plan data never loads. */
-            _waitForFirebase();
-        }
-
-        var _spPlannerUid = null;
-        function _waitForFirebase() {
+            // Then try Firebase — overrides localStorage if data is fresher
+            // Updated 2026-03-08 by Claude: use AA_uid() so mirror mode works —
+            // support members mirroring a student now see the student's spoon plan.
+            /* Claude: 2026-03-09 — _isSupporterRole flag set by role check below.
+               Supporters can build plans but can ONLY submit as suggestions. */
             if (window.AA && AA.auth) {
+                var _spPlannerUid = null;
                 AA.auth.onAuthStateChanged(function(user) {
                     if (!user) return;
                     var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(user.uid) : user.uid;
-                    // Claude: 2026-03-07 — guard against token-refresh re-fires
+                    // Claude: 2026-03-07 — guard against token-refresh re-fires causing getSpoonPlan() to re-run
                     if (effectiveUid === _spPlannerUid) return;
                     _spPlannerUid = effectiveUid;
 
@@ -595,12 +593,15 @@
                         var role = (doc.exists && doc.data().role) ? doc.data().role : 'pending';
                         var supporterRoles = ['family', 'support', 'nearby-help'];
                         _isSupporterRole = (supporterRoles.indexOf(role) !== -1);
+                        /* Force suggest-only UI if supporter (even without mirror mode) */
                         if (_isSupporterRole) {
                             updateMirrorUI();
                         }
                     });
 
-                    // Personalise title with signed-in user's name
+                    // ── Personalise title with signed-in user's name ──
+                    // Added 2026-02-28 by Claude — replace hardcoded 'Mary' with real name
+                    // Claude 2026-03-08: When mirroring, show the student's name from cache
                     var isMirror = (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid);
                     var firstName;
                     if (isMirror && window.AA_MIRROR && window.AA_MIRROR.studentName) {
@@ -618,8 +619,6 @@
                         console.warn('[AA] Could not load spoon plan from Firebase:', err.message);
                     });
                 });
-            } else {
-                setTimeout(_waitForFirebase, 300);
             }
         }
 
