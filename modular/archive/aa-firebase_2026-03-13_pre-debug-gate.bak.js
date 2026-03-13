@@ -10,18 +10,6 @@
      firebase-firestore-compat.js
 
    Exposes window.AA with auth + Firestore helpers.
-
-   /* Claude: 2026-03-13 — onAuthStateChanged listener inventory (7 total)
-      ──────────────────────────────────────────────────────────────────────
-      1. aa-firebase.js   ~line 76  — Resolve _persistenceReady (one-shot, unsubscribes)
-      2. aa-firebase.js   ~line 269 — Main workhorse: user doc, token refresh, roles (persistent)
-      3. aa-firebase.js   ~line 1439— Flush queued audit entries (persistent)
-      4. shared-header.html ~line 511— UI state + GIS silent re-auth (persistent)
-      5. shared-header.html ~line 879— Idle timeout (persistent)
-      6. aa-mirror.js     ~line 260 — Mirror mode cache/switcher (persistent)
-      7. status-circle.js  ~line 795— Check-in status circle (persistent, read-only)
-      All justified — no write collisions between them. */
-
    ============================================================ */
 
 (function () {
@@ -39,10 +27,6 @@
   /* Claude: to add admins, add email to ADMIN_EMAILS array. Firestore rules also need updating.
      Emails that get the "backstage-manager" role (can read all students' data) */
   var ADMIN_EMAILS = ['brinckmyster@gmail.com'];
-
-  /* Claude: 2026-03-13 — debug flag gates email addresses in console logs.
-     Set window.AA_DEBUG = true in browser console to see emails. */
-  var _dbg = function() { return !!window.AA_DEBUG; };
 
   /* ── Initialize Firebase once ───────────────────────────── */
   if (!firebase.apps.length) {
@@ -91,14 +75,14 @@
     return new Promise(function (resolve) {
       var unsub = auth.onAuthStateChanged(function (user) {
         unsub();
-        console.log('[AA] Auth state resolved: ' + (user ? 'USER' + (_dbg() ? ' (' + user.email + ')' : '') : 'null'));
+        console.log('[AA] Auth state resolved: ' + (user ? 'USER (' + user.email + ')' : 'null'));
         /* Claude: 2026-03-12 — diagnostic: if LOCAL persistence was expected but no session
            was restored, log a warning with context so we can track the sign-out pattern. */
         if (!user && _keepSignedIn) {
           var lastUser = null;
           try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
           if (lastUser && lastUser.email) {
-            console.warn('[AA] PERSISTENCE DIAGNOSTIC: Expected LOCAL session for ' + (_dbg() ? lastUser.email : 'user') +
+            console.warn('[AA] PERSISTENCE DIAGNOSTIC: Expected LOCAL session for ' + lastUser.email +
               ' but auth resolved null. IndexedDB may have been cleared by the browser.' +
               ' AA_KEEP_SIGNED_IN=' + localStorage.getItem('AA_KEEP_SIGNED_IN') +
               ' | Last login: ' + (lastUser.lastLogin || 'unknown'));
@@ -281,9 +265,9 @@
      This prevents onAuthStateChanged from firing with null while
      IndexedDB is still loading the persisted session. */
   _persistenceReady.then(function () {
-  console.log('[AA] aa-firebase onAuthStateChanged registering. currentUser=' + (auth.currentUser ? (_dbg() ? auth.currentUser.email : 'present') : 'null'));
+  console.log('[AA] aa-firebase onAuthStateChanged registering. currentUser=' + (auth.currentUser ? auth.currentUser.email : 'null'));
   auth.onAuthStateChanged(function (user) {
-    console.log('[AA] aa-firebase onAuthStateChanged: ' + (user ? 'USER' + (_dbg() ? ' (' + user.email + ')' : '') : 'null'));
+    console.log('[AA] aa-firebase onAuthStateChanged: ' + (user ? 'USER (' + user.email + ')' : 'null'));
     /* Claude: cache last signed-in user to localStorage for re-auth fallback.
        If Firebase persistence fails (virtual desktops, cleared IndexedDB),
        shared-header can read this to attempt silent re-auth. */
@@ -340,7 +324,7 @@
       if (doc.exists) {
         // ── Admin self-heal: if this is an admin email but role got wiped, restore it ──
         if (ADMIN_EMAILS.indexOf(user.email) !== -1 && doc.data().role !== 'backstage-manager') {
-          console.log('[AA] Backstage-manager role self-heal →', _dbg() ? user.email : user.uid);
+          console.log('[AA] Backstage-manager role self-heal →', user.email);
           db.collection('users').doc(user.uid).update({ role: 'backstage-manager' }).catch(function () {});
         }
         // ── 24-hour admin timer: auto self-admin if slot empty >24h ──
@@ -353,10 +337,10 @@
               var pendingRole = pending.data().role || 'student';
               // Claude: 2026-03-05 — never overwrite an admin email's role via pendingUsers
               if (ADMIN_EMAILS.indexOf(user.email) !== -1) {
-                console.log('[AA] Skipping pendingUsers role for admin email:', _dbg() ? user.email : user.uid);
+                console.log('[AA] Skipping pendingUsers role for admin email:', user.email);
                 return db.collection('pendingUsers').doc(user.email).delete().catch(function () {});
               }
-              console.log('[AA] Honoring pending role for existing user:', _dbg() ? user.email : user.uid, '→', pendingRole);
+              console.log('[AA] Honoring pending role for existing user:', user.email, '→', pendingRole);
               return db.collection('pendingUsers').doc(user.email).delete()
                 .catch(function () {})
                 .then(function () {
@@ -376,7 +360,7 @@
           var role;
           if (pending.exists) {
             role = pending.data().role || 'student';
-            console.log('[AA] Found pending registration for', _dbg() ? user.email : user.uid, '→ role:', role);
+            console.log('[AA] Found pending registration for', user.email, '→ role:', role);
             return db.collection('pendingUsers').doc(user.email).delete()
               .catch(function () {})
               .then(function () { return createUserDoc(user, role); })
