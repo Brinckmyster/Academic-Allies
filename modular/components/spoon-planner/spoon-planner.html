@@ -401,6 +401,13 @@
             <p>Plan your day with care</p>
         </div>
 
+        <!-- Claude 2026-03-12: Pending suggestions banner — moved to top so students see it immediately -->
+        <div id="suggestions-banner" style="display:none;background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:20px;margin-top:10px;margin-bottom:10px;text-align:center;">
+            <p style="font-size:16pt;font-weight:700;color:#92400e;margin-bottom:10px;">💡 You have plan suggestions!</p>
+            <p id="suggestions-count" style="font-size:14pt;color:#78350f;margin-bottom:15px;"></p>
+            <button class="btn" style="background:#f59e0b;color:#78350f;" onclick="showSuggestions()">Review Suggestions</button>
+        </div>
+
         <!-- Action Bar with Cancel -->
         <div class="action-bar">
             <button class="btn-cancel" onclick="cancelPlanner()">← Cancel</button>
@@ -484,12 +491,7 @@
             ← Back to Recovery Mode
         </button>
 
-        <!-- Claude 2026-03-08: Pending suggestions banner for students -->
-        <div id="suggestions-banner" style="display:none;background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:20px;margin-top:20px;text-align:center;">
-            <p style="font-size:16pt;font-weight:700;color:#92400e;margin-bottom:10px;">💡 You have plan suggestions!</p>
-            <p id="suggestions-count" style="font-size:14pt;color:#78350f;margin-bottom:15px;"></p>
-            <button class="btn" style="background:#f59e0b;color:#78350f;" onclick="showSuggestions()">Review Suggestions</button>
-        </div>
+        <!-- Claude 2026-03-12: suggestion banner moved to top (was at bottom, invisible) -->
     </div>
 
     <!-- Claude 2026-03-08: Suggest Plan modal — supporter provides reason -->
@@ -966,10 +968,9 @@
         function checkForSuggestions() {
             var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
                 && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
-            if (isMirror) { console.log('[AA] spoon suggestions: skipped (mirror mode)'); return; }
-            if (!window.AA || !AA.auth || !AA.auth.currentUser) { console.log('[AA] spoon suggestions: skipped (no auth)'); return; }
+            if (isMirror) return;
+            if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
             var uid = AA.auth.currentUser.uid;
-            console.log('[AA] spoon suggestions: listening for uid=' + uid);
             /* Unsubscribe any previous listener */
             if (_suggestionsUnsub) { _suggestionsUnsub(); _suggestionsUnsub = null; }
             /* Live listener — fires immediately with current data, then on every change */
@@ -977,7 +978,6 @@
                 .collection('pending')
                 .where('status', '==', 'pending')
                 .onSnapshot(function(snapshot) {
-                    console.log('[AA] spoon suggestions snapshot: size=' + snapshot.size);
                     var suggestions = [];
                     snapshot.forEach(function(doc) {
                         var d = doc.data();
