@@ -434,12 +434,6 @@
       <div class="flag-value" id="snapSupport">—</div>
       <div class="flag-sub">From today's check-in</div>
     </div>
-    <!-- Claude: 2026-03-13 — check-in streak counter (motivational) -->
-    <div class="flag-card" id="snapStreakCard">
-      <div class="flag-label">Check-in streak</div>
-      <div class="flag-value" id="snapStreak">—</div>
-      <div class="flag-sub" id="snapStreakSub">Loading…</div>
-    </div>
   </div>
 
   <!-- Support view: shown for support-role signed-in users -->
@@ -669,101 +663,6 @@
           })
           .catch(function (err) {
             console.warn('[AA] Firestore snapshot fetch failed:', err.message);
-          });
-      });
-    }).catch(function () {});
-  });
-})();
-</script>
-
-<!-- Claude: 2026-03-13 — Check-in streak calculator.
-     Queries last 90 days of check-ins from Firestore and counts consecutive days
-     going backwards from today. Shows motivational messages at milestone streaks. -->
-<script>
-(function () {
-  'use strict';
-
-  function _waitAA(cb, n) {
-    n = n || 0;
-    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-    if (n > 50) return;
-    setTimeout(function () { _waitAA(cb, n + 1); }, 200);
-  }
-
-  function localDate(d) {
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
-  }
-
-  _waitAA(function () {
-    var ready = window.AA._persistenceReady || Promise.resolve();
-    ready.then(function () {
-      AA.auth.onAuthStateChanged(function (user) {
-        if (!user) return;
-        var uid = window.AA_MIRROR_UID || user.uid;
-
-        /* Fetch last 90 day-docs ordered by date desc */
-        AA.db.collection('checkins').doc(uid).collection('days')
-          .orderBy('date', 'desc').limit(90).get()
-          .then(function (snap) {
-            if (snap.empty) {
-              document.getElementById('snapStreak').textContent = '0';
-              document.getElementById('snapStreakSub').textContent = 'Start today!';
-              return;
-            }
-
-            /* Build set of dates that have entries */
-            var dateSet = {};
-            snap.forEach(function (doc) {
-              var d = doc.data();
-              if (d.date && d.entries && d.entries.length > 0) {
-                dateSet[d.date] = true;
-              }
-            });
-
-            /* Count consecutive days going back from today */
-            var streak = 0;
-            var check = new Date();
-            for (var i = 0; i < 90; i++) {
-              var key = localDate(check);
-              if (dateSet[key]) {
-                streak++;
-              } else {
-                break;
-              }
-              check.setDate(check.getDate() - 1);
-            }
-
-            /* Update UI */
-            var streakEl = document.getElementById('snapStreak');
-            var streakSub = document.getElementById('snapStreakSub');
-            var streakCard = document.getElementById('snapStreakCard');
-            if (!streakEl) return;
-
-            streakEl.textContent = streak + ' day' + (streak !== 1 ? 's' : '');
-
-            /* Motivational messages at milestones */
-            if (streak === 0) {
-              streakSub.textContent = 'Check in today to start!';
-            } else if (streak === 1) {
-              streakSub.textContent = 'Great start! Keep going!';
-            } else if (streak < 7) {
-              streakSub.textContent = 'Building momentum!';
-            } else if (streak < 14) {
-              streakSub.textContent = 'One week strong!';
-              if (streakCard) streakCard.className = 'flag-card green';
-            } else if (streak < 30) {
-              streakSub.textContent = 'Two weeks — amazing!';
-              if (streakCard) streakCard.className = 'flag-card green';
-            } else {
-              streakSub.textContent = streak + ' days — you are incredible!';
-              if (streakCard) streakCard.className = 'flag-card green';
-            }
-          })
-          .catch(function (err) {
-            console.warn('[AA] Streak calculation failed:', err.message);
-            document.getElementById('snapStreakSub').textContent = '—';
           });
       });
     }).catch(function () {});

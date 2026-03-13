@@ -53,17 +53,21 @@
       margin-bottom: 1.25rem; flex-wrap: wrap;
     }
     .log-controls label { font-size: .85rem; color: var(--muted); }
+    /* Claude: 2026-03-13 — WCAG 44px min touch targets for mobile */
     .log-controls select {
-      padding: .4rem .7rem; border-radius: 6px;
+      padding: .5rem .7rem; border-radius: 6px;
       border: 1px solid var(--border); font-size: .9rem;
       background: var(--card); color: var(--text); cursor: pointer;
+      min-height: 44px;
     }
-    #refresh-btn {
-      margin-left: auto; padding: .4rem .9rem; font-size: .85rem;
+    #refresh-btn, #export-btn {
+      margin-left: auto; padding: .5rem .9rem; font-size: .85rem;
       background: var(--teal); color: #fff; border: none;
-      border-radius: 6px; cursor: pointer;
+      border-radius: 6px; cursor: pointer; min-height: 44px;
     }
+    #export-btn { background: #28a745; margin-left: 0; }
     #refresh-btn:hover { background: var(--teal-dk); }
+    #export-btn:hover { background: #218838; }
 
     /* ── Day cards ── */
     .day-card {
@@ -74,7 +78,7 @@
     .day-header {
       display: flex; align-items: center; gap: .75rem;
       padding: .75rem 1rem; cursor: pointer;
-      user-select: none;
+      user-select: none; min-height: 48px; /* Claude: 2026-03-13 — WCAG touch target */
     }
     .day-header:hover { background: #f4f9f9; }
     .flag-dot {
@@ -194,6 +198,8 @@
       <button onclick="loadLog()" style="padding:.35rem .7rem;font-size:.82rem;background:var(--teal);color:#fff;border:none;border-radius:6px;cursor:pointer;">Go</button>
     </span>
     <button id="refresh-btn" onclick="loadLog()">↻ Refresh</button>
+    <!-- Claude: 2026-03-13 — export check-in data as CSV -->
+    <button id="export-btn" onclick="exportCSV()" style="padding:.4rem .9rem;font-size:.85rem;background:#28a745;color:#fff;border:none;border-radius:6px;cursor:pointer;" title="Download check-in history as CSV">📥 Export</button>
   </div>
 
   <div id="log-loading">Loading check-in history…</div>
@@ -319,6 +325,55 @@ function toggleDay(card) {
   card.classList.toggle('open');
 }
 
+/* Claude: 2026-03-13 — export visible check-in data as CSV file download */
+var _lastSnapDocs = null; /* stash snapshot docs for export */
+
+function exportCSV() {
+  if (!_lastSnapDocs || _lastSnapDocs.length === 0) {
+    alert('No check-in data to export. Load some data first.');
+    return;
+  }
+
+  var rows = [['Date', 'Time', 'Flag', 'Mood', 'Mental', 'Physical', 'School', 'Spiritual', 'Social', 'Note']];
+
+  _lastSnapDocs.forEach(function (doc) {
+    var d = doc.data();
+    var date = d.date || '';
+    var entries = Array.isArray(d.entries) ? d.entries : [];
+    entries.forEach(function (entry) {
+      var ts = '';
+      if (entry.timestamp) {
+        var dt = typeof entry.timestamp.toDate === 'function'
+          ? entry.timestamp.toDate() : new Date(entry.timestamp);
+        ts = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      var cats = entry.categories || {};
+      function catVal(k) {
+        if (!cats[k]) return '';
+        var gw = cats[k].gateway || '';
+        var v = cats[k].emojiV || '';
+        return gw + (v ? ' (' + v + '/10)' : '');
+      }
+      var note = (entry.finalNote || '').replace(/"/g, '""');
+      rows.push([
+        date, ts, entry.flag || '', entry.mood || '',
+        catVal('mental'), catVal('physical'), catVal('school'),
+        catVal('spiritual'), catVal('social'),
+        '"' + note + '"'
+      ]);
+    });
+  });
+
+  var csv = rows.map(function (r) { return r.join(','); }).join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'checkin-log-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /* ── Data loading ───────────────────────────────────────────────────────── */
 var _currentUid = null;
 var _clUid = null; // UID guard — prevents log reload on 45-min token refresh. Claude, 2026-03-07.
@@ -377,7 +432,8 @@ function loadLog() {
 
   _unsubLog = query
     .onSnapshot(function(snap) {
-      if (snap.empty) { show('log-empty'); return; }
+      if (snap.empty) { _lastSnapDocs = []; show('log-empty'); return; }
+      _lastSnapDocs = snap.docs; /* Claude: 2026-03-13 — stash for CSV export */
       var html = snap.docs.map(function(d) { return renderDayCard(d.data()); }).join('');
       document.getElementById('log-list').innerHTML = html;
       show('log-list');
