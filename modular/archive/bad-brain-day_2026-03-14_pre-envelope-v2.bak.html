@@ -290,87 +290,59 @@
         }
         .back-btn:hover { background: #e5e5e5; }
         .back-btn:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
-        /* ── Claude: 2026-03-14 — Happy Envelope v2 (floating, replaces status circle) ── */
-        @keyframes env-float {
-            0%, 100% { transform: translateY(0) rotate(-2deg); }
-            50% { transform: translateY(-6px) rotate(2deg); }
+        /* ── Claude: 2026-03-14 — Happy Envelope (replaces status circle when unread msgs) ── */
+        @keyframes envelope-bounce {
+            0%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-4px); }
+            50% { transform: translateY(0); }
+            75% { transform: translateY(-2px); }
         }
-        @keyframes env-wiggle {
-            0%, 100% { transform: rotate(0deg); }
-            15% { transform: rotate(-8deg); }
-            30% { transform: rotate(6deg); }
-            45% { transform: rotate(-4deg); }
-            60% { transform: rotate(0deg); }
+        @keyframes envelope-glow {
+            0%, 100% { box-shadow: 0 2px 8px rgba(108,160,163,0.3); }
+            50% { box-shadow: 0 2px 16px rgba(108,160,163,0.6); }
         }
-        @keyframes env-glow-pulse {
-            0%, 100% { box-shadow: 0 4px 15px rgba(108,160,163,0.3), 0 0 0 0 rgba(108,160,163,0); }
-            50% { box-shadow: 0 4px 20px rgba(108,160,163,0.5), 0 0 0 8px rgba(108,160,163,0.08); }
-        }
-        #happy-envelope {
-            position: fixed;
-            top: 14px;
-            right: 14px;
-            z-index: 1001;
-            display: none;
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #e8f4f5 0%, #d4ecee 50%, #c0e4e6 100%);
-            border: 2px solid #6CA0A3;
-            cursor: pointer;
-            text-decoration: none;
-            animation: env-float 3s ease-in-out infinite, env-glow-pulse 3s ease-in-out infinite;
-            transition: transform 0.2s;
-        }
-        #happy-envelope:hover {
-            transform: scale(1.1);
-            animation: env-wiggle 0.8s ease-in-out;
-        }
-        #happy-envelope:active {
-            transform: scale(0.95);
-        }
-        #happy-envelope .env-face {
-            position: absolute;
-            inset: 0;
+        .happy-envelope {
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6CA0A3 0%, #8bc5c8 100%);
+            cursor: pointer;
+            animation: envelope-bounce 2.5s ease-in-out infinite, envelope-glow 3s ease-in-out infinite;
+            position: relative;
+            text-decoration: none;
+        }
+        .happy-envelope:hover {
+            filter: brightness(1.1);
+            animation-play-state: paused;
+        }
+        .happy-envelope .env-icon {
+            font-size: 22px;
             line-height: 1;
         }
-        #happy-envelope .env-label {
-            font-size: 7px;
-            font-weight: 700;
-            color: #3a7a7d;
-            letter-spacing: 0.05em;
-            margin-top: 1px;
-        }
-        #happy-envelope .env-count {
+        .happy-envelope .env-count {
             position: absolute;
-            top: -6px;
-            right: -6px;
-            background: linear-gradient(135deg, #f5576c, #e8445a);
+            top: -4px;
+            right: -4px;
+            background: #f5576c;
             color: white;
-            font-size: 12px;
-            font-weight: 800;
-            min-width: 22px;
-            height: 22px;
-            border-radius: 11px;
+            font-size: 11px;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 0 5px;
-            box-shadow: 0 2px 6px rgba(245,87,108,0.4);
-            border: 2px solid #fff;
+            padding: 0 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
         /* Dark mode envelope */
-        html.aa-dark #happy-envelope {
-            background: linear-gradient(135deg, #1a3a3c 0%, #1e2e30 50%, #223a3c 100%);
-            border-color: #4a8a8d;
+        html.aa-dark .happy-envelope {
+            background: linear-gradient(135deg, #4a7f82 0%, #6CA0A3 100%);
         }
-        html.aa-dark #happy-envelope .env-label { color: #9dd0d3; }
-        html.aa-dark #happy-envelope .env-count { border-color: #1e1e1e; }
 
         .back-note {
             text-align: center;
@@ -784,9 +756,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. Firebase was added 2026-02-26 for silent background sync for check-in persistence. -->
 
-    <!-- Claude: 2026-03-14 — Happy Envelope v2: standalone floating element that
-         hides the status circle and shows a friendly, animated envelope with unread
-         count. On Bad Brain Day, "someone cares about you" > status color. -->
+    <!-- Claude: 2026-03-14 — Happy Envelope: replaces status circle with a bouncing
+         envelope + unread count when the student has unread messages. On Bad Brain Day,
+         seeing "people reached out" is more useful than a status color. -->
     <script>
     (function() {
       var _envUnsub = null;
@@ -803,38 +775,39 @@ document.addEventListener('DOMContentLoaded', function() {
         try { return parseInt(localStorage.getItem('aa-msg-read-' + tid) || '0', 10); } catch(e) { return 0; }
       }
 
-      function showEnvelope(count) {
-        var env = document.getElementById('happy-envelope');
-
-        /* Create the envelope element if it doesn't exist yet */
-        if (!env) {
-          env = document.createElement('a');
-          env.id = 'happy-envelope';
-          env.href = '/Academic-Allies/modular/components/message-system/message-system.html';
-          document.body.appendChild(env);
-        }
-
-        env.setAttribute('aria-label', count + ' unread message' + (count !== 1 ? 's' : '') + ' — someone reached out!');
-        env.title = count + ' unread message' + (count !== 1 ? 's' : '') + '!';
-        env.innerHTML =
-          '<span class="env-face">💌<span class="env-label">NEW</span></span>' +
-          '<span class="env-count">' + (count > 99 ? '99+' : count) + '</span>';
-        env.style.display = 'block';
-
-        /* Hide the status circle so envelope takes its place */
+      function swapToEnvelope(count) {
         var sc = document.getElementById('status-circle');
-        if (sc) sc.style.display = 'none';
+        if (!sc) return;
+
+        /* Build the happy envelope link */
+        var link = document.createElement('a');
+        link.href = '/Academic-Allies/modular/components/message-system/message-system.html';
+        link.className = 'happy-envelope';
+        link.setAttribute('aria-label', count + ' unread message' + (count !== 1 ? 's' : '') + ' — tap to read');
+        link.title = count + ' unread message' + (count !== 1 ? 's' : '');
+        link.innerHTML = '<span class="env-icon">💌</span>'
+          + '<span class="env-count">' + (count > 99 ? '99+' : count) + '</span>';
+
+        /* Replace the status circle's inner content with the envelope */
+        sc.style.width = '44px';
+        sc.style.height = '44px';
+        sc.style.borderRadius = '50%';
+        sc.style.background = 'transparent';
+        sc.style.overflow = 'visible';
+        sc.innerHTML = '';
+        sc.appendChild(link);
+
+        /* Hide the banner — doesn't make sense with envelope */
         var banner = document.getElementById('sc-banner');
         if (banner) banner.style.display = 'none';
       }
 
-      function hideEnvelope() {
-        var env = document.getElementById('happy-envelope');
-        if (env) env.style.display = 'none';
-
-        /* Restore status circle */
-        var sc = document.getElementById('status-circle');
-        if (sc) sc.style.display = '';
+      function restoreCircle() {
+        /* If status-circle.js is running, calling AA_refreshStatusCircle()
+           will re-render. Otherwise, just reset basic appearance. */
+        if (typeof window.AA_refreshStatusCircle === 'function') {
+          window.AA_refreshStatusCircle();
+        }
         var banner = document.getElementById('sc-banner');
         if (banner) banner.style.display = '';
       }
@@ -854,14 +827,15 @@ document.addEventListener('DOMContentLoaded', function() {
         AA.auth.onAuthStateChanged(function(user) {
           if (!user) {
             if (_envUnsub) { _envUnsub(); _envUnsub = null; }
-            hideEnvelope();
             return;
           }
           if (user.uid === _envUid) return;
           _envUid = user.uid;
 
+          /* Unsubscribe old listener */
           if (_envUnsub) { _envUnsub(); _envUnsub = null; }
 
+          /* Watch all threads this user participates in */
           _envUnsub = AA.db.collection('messages')
             .where('participants', 'array-contains', user.uid)
             .onSnapshot(function(snap) {
@@ -873,14 +847,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (lastAt > lastRead) unreadCount++;
               });
 
+              /* Update the Messages card badge */
               updateMsgBadge(unreadCount);
 
+              /* Swap or restore the status circle */
               if (unreadCount > 0) {
-                showEnvelope(unreadCount);
+                swapToEnvelope(unreadCount);
               } else {
-                hideEnvelope();
+                restoreCircle();
               }
-            }, function() { /* permission error — leave alone */ });
+            }, function() {
+              /* Permission error — leave status circle alone */
+            });
         });
       });
     })();
