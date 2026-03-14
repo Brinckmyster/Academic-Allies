@@ -583,20 +583,7 @@ function pickFromNetwork() {
 }
 
 /* ── Auth boot ───────────────────────────────────────────────────────────── */
-/* Claude: 2026-03-14 — wait for AA (shared-header loads it async) before using auth */
 var _ecUid = null; // UID guard — prevents reload on 45-min token refresh. Claude, 2026-03-07.
-function _ecWaitForAA(cb, n) {
-  n = n || 0;
-  if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-  if (n > 80) {
-    hide('ec-loading');
-    document.getElementById('ec-subtitle').textContent =
-      'Could not connect — please refresh the page.';
-    return;
-  }
-  setTimeout(function() { _ecWaitForAA(cb, n + 1); }, 100);
-}
-_ecWaitForAA(function() {
 AA.auth.onAuthStateChanged(function(user) {
   if (!user) {
     hide('ec-loading');
@@ -666,7 +653,6 @@ AA.auth.onAuthStateChanged(function(user) {
         'Could not load contacts — check permissions or try again.';
     });
 });
-}); /* end _ecWaitForAA */
 </script>
 
 <!-- Shared header loader -->
