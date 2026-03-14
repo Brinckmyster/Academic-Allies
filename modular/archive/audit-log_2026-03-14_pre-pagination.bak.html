@@ -265,7 +265,7 @@
 
   <!-- Claude: standard fetch loader for shared header with script re-execution -->
   <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260314d')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260314c')
       .then(function(r) { return r.text(); })
       .then(function(html) {
         var c = document.getElementById('site-header');
@@ -352,16 +352,11 @@
     /* ── State: keep full entries for filtering ───────────────── */
     var _allEntries = [];
     var _currentUid = null;
-    /* Claude: 2026-03-14 — pagination state */
-    var _lastDoc = null;
-    var _hasMore = false;
-    var _loadingUid = null;
 
     /* ── Render audit log entries ──────────────────────────────── */
     /* Claude: 2026-03-08 — reworked to show Detail column with mirror context */
     function renderLog(entries, currentUid) {
-      /* Claude: 2026-03-14 — _allEntries is now managed by loadAuditLog for pagination */
-      if (entries) _allEntries = entries;
+      _allEntries = entries || [];
       _currentUid = currentUid;
       applyFilters();
     }
@@ -467,30 +462,16 @@
     };
 
     /* ── Load audit log for a student ──────────────────────────── */
-    /* Claude: 2026-03-14 — paginated: first load resets state; append=true adds to existing */
-    function loadAuditLog(uid, append) {
-      if (!append) {
-        _allEntries = [];
-        _lastDoc = null;
-        _hasMore = false;
-        _loadingUid = uid;
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('audit-table-wrap').style.display = 'none';
-        document.getElementById('no-logs').style.display = 'none';
-        document.getElementById('entry-count').textContent = '';
-      }
+    function loadAuditLog(uid) {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('audit-table-wrap').style.display = 'none';
+      document.getElementById('no-logs').style.display = 'none';
+      document.getElementById('entry-count').textContent = '';
 
-      var opts = { limit: 100 };
-      if (append && _lastDoc) opts.startAfter = _lastDoc;
-
-      window.AA.getAuditLog(uid, opts)
-        .then(function(result) {
-          _lastDoc = result.lastDoc;
-          _hasMore = result.hasMore;
-          _allEntries = _allEntries.concat(result.entries);
+      window.AA.getAuditLog(uid)
+        .then(function(entries) {
           var currentUser = window.AA.auth.currentUser;
-          renderLog(_allEntries, currentUser ? currentUser.uid : null);
-          updateLoadMoreBtn();
+          renderLog(entries, currentUser ? currentUser.uid : null);
         })
         .catch(function(err) {
           console.error('[audit-log] Error loading audit log:', err);
@@ -498,24 +479,6 @@
           document.getElementById('no-logs').style.display = 'block';
           document.getElementById('no-logs').textContent = 'Error loading audit log: ' + err.message;
         });
-    }
-
-    /* Claude: 2026-03-14 — "Load More" button management */
-    function updateLoadMoreBtn() {
-      var existing = document.getElementById('load-more-btn');
-      if (existing) existing.remove();
-      if (!_hasMore) return;
-      var btn = document.createElement('button');
-      btn.id = 'load-more-btn';
-      btn.textContent = 'Load more entries…';
-      btn.style.cssText = 'display:block;margin:18px auto;padding:10px 24px;background:#4a7f82;color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;min-height:44px;';
-      btn.onclick = function() {
-        btn.textContent = 'Loading…';
-        btn.disabled = true;
-        loadAuditLog(_loadingUid, true);
-      };
-      var tableWrap = document.getElementById('audit-table-wrap');
-      if (tableWrap) tableWrap.parentNode.insertBefore(btn, tableWrap.nextSibling);
     }
 
     /* ── Refresh button handler ───────────────────────────────── */

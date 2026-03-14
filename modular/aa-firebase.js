@@ -1505,16 +1505,26 @@
     _writeAuditEntry(user, targetUid, action, dataType, meta);
   };
 
-  /* Get the last 100 audit log entries for a given student (FERPA audit viewer)
-     Claude: 2026-03-08 — bumped from 50 to 100 for better audit coverage */
-  window.AA.getAuditLog = function(targetUid) {
-    return db.collection('auditLog').doc(targetUid)
+  /* Claude: 2026-03-14 — paginated audit log. Returns { entries, lastDoc } where
+     lastDoc can be passed back as startAfter to get the next page. Default 100/page.
+     Backwards-compatible: entries array is the same shape as before. */
+  window.AA.getAuditLog = function(targetUid, opts) {
+    opts = opts || {};
+    var limit = opts.limit || 100;
+    var query = db.collection('auditLog').doc(targetUid)
       .collection('entries')
-      .orderBy('timestamp', 'desc')
-      .limit(100)
-      .get()
+      .orderBy('timestamp', 'desc');
+    if (opts.startAfter) {
+      query = query.startAfter(opts.startAfter);
+    }
+    return query.limit(limit).get()
       .then(function(snap) {
-        return snap.docs.map(function(doc) { return Object.assign({id: doc.id}, doc.data()); });
+        var entries = snap.docs.map(function(doc) { return Object.assign({id: doc.id}, doc.data()); });
+        return {
+          entries: entries,
+          lastDoc: snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null,
+          hasMore: snap.docs.length === limit
+        };
       });
   };
 

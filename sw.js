@@ -9,11 +9,10 @@
      • Activate: purge stale caches from previous SW versions
    ================================================================ */
 
-/* Claude: 2026-03-14 — bumped cache v2→v3 to force stale-cache purge on mobile.
-   The v2 cache held an old aa-firebase.js with a SyntaxError that hid the sign-in
-   button. skipWaiting+clients.claim re-enabled to force immediate activation so
-   mobile users don't need to close all tabs to get the fix. */
-var CACHE   = 'aa-shell-v3';
+/* Claude: 2026-03-14 — bumped cache v3→v4. v3 had stale shared-header, aa-mirror,
+   and several component pages. v4 forces a full re-download of the shell so mobile
+   users pick up all the 2026-03-14 changes (mirror guards, UX polish, clock fix). */
+var CACHE   = 'aa-shell-v4';
 var SCOPE   = '/Academic-Allies/';
 
 /* Pages and assets to pre-cache on install */
