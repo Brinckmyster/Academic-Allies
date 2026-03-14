@@ -1217,12 +1217,8 @@
       });
 
       // Claude: wire delete buttons
-      /* Claude: 2026-03-14 — added mirror guard to prevent supporters deleting student notes */
       notesList.querySelectorAll('.note-delete').forEach(function(btn) {
         btn.onclick = function() {
-          if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
-            showToast('Read-only in mirror mode'); return;
-          }
           var noteId = btn.getAttribute('data-id');
           if (!confirm('Delete this note?')) return;
           window.AA.db.collection('audioNotes').doc(writeUid)
@@ -1284,12 +1280,8 @@
       });
 
       // Claude: 2026-03-08 — wire "Convert to WAV" buttons for saved notes (NotebookLM compat)
-      /* Claude: 2026-03-14 — added mirror guard to prevent supporters converting student notes */
       notesList.querySelectorAll('.note-to-wav').forEach(function(btn) {
         btn.onclick = function() {
-          if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
-            showToast('Read-only in mirror mode'); return;
-          }
           var driveId = btn.getAttribute('data-driveid');
           var noteId = btn.getAttribute('data-id');
           var title = btn.getAttribute('data-title') || 'audio-note';
@@ -1314,11 +1306,9 @@
             .then(function(result) {
               if (result && result.webViewLink) {
                 // Claude: 2026-03-08 — update Firestore with new WAV Drive link + format tag
-                /* Claude: 2026-03-14 — added .catch() on WAV metadata update */
                 window.AA.db.collection('audioNotes').doc(writeUid)
                   .collection('notes').doc(noteId)
-                  .update({ driveFileId: result.id, driveLink: result.webViewLink, audioFormat: 'wav' })
-                  .catch(function(e) { console.warn('[AA] WAV metadata update failed:', e.message); });
+                  .update({ driveFileId: result.id, driveLink: result.webViewLink, audioFormat: 'wav' });
                 showToast('WAV uploaded! Old webm kept in Drive.');
                 window.open(result.webViewLink, '_blank');
               } else {
