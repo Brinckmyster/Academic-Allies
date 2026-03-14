@@ -1455,7 +1455,6 @@
    */
   function _writeAuditEntry(user, targetUid, action, dataType, meta) {
     meta = meta || {};
-    /* Claude: 2026-03-14 — added .catch() on _ensureRole to prevent unhandled rejection */
     _ensureRole(user).then(function(role) {
       var entry = {
         actorUid:   user.uid,
@@ -1466,6 +1465,7 @@
         action:     action,
         timestamp:  firebase.firestore.FieldValue.serverTimestamp()
       };
+      // Claude: 2026-03-08 — optional rich fields
       if (meta.detail)     entry.detail     = meta.detail;
       if (meta.mirrorOf)   entry.mirrorOf   = meta.mirrorOf;
       if (meta.mirrorName) entry.mirrorName = meta.mirrorName;
@@ -1475,22 +1475,17 @@
         .catch(function(err) {
           console.warn('[AA] auditLog write failed:', err.code, err.message);
         });
-    }).catch(function(err) {
-      console.warn('[AA] auditLog _ensureRole failed:', err);
     });
   }
 
   // Claude: 2026-03-08 — flush the queue once auth is confirmed (now waits for role too)
   auth.onAuthStateChanged(function(user) {
     if (!user || !_auditQueue.length) return;
-    /* Claude: 2026-03-14 — added .catch() on queue flush _ensureRole */
     _ensureRole(user).then(function() {
       var queued = _auditQueue.splice(0);
       queued.forEach(function(entry) {
         _writeAuditEntry(user, entry.targetUid, entry.action, entry.dataType, entry.meta);
       });
-    }).catch(function(err) {
-      console.warn('[AA] auditLog queue flush failed:', err);
     });
   });
 

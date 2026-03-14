@@ -627,10 +627,10 @@
             updateSpoonCounter();
            
             localStorage.setItem('energyLevel', level);
-            /* Claude: 2026-03-14 — replaced dorothy email check with AA_MIRROR_CAN_WRITE */
-            // Firebase sync (silent, non-blocking) — skip in read-only mirror mode
+            // Firebase sync (silent, non-blocking) — skip in mirror mode (unless dorothy)
             if (window.AA && AA.auth && AA.auth.currentUser) {
-                if (!window.AA_MIRROR_UID || window.AA_MIRROR_CAN_WRITE) {
+                if (!window.AA_MIRROR_UID || AA.auth.currentUser.email === 'dorothy.brinck@gmail.com') {
+                    /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
                     var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
                     AA.patchFlowerQuiz(writeUid, { energyLevel: level });
                 }
@@ -786,10 +786,10 @@
                 reportedFlowers.push(currentFlower.name);
                 localStorage.setItem('reportedFlowers', JSON.stringify(reportedFlowers));
                 document.getElementById('report-count').textContent = reportedFlowers.length;
-                /* Claude: 2026-03-14 — replaced dorothy email check with AA_MIRROR_CAN_WRITE */
-                // Firebase sync (silent, non-blocking) — skip in read-only mirror mode
+                // Firebase sync (silent, non-blocking) — skip in mirror mode (unless dorothy)
                 if (window.AA && AA.auth && AA.auth.currentUser) {
-                    if (!window.AA_MIRROR_UID || window.AA_MIRROR_CAN_WRITE) {
+                    if (!window.AA_MIRROR_UID || AA.auth.currentUser.email === 'dorothy.brinck@gmail.com') {
+                        /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
                         var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
                         AA.patchFlowerQuiz(writeUid, { reportedFlowers: reportedFlowers });
                     }
@@ -862,12 +862,12 @@
                 localStorage.setItem('flowerCount', flowerCount);
                 document.getElementById('flower-count').textContent = flowerCount;
                 // Firebase sync — debounced so rapid answers don't hammer the DB
-                /* Claude: 2026-03-14 — replaced dorothy email check with AA_MIRROR_CAN_WRITE */
-                // Skip write in read-only mirror mode
+                // Skip write in mirror mode (unless dorothy)
                 clearTimeout(window._fcTimer);
                 window._fcTimer = setTimeout(function() {
                     if (window.AA && AA.auth && AA.auth.currentUser) {
-                        if (!window.AA_MIRROR_UID || window.AA_MIRROR_CAN_WRITE) {
+                        if (!window.AA_MIRROR_UID || AA.auth.currentUser.email === 'dorothy.brinck@gmail.com') {
+                            /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
                             var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
                             AA.patchFlowerQuiz(writeUid, { flowerCount: flowerCount });
                         }
