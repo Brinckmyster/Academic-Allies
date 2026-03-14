@@ -901,8 +901,10 @@
   'use strict';
 
   /* Claude: 2026-03-14 — reveal page (hidden by default to prevent flash-of-content
-     when support roles auto-redirect). Called after role check, or after 3s timeout
-     for users who aren't logged in / have slow connections. */
+     when support roles auto-redirect). Called after role check completes.
+     Fallback: if Firebase/AA never loads, reveal after 4s so page isn't stuck blank.
+     If AA loads but role check is slow, reveal 2s after AA is ready (enough time for
+     the Firestore role lookup + redirect). */
   var _revealed = false;
   function _revealPage() {
     if (_revealed) return;
@@ -913,7 +915,8 @@
     if (dash) dash.style.display = '';
   }
   window._revealPage = _revealPage; /* expose for auth handler use */
-  setTimeout(_revealPage, 3000); /* fallback: always reveal after 3s */
+  /* Hard fallback — if AA never loads at all, don't leave the page blank forever */
+  setTimeout(_revealPage, 4000);
 
   /* Claude: 2026-02-28 — backstage-manager re-added; they see all students */
   var SUPPORT_ROLES = ['support', 'family', 'nearby-help', 'network-lead', 'backstage-manager'];

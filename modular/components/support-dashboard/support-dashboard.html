@@ -427,14 +427,20 @@
       /* Scan all users for supportNetwork entries containing this viewer */
       AA.db.collection('users').get().then(function(snap) {
         studentsInNetwork = [];
+        /* Claude: 2026-03-14 — deduplicate by UID to prevent the same student
+           appearing twice if they have multiple supportNetwork entries */
+        var seen = {};
         snap.forEach(function(doc) {
           var d = doc.data();
           if (d.role === 'student' && d.supportNetwork && d.supportNetwork[viewerUid]) {
-            studentsInNetwork.push({
-              uid:  doc.id,
-              name: d.displayName || d.email,
-              tier: d.supportNetwork[viewerUid]
-            });
+            if (!seen[doc.id]) {
+              seen[doc.id] = true;
+              studentsInNetwork.push({
+                uid:  doc.id,
+                name: d.displayName || d.email,
+                tier: d.supportNetwork[viewerUid]
+              });
+            }
           }
         });
 

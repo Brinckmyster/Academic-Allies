@@ -1003,22 +1003,33 @@ Your disability accommodations and support network">Your disability accommodatio
     timeEl.textContent = pad2(h12) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds()) + ap;
   }
 
+  /* Claude: 2026-03-14 — added 5s timeout via AbortController, and fail counter.
+     After 3 consecutive failures, label changes from "Atomic-synced" to "Re-syncing…"
+     so users know the clock may be drifting. */
+  var _syncFails = 0;
   function doSync() {
     if (syncEl) syncEl.textContent = 'Syncing\u2026';
     var t1 = Date.now();
-    fetch('https://timeapi.io/api/time/current/zone?timeZone=UTC')
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var tid = ctrl ? setTimeout(function () { ctrl.abort(); }, 5000) : null;
+    fetch('https://timeapi.io/api/time/current/zone?timeZone=UTC', ctrl ? { signal: ctrl.signal } : {})
       .then(function (r) { return r.ok ? r.json() : Promise.reject('fail'); })
       .then(function (data) {
+        if (tid) clearTimeout(tid);
         var t2 = Date.now();
         var srv = new Date(data.dateTime + 'Z');
         if (isNaN(srv.getTime())) throw new Error('bad');
         var rtt = t2 - t1;
         _drift = t2 - (srv.getTime() + Math.round(rtt / 2));
         _synced = true;
+        _syncFails = 0;
         if (syncEl) syncEl.textContent = 'Atomic-synced';
       })
       .catch(function () {
+        if (tid) clearTimeout(tid);
+        _syncFails++;
         if (!_synced && syncEl) syncEl.textContent = 'Device clock';
+        else if (_synced && _syncFails >= 3 && syncEl) syncEl.textContent = 'Re-syncing\u2026';
       });
   }
 
