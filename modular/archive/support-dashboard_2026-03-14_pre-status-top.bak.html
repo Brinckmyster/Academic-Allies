@@ -186,44 +186,6 @@
     /* Loading / states */
     #loading-msg, #signin-msg { text-align: center; padding: 50px; color: #aaa; font-size: 1rem; }
     .empty-msg { color: #bbb; font-size: 0.88rem; text-align: center; padding: 14px 0; }
-
-    /* Claude: 2026-03-14 — My Students compact status grid (moved from index.html) */
-    .ssc-dot {
-      width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
-      box-shadow: 0 0 0 3px rgba(0,0,0,0.08);
-    }
-    .ssc-dot.nope    { background: #dc3545; animation: pulse-dot 1.4s ease-in-out infinite; }
-    .ssc-dot.red     { background: #dc3545; }
-    .ssc-dot.orange  { background: #fd7e14; }
-    .ssc-dot.yellow  { background: #ffc107; }
-    .ssc-dot.green   { background: #28a745; }
-    .ssc-dot.unknown { background: #ccc; }
-    @keyframes pulse-dot {
-      0%, 100% { box-shadow: 0 0 0 3px rgba(220,53,69,0.2); }
-      50%       { box-shadow: 0 0 0 7px rgba(220,53,69,0.1); }
-    }
-    .my-students-grid {
-      display: flex; flex-wrap: wrap; gap: 10px;
-    }
-    .msc-item {
-      display: flex; align-items: center; gap: 12px;
-      background: #fff; border: 1px solid #e1e5e9; border-radius: 10px;
-      padding: 12px 18px; cursor: pointer;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      font-size: 0.95rem; font-weight: 600; color: #222; min-width: 160px;
-    }
-    .msc-item:hover {
-      border-color: #6CA0A3;
-      box-shadow: 0 2px 8px rgba(108,160,163,0.15);
-    }
-    .msc-item.active {
-      border-color: #4a7f82;
-      background: #e8f5ee;
-    }
-    #my-students-section { margin-bottom: 18px; }
-    #my-students-section .section-label {
-      font-weight: 700; font-size: 0.95rem; color: #4a7f82; margin-bottom: 10px;
-    }
   </style>
 </head>
 <body>
@@ -234,14 +196,6 @@
     <div id="signin-msg" style="display:none;">Please sign in to access the support dashboard.</div>
 
     <div id="dash-body" style="display:none;">
-
-      <!-- Claude: 2026-03-14 — My Students compact status grid (moved from index.html to top of dashboard) -->
-      <div id="my-students-section" style="display:none;">
-        <div class="section-label">My Students</div>
-        <div id="my-students-grid" class="my-students-grid">
-          <p style="color:#aaa;font-size:0.9rem;padding:10px 0;">Loading…</p>
-        </div>
-      </div>
 
       <!-- Mirror notice — Claude 2026-03-07: NL-aware -->
       <div class="mirror-notice mirror-readonly" id="dash-mirror-notice">
@@ -443,7 +397,6 @@
         }
 
         showDashboard(studentsInNetwork[0].uid, studentsInNetwork[0].name);
-        loadStudentGrid(); /* Claude: 2026-03-14 — render compact status grid at top */
       }).catch(function(err) {
         document.getElementById('loading-msg').textContent = 'Error: ' + err.message;
       });
@@ -884,79 +837,6 @@
       }).catch(function (err) {
         console.warn('[AA] lastSeen load failed:', err.message);
         bar.style.display = 'none';
-      });
-    }
-
-    /* ── Claude: 2026-03-14 — My Students compact status grid ────────────────
-       Renders a row of student cards with urgency dots at the very top of the
-       dashboard. Clicking a card switches the dashboard to that student.
-       Adapted from index.html support-view grid (moved per user request). */
-    var URGENCY = { nope: 0, red: 0, orange: 1, yellow: 2, green: 3, unknown: 4 };
-
-    function loadStudentGrid() {
-      var section = document.getElementById('my-students-section');
-      var grid    = document.getElementById('my-students-grid');
-      if (!section || !grid) return;
-
-      if (studentsInNetwork.length < 2) {
-        /* Only one student — no need for a picker grid */
-        section.style.display = 'none';
-        return;
-      }
-
-      section.style.display = 'block';
-      grid.innerHTML = '';
-
-      var today = new Date();
-      var todayKey = today.getFullYear() + '-' +
-        String(today.getMonth() + 1).padStart(2, '0') + '-' +
-        String(today.getDate()).padStart(2, '0');
-
-      Promise.all(studentsInNetwork.map(function (s) {
-        return Promise.all([
-          AA.db.collection('nope').doc(s.uid).get(),
-          AA.db.collection('checkins').doc(s.uid).collection('days').doc(todayKey).get()
-        ]).then(function (res) {
-          var nopeData = res[0].exists ? res[0].data() : null;
-          var isNope   = nopeData && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope');
-
-          var dot = 'unknown';
-          if (isNope) {
-            dot = 'nope';
-          } else {
-            var entries = res[1].exists ? (res[1].data().entries || []) : [];
-            if (entries.length > 0) {
-              dot = 'green';
-              entries.forEach(function (e) {
-                if (e.flag === 'red')                          dot = 'red';
-                else if (e.flag === 'orange' && dot !== 'red') dot = 'orange';
-                else if (e.flag === 'yellow' && dot === 'green') dot = 'yellow';
-              });
-            }
-          }
-
-          return { uid: s.uid, name: s.name, dot: dot, urgency: URGENCY[dot] };
-        }).catch(function () {
-          return { uid: s.uid, name: s.name, dot: 'unknown', urgency: 4 };
-        });
-      })).then(function (results) {
-        results.sort(function (a, b) { return a.urgency - b.urgency; });
-        results.forEach(function (s) {
-          var item = document.createElement('div');
-          item.className = 'msc-item' + (s.uid === studentUid ? ' active' : '');
-          item.title     = 'View ' + s.name + '\'s dashboard';
-          item.innerHTML =
-            '<span class="ssc-dot ' + s.dot + '"></span>' +
-            '<span>' + esc(s.name) + '</span>';
-          item.addEventListener('click', function () {
-            /* Switch dashboard to this student */
-            switchStudent(s.uid);
-            /* Highlight active card */
-            grid.querySelectorAll('.msc-item').forEach(function (el) { el.classList.remove('active'); });
-            item.classList.add('active');
-          });
-          grid.appendChild(item);
-        });
       });
     }
 

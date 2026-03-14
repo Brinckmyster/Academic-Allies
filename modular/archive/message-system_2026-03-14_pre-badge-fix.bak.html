@@ -165,13 +165,7 @@
   <div class="msg-layout" id="msg-layout" style="display:none; margin-top:8px;">
     <!-- Contacts -->
     <div class="contacts-panel">
-      <!-- Claude: 2026-03-14 — Mark all read button to clear persistent unread badges -->
-      <div class="contacts-header" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>💬 Conversations</span>
-        <button id="markAllReadBtn" onclick="markAllThreadsRead()" title="Mark all conversations as read"
-          style="background:none;border:none;font-size:11px;color:#6CA0A3;cursor:pointer;padding:2px 6px;border-radius:4px;font-weight:600;"
-          onmouseover="this.style.background='#e8f2f3'" onmouseout="this.style.background='none'">✓ All read</button>
-      </div>
+      <div class="contacts-header">💬 Conversations</div>
       <div class="contact-list" id="contact-list">
         <div id="contacts-empty">No contacts yet.</div>
       </div>
@@ -642,25 +636,6 @@
     function getLastRead(tid) {
       try { return parseInt(localStorage.getItem('aa-msg-read-' + tid) || '0'); } catch(e) { return 0; }
     }
-    /* Claude: 2026-03-14 — Mark ALL threads as read. Clears the nav red dot
-       for all conversations, including orphaned ones the user can no longer reach. */
-    window.markAllThreadsRead = function () {
-      if (!currentUser) return;
-      AA.db.collection('messages')
-        .where('participants', 'array-contains', currentUser.uid)
-        .get().then(function(snap) {
-          var now = Date.now().toString();
-          snap.docs.forEach(function(doc) {
-            try { localStorage.setItem('aa-msg-read-' + doc.id, now); } catch(e) {}
-          });
-          /* Remove all unread badges from sidebar */
-          document.querySelectorAll('.contact-unread').forEach(function(b) { b.remove(); });
-          /* Hide nav red dot immediately */
-          var navBadge = document.getElementById('msg-nav-badge');
-          if (navBadge) navBadge.style.display = 'none';
-        });
-    };
-
     function markRead(tid) {
       try { localStorage.setItem('aa-msg-read-' + tid, Date.now().toString()); } catch(e) {}
       /* Write Firestore readAt for the other person to see */
@@ -720,18 +695,7 @@
             var otherUid = (d.participants || []).filter(function(uid) { return uid !== currentUser.uid; })[0];
             if (!otherUid) return;
             var item = document.querySelector('.contact-item[data-uid="' + otherUid + '"]');
-            if (!item) {
-              /* Claude: 2026-03-14 — auto-clear orphaned threads.
-                 If the other participant isn't in our contact list, mark thread
-                 as read so the nav red dot clears. Prevents persistent unread
-                 badges for contacts you can no longer reach. */
-              var lastAtMs   = d.lastAt ? d.lastAt.toMillis() : 0;
-              var lastReadMs = getLastRead(tid);
-              if (lastAtMs > lastReadMs) {
-                try { localStorage.setItem('aa-msg-read-' + tid, Date.now().toString()); } catch(e) {}
-              }
-              return;
-            }
+            if (!item) return;
             updateSidebarItem(item, d, tid);
           });
         }, function(err) {

@@ -915,6 +915,16 @@
         if (!doc.exists) return;
         var data        = doc.data();
         var role        = data.role || 'pending';
+
+        /* Claude: 2026-03-14 — auto-redirect support roles to Support Dashboard.
+           Support/family/nearby-help/network-lead/backstage-manager land on the dashboard
+           instead of the student home page. Use ?stay=1 param to bypass (so nav home link
+           can still bring them here if they want). */
+        if (SUPPORT_ROLES.indexOf(role) !== -1 && !window.location.search.match(/stay=1/)) {
+          window.location.href = '/Academic-Allies/modular/components/support-dashboard/support-dashboard.html';
+          return;
+        }
+
         /* Claude: 2026-02-28 — isSupporter students see My Students (read-only, no mirror) */
         var isStudentSupporter = (role === 'student' && data.isSupporter === true);
         if (SUPPORT_ROLES.indexOf(role) === -1 && !isStudentSupporter) return;
