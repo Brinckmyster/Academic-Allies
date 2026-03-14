@@ -1195,42 +1195,17 @@
    * Write a notification for all supporters in a student's network.
    * Stored under the student's UID so supporters can query by student.
    */
-  /* Claude: 2026-03-13 — dedup guard: skip if an identical notification
-     (same type + message) was written in the last 5 minutes. Prevents
-     duplicate red flag entries from double-saves or rapid re-submissions. */
   window.AA.addNotification = function (studentUid, type, message) {
     var user = auth.currentUser;
     var studentName = (user && user.displayName) || 'Student';
-    var col = db.collection('notifications').doc(studentUid).collection('entries');
-    var fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
-    return col
-      .where('type', '==', type)
-      .where('message', '==', message)
-      .where('read', '==', false)
-      .orderBy('createdAt', 'desc')
-      .limit(1)
-      .get()
-      .then(function (snap) {
-        /* If a matching unread notification exists and is recent, skip */
-        var dominated = false;
-        snap.forEach(function (doc) {
-          var d = doc.data();
-          if (d.createdAt && d.createdAt.toDate && d.createdAt.toDate() > fiveMinAgo) {
-            dominated = true;
-          }
-        });
-        if (dominated) {
-          if (_dbg()) console.log('[AA] addNotification: skipped duplicate —', type, message);
-          return;
-        }
-        return col.add({
-          type: type,
-          message: message,
-          studentUid: studentUid,
-          studentName: studentName,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          read: false
-        });
+    return db.collection('notifications').doc(studentUid)
+      .collection('entries').add({
+        type: type,
+        message: message,
+        studentUid: studentUid,
+        studentName: studentName,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        read: false
       });
   };
 

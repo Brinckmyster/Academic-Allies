@@ -5,6 +5,9 @@
      Updated: 2026-03-01 by Claude — applied AA standard page template:
        shared header, teal color scheme, page-wrap layout,
        viewport meta, Firebase scripts, cache-bust version bump.
+     Claude: 2026-03-13 — Added print CSS for instructor letters, "Print for
+       Instructor" button, "Copy to Clipboard" button, mobile responsive CSS,
+       WCAG aria-labels, 44px touch targets, and a date stamp for printouts.
      Static content: Mary's BYUI disability accommodations on file.
      ============================================================ -->
 <html lang="en">
@@ -51,7 +54,57 @@
     .subtitle {
       color: var(--muted);
       font-size: .9rem;
-      margin-bottom: 1.75rem;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Action buttons row ── */
+    .action-row {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .55rem 1rem;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+      min-height: 44px;
+    }
+    .action-btn:hover { background: var(--teal-dk); }
+    .action-btn.secondary {
+      background: #f0f0f0;
+      color: #555;
+      border: 1.5px solid #ccc;
+    }
+    .action-btn.secondary:hover { background: #e0e0e0; }
+    .toast {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: .5rem 1.25rem;
+      border-radius: 8px;
+      font-size: .85rem;
+      font-weight: 600;
+      z-index: 9999;
+      animation: fadeInUp .3s;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
 
     /* ── Accommodation card ── */
@@ -84,7 +137,7 @@
     }
     .acc-section ul li:last-child { border-bottom: none; }
     .acc-section ul li::before {
-      content: '✓';
+      content: '\2713';
       position: absolute;
       left: 0;
       color: var(--teal);
@@ -99,6 +152,73 @@
       font-size: .85rem;
       color: var(--teal-dk);
       margin-bottom: 1.5rem;
+    }
+    .info-note a { color: var(--teal-dk); }
+
+    /* ── Print stamp (visible only in print) ── */
+    .print-stamp { display: none; }
+
+    /* ── Mobile responsive ── */
+    @media (max-width: 480px) {
+      h1 { font-size: 1.3rem; }
+      .acc-section { padding: 1rem; }
+      .action-row { flex-direction: column; }
+      .action-btn { width: 100%; justify-content: center; }
+    }
+
+    /* ── Print CSS for instructor letters ── */
+    @media print {
+      #site-header, .action-row, .toast { display: none !important; }
+      body {
+        background: #fff;
+        color: #000;
+        font-size: 12pt;
+        padding: 0;
+      }
+      .page-wrap {
+        max-width: 100%;
+        padding: .5in;
+      }
+      h1 {
+        color: #000;
+        font-size: 16pt;
+        border-bottom: 2px solid #333;
+        padding-bottom: .25rem;
+        margin-bottom: .5rem;
+      }
+      .subtitle {
+        color: #333;
+        font-size: 10pt;
+        margin-bottom: .75rem;
+      }
+      .info-note {
+        background: #f5f5f5;
+        border: 1px solid #999;
+        color: #333;
+        page-break-after: avoid;
+      }
+      .info-note a { color: #333; text-decoration: underline; }
+      .acc-section {
+        box-shadow: none;
+        border: 1px solid #999;
+        page-break-inside: avoid;
+        margin-bottom: .75rem;
+      }
+      .acc-section h2 {
+        color: #000;
+        border-color: #999;
+      }
+      .acc-section ul li { font-size: 11pt; }
+      .acc-section ul li::before { color: #333; }
+      .print-stamp {
+        display: block;
+        margin-top: 1.5rem;
+        padding-top: .75rem;
+        border-top: 1px solid #999;
+        font-size: 9pt;
+        color: #666;
+        text-align: center;
+      }
     }
   </style>
 </head>
@@ -123,13 +243,26 @@
     <h1>My Accommodations</h1>
     <p class="subtitle">Disability accommodations on file with BYUI Accessibility Services</p>
 
-    <div class="info-note">
-      These accommodations are officially registered with BYUI Accessibility Services.
-      Contact <a href="mailto:accessibility@byui.edu" style="color:var(--teal-dk);">accessibility@byui.edu</a>
-      or call <a href="tel:2084969210" style="color:var(--teal-dk);">(208) 496-9210</a> with any questions.
+    <!-- Claude: 2026-03-13 — action buttons for sharing with instructors -->
+    <div class="action-row" role="toolbar" aria-label="Accommodation actions">
+      <button class="action-btn" onclick="printForInstructor()" aria-label="Print accommodations for instructor">
+        Print for Instructor
+      </button>
+      <button class="action-btn secondary" onclick="copyToClipboard()" aria-label="Copy accommodations text to clipboard">
+        Copy to Clipboard
+      </button>
+      <button class="action-btn secondary" onclick="emailInstructor()" aria-label="Email accommodations to an instructor">
+        Email to Instructor
+      </button>
     </div>
 
-    <div class="acc-section">
+    <div class="info-note" role="note">
+      These accommodations are officially registered with BYUI Accessibility Services.
+      Contact <a href="mailto:accessibility@byui.edu">accessibility@byui.edu</a>
+      or call <a href="tel:2084969210">(208) 496-9210</a> with any questions.
+    </div>
+
+    <div class="acc-section" role="region" aria-label="Testing accommodations">
       <h2>Testing Accommodations</h2>
       <ul>
         <li>Extra Time 1.50x — 50% extra time on all timed exams and quizzes</li>
@@ -139,7 +272,7 @@
       </ul>
     </div>
 
-    <div class="acc-section">
+    <div class="acc-section" role="region" aria-label="Classroom and academic accommodations">
       <h2>Classroom &amp; Academic Accommodations</h2>
       <ul>
         <li>Priority Registration — early access to course registration</li>
@@ -149,6 +282,93 @@
         <li>Restroom Breaks During Class</li>
       </ul>
     </div>
+
+    <!-- Claude: 2026-03-13 — print-only date stamp for instructor printouts -->
+    <div class="print-stamp" aria-hidden="true">
+      Printed from Academic Allies on <span id="print-date"></span>
+      · BYUI Accessibility Services · (208) 496-9210
+    </div>
   </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  /* Claude: 2026-03-13 — Print and copy utilities for accommodations page */
+  function printForInstructor() {
+    /* Set print date stamp */
+    var dateEl = document.getElementById('print-date');
+    if (dateEl) {
+      dateEl.textContent = new Date().toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      });
+    }
+    window.print();
+  }
+
+  function copyToClipboard() {
+    var sections = document.querySelectorAll('.acc-section');
+    var lines = ['MY ACCOMMODATIONS', 'BYUI Accessibility Services', ''];
+    sections.forEach(function (sec) {
+      var h2 = sec.querySelector('h2');
+      if (h2) lines.push(h2.textContent.toUpperCase());
+      sec.querySelectorAll('li').forEach(function (li) {
+        lines.push('  - ' + li.textContent);
+      });
+      lines.push('');
+    });
+    lines.push('Contact: accessibility@byui.edu | (208) 496-9210');
+    var txt = lines.join('\n');
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(function () {
+        showToast('Copied to clipboard!');
+      }).catch(function () {
+        fallbackCopy(txt);
+      });
+    } else {
+      fallbackCopy(txt);
+    }
+  }
+
+  function fallbackCopy(txt) {
+    prompt('Copy this text:', txt);
+  }
+
+  /* Claude: 2026-03-13 — email accommodations to instructor via mailto: link */
+  function emailInstructor() {
+    var sections = document.querySelectorAll('.acc-section');
+    var lines = [];
+    sections.forEach(function (sec) {
+      var h2 = sec.querySelector('h2');
+      if (h2) lines.push(h2.textContent + ':');
+      sec.querySelectorAll('li').forEach(function (li) {
+        lines.push('  - ' + li.textContent);
+      });
+      lines.push('');
+    });
+    lines.push('These accommodations are registered with BYUI Accessibility Services.');
+    lines.push('Contact: accessibility@byui.edu | (208) 496-9210');
+
+    var subject = encodeURIComponent('My Disability Accommodations — BYUI Accessibility Services');
+    var body = encodeURIComponent(
+      'Hello,\n\n' +
+      'I am writing to inform you of my registered disability accommodations ' +
+      'through BYUI Accessibility Services. Please find them listed below:\n\n' +
+      lines.join('\n') +
+      '\n\nPlease let me know if you have any questions or need the official ' +
+      'letter from Accessibility Services.\n\nThank you!'
+    );
+
+    window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+  }
+
+  function showToast(msg) {
+    var el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(function () { el.style.display = 'none'; }, 2500);
+  }
+  </script>
 </body>
 </html>

@@ -733,47 +733,29 @@
       var list  = document.getElementById('notif-list');
       if (!panel || !list) return;
 
-      /* Claude: 2026-03-13 — dedup notifications by message text to prevent
-         identical entries (e.g., two "Red Flag — check-in at 09:52 PM").
-         Also debounce the onSnapshot callback to avoid flicker. */
-      var _notifDebounce = null;
       unsubNotif = AA.watchNotifications(studentUid, function (notifs) {
-        clearTimeout(_notifDebounce);
-        _notifDebounce = setTimeout(function () {
-          /* Deduplicate by message text — keep only the first (newest) of each */
-          var seen = {};
-          var unique = [];
-          (notifs || []).forEach(function (n) {
-            var key = (n.message || n.type || '') + '|' + (n.type || '');
-            if (!seen[key]) {
-              seen[key] = true;
-              unique.push(n);
-            }
-          });
+        /* Claude: 2026-03-12 — update alert count and refresh status label */
+        _activeAlertCount = (notifs && notifs.length) ? notifs.length : 0;
+        refreshStatusLabel();
 
-          /* Claude: 2026-03-12 — update alert count and refresh status label */
-          _activeAlertCount = unique.length;
-          refreshStatusLabel();
-
-          if (unique.length === 0) {
-            panel.style.display = 'none';
-            list.innerHTML = '';
-            return;
-          }
-          panel.style.display = 'block';
+        if (!notifs || notifs.length === 0) {
+          panel.style.display = 'none';
           list.innerHTML = '';
-          unique.forEach(function (n) {
-            var timeStr = '';
-            if (n.createdAt && n.createdAt.toDate) {
-              timeStr = n.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-            var div = document.createElement('div');
-            div.className = 'notif-item type-' + (n.type || '');
-            div.innerHTML = '<span>' + esc(n.message || n.type) + '</span>' +
-              '<span class="notif-time">' + timeStr + '</span>';
-            list.appendChild(div);
-          });
-        }, 300);
+          return;
+        }
+        panel.style.display = 'block';
+        list.innerHTML = '';
+        notifs.forEach(function (n) {
+          var timeStr = '';
+          if (n.createdAt && n.createdAt.toDate) {
+            timeStr = n.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
+          var div = document.createElement('div');
+          div.className = 'notif-item type-' + (n.type || '');
+          div.innerHTML = '<span>' + esc(n.message || n.type) + '</span>' +
+            '<span class="notif-time">' + timeStr + '</span>';
+          list.appendChild(div);
+        });
       });
     }
 

@@ -53,8 +53,6 @@
       font-weight: 700;
     }
     .cal-day.selected { outline: 2px solid #4a7f82; outline-offset: -2px; }
-    /* Claude: 2026-03-13 — visible focus ring for keyboard navigation */
-    .cal-day:focus { outline: 2px solid #4a7f82; outline-offset: -2px; z-index: 1; }
 
     .day-num { font-size: 0.82rem; font-weight: 600; color: #555; margin-bottom: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
     .day-dots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
@@ -128,24 +126,22 @@
 
   <div class="container" id="cal-container" style="display:none;">
     <div class="cal-nav">
-      <!-- Claude: 2026-03-13 — added aria-labels, 44px min-height on nav buttons -->
-      <button class="cal-btn" onclick="changeMonth(-1)" aria-label="Previous month" style="min-height:44px;">◀ Prev</button>
-      <h2 id="cal-title" aria-live="polite">Month Year</h2>
+      <button class="cal-btn" onclick="changeMonth(-1)">◀ Prev</button>
+      <h2 id="cal-title">Month Year</h2>
       <div class="cal-nav-btns">
-        <button class="cal-btn today-btn" onclick="goToday()" aria-label="Go to today" style="min-height:44px;">Today</button>
-        <button class="cal-btn" onclick="changeMonth(1)" aria-label="Next month" style="min-height:44px;">Next ▶</button>
+        <button class="cal-btn today-btn" onclick="goToday()">Today</button>
+        <button class="cal-btn" onclick="changeMonth(1)">Next ▶</button>
       </div>
     </div>
 
-    <!-- Claude: 2026-03-13 — added role=grid, aria-label, keyboard nav support -->
-    <div class="cal-grid" id="cal-grid" role="grid" aria-label="Calendar">
-      <div class="cal-dow" role="columnheader">Sun</div>
-      <div class="cal-dow" role="columnheader">Mon</div>
-      <div class="cal-dow" role="columnheader">Tue</div>
-      <div class="cal-dow" role="columnheader">Wed</div>
-      <div class="cal-dow" role="columnheader">Thu</div>
-      <div class="cal-dow" role="columnheader">Fri</div>
-      <div class="cal-dow" role="columnheader">Sat</div>
+    <div class="cal-grid" id="cal-grid">
+      <div class="cal-dow">Sun</div>
+      <div class="cal-dow">Mon</div>
+      <div class="cal-dow">Tue</div>
+      <div class="cal-dow">Wed</div>
+      <div class="cal-dow">Thu</div>
+      <div class="cal-dow">Fri</div>
+      <div class="cal-dow">Sat</div>
     </div>
 
     <!-- Google Calendar connect bar — only visible to the owner, never in mirror -->
@@ -380,28 +376,12 @@
       }
     }
 
-    /* Claude: 2026-03-13 — added ARIA labels, tabindex, keyboard nav (arrow keys,
-       Enter/Space to select) for WCAG compliance on calendar day cells */
     function makeCell(dk, dayNum, otherMonth, isToday, hasCheckin, hasMeal) {
       var cell = document.createElement('div');
       cell.className = 'cal-day' +
         (otherMonth ? ' other-month' : '') +
         (isToday    ? ' today'       : '');
       if (dk) cell.dataset.dk = dk;
-
-      /* ARIA: make interactive days focusable with descriptive labels */
-      if (!otherMonth && dk) {
-        cell.setAttribute('role', 'gridcell');
-        cell.setAttribute('tabindex', isToday ? '0' : '-1');
-        var label = MONTH_NAMES[viewMonth] + ' ' + dayNum;
-        var extras = [];
-        if (hasCheckin) extras.push('check-in logged');
-        if (hasMeal) extras.push('meals logged');
-        if (gcalEvents && gcalEvents[dk] && gcalEvents[dk].length > 0) extras.push('calendar event');
-        if (extras.length) label += ', ' + extras.join(', ');
-        if (isToday) label += ' (today)';
-        cell.setAttribute('aria-label', label);
-      }
 
       var numDiv = document.createElement('div');
       numDiv.className = 'day-num';
@@ -419,31 +399,6 @@
         cell.appendChild(dots);
 
         cell.addEventListener('click', function() { selectDay(dk, cell); });
-        /* Keyboard: Enter/Space to select */
-        cell.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            selectDay(dk, cell);
-          }
-          /* Arrow key navigation between days */
-          var allDays = Array.from(document.querySelectorAll('.cal-day:not(.other-month)'));
-          var idx = allDays.indexOf(cell);
-          if (idx === -1) return;
-          var target = -1;
-          if (e.key === 'ArrowRight') target = idx + 1;
-          else if (e.key === 'ArrowLeft') target = idx - 1;
-          else if (e.key === 'ArrowDown') target = idx + 7;
-          else if (e.key === 'ArrowUp') target = idx - 7;
-          else if (e.key === 'Home') target = 0;
-          else if (e.key === 'End') target = allDays.length - 1;
-          else return;
-          e.preventDefault();
-          if (target >= 0 && target < allDays.length) {
-            cell.setAttribute('tabindex', '-1');
-            allDays[target].setAttribute('tabindex', '0');
-            allDays[target].focus();
-          }
-        });
       }
       return cell;
     }

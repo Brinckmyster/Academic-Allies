@@ -440,12 +440,6 @@
       <div class="flag-value" id="snapStreak">—</div>
       <div class="flag-sub" id="snapStreakSub">Loading…</div>
     </div>
-    <!-- Claude: 2026-03-13 — mini atomic clock widget -->
-    <a class="flag-card" href="/Academic-Allies/modular/static/utc-converter.html" style="text-decoration:none;color:inherit;cursor:pointer;" title="Open Atomic Clock">
-      <div class="flag-label">Atomic Clock</div>
-      <div class="flag-value" id="miniClockTime" style="font-variant-numeric:tabular-nums;">--:--:--</div>
-      <div class="flag-sub" id="miniClockSync">Syncing…</div>
-    </a>
   </div>
 
   <!-- Support view: shown for support-role signed-in users -->
@@ -774,58 +768,6 @@
       });
     }).catch(function () {});
   });
-})();
-</script>
-
-<!-- Claude: 2026-03-13 — Mini atomic clock widget on home page.
-     Syncs with timeapi.io, shows drift-corrected time, updates every second.
-     Links to full Atomic Clock page for detailed view. -->
-<script>
-(function () {
-  'use strict';
-  var _drift = 0;
-  var _synced = false;
-  var clockEl = document.getElementById('miniClockTime');
-  var syncEl = document.getElementById('miniClockSync');
-  if (!clockEl) return;
-
-  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
-
-  function correctedNow() {
-    return new Date(Date.now() - _drift);
-  }
-
-  function tick() {
-    var now = correctedNow();
-    var h = now.getHours();
-    var ap = h >= 12 ? ' PM' : ' AM';
-    var h12 = h % 12 || 12;
-    clockEl.textContent = pad2(h12) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds()) + ap;
-  }
-
-  function doSync() {
-    if (syncEl) syncEl.textContent = 'Syncing…';
-    var t1 = Date.now();
-    fetch('https://timeapi.io/api/time/current/zone?timeZone=UTC')
-      .then(function (r) { return r.ok ? r.json() : Promise.reject('fail'); })
-      .then(function (data) {
-        var t2 = Date.now();
-        var srv = new Date(data.dateTime + 'Z');
-        if (isNaN(srv.getTime())) throw new Error('bad');
-        var rtt = t2 - t1;
-        _drift = t2 - (srv.getTime() + Math.round(rtt / 2));
-        _synced = true;
-        if (syncEl) syncEl.textContent = 'Atomic-synced';
-      })
-      .catch(function () {
-        if (!_synced && syncEl) syncEl.textContent = 'Device clock';
-      });
-  }
-
-  tick();
-  setInterval(tick, 1000);
-  doSync();
-  setInterval(doSync, 5 * 60 * 1000);
 })();
 </script>
 
