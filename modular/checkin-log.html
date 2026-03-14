@@ -468,7 +468,12 @@ function loadLog() {
 function waitForAA(cb, n) {
   n = n || 0;
   if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-  if (n > 40) return;
+  /* Claude: 2026-03-14 — show error message on timeout instead of silently giving up */
+  if (n > 40) {
+    var el = document.getElementById('log-loading');
+    if (el) el.textContent = 'Could not connect — please refresh.';
+    return;
+  }
   setTimeout(function() { waitForAA(cb, n + 1); }, 200);
 }
 

@@ -2024,10 +2024,16 @@
     document.getElementById('legend').textContent = legendText;
   }
 
-  // Poll until window.AA (aa-firebase.js) is ready
-  function waitForAA(cb) {
+  /* Claude: 2026-03-14 — added max tries (80 × 100ms = 8s) to prevent infinite polling */
+  function waitForAA(cb, n) {
+    n = n || 0;
     if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-    setTimeout(function() { waitForAA(cb); }, 100);
+    if (n > 80) {
+      var wi = document.getElementById('weatherInfo');
+      if (wi) wi.textContent = 'Could not connect — please refresh.';
+      return;
+    }
+    setTimeout(function() { waitForAA(cb, n + 1); }, 100);
   }
 
   // ── Initialize ────────────────────────────────────────────────────────────────
