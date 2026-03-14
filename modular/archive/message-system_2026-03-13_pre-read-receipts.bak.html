@@ -37,16 +37,6 @@
       width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
       flex-shrink: 0; border: 2px solid #e1e5e9;
     }
-    /* Claude: 2026-03-13 — online status indicator on contact avatars */
-    .contact-item { position: relative; }
-    .online-dot {
-      position: absolute; left: 34px; top: 8px;
-      width: 10px; height: 10px; border-radius: 50%;
-      border: 2px solid #f8fafc;
-    }
-    .online-dot.active  { background: #22c55e; }
-    .online-dot.away    { background: #f59e0b; }
-    .online-dot.offline { background: #9ca3af; }
     .contact-info { min-width: 0; }
     .contact-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .contact-tier    { font-size: 0.72rem; color: #888; }
@@ -83,10 +73,6 @@
     .msg-meta { font-size: 0.7rem; margin-top: 3px; opacity: 0.65; }
     .msg-bubble.mine   .msg-meta { text-align: right; }
     .msg-bubble.theirs .msg-meta { text-align: left; }
-    /* Claude: 2026-03-13 — read receipt indicators */
-    .msg-receipt { font-size: 0.68rem; margin-left: 4px; }
-    .msg-receipt.read { opacity: 1; }
-    .msg-receipt.sent { opacity: 0.55; }
 
     /* Compose */
     /* Claude: BUG #6 FIX — ensure compose area displays as flex when shown */
@@ -267,8 +253,6 @@
     var activeThreadId    = null;
     var unsubMessages     = null;   // Firestore listener unsub fn for active thread
     var unsubThreads      = null;   // Firestore listener for sidebar real-time updates
-    var unsubThreadDoc    = null;   // Claude: 2026-03-13 — listener for read receipts
-    var _otherReadAt      = 0;      // Claude: 2026-03-13 — ms timestamp of when the other person last read
 
     /* Network Chat */
     var ncStudentUid    = null;   // student whose network we're chatting in
@@ -365,7 +349,6 @@
             });
             renderContacts(contacts);
             watchThreads();
-            startPresencePolling(); /* Claude: 2026-03-13 — online status dots */
             document.getElementById('msg-loading').style.display = 'none';
             document.getElementById('msg-layout').style.display  = 'flex';
             // Claude: BUG #9 FIX — backstage-manager also needs student dropdown for Network Chat (2026-03-03)
@@ -437,7 +420,6 @@
               Promise.all(fetches).then(function(contacts) {
                 renderContacts(contacts.filter(function(c) { return c.data; }));
                 watchThreads();
-                startPresencePolling(); /* Claude: 2026-03-13 — online status dots for all roles */
                 document.getElementById('msg-loading').style.display = 'none';
                 document.getElementById('msg-layout').style.display  = 'flex';
                 // Claude: BUG #9 FIX — initialize Network Chat student dropdown on load (2026-03-03)
@@ -491,9 +473,8 @@
 
     /* ── Open a message thread ───────────────────────────── */
     function openThread(uid, name, tier, icon, el) {
-      /* Clear previous listeners */
+      /* Clear previous listener */
       if (unsubMessages) { unsubMessages(); unsubMessages = null; }
-      if (unsubThreadDoc) { unsubThreadDoc(); unsubThreadDoc = null; }
 
       activeContact  = { uid: uid, name: name, tier: tier };
       activeThreadId = threadId(currentUser.uid, uid);
@@ -526,9 +507,6 @@
         }, function(err) {
           console.error('[AA messages]', err);
         });
-
-      /* Claude: 2026-03-13 — start watching for read receipts from the other person */
-      watchReadReceipts(activeThreadId, uid);
     }
 
     /* ── Render messages ─────────────────────────────────── */
@@ -546,21 +524,11 @@
         var mine = (d.senderUid === currentUser.uid);
         var bubble = document.createElement('div');
         bubble.className = 'msg-bubble ' + (mine ? 'mine' : 'theirs');
-        /* Claude: 2026-03-13 — read receipt indicator on sent messages */
-        var receiptHtml = '';
-        if (mine && d.timestamp) {
-          var msgMs = d.timestamp.toMillis ? d.timestamp.toMillis() : (d.timestamp.seconds ? d.timestamp.seconds * 1000 : 0);
-          var isRead = (_otherReadAt > 0 && msgMs <= _otherReadAt);
-          receiptHtml = ' <span class="msg-receipt ' + (isRead ? 'read' : 'sent') +
-            '" data-ts="' + msgMs + '">' +
-            (isRead ? '\u2713\u2713 Read' : '\u2713 Sent') + '</span>';
-        }
         bubble.innerHTML =
           '<div>' + esc(d.text || '') + '</div>' +
           '<div class="msg-meta">' +
             (mine ? '' : esc(d.senderName || '') + ' · ') +
             fmtTime(d.timestamp) +
-            receiptHtml +
           '</div>';
         area.appendChild(bubble);
       });
@@ -630,55 +598,12 @@
       return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    /* ── Last-read tracking (localStorage + Firestore for read receipts) ── */
-    /* Claude: 2026-03-13 — markRead now also writes readAt.{uid} to Firestore
-       so the sender can see when the recipient has read their messages. */
+    /* ── Last-read tracking (localStorage) ───────────────── */
     function getLastRead(tid) {
       try { return parseInt(localStorage.getItem('aa-msg-read-' + tid) || '0'); } catch(e) { return 0; }
     }
     function markRead(tid) {
       try { localStorage.setItem('aa-msg-read-' + tid, Date.now().toString()); } catch(e) {}
-      /* Write Firestore readAt for the other person to see */
-      if (currentUser && tid) {
-        var update = {};
-        update['readAt.' + currentUser.uid] = AA.FieldValue.serverTimestamp();
-        AA.db.collection('messages').doc(tid).set(update, { merge: true }).catch(function(e) {
-          console.warn('[AA] readAt write:', e);
-        });
-      }
-    }
-
-    /* Claude: 2026-03-13 — listen for read receipt updates on the active thread doc */
-    function watchReadReceipts(tid, otherUid) {
-      if (unsubThreadDoc) { unsubThreadDoc(); unsubThreadDoc = null; }
-      _otherReadAt = 0;
-      if (!tid || !otherUid) return;
-      unsubThreadDoc = AA.db.collection('messages').doc(tid)
-        .onSnapshot(function(doc) {
-          if (!doc.exists) return;
-          var d = doc.data();
-          var readAtMap = d.readAt || {};
-          if (readAtMap[otherUid]) {
-            var ts = readAtMap[otherUid];
-            _otherReadAt = ts.toMillis ? ts.toMillis() : (ts.seconds ? ts.seconds * 1000 : 0);
-          }
-          /* Re-render receipt indicators without full re-render */
-          updateReceiptIndicators();
-        }, function(err) {
-          console.warn('[AA] readAt watcher:', err);
-        });
-    }
-
-    /* Update just the receipt spans without full re-render */
-    function updateReceiptIndicators() {
-      var bubbles = document.querySelectorAll('#messages-area .msg-bubble.mine .msg-receipt');
-      bubbles.forEach(function(span) {
-        var msgTs = parseInt(span.dataset.ts || '0');
-        if (_otherReadAt > 0 && msgTs <= _otherReadAt) {
-          span.textContent = '\u2713\u2713 Read';
-          span.className = 'msg-receipt read';
-        }
-      });
     }
 
     /* ── Real-time sidebar: last message preview + unread ── */
@@ -732,51 +657,6 @@
       } else if (badge) {
         badge.remove();
       }
-    }
-
-    /* Claude: 2026-03-13 — online/away/offline status dots on contact sidebar.
-       Uses AA.getLastSeen() to check each contact's last activity.
-       Green = active in last 5 min, amber = last 30 min, grey = offline.
-       Refreshes every 60 seconds. */
-    function refreshPresenceDots() {
-      var items = document.querySelectorAll('#contact-list .contact-item');
-      items.forEach(function(item) {
-        var uid = item.dataset.uid;
-        if (!uid || !window.AA || !AA.getLastSeen) return;
-        AA.getLastSeen(uid).then(function(ls) {
-          /* Remove old dot if any */
-          var old = item.querySelector('.online-dot');
-          if (old) old.remove();
-
-          var dot = document.createElement('span');
-          dot.className = 'online-dot';
-          if (ls && ls.timestamp && ls.timestamp.toDate) {
-            var ago = Date.now() - ls.timestamp.toDate().getTime();
-            if (ago < 5 * 60 * 1000) {
-              dot.className += ' active';
-              dot.title = 'Online now';
-            } else if (ago < 30 * 60 * 1000) {
-              dot.className += ' away';
-              dot.title = 'Active ' + Math.round(ago / 60000) + ' min ago';
-            } else {
-              dot.className += ' offline';
-              dot.title = 'Offline';
-            }
-          } else {
-            dot.className += ' offline';
-            dot.title = 'Offline';
-          }
-          item.appendChild(dot);
-        }).catch(function() { /* ignore — not critical */ });
-      });
-    }
-
-    /* Start presence polling (every 60s) after contacts load */
-    var _presenceInterval = null;
-    function startPresencePolling() {
-      refreshPresenceDots();
-      if (_presenceInterval) clearInterval(_presenceInterval);
-      _presenceInterval = setInterval(refreshPresenceDots, 60 * 1000);
     }
 
     /* ── Draft saving — Claude: 2026-02-27 ──────────────────────

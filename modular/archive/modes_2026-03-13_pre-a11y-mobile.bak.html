@@ -125,26 +125,6 @@
 
     #signin-msg { text-align: center; padding: 40px; color: #aaa; font-size: 1rem; }
     #main-body { display: none; }
-
-    /* Claude: 2026-03-13 — 44px touch targets, focus-visible, mobile responsive */
-    .mode-tile { min-height: 44px; }
-    .mode-tile:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
-    .btn-mode-save, .btn-mode-reset { min-height: 44px; padding: 10px 16px; }
-    .feat-switch { min-width: 44px; min-height: 36px; width: 44px; height: 24px; }
-    .feat-slider:before { height: 18px; width: 18px; left: 3px; bottom: 3px; }
-    .feat-switch input:checked + .feat-slider:before { transform: translateX(20px); }
-    .mode-config-header { min-height: 44px; }
-    .mode-config-header:focus-visible { outline: 2px solid var(--teal); border-radius: 4px; }
-
-    @media (max-width: 480px) {
-      h1 { font-size: 1.25rem; }
-      .modes-grid { grid-template-columns: repeat(2, 1fr); gap: .75rem; }
-      .mode-tile { padding: 1rem .75rem; }
-      .mode-config-card { padding: 14px; }
-      .feature-row { gap: 6px; font-size: .82rem; }
-      .mode-save-row { flex-direction: column; }
-      .btn-mode-save, .btn-mode-reset { width: 100%; text-align: center; }
-    }
   </style>
 </head>
 <body>
@@ -173,8 +153,8 @@
       <h1>Modes</h1>
       <p class="subtitle">Quick-switch or customize what each mode does for you.</p>
 
-      <!-- Claude: 2026-03-13 — ARIA roles and labels for a11y -->
-      <section aria-label="Quick-switch mode tiles">
+      <!-- Quick-switch tiles -->
+      <section aria-label="Quick Switch">
         <div class="modes-grid" role="list">
           <!-- Claude: 2026-03-10 — switched from emoji to custom PNGs to match header buttons -->
           <a class="mode-tile" href="/Academic-Allies/" data-mode="normal" role="listitem" title="Normal Mode">
@@ -339,8 +319,7 @@
         card.className = 'mode-config-card';
         card.id = 'mconfig-' + mode.key;
 
-        /* Claude: 2026-03-13 — added tabindex, role, aria-expanded for keyboard a11y */
-        var headerHtml = '<div class="mode-config-header" tabindex="0" role="button" aria-expanded="false" aria-controls="mcbody-' + mode.key + '" onclick="toggleModeConfig(\'' + mode.key + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleModeConfig(\'' + mode.key + '\');}">'
+        var headerHtml = '<div class="mode-config-header" onclick="toggleModeConfig(\'' + mode.key + '\')">'
           + '<h3><span>' + mode.icon + '</span><span style="color:' + mode.color + ';">' + mode.name + '</span></h3>'
           + '<span class="mode-config-toggle" id="mctoggle-' + mode.key + '">▶ Customize</span>'
           + '</div>';
@@ -379,16 +358,13 @@
     }
 
     /* ── Toggle config panel open/close ── */
-    /* Claude: 2026-03-13 — updated to set aria-expanded for screen readers */
     window.toggleModeConfig = function(modeKey) {
       var body = document.getElementById('mcbody-' + modeKey);
       var toggle = document.getElementById('mctoggle-' + modeKey);
-      var header = toggle ? toggle.closest('.mode-config-header') : null;
       if (!body) return;
       var isOpen = body.classList.contains('open');
       body.classList.toggle('open');
       if (toggle) toggle.textContent = isOpen ? '▶ Customize' : '▼ Close';
-      if (header) header.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
     };
 
     /* ── Save mode config to Firestore ── */

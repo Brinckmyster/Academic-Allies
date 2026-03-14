@@ -128,30 +128,9 @@
     .note-expand { font-size: 11pt; color: #1a73e8; cursor: pointer; margin-bottom: 6px; } /* Claude: 2026-03-09 — 9pt→11pt for readability */
     .note-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
     .note-loc { font-size: 11pt; color: #aaa; } /* Claude: 2026-03-09 — 9pt→11pt for readability */
-    .note-delete { background: none; border: none; cursor: pointer; font-size: 14px; color: #ccc; padding: 2px 6px; min-height: 44px; min-width: 44px; }
+    .note-delete { background: none; border: none; cursor: pointer; font-size: 14px; color: #ccc; padding: 2px 6px; }
     .note-delete:hover { color: #f44336; }
     #emptyState { text-align: center; color: #aaa; padding: 40px 0; font-size: 12pt; }
-
-    /* Claude: 2026-03-13 — 44px touch targets, focus-visible, mobile responsive */
-    #recordBtn:focus-visible { outline: 3px solid #6CA0A3; outline-offset: 4px; }
-    .cat-btn { min-height: 44px; }
-    .cat-btn:focus-visible { outline: 3px solid #6CA0A3; outline-offset: 2px; }
-    #cancelCat { min-height: 44px; }
-    .filter-bar input, .filter-bar select { min-height: 44px; }
-    .note-rename-save, .note-rename-cancel { min-height: 44px; }
-    #draftActions button { min-height: 44px; }
-    #noteTitleInput { min-height: 44px; }
-
-    @media (max-width: 480px) {
-      .container { padding: 10px; }
-      h1 { font-size: 16pt; }
-      .cat-grid { grid-template-columns: 1fr; }
-      .filter-bar { flex-direction: column; }
-      .filter-bar input, .filter-bar select { width: 100%; min-width: unset; }
-      #draftActions { display: flex !important; flex-direction: column; gap: 8px; }
-      #draftActions button { width: 100%; margin-right: 0 !important; }
-      .note-footer { flex-direction: column; align-items: flex-start; }
-    }
 
     /* ── Mirror banner ── */
     .mirror-banner {
@@ -192,13 +171,12 @@
       <div id="mirrorBanner" class="mirror-banner"></div>
 
       <!-- Claude: 2026-03-05 — optional title, editable before or during recording -->
-      <!-- Claude: 2026-03-13 — ARIA labels for a11y -->
-      <input type="text" id="noteTitleInput" placeholder="Note title (optional)" maxlength="100" aria-label="Note title">
+      <input type="text" id="noteTitleInput" placeholder="Note title (optional)" maxlength="100">
 
       <!-- Record section -->
-      <div id="recordSection" class="record-wrap" role="region" aria-label="Recording controls">
-        <button id="recordBtn" title="Tap to record" aria-label="Start recording audio note">🎙️</button>
-        <div id="recordStatus" aria-live="polite">Tap to start recording</div>
+      <div id="recordSection" class="record-wrap">
+        <button id="recordBtn" title="Tap to record">🎙️</button>
+        <div id="recordStatus">Tap to start recording</div>
         <div id="gpsStatus"></div>
         <!-- Claude: speech fallback populated by JS with Otter.ai link -->
         <div id="speechWarning"></div>
@@ -208,15 +186,15 @@
       <!-- Claude: 2026-03-08 — action buttons for live/recovered transcripts
            Three options: save transcript to Google Docs, save audio to Drive, or discard -->
       <div id="draftActions" style="display:none;text-align:center;margin:10px auto;max-width:560px;">
-        <button id="saveToDocsBtn" onclick="window._saveTranscriptToDocs()" style="padding:8px 18px;background:#1a73e8;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-right:8px;min-height:44px;" aria-label="Save transcript to Google Docs">📄 Save transcript to Docs</button>
-        <button id="saveToDriveBtn" onclick="window._saveToDriveViaCategory()" style="padding:8px 18px;background:#34a853;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-right:8px;min-height:44px;" aria-label="Save audio recording to Google Drive">🎵 Save audio to Drive</button>
-        <button id="discardDraftBtn" onclick="window._discardDraft()" style="padding:8px 18px;background:#dc3545;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;" aria-label="Discard this recording">🗑️ Discard</button>
+        <button id="saveToDocsBtn" onclick="window._saveTranscriptToDocs()" style="padding:8px 18px;background:#1a73e8;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-right:8px;min-height:40px;">📄 Save transcript to Docs</button>
+        <button id="saveToDriveBtn" onclick="window._saveToDriveViaCategory()" style="padding:8px 18px;background:#34a853;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-right:8px;min-height:40px;">🎵 Save audio to Drive</button>
+        <button id="discardDraftBtn" onclick="window._discardDraft()" style="padding:8px 18px;background:#dc3545;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">🗑️ Discard</button>
       </div>
 
-      <!-- Claude: 2026-03-13 — ARIA labels on search/filter -->
-      <div class="filter-bar" role="search" aria-label="Filter audio notes">
-        <input type="text" id="searchInput" placeholder="Search notes…" aria-label="Search notes by text">
-        <select id="categoryFilter" aria-label="Filter by category">
+      <!-- Search / filter -->
+      <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="Search notes…">
+        <select id="categoryFilter">
           <option value="">All categories</option>
           <option value="genealogy">Genealogy</option>
           <option value="medical">Medical</option>
@@ -234,7 +212,7 @@
   </div>
 
   <!-- Category picker modal -->
-  <div id="catModal" class="modal-overlay" role="dialog" aria-label="Tag this note" aria-modal="true">
+  <div id="catModal" class="modal-overlay">
     <div class="modal">
       <h2>Tag this note</h2>
       <div class="cat-grid">
