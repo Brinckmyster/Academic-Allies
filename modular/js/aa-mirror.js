@@ -207,9 +207,8 @@
   /* Claude: DOM-readiness guard lives inside showBanner so every
      call path is safe — fixes race when onAuthStateChanged fires
      before DOMContentLoaded (fast cached-auth pages) — 2026-02-27 */
-  /* Claude: 2026-03-14 — redesigned banner: collapsible, doesn't overlap header,
-     uses position:sticky so it scrolls naturally, has a minimize/restore toggle,
-     dark-mode aware, and looks like a proper banner instead of a thin bar. */
+  /* Claude: 2026-03-14 — ribbon-style banner with curled tails,
+     dark-mode aware, collapsible. Classic scroll/ribbon shape. */
   function showBanner(name) {
     if (inPath(NO_BANNER)) return;
     if (document.readyState === 'loading') {
@@ -221,105 +220,152 @@
     var _isNL = (_cache && _cache.viewerRole === 'network-lead');
     var isDark = document.documentElement.classList.contains('aa-dark');
 
-    /* --- Wrapper (sticky, not fixed — flows with the page) --- */
+    /* --- Color palette --- */
+    var colors = _isNL
+      ? {
+          bg:      isDark ? '#1e4030' : '#d4edda',
+          bgDark:  isDark ? '#163328' : '#b8dbca',
+          border:  isDark ? '#2d6a4f' : '#6abf7b',
+          text:    isDark ? '#8fd4a0' : '#2d6a4f',
+          accent:  isDark ? '#6abf7b' : '#2d6a4f',
+          fold:    isDark ? '#0f2a1e' : '#a3c9b0',
+          shadow:  'rgba(45,106,79,0.15)'
+        }
+      : {
+          bg:      isDark ? '#252850' : '#e4e8ff',
+          bgDark:  isDark ? '#1e2040' : '#cdd3fc',
+          border:  isDark ? '#4338ca' : '#a5b4fc',
+          text:    isDark ? '#a5b4fc' : '#4338ca',
+          accent:  isDark ? '#818cf8' : '#6366f1',
+          fold:    isDark ? '#161830' : '#b0b8f0',
+          shadow:  'rgba(67,56,202,0.15)'
+        };
+
+    /* --- Inject ribbon CSS (once) --- */
+    if (!document.getElementById('aa-ribbon-css')) {
+      var style = document.createElement('style');
+      style.id = 'aa-ribbon-css';
+      style.textContent =
+        '#aa-mirror-banner {' +
+          'position:relative;z-index:9990;' +
+          'margin:0 40px 12px 40px;padding:10px 24px;' +
+          'text-align:center;font-family:inherit;' +
+          'font-size:13px;line-height:1.5;' +
+          'box-sizing:border-box;' +
+          'transition:all 0.3s ease;' +
+        '}' +
+        /* Left tail */
+        '#aa-mirror-banner .ribbon-tail-l,' +
+        '#aa-mirror-banner .ribbon-tail-r {' +
+          'position:absolute;top:0;width:30px;height:100%;' +
+        '}' +
+        '#aa-mirror-banner .ribbon-tail-l { left:-30px; }' +
+        '#aa-mirror-banner .ribbon-tail-r { right:-30px; }' +
+        /* Fold shadows (the dark triangles where ribbon bends) */
+        '#aa-mirror-banner .ribbon-fold-l,' +
+        '#aa-mirror-banner .ribbon-fold-r {' +
+          'position:absolute;bottom:-8px;width:0;height:0;' +
+          'border-style:solid;' +
+        '}' +
+        '#aa-mirror-banner .ribbon-fold-l {' +
+          'left:0;border-width:8px 10px 0 0;' +
+          'border-color:transparent;' +
+        '}' +
+        '#aa-mirror-banner .ribbon-fold-r {' +
+          'right:0;border-width:8px 0 0 10px;' +
+          'border-color:transparent;' +
+        '}' +
+        /* Minimized state */
+        '#aa-mirror-banner.minimized {' +
+          'margin:0 80px 6px 80px;padding:4px 16px;' +
+          'font-size:11px;opacity:0.8;' +
+        '}' +
+        '#aa-mirror-banner.minimized .ribbon-tail-l,' +
+        '#aa-mirror-banner.minimized .ribbon-tail-r,' +
+        '#aa-mirror-banner.minimized .ribbon-fold-l,' +
+        '#aa-mirror-banner.minimized .ribbon-fold-r { display:none; }';
+      document.head.appendChild(style);
+    }
+
+    /* --- Build the ribbon --- */
     var b = document.createElement('div');
     b.id = 'aa-mirror-banner';
     b.setAttribute('role', 'status');
-    b.style.cssText =
-      'position:relative;z-index:9990;' +
-      'margin:0 12px 8px 12px;padding:10px 44px 10px 16px;' +
-      'border-radius:0 0 12px 12px;' +
-      'font-size:13px;font-family:inherit;line-height:1.5;' +
-      'box-sizing:border-box;text-align:center;' +
-      'box-shadow:0 2px 8px rgba(0,0,0,0.08);' +
-      'transition:all 0.3s ease;';
-
-    /* Color scheme: network-lead = green, others = indigo, dark-mode variants */
-    if (_isNL) {
-      b.style.background = isDark
-        ? 'linear-gradient(135deg, #1a3a2a 0%, #1e4030 100%)'
-        : 'linear-gradient(135deg, #e6f4ea 0%, #d4edda 100%)';
-      b.style.border = isDark ? '1px solid #2d6a4f' : '1px solid #6abf7b';
-      b.style.borderTop = 'none';
-      b.style.color = isDark ? '#8fd4a0' : '#2d6a4f';
-    } else {
-      b.style.background = isDark
-        ? 'linear-gradient(135deg, #1e2040 0%, #252850 100%)'
-        : 'linear-gradient(135deg, #eef0ff 0%, #e4e8ff 100%)';
-      b.style.border = isDark ? '1px solid #4338ca' : '1px solid #a5b4fc';
-      b.style.borderTop = 'none';
-      b.style.color = isDark ? '#a5b4fc' : '#4338ca';
-    }
+    b.style.background = 'linear-gradient(180deg, ' + colors.bg + ' 0%, ' + colors.bgDark + ' 100%)';
+    b.style.color = colors.text;
+    b.style.boxShadow = '0 3px 10px ' + colors.shadow;
+    b.style.borderTop = '2px solid ' + colors.border;
+    b.style.borderBottom = '2px solid ' + colors.border;
 
     /* --- Content --- */
     var icon = _isNL ? '\uD83C\uDF1F' : '\uD83D\uDC41\uFE0F';
     var roleLabel = _isNL ? 'Network Lead' : 'Mirror Mode';
     var accessLabel = _isNL ? 'full access' : 'read-only';
-    var accessColor = _isNL
-      ? (isDark ? '#6abf7b' : '#2d6a4f')
-      : (isDark ? '#818cf8' : '#6366f1');
+
+    /* --- SVG tails (the pointed ribbon ends) --- */
+    var tailSvgL =
+      '<svg class="ribbon-tail-l" viewBox="0 0 30 40" preserveAspectRatio="none" style="position:absolute;top:0;left:-30px;width:30px;height:100%;">' +
+        '<polygon points="30,0 30,40 0,20" fill="' + colors.bg + '" />' +
+        '<line x1="30" y1="0" x2="0" y2="20" stroke="' + colors.border + '" stroke-width="1.5" />' +
+        '<line x1="0" y1="20" x2="30" y2="40" stroke="' + colors.border + '" stroke-width="1.5" />' +
+      '</svg>';
+    var tailSvgR =
+      '<svg class="ribbon-tail-r" viewBox="0 0 30 40" preserveAspectRatio="none" style="position:absolute;top:0;right:-30px;width:30px;height:100%;">' +
+        '<polygon points="0,0 0,40 30,20" fill="' + colors.bg + '" />' +
+        '<line x1="0" y1="0" x2="30" y2="20" stroke="' + colors.border + '" stroke-width="1.5" />' +
+        '<line x1="30" y1="20" x2="0" y2="40" stroke="' + colors.border + '" stroke-width="1.5" />' +
+      '</svg>';
+
+    /* --- Fold shadows (small triangles at bottom edges) --- */
+    var foldL = '<div class="ribbon-fold-l" style="border-right-color:' + colors.fold + ';"></div>';
+    var foldR = '<div class="ribbon-fold-r" style="border-left-color:' + colors.fold + ';"></div>';
 
     b.innerHTML =
-      '<span style="font-size:16px;vertical-align:middle;">' + icon + '</span> ' +
-      '<strong>' + roleLabel + '</strong>' +
-      ' &mdash; viewing <strong>' + esc(name) + '\'s</strong> data' +
-      ' &nbsp;&middot;&nbsp; ' +
-      '<span style="font-size:11px;padding:2px 8px;border-radius:10px;' +
-        'background:' + accessColor + ';color:#fff;font-weight:600;' +
-        'letter-spacing:0.03em;">' + accessLabel + '</span>';
+      tailSvgL + tailSvgR + foldL + foldR +
+      '<span class="aa-mirror-full">' +
+        '<span style="font-size:15px;vertical-align:middle;">' + icon + '</span> ' +
+        '<strong>' + roleLabel + '</strong>' +
+        ' &mdash; viewing <strong>' + esc(name) + '\'s</strong> data' +
+        ' &nbsp;&middot;&nbsp; ' +
+        '<span style="font-size:11px;padding:2px 8px;border-radius:10px;' +
+          'background:' + colors.accent + ';color:#fff;font-weight:600;' +
+          'letter-spacing:0.03em;">' + accessLabel + '</span>' +
+      '</span>' +
+      '<span class="aa-mirror-mini" style="display:none;">' +
+        icon + ' Viewing <strong>' + esc(name) + '</strong>' +
+      '</span>';
 
     /* --- Minimize button --- */
     var minBtn = document.createElement('button');
     minBtn.id = 'aa-mirror-minimize';
     minBtn.setAttribute('aria-label', 'Minimize mirror banner');
     minBtn.style.cssText =
-      'position:absolute;top:8px;right:12px;' +
+      'position:absolute;top:50%;right:6px;transform:translateY(-50%);' +
       'background:none;border:none;cursor:pointer;' +
-      'font-size:16px;line-height:1;padding:2px 6px;' +
-      'border-radius:4px;color:inherit;opacity:0.6;' +
+      'font-size:14px;line-height:1;padding:2px 6px;' +
+      'border-radius:4px;color:inherit;opacity:0.5;' +
       'transition:opacity 0.2s;';
-    minBtn.textContent = '\u2715'; /* × */
+    minBtn.textContent = '\u2715';
     minBtn.onmouseover = function() { minBtn.style.opacity = '1'; };
-    minBtn.onmouseout  = function() { minBtn.style.opacity = '0.6'; };
+    minBtn.onmouseout  = function() { minBtn.style.opacity = '0.5'; };
 
     var _minimized = false;
     minBtn.onclick = function() {
       _minimized = !_minimized;
       if (_minimized) {
-        /* Collapse to a small tab */
-        b.style.margin = '0 12px 4px 12px';
-        b.style.padding = '4px 36px 4px 12px';
-        b.style.fontSize = '11px';
-        b.style.opacity = '0.7';
-        b.style.borderRadius = '0 0 8px 8px';
-        minBtn.textContent = icon; /* show icon as restore hint */
+        b.classList.add('minimized');
+        minBtn.textContent = icon;
         minBtn.setAttribute('aria-label', 'Restore mirror banner');
-        minBtn.style.top = '2px';
-        /* Simplified collapsed text */
-        b.querySelector('.aa-mirror-full') && (b.querySelector('.aa-mirror-full').style.display = 'none');
-        b.querySelector('.aa-mirror-mini') && (b.querySelector('.aa-mirror-mini').style.display = 'inline');
+        b.querySelector('.aa-mirror-full').style.display = 'none';
+        b.querySelector('.aa-mirror-mini').style.display = 'inline';
       } else {
-        /* Restore */
-        b.style.margin = '0 12px 8px 12px';
-        b.style.padding = '10px 44px 10px 16px';
-        b.style.fontSize = '13px';
-        b.style.opacity = '1';
-        b.style.borderRadius = '0 0 12px 12px';
+        b.classList.remove('minimized');
         minBtn.textContent = '\u2715';
         minBtn.setAttribute('aria-label', 'Minimize mirror banner');
-        minBtn.style.top = '8px';
-        b.querySelector('.aa-mirror-full') && (b.querySelector('.aa-mirror-full').style.display = 'inline');
-        b.querySelector('.aa-mirror-mini') && (b.querySelector('.aa-mirror-mini').style.display = 'none');
+        b.querySelector('.aa-mirror-full').style.display = 'inline';
+        b.querySelector('.aa-mirror-mini').style.display = 'none';
       }
     };
-
-    /* Wrap content in full/mini spans for collapse toggle */
-    var fullContent = b.innerHTML;
-    b.innerHTML =
-      '<span class="aa-mirror-full">' + fullContent + '</span>' +
-      '<span class="aa-mirror-mini" style="display:none;">' +
-        icon + ' Viewing <strong>' + esc(name) + '</strong>' +
-      '</span>';
 
     b.appendChild(minBtn);
     document.body.insertBefore(b, document.body.firstChild);
