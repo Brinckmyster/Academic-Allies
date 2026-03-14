@@ -12,7 +12,9 @@
 /* Claude: 2026-03-14 — bumped cache v3→v4. v3 had stale shared-header, aa-mirror,
    and several component pages. v4 forces a full re-download of the shell so mobile
    users pick up all the 2026-03-14 changes (mirror guards, UX polish, clock fix). */
-var CACHE   = 'aa-shell-v4';
+/* Claude: 2026-03-14 — bumped v4→v5. All pages now have inline dark-mode FOUC fix;
+   need fresh cache so mobile picks up the new <script> tags in <head>. */
+var CACHE   = 'aa-shell-v5';
 var SCOPE   = '/Academic-Allies/';
 
 /* Pages and assets to pre-cache on install */

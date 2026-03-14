@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SpoonPal - Academic Allies</title>
   <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
@@ -1342,11 +1344,8 @@
   function applyDayTemplate() {
     const key = document.getElementById('dayTemplateSelect').value;
     if (!key) return;
-    // Claude: DEBUG — log timeline state before carry-forward so we can see what's there.
-    // Note: timeline is a module-scoped let, NOT window.timeline (window.timeline is undefined).
-    // Carry-forward reads from this module variable, not directly from Firestore.
-    console.log('[SpoonPal] applyDayTemplate — timeline before carry-forward:', JSON.parse(JSON.stringify(timeline)));
-    console.log('[SpoonPal] applyDayTemplate — timeline.length:', timeline.length, '| window.timeline:', typeof window.timeline);
+    /* Claude: 2026-03-14 — debug logs removed (were added 2026-03-08 to investigate carry-forward).
+       Issue is resolved; keeping comment for context. timeline is module-scoped, not window.timeline. */
     let sourceTasks;
     if (key === '__NORMAL_DAY__') {
       sourceTasks = NORMAL_DAY_TEMPLATE.tasks;
@@ -1357,7 +1356,7 @@
     }
     // Carry forward incomplete/partial tasks from current timeline
     const carryForward = timeline.filter(t => t.status !== 'complete' && t.status !== 'skipped');
-    console.log('[SpoonPal] applyDayTemplate — carryForward count:', carryForward.length, carryForward.map(t => t.description + ' [' + t.status + ']'));
+    /* Claude: 2026-03-14 — debug log removed (carry-forward count) */
     const newTasks = sourceTasks.map(t => ({
       time: t.time,
       lmj: t.lmj,
@@ -1374,9 +1373,7 @@
     const templateLmjCodes = new Set(newTasks.map(t => t.lmj).filter(Boolean));
     const uniqueCarry = carryForward.filter(t => !t.lmj || !templateLmjCodes.has(t.lmj));
     const skippedCount = carryForward.length - uniqueCarry.length;
-    if (skippedCount > 0) {
-      console.log('[SpoonPal] applyDayTemplate — skipped ' + skippedCount + ' duplicate daily task(s)');
-    }
+    /* Claude: 2026-03-14 — debug log removed (skipped duplicate count) */
     // Place carried tasks into available slots after the template tasks
     const merged = [...newTasks];
     uniqueCarry.forEach(function(t) {
@@ -1789,10 +1786,7 @@
       return;
     }
     // Skip save during initial load to prevent overwriting remote data
-    if (isInitialLoad) {
-      console.log('[SpoonPal] Skipping save during initial load cycle');
-      return;
-    }
+    if (isInitialLoad) return; /* Claude: 2026-03-14 — debug log removed */
 
     // Build per-task tracking array (indexes match SpoonPlanner task order)
     var taskTracking = timeline.map(function(t) {
