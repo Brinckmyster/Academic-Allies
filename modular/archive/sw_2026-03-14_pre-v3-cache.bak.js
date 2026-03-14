@@ -9,11 +9,8 @@
      • Activate: purge stale caches from previous SW versions
    ================================================================ */
 
-/* Claude: 2026-03-14 — bumped cache v2→v3 to force stale-cache purge on mobile.
-   The v2 cache held an old aa-firebase.js with a SyntaxError that hid the sign-in
-   button. skipWaiting+clients.claim re-enabled to force immediate activation so
-   mobile users don't need to close all tabs to get the fix. */
-var CACHE   = 'aa-shell-v3';
+/* Claude: 2026-03-12 — bumped cache version to force re-install with new crisis pages */
+var CACHE   = 'aa-shell-v2';
 var SCOPE   = '/Academic-Allies/';
 
 /* Pages and assets to pre-cache on install */
@@ -69,12 +66,12 @@ self.addEventListener('install', function (e) {
       );
     })
   );
-  /* Claude: 2026-03-14 — re-enabled skipWaiting to force immediate activation.
-     Needed to bust stale v2 cache that was hiding the sign-in button on mobile.
-     Previous concern: disrupting recording sessions. Acceptable trade-off because
-     users currently can't sign in at all on mobile without this fix.
-     If recording disruptions recur, remove skipWaiting and bump cache version instead. */
-  self.skipWaiting();
+  /* Claude: 2026-03-07 — DO NOT call skipWaiting() here.
+     skipWaiting() + clients.claim() caused visible page disruptions ("app keeps
+     refreshing") when code was deployed mid-session. Without skipWaiting, the new
+     SW only activates when all tabs using the old SW are closed or refreshed — so
+     a recording session is never interrupted by a mid-air SW update.
+     Archive: self.skipWaiting(); */
 });
 
 /* ── Activate: purge old caches ─────────────────────────────── */
@@ -91,10 +88,10 @@ self.addEventListener('activate', function (e) {
       );
     })
   );
-  /* Claude: 2026-03-14 — re-enabled clients.claim() paired with skipWaiting above.
-     Forces all open tabs to use the new SW immediately, so the sign-in fix
-     takes effect without requiring a manual reload. */
-  self.clients.claim();
+  /* Claude: 2026-03-07 — DO NOT call clients.claim() (paired with skipWaiting removal above).
+     Claiming open clients mid-session triggered the "app keeps refreshing" behavior.
+     The new SW will naturally take control on next page load.
+     Archive: self.clients.claim(); */
 });
 
 /* ── Fetch: cache-first for our origin, passthrough for CDN ─── */
