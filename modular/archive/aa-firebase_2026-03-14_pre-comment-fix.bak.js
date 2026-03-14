@@ -11,7 +11,7 @@
 
    Exposes window.AA with auth + Firestore helpers.
 
-   Claude: 2026-03-13 — onAuthStateChanged listener inventory (7 total)
+   /* Claude: 2026-03-13 — onAuthStateChanged listener inventory (7 total)
       ──────────────────────────────────────────────────────────────────────
       1. aa-firebase.js   ~line 76  — Resolve _persistenceReady (one-shot, unsubscribes)
       2. aa-firebase.js   ~line 269 — Main workhorse: user doc, token refresh, roles (persistent)
@@ -20,9 +20,7 @@
       5. shared-header.html ~line 879— Idle timeout (persistent)
       6. aa-mirror.js     ~line 260 — Mirror mode cache/switcher (persistent)
       7. status-circle.js  ~line 795— Check-in status circle (persistent, read-only)
-      All justified — no write collisions between them.
-   Claude: 2026-03-14 — fixed nested comment that broke the outer block comment,
-      causing a SyntaxError that killed the entire script and hid the sign-in button.
+      All justified — no write collisions between them. */
 
    ============================================================ */
 
