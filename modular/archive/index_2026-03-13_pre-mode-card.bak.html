@@ -434,12 +434,6 @@
       <div class="flag-value" id="snapSupport">—</div>
       <div class="flag-sub">From today's check-in</div>
     </div>
-    <!-- Claude: 2026-03-13 — current mode indicator -->
-    <div class="flag-card" id="snapModeCard">
-      <div class="flag-label">Current Mode</div>
-      <div class="flag-value" id="snapMode">Normal</div>
-      <div class="flag-sub" id="snapModeSub"><a href="/Academic-Allies/modular/components/modes/modes.html" style="color:#4a7f82;text-decoration:none;">Switch mode</a></div>
-    </div>
     <!-- Claude: 2026-03-13 — check-in streak counter (motivational) -->
     <div class="flag-card" id="snapStreakCard">
       <div class="flag-label">Check-in streak</div>
@@ -593,51 +587,6 @@
       flagCard.className = 'flag-card green';
     }
   }
-})();
-</script>
-
-<!-- Claude: 2026-03-13 — Current Mode card in snapshot.
-     Reads appMode from localStorage + checks Firestore nope state. -->
-<script>
-(function () {
-  'use strict';
-  var MODE_LABELS = {
-    'normal': '🌞 Normal',
-    'recovery': '💜 Recovery',
-    'bad-brain-day': '🧠 Bad Brain',
-    'semi-nope': '⚡ Semi-Nope',
-    'nope': '🔴 Nope Day',
-    'migraine': '🌑 Migraine'
-  };
-  var saved = localStorage.getItem('appMode') || 'normal';
-  var modeEl = document.getElementById('snapMode');
-  if (modeEl) modeEl.textContent = MODE_LABELS[saved] || saved;
-
-  /* Also check Firestore for active nope (overrides localStorage) */
-  function _waitAA2(cb, n) {
-    n = n || 0;
-    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-    if (n < 50) setTimeout(function () { _waitAA2(cb, n + 1); }, 200);
-  }
-  _waitAA2(function () {
-    AA.auth.onAuthStateChanged(function (user) {
-      if (!user) return;
-      var uid = window.AA_uid ? window.AA_uid(user.uid) : user.uid;
-      AA.db.collection('users').doc(uid).get().then(function (doc) {
-        if (!doc.exists) return;
-        var d = doc.data();
-        if (d.nopeMode && d.nopeMode.mode === 'nope') {
-          if (modeEl) modeEl.textContent = '🔴 Nope Day';
-          var card = document.getElementById('snapModeCard');
-          if (card) card.className = 'flag-card red';
-        } else if (d.nopeMode && d.nopeMode.mode === 'semi-nope') {
-          if (modeEl) modeEl.textContent = '⚡ Semi-Nope';
-          var card = document.getElementById('snapModeCard');
-          if (card) card.className = 'flag-card yellow';
-        }
-      }).catch(function () { /* silent */ });
-    });
-  });
 })();
 </script>
 
