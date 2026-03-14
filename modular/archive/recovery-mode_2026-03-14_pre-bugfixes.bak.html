@@ -571,12 +571,9 @@
         /* Claude: 2026-03-09 — poll for window.AA (loaded by shared-header).
            Replaces the old one-shot if(window.AA) checks that broke when
            direct Firebase script tags were removed. */
-        /* Claude: 2026-03-14 — added max 80 retries (8s) to prevent infinite polling */
-        function _waitForAA(cb, n) {
-            n = n || 0;
-            if (window.AA && AA.auth && AA.db) { cb(); return; }
-            if (n > 80) { return; }
-            setTimeout(function() { _waitForAA(cb, n + 1); }, 100);
+        function _waitForAA(cb) {
+            if (window.AA && AA.auth) { cb(); return; }
+            setTimeout(function() { _waitForAA(cb); }, 100);
         }
     </script>
     <script>
@@ -1036,7 +1033,7 @@
                                 var editControls = document.querySelectorAll('[data-rm-edit]');
                                 editControls.forEach(function(el) { el.style.display = 'none'; });
                             }
-                        }).catch(function() { /* Claude: 2026-03-14 — silent catch for role read */ });
+                        });
                     }
 
                     // ── Personalise greeting with signed-in user's name ──
@@ -1384,14 +1381,11 @@
                 }
                 /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
                 var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
-                /* Claude: 2026-03-14 — fixed promise chain: .then() before .catch()
-                   so _doReset only runs on success, not after error too */
                 AA.saveSpoonPlan(writeUid, patch)
-                    .then(_doReset)
                     .catch(function(err) {
                         console.warn('[AA] Could not reset spoon plan:', err);
-                        alert('Could not save — please try again.');
-                    });
+                    })
+                    .then(_doReset);
             } else {
                 _doReset();
             }
