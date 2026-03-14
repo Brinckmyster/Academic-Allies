@@ -207,9 +207,6 @@
   /* Claude: DOM-readiness guard lives inside showBanner so every
      call path is safe — fixes race when onAuthStateChanged fires
      before DOMContentLoaded (fast cached-auth pages) — 2026-02-27 */
-  /* Claude: 2026-03-14 — redesigned banner: collapsible, doesn't overlap header,
-     uses position:sticky so it scrolls naturally, has a minimize/restore toggle,
-     dark-mode aware, and looks like a proper banner instead of a thin bar. */
   function showBanner(name) {
     if (inPath(NO_BANNER)) return;
     if (document.readyState === 'loading') {
@@ -217,112 +214,32 @@
       return;
     }
     if (document.getElementById('aa-mirror-banner')) return;
-
-    var _isNL = (_cache && _cache.viewerRole === 'network-lead');
-    var isDark = document.documentElement.classList.contains('aa-dark');
-
-    /* --- Wrapper (sticky, not fixed — flows with the page) --- */
     var b = document.createElement('div');
     b.id = 'aa-mirror-banner';
     b.setAttribute('role', 'status');
     b.style.cssText =
-      'position:relative;z-index:9990;' +
-      'margin:0 12px 8px 12px;padding:10px 44px 10px 16px;' +
-      'border-radius:0 0 12px 12px;' +
-      'font-size:13px;font-family:inherit;line-height:1.5;' +
-      'box-sizing:border-box;text-align:center;' +
-      'box-shadow:0 2px 8px rgba(0,0,0,0.08);' +
-      'transition:all 0.3s ease;';
-
-    /* Color scheme: network-lead = green, others = indigo, dark-mode variants */
-    if (_isNL) {
-      b.style.background = isDark
-        ? 'linear-gradient(135deg, #1a3a2a 0%, #1e4030 100%)'
-        : 'linear-gradient(135deg, #e6f4ea 0%, #d4edda 100%)';
-      b.style.border = isDark ? '1px solid #2d6a4f' : '1px solid #6abf7b';
-      b.style.borderTop = 'none';
-      b.style.color = isDark ? '#8fd4a0' : '#2d6a4f';
-    } else {
-      b.style.background = isDark
-        ? 'linear-gradient(135deg, #1e2040 0%, #252850 100%)'
-        : 'linear-gradient(135deg, #eef0ff 0%, #e4e8ff 100%)';
-      b.style.border = isDark ? '1px solid #4338ca' : '1px solid #a5b4fc';
-      b.style.borderTop = 'none';
-      b.style.color = isDark ? '#a5b4fc' : '#4338ca';
-    }
-
-    /* --- Content --- */
-    var icon = _isNL ? '\uD83C\uDF1F' : '\uD83D\uDC41\uFE0F';
-    var roleLabel = _isNL ? 'Network Lead' : 'Mirror Mode';
-    var accessLabel = _isNL ? 'full access' : 'read-only';
-    var accessColor = _isNL
-      ? (isDark ? '#6abf7b' : '#2d6a4f')
-      : (isDark ? '#818cf8' : '#6366f1');
-
-    b.innerHTML =
-      '<span style="font-size:16px;vertical-align:middle;">' + icon + '</span> ' +
-      '<strong>' + roleLabel + '</strong>' +
-      ' &mdash; viewing <strong>' + esc(name) + '\'s</strong> data' +
-      ' &nbsp;&middot;&nbsp; ' +
-      '<span style="font-size:11px;padding:2px 8px;border-radius:10px;' +
-        'background:' + accessColor + ';color:#fff;font-weight:600;' +
-        'letter-spacing:0.03em;">' + accessLabel + '</span>';
-
-    /* --- Minimize button --- */
-    var minBtn = document.createElement('button');
-    minBtn.id = 'aa-mirror-minimize';
-    minBtn.setAttribute('aria-label', 'Minimize mirror banner');
-    minBtn.style.cssText =
-      'position:absolute;top:8px;right:12px;' +
-      'background:none;border:none;cursor:pointer;' +
-      'font-size:16px;line-height:1;padding:2px 6px;' +
-      'border-radius:4px;color:inherit;opacity:0.6;' +
-      'transition:opacity 0.2s;';
-    minBtn.textContent = '\u2715'; /* × */
-    minBtn.onmouseover = function() { minBtn.style.opacity = '1'; };
-    minBtn.onmouseout  = function() { minBtn.style.opacity = '0.6'; };
-
-    var _minimized = false;
-    minBtn.onclick = function() {
-      _minimized = !_minimized;
-      if (_minimized) {
-        /* Collapse to a small tab */
-        b.style.margin = '0 12px 4px 12px';
-        b.style.padding = '4px 36px 4px 12px';
-        b.style.fontSize = '11px';
-        b.style.opacity = '0.7';
-        b.style.borderRadius = '0 0 8px 8px';
-        minBtn.textContent = icon; /* show icon as restore hint */
-        minBtn.setAttribute('aria-label', 'Restore mirror banner');
-        minBtn.style.top = '2px';
-        /* Simplified collapsed text */
-        b.querySelector('.aa-mirror-full') && (b.querySelector('.aa-mirror-full').style.display = 'none');
-        b.querySelector('.aa-mirror-mini') && (b.querySelector('.aa-mirror-mini').style.display = 'inline');
-      } else {
-        /* Restore */
-        b.style.margin = '0 12px 8px 12px';
-        b.style.padding = '10px 44px 10px 16px';
-        b.style.fontSize = '13px';
-        b.style.opacity = '1';
-        b.style.borderRadius = '0 0 12px 12px';
-        minBtn.textContent = '\u2715';
-        minBtn.setAttribute('aria-label', 'Minimize mirror banner');
-        minBtn.style.top = '8px';
-        b.querySelector('.aa-mirror-full') && (b.querySelector('.aa-mirror-full').style.display = 'inline');
-        b.querySelector('.aa-mirror-mini') && (b.querySelector('.aa-mirror-mini').style.display = 'none');
-      }
-    };
-
-    /* Wrap content in full/mini spans for collapse toggle */
-    var fullContent = b.innerHTML;
-    b.innerHTML =
-      '<span class="aa-mirror-full">' + fullContent + '</span>' +
-      '<span class="aa-mirror-mini" style="display:none;">' +
-        icon + ' Viewing <strong>' + esc(name) + '</strong>' +
-      '</span>';
-
-    b.appendChild(minBtn);
+      'position:fixed;top:0;left:0;right:0;z-index:9990;' +
+      'background:linear-gradient(90deg,#e8eeff,#f0f4ff);' +
+      'border-bottom:2px solid #a5b4fc;' +
+      'padding:5px 16px;font-size:12px;color:#4338ca;' +
+      'text-align:center;font-family:inherit;line-height:1.4;box-sizing:border-box;';
+    var _isNL = (_cache && _cache.viewerRole === 'network-lead');
+    b.style.background = _isNL
+      ? 'linear-gradient(90deg,#e6f4ea,#f0faf2)'
+      : 'linear-gradient(90deg,#e8eeff,#f0f4ff)';
+    b.style.borderBottom = _isNL ? '2px solid #6abf7b' : '2px solid #a5b4fc';
+    b.style.color = _isNL ? '#2d6a4f' : '#4338ca';
+    b.innerHTML = _isNL
+      ? '\uD83C\uDF1F <strong>Network Lead</strong>' +
+        ' \u2014 managing <strong>' + esc(name) + '\u2019s</strong> data' +
+        ' &nbsp;\u00B7&nbsp; full access'
+      : '\uD83E\uDDD1\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1 <strong>Mirror mode</strong>' +
+        ' \u2014 viewing <strong>' + esc(name) + '\u2019s</strong> data' +
+        ' &nbsp;\u00B7&nbsp; read-only';
     document.body.insertBefore(b, document.body.firstChild);
+    // Claude: 2026-03-05 — nudge status circle down so it's not hidden under the banner
+    var sc = document.getElementById('status-circle');
+    if (sc) sc.style.top = '36px';
   }
 
   if (window.AA_MIRROR_UID) {
