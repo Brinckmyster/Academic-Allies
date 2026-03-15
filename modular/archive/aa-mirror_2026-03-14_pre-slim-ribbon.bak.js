@@ -207,8 +207,8 @@
   /* Claude: DOM-readiness guard lives inside showBanner so every
      call path is safe — fixes race when onAuthStateChanged fires
      before DOMContentLoaded (fast cached-auth pages) — 2026-02-27 */
-  /* Claude: 2026-03-14 — compact ribbon banner with small tails,
-     dark-mode aware, starts minimized. Slimmed down per user feedback. */
+  /* Claude: 2026-03-14 — ribbon-style banner with curled tails,
+     dark-mode aware, collapsible. Classic scroll/ribbon shape. */
   function showBanner(name) {
     if (inPath(NO_BANNER)) return;
     if (document.readyState === 'loading') {
@@ -245,38 +245,40 @@
     if (!document.getElementById('aa-ribbon-css')) {
       var style = document.createElement('style');
       style.id = 'aa-ribbon-css';
-      /* Claude: 2026-03-14 — slimmed ribbon: tiny tails, compact text */
       style.textContent =
         '#aa-mirror-banner {' +
           'position:relative;z-index:9990;' +
-          'margin:0 24px 4px 24px;padding:4px 18px;' +
+          'margin:0 40px 12px 40px;padding:10px 24px;' +
           'text-align:center;font-family:inherit;' +
-          'font-size:11px;line-height:1.4;' +
+          'font-size:13px;line-height:1.5;' +
           'box-sizing:border-box;' +
-          'transition:all 0.25s ease;' +
+          'transition:all 0.3s ease;' +
         '}' +
+        /* Left tail */
         '#aa-mirror-banner .ribbon-tail-l,' +
         '#aa-mirror-banner .ribbon-tail-r {' +
-          'position:absolute;top:0;width:18px;height:100%;' +
+          'position:absolute;top:0;width:30px;height:100%;' +
         '}' +
-        '#aa-mirror-banner .ribbon-tail-l { left:-18px; }' +
-        '#aa-mirror-banner .ribbon-tail-r { right:-18px; }' +
+        '#aa-mirror-banner .ribbon-tail-l { left:-30px; }' +
+        '#aa-mirror-banner .ribbon-tail-r { right:-30px; }' +
+        /* Fold shadows (the dark triangles where ribbon bends) */
         '#aa-mirror-banner .ribbon-fold-l,' +
         '#aa-mirror-banner .ribbon-fold-r {' +
-          'position:absolute;bottom:-5px;width:0;height:0;' +
+          'position:absolute;bottom:-8px;width:0;height:0;' +
           'border-style:solid;' +
         '}' +
         '#aa-mirror-banner .ribbon-fold-l {' +
-          'left:0;border-width:5px 6px 0 0;' +
+          'left:0;border-width:8px 10px 0 0;' +
           'border-color:transparent;' +
         '}' +
         '#aa-mirror-banner .ribbon-fold-r {' +
-          'right:0;border-width:5px 0 0 6px;' +
+          'right:0;border-width:8px 0 0 10px;' +
           'border-color:transparent;' +
         '}' +
+        /* Minimized state */
         '#aa-mirror-banner.minimized {' +
-          'margin:0 50px 2px 50px;padding:2px 12px;' +
-          'font-size:10px;opacity:0.75;' +
+          'margin:0 80px 6px 80px;padding:4px 16px;' +
+          'font-size:11px;opacity:0.8;' +
         '}' +
         '#aa-mirror-banner.minimized .ribbon-tail-l,' +
         '#aa-mirror-banner.minimized .ribbon-tail-r,' +
@@ -300,37 +302,37 @@
     var roleLabel = _isNL ? 'Network Lead' : 'Mirror Mode';
     var accessLabel = _isNL ? 'full access' : 'read-only';
 
-    /* --- SVG tails (compact pointed ribbon ends) --- */
+    /* --- SVG tails (the pointed ribbon ends) --- */
     var tailSvgL =
-      '<svg class="ribbon-tail-l" viewBox="0 0 18 28" preserveAspectRatio="none" style="position:absolute;top:0;left:-18px;width:18px;height:100%;">' +
-        '<polygon points="18,0 18,28 0,14" fill="' + colors.bg + '" />' +
-        '<line x1="18" y1="0" x2="0" y2="14" stroke="' + colors.border + '" stroke-width="1" />' +
-        '<line x1="0" y1="14" x2="18" y2="28" stroke="' + colors.border + '" stroke-width="1" />' +
+      '<svg class="ribbon-tail-l" viewBox="0 0 30 40" preserveAspectRatio="none" style="position:absolute;top:0;left:-30px;width:30px;height:100%;">' +
+        '<polygon points="30,0 30,40 0,20" fill="' + colors.bg + '" />' +
+        '<line x1="30" y1="0" x2="0" y2="20" stroke="' + colors.border + '" stroke-width="1.5" />' +
+        '<line x1="0" y1="20" x2="30" y2="40" stroke="' + colors.border + '" stroke-width="1.5" />' +
       '</svg>';
     var tailSvgR =
-      '<svg class="ribbon-tail-r" viewBox="0 0 18 28" preserveAspectRatio="none" style="position:absolute;top:0;right:-18px;width:18px;height:100%;">' +
-        '<polygon points="0,0 0,28 18,14" fill="' + colors.bg + '" />' +
-        '<line x1="0" y1="0" x2="18" y2="14" stroke="' + colors.border + '" stroke-width="1" />' +
-        '<line x1="18" y1="14" x2="0" y2="28" stroke="' + colors.border + '" stroke-width="1" />' +
+      '<svg class="ribbon-tail-r" viewBox="0 0 30 40" preserveAspectRatio="none" style="position:absolute;top:0;right:-30px;width:30px;height:100%;">' +
+        '<polygon points="0,0 0,40 30,20" fill="' + colors.bg + '" />' +
+        '<line x1="0" y1="0" x2="30" y2="20" stroke="' + colors.border + '" stroke-width="1.5" />' +
+        '<line x1="30" y1="20" x2="0" y2="40" stroke="' + colors.border + '" stroke-width="1.5" />' +
       '</svg>';
 
     /* --- Fold shadows (small triangles at bottom edges) --- */
     var foldL = '<div class="ribbon-fold-l" style="border-right-color:' + colors.fold + ';"></div>';
     var foldR = '<div class="ribbon-fold-r" style="border-left-color:' + colors.fold + ';"></div>';
 
-    /* Claude: 2026-03-14 — compact content, starts minimized */
     b.innerHTML =
       tailSvgL + tailSvgR + foldL + foldR +
-      '<span class="aa-mirror-full" style="display:none;">' +
-        '<span style="font-size:12px;vertical-align:middle;">' + icon + '</span> ' +
+      '<span class="aa-mirror-full">' +
+        '<span style="font-size:15px;vertical-align:middle;">' + icon + '</span> ' +
         '<strong>' + roleLabel + '</strong>' +
-        ' \u2014 viewing <strong>' + esc(name) + '\'s</strong> data' +
-        ' \u00B7 ' +
-        '<span style="font-size:10px;padding:1px 6px;border-radius:8px;' +
-          'background:' + colors.accent + ';color:#fff;font-weight:600;">' + accessLabel + '</span>' +
+        ' &mdash; viewing <strong>' + esc(name) + '\'s</strong> data' +
+        ' &nbsp;&middot;&nbsp; ' +
+        '<span style="font-size:11px;padding:2px 8px;border-radius:10px;' +
+          'background:' + colors.accent + ';color:#fff;font-weight:600;' +
+          'letter-spacing:0.03em;">' + accessLabel + '</span>' +
       '</span>' +
-      '<span class="aa-mirror-mini">' +
-        icon + ' Viewing <strong>' + esc(name) + '</strong> \u00B7 ' + accessLabel +
+      '<span class="aa-mirror-mini" style="display:none;">' +
+        icon + ' Viewing <strong>' + esc(name) + '</strong>' +
       '</span>';
 
     /* --- Minimize button --- */
@@ -347,18 +349,13 @@
     minBtn.onmouseover = function() { minBtn.style.opacity = '1'; };
     minBtn.onmouseout  = function() { minBtn.style.opacity = '0.5'; };
 
-    /* Claude: 2026-03-14 — starts minimized by default to save space */
-    var _minimized = true;
-    b.classList.add('minimized');
-    minBtn.textContent = icon;
-    minBtn.setAttribute('aria-label', 'Expand mirror banner');
-
+    var _minimized = false;
     minBtn.onclick = function() {
       _minimized = !_minimized;
       if (_minimized) {
         b.classList.add('minimized');
         minBtn.textContent = icon;
-        minBtn.setAttribute('aria-label', 'Expand mirror banner');
+        minBtn.setAttribute('aria-label', 'Restore mirror banner');
         b.querySelector('.aa-mirror-full').style.display = 'none';
         b.querySelector('.aa-mirror-mini').style.display = 'inline';
       } else {
