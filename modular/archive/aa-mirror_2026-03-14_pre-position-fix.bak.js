@@ -245,38 +245,38 @@
     if (!document.getElementById('aa-ribbon-css')) {
       var style = document.createElement('style');
       style.id = 'aa-ribbon-css';
-      /* Claude: 2026-03-14 — compact ribbon placed below header, not overlapping nav */
+      /* Claude: 2026-03-14 — slimmed ribbon: tiny tails, compact text */
       style.textContent =
         '#aa-mirror-banner {' +
-          'position:relative;z-index:800;' +
-          'margin:0 30px 8px 30px;padding:6px 20px;' +
+          'position:relative;z-index:9990;' +
+          'margin:0 24px 4px 24px;padding:4px 18px;' +
           'text-align:center;font-family:inherit;' +
-          'font-size:12px;line-height:1.4;' +
+          'font-size:11px;line-height:1.4;' +
           'box-sizing:border-box;' +
           'transition:all 0.25s ease;' +
         '}' +
         '#aa-mirror-banner .ribbon-tail-l,' +
         '#aa-mirror-banner .ribbon-tail-r {' +
-          'position:absolute;top:0;width:20px;height:100%;' +
+          'position:absolute;top:0;width:18px;height:100%;' +
         '}' +
-        '#aa-mirror-banner .ribbon-tail-l { left:-20px; }' +
-        '#aa-mirror-banner .ribbon-tail-r { right:-20px; }' +
+        '#aa-mirror-banner .ribbon-tail-l { left:-18px; }' +
+        '#aa-mirror-banner .ribbon-tail-r { right:-18px; }' +
         '#aa-mirror-banner .ribbon-fold-l,' +
         '#aa-mirror-banner .ribbon-fold-r {' +
-          'position:absolute;bottom:-6px;width:0;height:0;' +
+          'position:absolute;bottom:-5px;width:0;height:0;' +
           'border-style:solid;' +
         '}' +
         '#aa-mirror-banner .ribbon-fold-l {' +
-          'left:0;border-width:6px 8px 0 0;' +
+          'left:0;border-width:5px 6px 0 0;' +
           'border-color:transparent;' +
         '}' +
         '#aa-mirror-banner .ribbon-fold-r {' +
-          'right:0;border-width:6px 0 0 8px;' +
+          'right:0;border-width:5px 0 0 6px;' +
           'border-color:transparent;' +
         '}' +
         '#aa-mirror-banner.minimized {' +
-          'margin:0 60px 4px 60px;padding:3px 14px;' +
-          'font-size:11px;' +
+          'margin:0 50px 2px 50px;padding:2px 12px;' +
+          'font-size:10px;opacity:0.75;' +
         '}' +
         '#aa-mirror-banner.minimized .ribbon-tail-l,' +
         '#aa-mirror-banner.minimized .ribbon-tail-r,' +
@@ -300,36 +300,36 @@
     var roleLabel = _isNL ? 'Network Lead' : 'Mirror Mode';
     var accessLabel = _isNL ? 'full access' : 'read-only';
 
-    /* --- SVG tails (pointed ribbon ends, 20px wide) --- */
+    /* --- SVG tails (compact pointed ribbon ends) --- */
     var tailSvgL =
-      '<svg class="ribbon-tail-l" viewBox="0 0 20 30" preserveAspectRatio="none" style="position:absolute;top:0;left:-20px;width:20px;height:100%;">' +
-        '<polygon points="20,0 20,30 0,15" fill="' + colors.bg + '" />' +
-        '<line x1="20" y1="0" x2="0" y2="15" stroke="' + colors.border + '" stroke-width="1" />' +
-        '<line x1="0" y1="15" x2="20" y2="30" stroke="' + colors.border + '" stroke-width="1" />' +
+      '<svg class="ribbon-tail-l" viewBox="0 0 18 28" preserveAspectRatio="none" style="position:absolute;top:0;left:-18px;width:18px;height:100%;">' +
+        '<polygon points="18,0 18,28 0,14" fill="' + colors.bg + '" />' +
+        '<line x1="18" y1="0" x2="0" y2="14" stroke="' + colors.border + '" stroke-width="1" />' +
+        '<line x1="0" y1="14" x2="18" y2="28" stroke="' + colors.border + '" stroke-width="1" />' +
       '</svg>';
     var tailSvgR =
-      '<svg class="ribbon-tail-r" viewBox="0 0 20 30" preserveAspectRatio="none" style="position:absolute;top:0;right:-20px;width:20px;height:100%;">' +
-        '<polygon points="0,0 0,30 20,15" fill="' + colors.bg + '" />' +
-        '<line x1="0" y1="0" x2="20" y2="15" stroke="' + colors.border + '" stroke-width="1" />' +
-        '<line x1="20" y1="15" x2="0" y2="30" stroke="' + colors.border + '" stroke-width="1" />' +
+      '<svg class="ribbon-tail-r" viewBox="0 0 18 28" preserveAspectRatio="none" style="position:absolute;top:0;right:-18px;width:18px;height:100%;">' +
+        '<polygon points="0,0 0,28 18,14" fill="' + colors.bg + '" />' +
+        '<line x1="0" y1="0" x2="18" y2="14" stroke="' + colors.border + '" stroke-width="1" />' +
+        '<line x1="18" y1="14" x2="0" y2="28" stroke="' + colors.border + '" stroke-width="1" />' +
       '</svg>';
 
     /* --- Fold shadows (small triangles at bottom edges) --- */
     var foldL = '<div class="ribbon-fold-l" style="border-right-color:' + colors.fold + ';"></div>';
     var foldR = '<div class="ribbon-fold-r" style="border-left-color:' + colors.fold + ';"></div>';
 
-    /* Claude: 2026-03-14 — ribbon content, full view by default */
+    /* Claude: 2026-03-14 — compact content, starts minimized */
     b.innerHTML =
       tailSvgL + tailSvgR + foldL + foldR +
-      '<span class="aa-mirror-full">' +
-        '<span style="font-size:13px;vertical-align:middle;">' + icon + '</span> ' +
+      '<span class="aa-mirror-full" style="display:none;">' +
+        '<span style="font-size:12px;vertical-align:middle;">' + icon + '</span> ' +
         '<strong>' + roleLabel + '</strong>' +
         ' \u2014 viewing <strong>' + esc(name) + '\'s</strong> data' +
         ' \u00B7 ' +
         '<span style="font-size:10px;padding:1px 6px;border-radius:8px;' +
           'background:' + colors.accent + ';color:#fff;font-weight:600;">' + accessLabel + '</span>' +
       '</span>' +
-      '<span class="aa-mirror-mini" style="display:none;">' +
+      '<span class="aa-mirror-mini">' +
         icon + ' Viewing <strong>' + esc(name) + '</strong> \u00B7 ' + accessLabel +
       '</span>';
 
@@ -347,8 +347,11 @@
     minBtn.onmouseover = function() { minBtn.style.opacity = '1'; };
     minBtn.onmouseout  = function() { minBtn.style.opacity = '0.5'; };
 
-    /* Claude: 2026-03-14 — starts expanded; user can minimize with X */
-    var _minimized = false;
+    /* Claude: 2026-03-14 — starts minimized by default to save space */
+    var _minimized = true;
+    b.classList.add('minimized');
+    minBtn.textContent = icon;
+    minBtn.setAttribute('aria-label', 'Expand mirror banner');
 
     minBtn.onclick = function() {
       _minimized = !_minimized;
@@ -368,17 +371,7 @@
     };
 
     b.appendChild(minBtn);
-
-    /* Claude: 2026-03-14 — insert AFTER the site-header so it doesn't
-       overlap the navigation bar. Falls back to top-of-body if no header. */
-    var header = document.getElementById('site-header');
-    if (header && header.nextSibling) {
-      header.parentNode.insertBefore(b, header.nextSibling);
-    } else if (header) {
-      header.parentNode.appendChild(b);
-    } else {
-      document.body.insertBefore(b, document.body.firstChild);
-    }
+    document.body.insertBefore(b, document.body.firstChild);
   }
 
   if (window.AA_MIRROR_UID) {
