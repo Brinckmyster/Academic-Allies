@@ -504,6 +504,20 @@
   if (window.AA_MIRROR_UID) {
     showBanner((_cache && _cache.studentName) || 'student');
     renderSwitcherWhenReady();
+
+    /* Claude: 2026-03-14 — poll for banner element and attach drag handlers.
+       Bypasses timing issues where showBanner defers or errors before
+       makeBannerDraggable gets called. */
+    (function waitForBanner(n) {
+      n = n || 0;
+      var el = document.getElementById('aa-mirror-banner');
+      if (el && !el._dragAttached) {
+        el._dragAttached = true;
+        makeBannerDraggable(el);
+      } else if (n < 30) {
+        setTimeout(function() { waitForBanner(n + 1); }, 200);
+      }
+    })();
   }
 
   /* ── Firebase watcher ─────────────────────────────────────── */
