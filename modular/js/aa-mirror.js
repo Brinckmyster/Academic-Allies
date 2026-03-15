@@ -407,7 +407,7 @@
 
     /* --- Mouse --- */
     el.addEventListener('mousedown', function(e) {
-      if (e.target === minBtn || e.button !== 0) return;
+      if (e.target.id === 'aa-mirror-minimize' || e.button !== 0) return;
       e.preventDefault();
       beginDrag(e.clientX, e.clientY);
     });
@@ -423,7 +423,7 @@
 
     /* --- Touch --- */
     el.addEventListener('touchstart', function(e) {
-      if (e.target === minBtn) return;
+      if (e.target.id === 'aa-mirror-minimize') return;
       var t = e.touches[0];
       beginDrag(t.clientX, t.clientY);
     }, { passive: true });
@@ -440,7 +440,7 @@
 
     /* --- Double-click resets --- */
     el.addEventListener('dblclick', function(e) {
-      if (e.target === minBtn) return;
+      if (e.target.id === 'aa-mirror-minimize') return;
       el.style.position = 'relative';
       el.style.left = '';
       el.style.top  = '';
