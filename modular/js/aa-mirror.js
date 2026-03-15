@@ -395,7 +395,6 @@
   var BANNER_POS_KEY = 'aa-mirror-banner-pos';
 
   function makeBannerDraggable(el) {
-    console.log('[aa-mirror] makeBannerDraggable: attaching drag handlers');
     var startX = 0, startY = 0, startLeft = 0, startTop = 0;
     var dragging = false, didMove = false;
 
@@ -413,7 +412,6 @@
 
     /* --- Mouse --- */
     el.addEventListener('mousedown', function(e) {
-      console.log('[aa-mirror] mousedown on banner, target:', e.target.tagName, e.target.id);
       if (e.target.id === 'aa-mirror-minimize' || e.button !== 0) return;
       e.preventDefault();
       beginDrag(e.clientX, e.clientY);
@@ -457,7 +455,6 @@
 
     /* --- Helpers --- */
     function beginDrag(cx, cy) {
-      console.log('[aa-mirror] beginDrag at', cx, cy);
       dragging = true;
       didMove  = false;
       startX   = cx;
