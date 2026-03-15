@@ -281,7 +281,12 @@
         '#aa-mirror-banner.minimized .ribbon-tail-l,' +
         '#aa-mirror-banner.minimized .ribbon-tail-r,' +
         '#aa-mirror-banner.minimized .ribbon-fold-l,' +
-        '#aa-mirror-banner.minimized .ribbon-fold-r { display:none; }';
+        '#aa-mirror-banner.minimized .ribbon-fold-r { display:none; }' +
+        /* Claude: 2026-03-14 — grab cursor + no text selection for drag */
+        '#aa-mirror-banner, #aa-mirror-banner * {' +
+          'cursor:grab;-webkit-user-select:none;user-select:none;' +
+        '}' +
+        '#aa-mirror-banner #aa-mirror-minimize { cursor:pointer; }';
       document.head.appendChild(style);
     }
 
@@ -390,6 +395,7 @@
   var BANNER_POS_KEY = 'aa-mirror-banner-pos';
 
   function makeBannerDraggable(el) {
+    console.log('[aa-mirror] makeBannerDraggable: attaching drag handlers');
     var startX = 0, startY = 0, startLeft = 0, startTop = 0;
     var dragging = false, didMove = false;
 
@@ -397,16 +403,17 @@
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(BANNER_POS_KEY)); } catch (e) {}
     if (saved && typeof saved.left === 'number' && typeof saved.top === 'number') {
+      var w = el.offsetWidth || el.getBoundingClientRect().width;
       el.style.position = 'fixed';
+      el.style.width = w + 'px';
       el.style.left = Math.max(0, Math.min(window.innerWidth - 200, saved.left)) + 'px';
       el.style.top  = Math.max(0, Math.min(window.innerHeight - 30, saved.top)) + 'px';
       el.style.margin = '0';
     }
 
-    el.style.cursor = 'grab';
-
     /* --- Mouse --- */
     el.addEventListener('mousedown', function(e) {
+      console.log('[aa-mirror] mousedown on banner, target:', e.target.tagName, e.target.id);
       if (e.target.id === 'aa-mirror-minimize' || e.button !== 0) return;
       e.preventDefault();
       beginDrag(e.clientX, e.clientY);
@@ -450,6 +457,7 @@
 
     /* --- Helpers --- */
     function beginDrag(cx, cy) {
+      console.log('[aa-mirror] beginDrag at', cx, cy);
       dragging = true;
       didMove  = false;
       startX   = cx;
@@ -458,6 +466,7 @@
       if (el.style.position !== 'fixed') {
         var rect = el.getBoundingClientRect();
         el.style.position = 'fixed';
+        el.style.width = rect.width + 'px';
         el.style.left = rect.left + 'px';
         el.style.top  = rect.top  + 'px';
         el.style.margin = '0';
