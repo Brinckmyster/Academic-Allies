@@ -14,10 +14,7 @@
    users pick up all the 2026-03-14 changes (mirror guards, UX polish, clock fix). */
 /* Claude: 2026-03-14 — bumped v4→v5. All pages now have inline dark-mode FOUC fix;
    need fresh cache so mobile picks up the new <script> tags in <head>. */
-/* Claude: 2026-03-16 — bumped v5→v6. v5 cached old shared-header.html with the
-   broken idle timeout that signed users out when the tab was in the background.
-   Must purge so the fixed version (visibility-aware idle timer) takes effect. */
-var CACHE   = 'aa-shell-v6';
+var CACHE   = 'aa-shell-v5';
 var SCOPE   = '/Academic-Allies/';
 
 /* Pages and assets to pre-cache on install */
