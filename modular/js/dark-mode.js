@@ -434,6 +434,8 @@
     'html.' + CLASS_NAME + ' #student-picker { background: #252525 !important; color: #e0e0e0 !important; border-color: #4a7f82 !important; }',
     'html.' + CLASS_NAME + ' #nl-student-picker-wrap { background: #1a2a1a !important; border-color: #2d6a4f !important; }',
     'html.' + CLASS_NAME + ' #nl-student-picker { background: #252525 !important; color: #e0e0e0 !important; border-color: #2d6a4f !important; }',
+    /* Claude: 2026-03-15 — fixed selector: was #mirror-banner, actual element is #aa-mirror-banner */
+    'html.' + CLASS_NAME + ' #aa-mirror-banner { background: linear-gradient(135deg, #1a1a2e 0%, #1e1e3a 100%) !important; border-color: #6366f1 !important; color: #a5b4fc !important; }',
     'html.' + CLASS_NAME + ' #mirror-banner { background: linear-gradient(135deg, #1a1a2e 0%, #1e1e3a 100%) !important; border-color: #6366f1 !important; }',
     'html.' + CLASS_NAME + ' #mirror-banner h2 { color: #a5b4fc !important; }',
     'html.' + CLASS_NAME + ' #mirror-banner p { color: #818cf8 !important; }',
