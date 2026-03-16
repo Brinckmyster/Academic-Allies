@@ -567,48 +567,23 @@
     'html.' + CLASS_NAME + ' .checkin-row { border-bottom-color: #2a2a2a !important; }',
     'html.' + CLASS_NAME + ' .meal-row { border-bottom-color: #2a2a2a !important; }',
     '',
-    /* --- Claude: 2026-03-15 — Recovery Mode dark overrides (expanded) ---
-       Archive: dark-mode_2026-03-15_pre-recovery-fix.bak.js --- */
-    /* Cards & containers */
-    'html.' + CLASS_NAME + ' .recovery-container .card { background: #1e1e1e !important; box-shadow: 0 2px 8px rgba(0,0,0,.4) !important; }',
-    'html.' + CLASS_NAME + ' .recovery-container .card h2 { color: #7db8bb !important; }',
-    'html.' + CLASS_NAME + ' .spoon-counter { background: #1a3a3c !important; }',
-    /* Session bar & timezone picker */
+    /* --- Claude: 2026-03-14 — Recovery Mode dark overrides --- */
+    'html.' + CLASS_NAME + ' .quiz-btn { background: #252525 !important; color: #7db8bb !important; border-color: #4a4f50 !important; }',
+    'html.' + CLASS_NAME + ' .quiz-btn:hover { background: #2a3a3b !important; border-color: #7db8bb !important; }',
+    'html.' + CLASS_NAME + ' .progress-bar { background: #2a2a2a !important; }',
+    'html.' + CLASS_NAME + ' .achievement { background: linear-gradient(135deg, #1a3a2a 0%, #1a2a3a 100%) !important; color: #e0e0e0 !important; }',
     'html.' + CLASS_NAME + ' .session-bar { background: #1e1e1e !important; color: #d0d0d0 !important; border-color: #3a3f40 !important; }',
     'html.' + CLASS_NAME + ' .session-tz-btn { color: #7db8bb !important; }',
     'html.' + CLASS_NAME + ' .tz-picker-row { background: #1e1e1e !important; color: #d0d0d0 !important; }',
-    'html.' + CLASS_NAME + ' .tz-picker-row select { background: #252525 !important; color: #e0e0e0 !important; border-color: #4a4f50 !important; }',
+    'html.' + CLASS_NAME + ' .tz-picker-row select { border-color: #4a4f50 !important; }',
     'html.' + CLASS_NAME + ' .new-day-btn { background: #2a2a1a !important; color: #ffc107 !important; border-color: #8a6800 !important; }',
-    /* Quiz buttons & result area */
-    'html.' + CLASS_NAME + ' .quiz-btn { background: #252525 !important; color: #7db8bb !important; border-color: #4a4f50 !important; }',
-    'html.' + CLASS_NAME + ' .quiz-btn:hover { background: #2a3a3b !important; border-color: #7db8bb !important; }',
-    'html.' + CLASS_NAME + ' #quiz-result { background: #252525 !important; color: #e0e0e0 !important; border-color: #4a5a5b !important; }',
-    'html.' + CLASS_NAME + ' .progress-bar { background: #2a2a2a !important; }',
-    'html.' + CLASS_NAME + ' .achievement { background: linear-gradient(135deg, #1a3a2a 0%, #1a2a3a 100%) !important; color: #e0e0e0 !important; }',
-    /* Energy check-in */
-    'html.' + CLASS_NAME + ' .energy-option { background: #252525 !important; border-color: #3a3f40 !important; }',
-    'html.' + CLASS_NAME + ' .energy-option:hover, html.' + CLASS_NAME + ' .energy-option:focus { background: #1a2a2b !important; }',
-    /* Scripture verse — bright yellow gradient → dark muted gold */
-    'html.' + CLASS_NAME + ' #scripture-verse { background: linear-gradient(135deg, #2a2a1a 0%, #2a2510 100%) !important; color: #e0d8b0 !important; }',
-    /* Support message area */
-    'html.' + CLASS_NAME + ' #support-message { background: #252525 !important; color: #e0e0e0 !important; }',
-    /* Journal prompt & textarea */
-    'html.' + CLASS_NAME + ' #journal-prompt { background: #1e2a2b !important; color: #d0d0d0 !important; border-left-color: #4a7a7c !important; }',
-    'html.' + CLASS_NAME + ' .journal-textarea { background: #252525 !important; color: #e0e0e0 !important; border-color: #4a4f50 !important; }',
-    /* Journal "Different prompt" button */
-    'html.' + CLASS_NAME + ' #journal-prompt + div button, html.' + CLASS_NAME + ' [onclick="journalNext()"] { background: #1e2a2b !important; color: #7db8bb !important; border-color: #4a5a5b !important; }',
-    /* Genus practice info box & toggle buttons */
-    'html.' + CLASS_NAME + ' .recovery-container [style*="background:#f0f7f8"], html.' + CLASS_NAME + ' .recovery-container [style*="background: #f0f7f8"] { background: #1e2a2b !important; color: #d0d0d0 !important; }',
-    'html.' + CLASS_NAME + ' .recovery-container [style*="background:#f0f4f5"] { background: #252525 !important; color: #d0d0d0 !important; }',
-    /* Todo items */
     'html.' + CLASS_NAME + ' .todo-item { background: #1e1e1e !important; border-color: #3a3f40 !important; }',
     'html.' + CLASS_NAME + ' .todo-item.todo-completed { background: #1a1a1a !important; }',
     'html.' + CLASS_NAME + ' .todo-item.todo-completed .todo-text { color: #666 !important; }',
-    /* Breathing exercise */
+    'html.' + CLASS_NAME + ' .journal-textarea { background: #252525 !important; color: #e0e0e0 !important; border-color: #4a4f50 !important; }',
     'html.' + CLASS_NAME + ' .breathing-phase { color: #7db8bb !important; }',
     'html.' + CLASS_NAME + ' .breathing-timer { color: #888 !important; }',
-    /* Report button (orange) */
-    'html.' + CLASS_NAME + ' #report-btn { background: #8a4500 !important; color: #ffc080 !important; }',
+    'html.' + CLASS_NAME + ' .spoon-counter { background: #1a3a3c !important; }',
     '',
     /* --- Claude: 2026-03-14 — Bad Brain Day dark overrides --- */
     'html.' + CLASS_NAME + ' .card-title { color: #7db8bb !important; }',
