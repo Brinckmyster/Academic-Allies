@@ -15,7 +15,7 @@
    fetched fresh from the network. This eliminates the #1 source of stale-code
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
-var CACHE   = 'aa-shell-20260316b';
+var CACHE   = 'aa-shell-20260316';
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -73,14 +73,9 @@ self.addEventListener('install', function (e) {
     caches.open(CACHE).then(function (cache) {
       /* addAll stops on first failure — use individual adds so one
          missing asset doesn't block the whole install */
-      /* Claude: 2026-03-16 — bypass HTTP cache on install so we always get
-         fresh copies from the network, not stale copies from the browser's
-         HTTP cache. This prevents the old-cache-serves-old-files problem. */
       return Promise.allSettled(
         SHELL.map(function (url) {
-          return fetch(url, { cache: 'reload' }).then(function (resp) {
-            if (resp.ok) return cache.put(url, resp);
-          }).catch(function (err) {
+          return cache.add(url).catch(function (err) {
             console.warn('[AA SW] pre-cache miss:', url, err.message);
           });
         })
