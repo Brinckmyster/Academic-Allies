@@ -217,11 +217,6 @@
     .ssc-dot.yellow  { background: #ffc107; }
     .ssc-dot.green   { background: #28a745; }
     .ssc-dot.unknown { background: #ccc; }
-    /* Claude: 2026-03-16 — caution diamond for stale check-in (matches status circle) */
-    .ssc-dot.caution {
-      background: #f5c518; border-radius: 0; transform: rotate(45deg);
-      border: 1.5px solid #1a1a1a; width: 16px; height: 16px;
-    }
     @keyframes pulse-dot {
       0%, 100% { box-shadow: 0 0 0 3px rgba(220,53,69,0.2); }
       50%       { box-shadow: 0 0 0 7px rgba(220,53,69,0.1); }
@@ -924,66 +919,7 @@
        Renders a row of student cards with urgency dots at the very top of the
        dashboard. Clicking a card switches the dashboard to that student.
        Adapted from index.html support-view grid (moved per user request). */
-    /* Claude: 2026-03-16 — REWRITTEN to match status circle logic.
-       OLD: only checked today's check-in flag → showed gray "unknown" if no check-in today.
-       NEW: uses rolling 7-check-in average (same as status-circle.js), plus caution diamond
-       for stale data, plus nope mode detection. Dot now matches the status circle color. */
-    var URGENCY = { nope: 0, red: 0, caution: 0.5, orange: 1, yellow: 2, green: 3, unknown: 4 };
-    var CAUTION_DAYS_DEFAULT = 5;
-    var MAX_LOOKBACK = 30;
-    var ROLLING_COUNT = 7;
-
-    /* Color score mapping — matches status-circle.js weighted average */
-    var C_SCORE = { '#dc3545': 4, '#fd7e14': 3, '#ffc107': 2, '#28a745': 1 };
-
-    function _flagToScore(flag) {
-      if (flag === 'red') return 4;
-      if (flag === 'orange') return 3;
-      if (flag === 'yellow') return 2;
-      if (flag === 'green') return 1;
-      return 1;
-    }
-
-    function _scoreToClass(avg) {
-      if (avg >= 3.3) return 'red';
-      if (avg >= 2.5) return 'orange';
-      if (avg >= 1.8) return 'yellow';
-      return 'green';
-    }
-
-    function _makeDateKey(d) {
-      return d.getFullYear() + '-' +
-        String(d.getMonth() + 1).padStart(2, '0') + '-' +
-        String(d.getDate()).padStart(2, '0');
-    }
-
-    /* Fetch up to ROLLING_COUNT recent check-ins for a student, looking back MAX_LOOKBACK days */
-    function _fetchStudentStatus(uid) {
-      var now = new Date();
-      var hits = []; /* { flag, daysAgo } */
-      var promises = [];
-      for (var i = 0; i < MAX_LOOKBACK && hits.length < ROLLING_COUNT; i++) {
-        (function(daysAgo) {
-          var d = new Date(now); d.setDate(d.getDate() - daysAgo);
-          var key = _makeDateKey(d);
-          promises.push(
-            AA.db.collection('checkins').doc(uid).collection('days').doc(key).get()
-              .then(function(doc) {
-                if (doc.exists) {
-                  var entries = doc.data().entries || [];
-                  entries.forEach(function(e) {
-                    hits.push({ flag: e.flag || 'green', daysAgo: daysAgo });
-                  });
-                }
-              }).catch(function() {})
-          );
-        })(i);
-      }
-      return Promise.all(promises).then(function() {
-        hits.sort(function(a, b) { return a.daysAgo - b.daysAgo; });
-        return hits;
-      });
-    }
+    var URGENCY = { nope: 0, red: 0, orange: 1, yellow: 2, green: 3, unknown: 4 };
 
     function loadStudentGrid() {
       var section = document.getElementById('my-students-section');
@@ -994,36 +930,38 @@
         section.style.display = 'none';
         return;
       }
+      /* Claude: 2026-03-14 — always show grid, even for 1 student.
+         The status dot provides quick at-a-glance urgency info
+         (nope/red/orange/yellow/green) that's useful regardless of count. */
 
       section.style.display = 'block';
       grid.innerHTML = '';
 
+      var today = new Date();
+      var todayKey = today.getFullYear() + '-' +
+        String(today.getMonth() + 1).padStart(2, '0') + '-' +
+        String(today.getDate()).padStart(2, '0');
+
       Promise.all(studentsInNetwork.map(function (s) {
         return Promise.all([
           AA.db.collection('nope').doc(s.uid).get(),
-          _fetchStudentStatus(s.uid),
-          AA.db.collection('users').doc(s.uid).get()
+          AA.db.collection('checkins').doc(s.uid).collection('days').doc(todayKey).get()
         ]).then(function (res) {
           var nopeData = res[0].exists ? res[0].data() : null;
           var isNope   = nopeData && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope');
-          var hits     = res[1];
-          var userDoc  = res[2].exists ? res[2].data() : {};
-          var cautionDays = userDoc.alertThreshold || CAUTION_DAYS_DEFAULT;
 
           var dot = 'unknown';
           if (isNope) {
             dot = 'nope';
-          } else if (hits.length > 0) {
-            var newestDaysAgo = hits[0].daysAgo;
-            if (newestDaysAgo > cautionDays) {
-              dot = 'caution';
-            } else {
-              /* Weighted average of up to ROLLING_COUNT most recent entries */
-              var recent = hits.slice(0, ROLLING_COUNT);
-              var total = 0;
-              recent.forEach(function(h) { total += _flagToScore(h.flag); });
-              var avg = total / recent.length;
-              dot = _scoreToClass(avg);
+          } else {
+            var entries = res[1].exists ? (res[1].data().entries || []) : [];
+            if (entries.length > 0) {
+              dot = 'green';
+              entries.forEach(function (e) {
+                if (e.flag === 'red')                          dot = 'red';
+                else if (e.flag === 'orange' && dot !== 'red') dot = 'orange';
+                else if (e.flag === 'yellow' && dot === 'green') dot = 'yellow';
+              });
             }
           }
 
@@ -1041,13 +979,16 @@
             '<span class="ssc-dot ' + s.dot + '"></span>' +
             '<span>' + esc(s.name) + '</span>';
           item.addEventListener('click', function () {
+            /* Switch dashboard to this student */
             switchStudent(s.uid);
+            /* Highlight active card */
             grid.querySelectorAll('.msc-item').forEach(function (el) { el.classList.remove('active'); });
             item.classList.add('active');
           });
           grid.appendChild(item);
         });
       }).catch(function() {
+        /* Claude: 2026-03-14 — catch outer Promise.all failure */
         grid.innerHTML = '<p style="color:#888;text-align:center;padding:1rem;">Could not load student grid — please refresh.</p>';
       });
     }
