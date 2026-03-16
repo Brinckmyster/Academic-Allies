@@ -962,26 +962,11 @@
       }).join('');
     }
 
-    /* Claude: 2026-03-16 — enforce role caps before saving from admin panel */
     window.updateRole = function(uid) {
       var sel = document.getElementById('role-' + uid);
       if (!sel) return;
-      var newRole = sel.value;
-
-      /* Cap check: backstage-manager */
-      if (newRole === 'backstage-manager') {
-        AA.checkBackstageManagerCap(uid)
-          .then(function () {
-            return AA.db.collection('users').doc(uid).update({ role: newRole });
-          })
-          .then(function() { alert('Role updated to: ' + newRole); })
-          .catch(function(err) { alert('⚠️ ' + err.message); });
-        return;
-      }
-
-      /* No cap needed for other roles */
-      AA.db.collection('users').doc(uid).update({ role: newRole })
-        .then(function() { alert('Role updated to: ' + newRole); })
+      AA.db.collection('users').doc(uid).update({ role: sel.value })
+        .then(function() { alert('Role updated to: ' + sel.value); })
         .catch(function(err) { alert('Error: ' + err.message); });
     };
 

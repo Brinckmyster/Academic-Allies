@@ -42,12 +42,6 @@
      Emails that get the "backstage-manager" role (can read all students' data) */
   var ADMIN_EMAILS = ['brinckmyster@gmail.com'];
 
-  /* Claude: 2026-03-16 — Role caps to prevent runaway admin assignments.
-     Backstage-manager: platform-wide cap (so Bruise can have a helper).
-     Network-lead: per-student cap (acts as admin FOR that student). */
-  var MAX_BACKSTAGE_MANAGERS = 2;
-  var MAX_NETWORK_LEADS_PER_STUDENT = 2;
-
   /* Claude: 2026-03-13 — debug flag gates email addresses in console logs.
      Set window.AA_DEBUG = true in browser console to see emails. */
   var _dbg = function() { return !!window.AA_DEBUG; };
@@ -525,31 +519,14 @@
      When they first sign in with Google, onAuthStateChanged will find this
      entry and assign them the correct role automatically. */
   /* Claude: 2026-03-16 — merge:true so re-registering an email doesn't wipe addedAt */
-  /* Claude: 2026-03-16 — enforce backstage-manager cap on pre-registration */
   window.AA.preRegisterEmail = function (email, role) {
     if (!auth.currentUser) return Promise.reject(new Error('Must be signed in as admin'));
-
-    var capCheck = (role === 'backstage-manager')
-      ? window.AA.countBackstageManagers().then(function (count) {
-          /* Also count pending backstage-manager registrations */
-          return db.collection('pendingUsers').where('role', '==', 'backstage-manager').get().then(function (snap) {
-            var total = count + snap.size;
-            if (total >= MAX_BACKSTAGE_MANAGERS) {
-              throw new Error('Already ' + total + ' backstage manager(s) (active + pending). Maximum is ' + MAX_BACKSTAGE_MANAGERS + '.');
-            }
-            return true;
-          });
-        })
-      : Promise.resolve(true);
-
-    return capCheck.then(function () {
-      return db.collection('pendingUsers').doc(email).set({
-        email:   email,
-        role:    role || 'student',
-        addedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        addedBy: auth.currentUser.email
-      }, { merge: true });
-    });
+    return db.collection('pendingUsers').doc(email).set({
+      email:   email,
+      role:    role || 'student',
+      addedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      addedBy: auth.currentUser.email
+    }, { merge: true });
   };
 
   /* Returns a Firestore QuerySnapshot of all pending registrations */
@@ -577,22 +554,14 @@
      studentUid  = the student who owns the network
      memberUid   = the person being added
      tier        = 'network-lead' | 'family' | 'support' | 'nearby-help'  */
-  /* Claude: 2026-03-16 — added network-lead cap check before assignment */
   window.AA.setNetworkMember = function (studentUid, memberUid, tier) {
-    /* If assigning network-lead, enforce the per-student cap first */
-    var capCheck = (tier === 'network-lead')
-      ? window.AA.checkNetworkLeadCap(studentUid, memberUid)
-      : Promise.resolve(true);
-
-    return capCheck.then(function () {
-      var update = {};
-      update['supportNetwork.' + memberUid] = tier;
-      // Write-back: flag the member's own doc so they can see the Support Dashboard
-      // even if their primary role is 'student' (dual-role: student + supporter)
-      db.collection('users').doc(memberUid).update({ isSupporter: true })
-        .catch(function() {}); // best-effort; non-blocking
-      return db.collection('users').doc(studentUid).update(update);
-    });
+    var update = {};
+    update['supportNetwork.' + memberUid] = tier;
+    // Write-back: flag the member's own doc so they can see the Support Dashboard
+    // even if their primary role is 'student' (dual-role: student + supporter)
+    db.collection('users').doc(memberUid).update({ isSupporter: true })
+      .catch(function() {}); // best-effort; non-blocking
+    return db.collection('users').doc(studentUid).update(update);
   };
 
   /* Remove someone from a student's support network */
@@ -606,61 +575,6 @@
       .catch(function() {}); // best-effort; non-blocking
     return db.collection('users').doc(studentUid).update(update);
   };
-
-  /* Claude: 2026-03-16 — Cap checks for role assignments.
-     These return Promises that resolve to true (under cap) or reject (at cap). */
-
-  /* Count how many network-leads a student currently has (reads their supportNetwork map) */
-  window.AA.countNetworkLeads = function (studentUid) {
-    return db.collection('users').doc(studentUid).get().then(function (doc) {
-      if (!doc.exists) return 0;
-      var network = doc.data().supportNetwork || {};
-      var count = 0;
-      Object.keys(network).forEach(function (uid) {
-        if (network[uid] === 'network-lead') count++;
-      });
-      return count;
-    });
-  };
-
-  /* Check network-lead cap before assigning. Rejects with a user-friendly message if at cap. */
-  window.AA.checkNetworkLeadCap = function (studentUid, memberUid) {
-    return window.AA.countNetworkLeads(studentUid).then(function (count) {
-      /* If this member is ALREADY a network-lead for this student, it's a no-op — allow it */
-      return db.collection('users').doc(studentUid).get().then(function (doc) {
-        var network = (doc.exists && doc.data().supportNetwork) || {};
-        if (network[memberUid] === 'network-lead') return true; /* already has the role */
-        if (count >= MAX_NETWORK_LEADS_PER_STUDENT) {
-          throw new Error('This student already has ' + count + ' network lead(s). Maximum is ' + MAX_NETWORK_LEADS_PER_STUDENT + '.');
-        }
-        return true;
-      });
-    });
-  };
-
-  /* Count how many backstage-managers exist platform-wide */
-  window.AA.countBackstageManagers = function () {
-    return db.collection('users').where('role', '==', 'backstage-manager').get().then(function (snap) {
-      return snap.size;
-    });
-  };
-
-  /* Check backstage-manager cap. Rejects if at cap and uid isn't already a backstage-manager. */
-  window.AA.checkBackstageManagerCap = function (uid) {
-    return db.collection('users').doc(uid).get().then(function (doc) {
-      if (doc.exists && doc.data().role === 'backstage-manager') return true; /* already has it */
-      return window.AA.countBackstageManagers().then(function (count) {
-        if (count >= MAX_BACKSTAGE_MANAGERS) {
-          throw new Error('Platform already has ' + count + ' backstage manager(s). Maximum is ' + MAX_BACKSTAGE_MANAGERS + '.');
-        }
-        return true;
-      });
-    });
-  };
-
-  /* Expose the caps so UI can reference them */
-  window.AA.MAX_BACKSTAGE_MANAGERS = MAX_BACKSTAGE_MANAGERS;
-  window.AA.MAX_NETWORK_LEADS_PER_STUDENT = MAX_NETWORK_LEADS_PER_STUDENT;
 
   /* Look up a user by email address — returns first match or null */
   window.AA.lookupUserByEmail = function (email) {
@@ -962,13 +876,6 @@
         used:   true,
         usedAt: firebase.firestore.FieldValue.serverTimestamp(),
         usedBy: user.uid
-      })
-      .then(function () {
-        /* Claude: 2026-03-16 — enforce network-lead cap before adding to network */
-        if (inv.role === 'network-lead') {
-          return window.AA.checkNetworkLeadCap(inv.studentUid, user.uid);
-        }
-        return true;
       })
       .then(function () {
         /* Add invitee to student's supportNetwork */
