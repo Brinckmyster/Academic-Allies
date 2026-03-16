@@ -244,10 +244,6 @@
 
   /* ── Internal: write user profile doc ──────────────────── */
   // Claude: BUG #2 FIX — support network-lead role for scoped admin control
-  /* Claude: 2026-03-16 — use merge:true so a re-fire never overwrites existing data.
-     Previously used plain .set() which would nuke supportNetwork, role, etc. if
-     onAuthStateChanged's doc.exists check ever returned a false negative
-     (e.g. during Firestore IndexedDB corruption). */
   function createUserDoc(user, role) {
     return db.collection('users').doc(user.uid).set({
       displayName:    user.displayName || user.email,
@@ -257,7 +253,7 @@
       // Claude: BUG #2 — network-lead field to track their assigned student (if applicable)
       linkedStudentId: null,  // set only if role === 'network-lead', points to their assigned student
       createdAt:      firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    });
   }
 
   /* Resolve role for a brand-new user doc.
