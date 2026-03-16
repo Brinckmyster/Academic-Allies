@@ -267,7 +267,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="/Academic-Allies/modular/aa-firebase.js?v=20260314a"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js?v=20260316a"></script>
   <!-- Claude: 2026-03-14 — removed duplicate aa-mirror.js; shared-header loads it -->
 
   <script>
@@ -314,6 +314,9 @@
     }
 
     // ── Boot: listen for sign-in ─────────────────────────
+    // Claude: 2026-03-16 — wait for persistence before auth listener (prevents auth-gate flash)
+    var _pReady = (window.AA && window.AA._persistenceReady) ? window.AA._persistenceReady : Promise.resolve();
+    _pReady.then(function() {
     AA.auth.onAuthStateChanged(function (user) {
       if (user) {
         if (user.uid === _npUid) return; // token refresh guard
@@ -339,6 +342,7 @@
         if (_nopeUnsub) { _nopeUnsub(); _nopeUnsub = null; }
       }
     });
+    }).catch(function() { AA.auth.onAuthStateChanged(function(u) { if (!u) showAuthGate(true); }); });
 
     // ── Firestore listener — drives routing ──────────────
     function subscribeToNope() {

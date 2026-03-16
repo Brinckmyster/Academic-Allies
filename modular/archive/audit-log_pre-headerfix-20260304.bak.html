@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Access Log — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: #FAFAF9;
+      color: #333;
+      padding: 20px 16px 60px;
+    }
+    .page-wrap {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.8rem;
+      color: #4a7f82;
+      margin: 0 0 4px;
+    }
+    .subtitle {
+      color: #888;
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+    }
+    #student-picker-wrap {
+      background: #e8f2f3;
+      border: 1px solid #b2d4d7;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      display: none;
+    }
+    #student-picker-wrap label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #4a7f82;
+      display: block;
+      margin-bottom: 8px;
+    }
+    #student-picker {
+      padding: 8px 12px;
+      border: 1px solid #b2d4d7;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+      width: 100%;
+      max-width: 400px;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 8px 16px;
+      background: #4a7f82;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { background: #3d6e71; }
+    .btn:disabled { background: #aaa; cursor: not-allowed; }
+    #loading { text-align: center; padding: 40px; color: #aaa; display: none; }
+    #no-logs {
+      text-align: center;
+      padding: 40px;
+      color: #aaa;
+      font-size: 1rem;
+      display: none;
+    }
+    .audit-table-wrap {
+      background: #fff;
+      border: 1px solid #e1e5e9;
+      border-radius: 10px;
+      overflow-x: auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      background: #f8fafc;
+      border-bottom: 2px solid #e1e5e9;
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.9rem;
+    }
+    tr:hover { background: #fafbfc; }
+    .timestamp-col { color: #666; white-space: nowrap; }
+    .who-col { font-weight: 600; color: #4a7f82; }
+    .role-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .role-backstage-manager { background: #e8e8ff; color: #6366f1; }
+    .role-network-lead { background: #e0e7ff; color: #4f46e5; }
+    .role-student { background: #e0f8f8; color: #4a7f82; }
+    .role-support { background: #d1f5e8; color: #10b981; }
+    .role-family { background: #fef3c7; color: #d97706; }
+    .role-nearby-help { background: #ffedd5; color: #f97316; }
+    .role-unknown { background: #f3f4f6; color: #6b7280; }
+    .data-type {
+      font-family: 'Courier New', monospace;
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    .action-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .action-read { background: #d1f5e8; color: #10b981; }
+    .action-write { background: #fce7f3; color: #ec4899; }
+    @media (max-width: 768px) {
+      h1 { font-size: 1.4rem; }
+      th, td { padding: 10px 8px; font-size: 0.85rem; }
+      .role-badge, .action-badge { font-size: 0.65rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="page-wrap">
+    <h1>🔍 Data Access Log</h1>
+    <p class="subtitle">A record of who has viewed your information</p>
+
+    <!-- Student picker (backstage manager only) -->
+    <div id="student-picker-wrap">
+      <label for="student-picker">Select a student:</label>
+      <select id="student-picker">
+        <option value="">Loading students…</option>
+      </select>
+    </div>
+
+    <!-- Loading & empty states -->
+    <div id="loading">Loading audit log…</div>
+    <div id="no-logs">No access records yet — they'll appear here as your data is viewed</div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="btn" id="refresh-btn" onclick="refreshLog()">Refresh</button>
+    </div>
+
+    <!-- Audit log table -->
+    <div class="audit-table-wrap" id="audit-table-wrap" style="display:none;">
+      <table id="audit-table">
+        <thead>
+          <tr>
+            <th>Date &amp; Time</th>
+            <th>Who Accessed</th>
+            <th>Their Role</th>
+            <th>What Data</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tbody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Include shared header for Firebase + auth -->
+  <script id="shared-header-loader"></script>
+  <script>
+  (function() {
+    'use strict';
+
+    /* ── Include shared header HTML ────────────────────────────── */
+    function loadSharedHeader() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/Academic-Allies/modular/shared-header.html', true);
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          var headerDiv = document.getElementById('site-header');
+          headerDiv.innerHTML = xhr.responseText;
+          initAfterHeader();
+        }
+      };
+      xhr.send();
+    }
+
+    /* ── Wait for window.AA to be ready ────────────────────────── */
+    function waitForAA(callback) {
+      if (window.AA && window.AA.auth && window.AA.db) {
+        callback();
+      } else {
+        setTimeout(function() { waitForAA(callback); }, 100);
+      }
+    }
+
+    /* ── Data type friendly names ──────────────────────────────── */
+    var DATA_TYPE_MAP = {
+      'checkin': 'Daily Check-In',
+      'mealLog': 'Meal Log',
+      'mealPlan': 'Meal Plan',
+      'spoonPal': 'SpoonPal',
+      'spoonPlan': 'Spoon Plan',
+      'nope': 'Crisis Mode',
+      'flowerQuiz': 'Flower Quiz'
+    };
+
+    function getDataTypeLabel(type) {
+      return DATA_TYPE_MAP[type] || type;
+    }
+
+    /* ── Format timestamp as "Mar 3, 2026 at 10:42 PM" ─────────── */
+    function formatTimestamp(ts) {
+      if (!ts) return '—';
+      var date;
+      if (ts.toDate && typeof ts.toDate === 'function') {
+        date = ts.toDate();
+      } else {
+        date = new Date(ts);
+      }
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var m = months[date.getMonth()];
+      var d = date.getDate();
+      var y = date.getFullYear();
+      var timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      return m + ' ' + d + ', ' + y + ' at ' + timeStr;
+    }
+
+    /* ── Render audit log entries ──────────────────────────────── */
+    function renderLog(entries, currentUid) {
+      var tbody = document.getElementById('audit-tbody');
+      tbody.innerHTML = '';
+
+      if (!entries || entries.length === 0) {
+        document.getElementById('audit-table-wrap').style.display = 'none';
+        document.getElementById('no-logs').style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+        return;
+      }
+
+      entries.forEach(function(entry) {
+        var row = document.createElement('tr');
+
+        // Date/Time
+        var tsCell = document.createElement('td');
+        tsCell.className = 'timestamp-col';
+        tsCell.textContent = formatTimestamp(entry.timestamp);
+        row.appendChild(tsCell);
+
+        // Who Accessed
+        var whoCell = document.createElement('td');
+        whoCell.className = 'who-col';
+        whoCell.textContent = (entry.actorUid === currentUid) ? 'You' : (entry.actorEmail || 'Unknown');
+        row.appendChild(whoCell);
+
+        // Their Role
+        var roleCell = document.createElement('td');
+        var roleBadge = document.createElement('span');
+        roleBadge.className = 'role-badge role-' + (entry.actorRole || 'unknown');
+        roleBadge.textContent = entry.actorRole || 'unknown';
+        roleCell.appendChild(roleBadge);
+        row.appendChild(roleCell);
+
+        // What Data
+        var dataCell = document.createElement('td');
+        var dataType = document.createElement('span');
+        dataType.className = 'data-type';
+        dataType.textContent = getDataTypeLabel(entry.dataType);
+        dataCell.appendChild(dataType);
+        row.appendChild(dataCell);
+
+        // Action
+        var actionCell = document.createElement('td');
+        var actionBadge = document.createElement('span');
+        actionBadge.className = 'action-badge action-' + (entry.action || 'unknown');
+        actionBadge.textContent = entry.action || 'unknown';
+        actionCell.appendChild(actionBadge);
+        row.appendChild(actionCell);
+
+        tbody.appendChild(row);
+      });
+
+      document.getElementById('audit-table-wrap').style.display = 'block';
+      document.getElementById('no-logs').style.display = 'none';
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    /* ── Load audit log for a student ──────────────────────────── */
+    function loadAuditLog(uid) {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('audit-table-wrap').style.display = 'none';
+      document.getElementById('no-logs').style.display = 'none';
+
+      window.AA.getAuditLog(uid)
+        .then(function(entries) {
+          var currentUser = window.AA.auth.currentUser;
+          renderLog(entries, currentUser ? currentUser.uid : null);
+        })
+        .catch(function(err) {
+          console.error('[audit-log] Error loading audit log:', err);
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('no-logs').style.display = 'block';
+          document.getElementById('no-logs').textContent = 'Error loading audit log: ' + err.message;
+        });
+    }
+
+    /* ── Refresh button handler ───────────────────────────────── */
+    window.refreshLog = function() {
+      var pickerWrap = document.getElementById('student-picker-wrap');
+      var picker = document.getElementById('student-picker');
+      var currentUser = window.AA.auth.currentUser;
+
+      if (!currentUser) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('no-logs').textContent = 'Not signed in';
+        document.getElementById('no-logs').style.display = 'block';
+        return;
+      }
+
+      if (pickerWrap.style.display !== 'none') {
+        // Backstage manager mode — use selected student
+        var selectedUid = picker.value;
+        if (!selectedUid) {
+          document.getElementById('no-logs').textContent = 'Please select a student';
+          document.getElementById('no-logs').style.display = 'block';
+          return;
+        }
+        loadAuditLog(selectedUid);
+      } else {
+        // Student or network member mode — load current user's log
+        loadAuditLog(currentUser.uid);
+      }
+    };
+
+    /* ── Initialize after header loads ───────────────────────────── */
+    function initAfterHeader() {
+      waitForAA(function() {
+        var currentUser = window.AA.auth.currentUser;
+        if (!currentUser) {
+          document.getElementById('no-logs').textContent = 'Please sign in to view your audit log';
+          document.getElementById('no-logs').style.display = 'block';
+          return;
+        }
+
+        // Claude: determine user role and set up UI
+        window.AA.getUserDoc(currentUser.uid).then(function(doc) {
+          var role = doc.exists ? (doc.data().role || 'student') : 'student';
+
+          if (role === 'backstage-manager') {
+            // Show student picker
+            document.getElementById('student-picker-wrap').style.display = 'block';
+
+            // Populate student list
+            window.AA.getAllStudents().then(function(students) {
+              var picker = document.getElementById('student-picker');
+              picker.innerHTML = '<option value="">Select a student…</option>';
+              students.forEach(function(student) {
+                var opt = document.createElement('option');
+                opt.value = student.uid;
+                opt.textContent = student.data.displayName || student.data.email;
+                picker.appendChild(opt);
+              });
+
+              // Listen for picker change
+              picker.addEventListener('change', function() {
+                if (this.value) refreshLog();
+              });
+            }).catch(function(err) {
+              console.error('[audit-log] Error loading students:', err);
+            });
+          } else {
+            // Student or network member — load their own log immediately
+            loadAuditLog(currentUser.uid);
+          }
+        }).catch(function(err) {
+          console.error('[audit-log] Error fetching user doc:', err);
+          loadAuditLog(currentUser.uid); // fallback
+        });
+      });
+    }
+
+    /* ── Start ──────────────────────────────────────────────────– */
+    loadSharedHeader();
+  })();
+  </script>
+</body>
+</html>

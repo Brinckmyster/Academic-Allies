@@ -195,7 +195,7 @@ Your disability accommodations and support network">Your disability accommodatio
               ? firebase.auth.Auth.Persistence.LOCAL
               : firebase.auth.Auth.Persistence.SESSION;
             window.AA.auth.setPersistence(pType).then(function() {
-              console.log('[AA] Persistence switched to', keepSignedInBox.checked ? 'LOCAL' : 'SESSION');
+              if (window.AA_DEBUG) console.log('[AA] Persistence switched to', keepSignedInBox.checked ? 'LOCAL' : 'SESSION');
             }).catch(function(err) {
               console.warn('[AA] setPersistence failed:', err.message);
             });
@@ -537,7 +537,7 @@ Your disability accommodations and support network">Your disability accommodatio
 
           if (lastUser && lastUser.email && keepPref !== 'false' && !alreadyTried && !_intentionalSignOut) {
             sessionStorage.setItem('AA_REAUTH_DONE', '1');
-            console.log('[AA] Attempting silent re-auth for', window.AA_DEBUG ? lastUser.email : 'user');
+            if (window.AA_DEBUG) console.log('[AA] Attempting silent re-auth for', lastUser.email);
 
             /* Show welcome-back message while re-auth runs */
             if (welcomeBack) {
@@ -571,7 +571,8 @@ Your disability accommodations and support network">Your disability accommodatio
                     if (response && response.credential) {
                       var credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
                       window.AA.auth.signInWithCredential(credential).then(function (result) {
-                        console.log('[AA] Silent re-auth succeeded for', window.AA_DEBUG ? result.user.email : 'user');
+                        clearTimeout(_gisTimeout); /* Claude: 2026-03-16 — success, cancel timeout */
+                        if (window.AA_DEBUG) console.log('[AA] Silent re-auth succeeded for', result.user.email);
                         if (welcomeBack) welcomeBack.style.display = 'none';
                       }).catch(function (err) {
                         console.warn('[AA] Silent re-auth credential failed:', err.message);
@@ -608,6 +609,21 @@ Your disability accommodations and support network">Your disability accommodatio
               if (keepSignedInWrap) keepSignedInWrap.style.display = 'flex';
             }
 
+            /* Claude: 2026-03-16 — 6-second timeout on GIS re-auth. If GIS hangs
+               (script load failure, FedCM prompt invisible, callback never fires),
+               fall back to showing the sign-in button so the user isn't stuck. */
+            var _gisTimedOut = false;
+            var _gisTimeout = setTimeout(function () {
+              _gisTimedOut = true;
+              console.warn('[AA] GIS re-auth timed out after 6s — falling back to sign-in button');
+              _showSignInFallback();
+            }, 6000);
+            /* Wrap the original fallback to also clear the timeout */
+            var _origShowSignInFallback = _showSignInFallback;
+            _showSignInFallback = function () {
+              clearTimeout(_gisTimeout);
+              _origShowSignInFallback();
+            };
             _attemptGISReauth();
             return; /* Don't show sign-in button yet — let GIS try first */
           }

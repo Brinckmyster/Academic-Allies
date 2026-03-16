@@ -161,6 +161,10 @@
     '}',
     'html.' + CLASS_NAME + ' .footer-content { color: #888 !important; }',
     'html.' + CLASS_NAME + ' .footer-content a { color: #7db8bb !important; }',
+    /* Claude: 2026-03-16 — footer inner wrapper + links */
+    'html.' + CLASS_NAME + ' .site-footer-inner { color: #888 !important; }',
+    'html.' + CLASS_NAME + ' .site-footer-inner a { color: #7db8bb !important; }',
+    'html.' + CLASS_NAME + ' .site-footer a { color: #7db8bb !important; }',
     '',
     /* --- NOPE banner --- */
     'html.' + CLASS_NAME + ' .nope-banner {',

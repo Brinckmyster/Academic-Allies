@@ -384,7 +384,7 @@
 <body>
 <div id="site-header"></div>
 <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260314e')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260316a')
       .then(response => response.text())
       .then(html => {
         const container = document.getElementById('site-header');
@@ -599,6 +599,7 @@
                     _spPlannerUid = effectiveUid;
 
                     /* Claude: 2026-03-09 — fetch role and enforce suggest-only for supporters */
+                    /* Claude: 2026-03-16 — added .catch() for missing error handler */
                     AA.db.collection('users').doc(user.uid).get().then(function(doc) {
                         var role = (doc.exists && doc.data().role) ? doc.data().role : 'pending';
                         var supporterRoles = ['family', 'support', 'nearby-help'];
@@ -606,7 +607,7 @@
                         if (_isSupporterRole) {
                             updateMirrorUI();
                         }
-                    });
+                    }).catch(function(err) { console.warn('[SpoonPlanner] Role fetch failed:', err.message); });
 
                     // Personalise title with signed-in user's name
                     var isMirror = (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid);

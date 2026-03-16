@@ -1,0 +1,966 @@
+<!-- Updated 2026-02-26 by Claude — renamed 'admin' role → 'backstage-manager', tier 'admin' → 'backstage-manager' -->
+<!-- Updated 2026-03-01 by Claude — Network Chat tab: group thread + supporter DMs, hidden from student role -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messages — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    body { font-family: 'Atkinson Hyperlegible', Arial, sans-serif; background: #FAFAF9; color: #333; margin: 0; padding: 0; }
+
+    .msg-layout {
+      display: flex; height: calc(100vh - 80px); max-width: 960px; margin: 0 auto;
+      border: 1px solid #e1e5e9; border-radius: 12px; overflow: hidden;
+      background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+
+    /* ── Contacts sidebar ── */
+    .contacts-panel {
+      width: 260px; min-width: 200px; border-right: 1px solid #e1e5e9;
+      display: flex; flex-direction: column; background: #f8fafc;
+    }
+    .contacts-header {
+      padding: 16px 14px 10px; font-weight: 700; font-size: 0.9rem;
+      color: #4a7f82; border-bottom: 1px solid #e1e5e9; letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .contact-list { flex: 1; overflow-y: auto; }
+    .contact-item {
+      display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+      cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background 0.15s;
+    }
+    .contact-item:hover { background: #e8f2f3; }
+    .contact-item.active { background: #d4edef; border-left: 3px solid #4a7f82; }
+    .contact-avatar {
+      width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+      flex-shrink: 0; border: 2px solid #e1e5e9;
+    }
+    .contact-info { min-width: 0; }
+    .contact-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .contact-tier    { font-size: 0.72rem; color: #888; }
+    .contact-preview { font-size: 0.72rem; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .contact-unread {
+      margin-left: auto; background: #4a7f82; color: #fff;
+      border-radius: 10px; padding: 1px 7px; font-size: 0.72rem; font-weight: 700;
+      flex-shrink: 0;
+    }
+    #contacts-empty { padding: 20px 14px; font-size: 0.85rem; color: #aaa; }
+
+    /* ── Thread panel ── */
+    .thread-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .thread-header {
+      padding: 14px 18px; border-bottom: 1px solid #e1e5e9;
+      display: flex; align-items: center; gap: 10px; background: #fff;
+    }
+    .thread-header img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+    .thread-header-name { font-weight: 700; font-size: 1rem; }
+    .thread-header-tier { font-size: 0.78rem; color: #888; }
+    #thread-placeholder {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      color: #bbb; font-size: 0.95rem; text-align: center; padding: 30px;
+    }
+
+    /* Messages */
+    .messages-area { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+    .msg-bubble {
+      max-width: 75%; padding: 9px 14px; border-radius: 14px; font-size: 0.92rem; line-height: 1.4;
+      word-break: break-word;
+    }
+    .msg-bubble.mine   { align-self: flex-end; background: #4a7f82; color: #fff; border-bottom-right-radius: 4px; }
+    .msg-bubble.theirs { align-self: flex-start; background: #f0f0f0; color: #333; border-bottom-left-radius: 4px; }
+    .msg-meta { font-size: 0.7rem; margin-top: 3px; opacity: 0.65; }
+    .msg-bubble.mine   .msg-meta { text-align: right; }
+    .msg-bubble.theirs .msg-meta { text-align: left; }
+
+    /* Compose */
+    /* Claude: BUG #6 FIX — ensure compose area displays as flex when shown */
+    .compose-area {
+      padding: 12px 16px; border-top: 1px solid #e1e5e9; display: none;
+      gap: 8px; align-items: flex-end; background: #fff; flex-wrap: wrap;
+    }
+    .compose-area[style*="display: flex"] {
+      display: flex !important;
+    }
+    .compose-area textarea {
+      flex: 1; padding: 9px 12px; border: 1px solid #ccc; border-radius: 8px;
+      font-size: 14px; resize: none; font-family: inherit; min-height: 38px; max-height: 120px;
+    }
+    .compose-area textarea:focus { outline: none; border-color: #4a7f82; }
+    .btn-send {
+      padding: 9px 18px; background: #4a7f82; color: #fff; border: none;
+      border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+      flex-shrink: 0;
+    }
+    .btn-send:hover { background: #3d6e71; }
+    .btn-send:disabled { background: #aaa; cursor: default; }
+
+    /* Loading / signin */
+    #msg-loading { padding: 40px; text-align: center; color: #aaa; }
+
+    /* Tier badge colours for contact tier label */
+    .tier-backstage-manager { color: #6366f1; }
+    .tier-student     { color: #4a7f82; }
+    .tier-support     { color: #10b981; }
+    .tier-family      { color: #f59e0b; }
+    .tier-nearby-help { color: #f97316; }
+
+    @media (max-width: 600px) {
+      .contacts-panel { width: 64px; }
+      .contact-name, .contact-tier, #contacts-empty { display: none; }
+      .contact-avatar { width: 40px; height: 40px; }
+    }
+
+    /* ── Page tabs (hidden for students) ── */
+    #msg-tabs {
+      max-width: 960px; margin: 8px auto 0; display: none;
+      background: #f8fafc; border: 1px solid #e1e5e9; border-bottom: none;
+      border-radius: 12px 12px 0 0; padding: 0 4px;
+    }
+    .msg-tab {
+      padding: 10px 22px; border: none; border-bottom: 2px solid transparent;
+      background: none; font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; color: #777; transition: color 0.15s;
+    }
+    .msg-tab:hover { color: #4a7f82; }
+    .msg-tab.active { color: #4a7f82; border-bottom-color: #4a7f82; }
+
+    /* ── NC group chat icon ── */
+    .nc-group-icon {
+      width: 36px; height: 36px; border-radius: 50%; background: #d4edef;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; flex-shrink: 0; border: 2px solid #b0d8da;
+    }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+  <div id="msg-loading">Loading messages…</div>
+
+  <!-- Tab bar — shown for non-student roles only -->
+  <div id="msg-tabs">
+    <button class="msg-tab active" id="tab-mymsg" onclick="switchTab('mymsg')">💬 My Messages</button>
+    <button class="msg-tab" id="tab-nc" onclick="switchTab('nc')">🌐 Network Chat</button>
+  </div>
+
+  <div class="msg-layout" id="msg-layout" style="display:none; margin-top:8px;">
+    <!-- Contacts -->
+    <div class="contacts-panel">
+      <div class="contacts-header">💬 Conversations</div>
+      <div class="contact-list" id="contact-list">
+        <div id="contacts-empty">No contacts yet.</div>
+      </div>
+    </div>
+
+    <!-- Thread -->
+    <div class="thread-panel" id="thread-panel">
+      <div id="thread-placeholder">← Select a contact to start messaging</div>
+      <div class="thread-header" id="thread-header" style="display:none;">
+        <img id="thread-avatar" src="" alt="">
+        <div>
+          <div class="thread-header-name" id="thread-name"></div>
+          <div class="thread-header-tier" id="thread-tier"></div>
+        </div>
+      </div>
+      <div class="messages-area" id="messages-area" style="display:none;"></div>
+      <div class="compose-area" id="compose-area">
+        <textarea id="compose-text" placeholder="Type a message…" rows="1"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+        <button class="btn-send" id="btn-send" onclick="sendMessage()">Send</button>
+      </div>
+      <!-- Claude: draft status — 2026-02-27 -->
+      <div id="draft-status" style="display:none;font-size:11px;color:#aaa;text-align:right;padding:2px 16px 6px;font-style:italic;"></div>
+    </div>
+  </div>
+
+  <!-- Network Chat panel — shown for non-student roles only -->
+  <div class="msg-layout" id="nc-layout" style="display:none; margin-top:0; border-radius:0 0 12px 12px;">
+    <!-- NC contacts -->
+    <div class="contacts-panel">
+      <div class="contacts-header">🌐 Network Chat</div>
+      <!-- Claude: BUG #9 FIX — Support user student selector dropdown (2026-03-03) -->
+      <div id="nc-student-picker-wrap" style="display:none;padding:10px 14px;border-bottom:1px solid #e1e5e9;background:#f0f8f8;">
+        <label for="nc-student-select" style="display:block;font-weight:600;font-size:0.75rem;color:#4a7f82;margin-bottom:6px;">Select Student:</label>
+        <select id="nc-student-select" style="width:100%;padding:6px 8px;border:1px solid #b2d4d7;border-radius:4px;font-size:0.85rem;background:#fff;" onchange="switchNcStudent(this.value)">
+          <option value="">— loading students —</option>
+        </select>
+        <div id="nc-student-empty" style="display:none;padding:8px 0;font-size:0.8rem;color:#aaa;">No students assigned yet.</div>
+      </div>
+      <div class="contact-list" id="nc-contact-list">
+        <div style="padding:20px 14px;font-size:0.85rem;color:#aaa;">Loading…</div>
+      </div>
+    </div>
+    <!-- NC thread -->
+    <div class="thread-panel">
+      <div id="nc-thread-placeholder" style="flex:1;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:0.95rem;text-align:center;padding:30px;">← Select a thread to start chatting</div>
+      <div class="thread-header" id="nc-thread-header" style="display:none;">
+        <div>
+          <div class="thread-header-name" id="nc-thread-name"></div>
+          <div class="thread-header-tier" id="nc-thread-tier"></div>
+        </div>
+      </div>
+      <div class="messages-area" id="nc-messages-area" style="display:none;"></div>
+      <div class="compose-area" id="nc-compose-area">
+        <textarea id="nc-compose-text" placeholder="Type a message…" rows="1"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendNcMessage();}"></textarea>
+        <button class="btn-send" id="nc-btn-send" onclick="sendNcMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load shared header -->
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260312b')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        });
+      });
+  </script>
+
+  <script>
+    /* ── Constants ───────────────────────────────────────── */
+    // Updated 2026-02-28 by Claude — icon swap: badge-admin-yellow-center→backstage-manager, icon-user-admin→network-lead
+    var TIER_ICONS = {
+      'backstage-manager': '/Academic-Allies/modular/icons/badge-admin-yellow-center.png',
+      'network-lead':      '/Academic-Allies/modular/icons/icon-user-admin.png',
+      'student':     '/Academic-Allies/modular/icons/icon-user-student.png',
+      'support':     '/Academic-Allies/modular/icons/icon-user-support.png',
+      'nearby-help': '/Academic-Allies/modular/icons/icon-user-nearby-help.png',
+      'family':      '/Academic-Allies/modular/icons/icon-user-family.png'
+    };
+    var TIER_LABELS = {
+      'backstage-manager': 'Backstage Manager', 'network-lead': 'Network Lead',
+      'student': 'Student', 'support': 'Support',
+      'nearby-help': 'Nearby Help', 'family': 'Family'
+    };
+
+    /* ── State ───────────────────────────────────────────── */
+    var currentUser       = null;
+    var _currentUserRole  = null;  // set in loadContacts — used by sendMessage to tag reachedOutAt
+    var activeContact     = null;   // { uid, name, tier }
+    var activeThreadId    = null;
+    var unsubMessages     = null;   // Firestore listener unsub fn for active thread
+    var unsubThreads      = null;   // Firestore listener for sidebar real-time updates
+
+    /* Network Chat */
+    var ncStudentUid    = null;   // student whose network we're chatting in
+    var ncActiveThread  = null;   // 'group' or DM threadId
+    var ncActiveIsGroup = false;
+    var ncActivePeerUid = null;   // other participant uid for DMs
+    var unsubNcMessages = null;
+
+    /* ── Helpers ─────────────────────────────────────────── */
+    function threadId(uid1, uid2) {
+      return [uid1, uid2].sort().join('_');
+    }
+
+    function tierIcon(tier) {
+      return TIER_ICONS[tier] || TIER_ICONS['student'];
+    }
+
+    function fmtTime(ts) {
+      if (!ts) return '';
+      var d = ts.toDate ? ts.toDate() : new Date(ts);
+      return d.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    function waitForAA(cb, tries) {
+      tries = tries || 0;
+      if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+      if (tries > 40) { document.getElementById('msg-loading').textContent = 'Could not connect to Firebase.'; return; }
+      setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
+    }
+
+    /* ── Boot ────────────────────────────────────────────── */
+    function boot() {
+      AA.auth.onAuthStateChanged(function(user) {
+        if (!user) {
+          document.getElementById('msg-loading').textContent = 'Please sign in to use messages.';
+          return;
+        }
+        currentUser = user;
+        loadContacts();
+      });
+    }
+
+    /* ── Build contact list ──────────────────────────────── */
+    function loadContacts() {
+      AA.getUserDoc(currentUser.uid).then(function(doc) {
+        if (!doc.exists) { document.getElementById('msg-loading').textContent = 'Profile not found.'; return; }
+        var data   = doc.data();
+        var myRole = data.role || 'student';
+        _currentUserRole = myRole; // store so sendMessage() can check it
+        setupTabs(myRole);
+        // Claude: BUG #9 FIX — populate student dropdown for support/network-lead roles (2026-03-03)
+        if (myRole !== 'student' && myRole !== 'backstage-manager') {
+          populateNcStudentDropdown();
+        }
+
+        if (myRole === 'backstage-manager') {
+          /* Backstage Manager sees students only — support/family/nearby-help have no reason
+             to message the platform Backstage Manager directly; they communicate via the student.
+             Updated 2026-02-26 by Claude — renamed admin → backstage-manager */
+          AA.db.collection('users').where('role', '==', 'student').get().then(function(snap) {
+            var contacts = [];
+            snap.forEach(function(d) {
+              if (d.id !== currentUser.uid) {
+                contacts.push({ uid: d.id, tier: 'student', data: d.data() });
+              }
+            });
+            renderContacts(contacts);
+            watchThreads();
+            document.getElementById('msg-loading').style.display = 'none';
+            document.getElementById('msg-layout').style.display  = 'flex';
+            // Claude: BUG #9 FIX — backstage-manager also needs student dropdown for Network Chat (2026-03-03)
+            populateNcStudentDropdown();
+          }).catch(function(err) {
+            document.getElementById('msg-loading').textContent = 'Error loading users: ' + err.message;
+          });
+
+        } else {
+          /* Non-admins: own support network + platform admins + students who have
+             this user in THEIR support network (reverse lookup so Karen can see Mary)
+             + all other members of shared student networks (peer-to-peer).
+             Updated 2026-03-01 by Claude: added Step 1b for peer-to-peer support messaging. */
+          var network = data.supportNetwork || {};
+
+          /* Step 1: reverse lookup — find students who list this user in their network.
+             Step 1b: also add all OTHER members of those students' networks (peer-to-peer). */
+          AA.db.collection('users').get().then(function(snap) {
+            var allDocs = [];
+            snap.forEach(function(doc) { allDocs.push({ id: doc.id, data: doc.data() }); });
+
+            /* Step 1: find connected students */
+            var connectedStudents = {};
+            allDocs.forEach(function(doc) {
+              var d = doc.data;
+              if (doc.id !== currentUser.uid &&
+                  d.role === 'student' &&
+                  d.supportNetwork && d.supportNetwork[currentUser.uid] &&
+                  !network[doc.id]) {
+                network[doc.id] = d.supportNetwork[currentUser.uid];
+                connectedStudents[doc.id] = d.supportNetwork;
+              }
+            });
+
+            /* Step 1b: add peer members from those students' networks */
+            Object.keys(connectedStudents).forEach(function(studentUid) {
+              var sNetwork = connectedStudents[studentUid];
+              Object.keys(sNetwork).forEach(function(peerUid) {
+                if (peerUid !== currentUser.uid && !network[peerUid]) {
+                  network[peerUid] = sNetwork[peerUid]; /* use their tier in that network */
+                }
+              });
+            });
+
+            var uids = Object.keys(network);
+
+            /* Step 2: add platform admins */
+            AA.getAllAdmins().then(function(admins) {
+              admins.forEach(function(a) {
+                if (a.uid !== currentUser.uid && !network[a.uid]) {
+                  uids.push(a.uid);
+                  network[a.uid] = 'backstage-manager';
+                }
+              });
+
+              if (uids.length === 0) {
+                document.getElementById('msg-loading').style.display = 'none';
+                document.getElementById('msg-layout').style.display  = 'flex';
+                return;
+              }
+
+              /* Step 3: fetch display names */
+              var fetches = uids.map(function(uid) {
+                return AA.getUserDoc(uid).then(function(d) {
+                  return { uid: uid, tier: network[uid], data: d.exists ? d.data() : null };
+                });
+              });
+
+              Promise.all(fetches).then(function(contacts) {
+                renderContacts(contacts.filter(function(c) { return c.data; }));
+                watchThreads();
+                document.getElementById('msg-loading').style.display = 'none';
+                document.getElementById('msg-layout').style.display  = 'flex';
+                // Claude: BUG #9 FIX — initialize Network Chat student dropdown on load (2026-03-03)
+                // populateNcStudentDropdown() is called from loadContacts() before this
+              });
+            });
+          }).catch(function(err) {
+            document.getElementById('msg-loading').textContent = 'Error loading contacts: ' + err.message;
+          });
+        }
+      }).catch(function(err) {
+        document.getElementById('msg-loading').textContent = 'Error: ' + err.message;
+      });
+    }
+
+    /* ── Render contact list with tier icons ─────────────── */
+    function renderContacts(contacts) {
+      var list = document.getElementById('contact-list');
+      list.innerHTML = '';
+
+      if (contacts.length === 0) {
+        list.innerHTML = '<div id="contacts-empty">No contacts in your network yet.</div>';
+        return;
+      }
+
+      contacts.forEach(function(c) {
+        var name  = c.data.displayName || c.data.email || 'Unknown';
+        var tier  = c.tier || 'student';
+        var icon  = tierIcon(tier);
+        var label = TIER_LABELS[tier] || tier;
+
+        var item = document.createElement('div');
+        item.className = 'contact-item';
+        item.dataset.uid  = c.uid;
+        item.dataset.name = name;
+        item.dataset.tier = tier;
+        item.innerHTML =
+          '<img class="contact-avatar" src="' + icon + '" alt="' + label + '" ' +
+               'onerror="this.src=\'/Academic-Allies/modular/icons/icon-user-student.png\'">' +
+          '<div class="contact-info">' +
+            '<div class="contact-name">' + esc(name) + '</div>' +
+            '<div class="contact-tier tier-' + tier + '">' + label + '</div>' +
+          '</div>';
+
+        item.addEventListener('click', function() {
+          openThread(c.uid, name, tier, icon, item);
+        });
+        list.appendChild(item);
+      });
+    }
+
+    /* ── Open a message thread ───────────────────────────── */
+    function openThread(uid, name, tier, icon, el) {
+      /* Clear previous listener */
+      if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+
+      activeContact  = { uid: uid, name: name, tier: tier };
+      activeThreadId = threadId(currentUser.uid, uid);
+      markRead(activeThreadId);
+      /* Clear badge from the contact item immediately */
+      var badge = el && el.querySelector('.contact-unread');
+      if (badge) badge.remove();
+
+      /* Highlight selected contact */
+      document.querySelectorAll('.contact-item').forEach(function(i) { i.classList.remove('active'); });
+      if (el) el.classList.add('active');
+
+      /* Show thread header */
+      document.getElementById('thread-placeholder').style.display = 'none';
+      document.getElementById('thread-header').style.display      = 'flex';
+      document.getElementById('messages-area').style.display      = 'flex';
+      document.getElementById('compose-area').style.display       = 'flex';
+      _draftLoad(activeThreadId);
+      document.getElementById('thread-avatar').src  = icon;
+      document.getElementById('thread-name').textContent = name;
+      document.getElementById('thread-tier').textContent = TIER_LABELS[tier] || tier;
+
+      /* Real-time listener */
+      unsubMessages = AA.db
+        .collection('messages').doc(activeThreadId)
+        .collection('msgs')
+        .orderBy('timestamp', 'asc')
+        .onSnapshot(function(snap) {
+          renderMessages(snap.docs);
+        }, function(err) {
+          console.error('[AA messages]', err);
+        });
+    }
+
+    /* ── Render messages ─────────────────────────────────── */
+    function renderMessages(docs) {
+      var area = document.getElementById('messages-area');
+      area.innerHTML = '';
+
+      if (docs.length === 0) {
+        area.innerHTML = '<div style="text-align:center;color:#bbb;padding:30px;font-size:0.9rem;">No messages yet — say hello!</div>';
+        return;
+      }
+
+      docs.forEach(function(doc) {
+        var d    = doc.data();
+        var mine = (d.senderUid === currentUser.uid);
+        var bubble = document.createElement('div');
+        bubble.className = 'msg-bubble ' + (mine ? 'mine' : 'theirs');
+        bubble.innerHTML =
+          '<div>' + esc(d.text || '') + '</div>' +
+          '<div class="msg-meta">' +
+            (mine ? '' : esc(d.senderName || '') + ' · ') +
+            fmtTime(d.timestamp) +
+          '</div>';
+        area.appendChild(bubble);
+      });
+
+      /* Scroll to bottom */
+      area.scrollTop = area.scrollHeight;
+
+      /* Mark active thread as read */
+      if (activeThreadId) {
+        markRead(activeThreadId);
+        var activeBadge = document.querySelector('.contact-item.active .contact-unread');
+        if (activeBadge) activeBadge.remove();
+      }
+    }
+
+    /* ── Send a message ──────────────────────────────────── */
+    function sendMessage() {
+      var textarea = document.getElementById('compose-text');
+      var text     = textarea.value.trim();
+      if (!text || !activeThreadId) return;
+
+      var btn = document.getElementById('btn-send');
+      btn.disabled = true;
+
+      /* Ensure the thread doc exists (for future querying) */
+      var threadRef = AA.db.collection('messages').doc(activeThreadId);
+      threadRef.set({
+        participants: [currentUser.uid, activeContact.uid],
+        lastMessage:  text,
+        lastAt:       AA.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      /* Add the message */
+      threadRef.collection('msgs').add({
+        text:        text,
+        senderUid:   currentUser.uid,
+        senderName:  currentUser.displayName || currentUser.email,
+        timestamp:   AA.FieldValue.serverTimestamp()
+      }).then(function() {
+        textarea.value = '';
+        _draftClear(activeThreadId);
+        btn.disabled = false;
+        textarea.focus();
+
+        // ── If sender is a student, record reachedOutAt in today's check-in ──
+        // Added 2026-02-28 by Claude — support network status panel reads this
+        // to show "📨 Student reached out at [time]" in real time.
+        if (_currentUserRole === 'student') {
+          var dateKey = new Date().toISOString().split('T')[0];
+          AA.db.collection('checkins').doc(currentUser.uid)
+            .collection('days').doc(dateKey)
+            .set({ reachedOutAt: AA.FieldValue.serverTimestamp() }, { merge: true })
+            .catch(function(e) { console.warn('[AA] reachedOutAt write:', e); });
+        }
+      }).catch(function(err) {
+        alert('Send failed: ' + err.message);
+        btn.disabled = false;
+      });
+    }
+
+    /* ── HTML escape ─────────────────────────────────────── */
+    function esc(s) {
+      return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    /* ── Last-read tracking (localStorage) ───────────────── */
+    function getLastRead(tid) {
+      try { return parseInt(localStorage.getItem('aa-msg-read-' + tid) || '0'); } catch(e) { return 0; }
+    }
+    function markRead(tid) {
+      try { localStorage.setItem('aa-msg-read-' + tid, Date.now().toString()); } catch(e) {}
+    }
+
+    /* ── Real-time sidebar: last message preview + unread ── */
+    /* Listens to all threads this user participates in.
+       Updates each contact item's preview text and unread badge. */
+    function watchThreads() {
+      if (unsubThreads) { unsubThreads(); unsubThreads = null; }
+      unsubThreads = AA.db.collection('messages')
+        .where('participants', 'array-contains', currentUser.uid)
+        .onSnapshot(function(snap) {
+          snap.docs.forEach(function(doc) {
+            var d   = doc.data();
+            var tid = doc.id;
+            var otherUid = (d.participants || []).filter(function(uid) { return uid !== currentUser.uid; })[0];
+            if (!otherUid) return;
+            var item = document.querySelector('.contact-item[data-uid="' + otherUid + '"]');
+            if (!item) return;
+            updateSidebarItem(item, d, tid);
+          });
+        }, function(err) {
+          console.warn('[AA messages] thread watcher:', err);
+        });
+    }
+
+    function updateSidebarItem(item, threadData, tid) {
+      /* Last message preview */
+      var preview = item.querySelector('.contact-preview');
+      if (!preview) {
+        preview = document.createElement('div');
+        preview.className = 'contact-preview';
+        var info = item.querySelector('.contact-info');
+        if (info) info.appendChild(preview);
+      }
+      var lastMsg = threadData.lastMessage || '';
+      preview.textContent = lastMsg.length > 36 ? lastMsg.slice(0, 36) + '\u2026' : lastMsg;
+
+      /* Unread badge: show if thread updated after last-read and not the active thread */
+      var lastAtMs   = threadData.lastAt ? threadData.lastAt.toMillis() : 0;
+      var lastReadMs = getLastRead(tid);
+      var isActive   = (tid === activeThreadId);
+      var hasUnread  = lastAtMs > lastReadMs && !isActive;
+
+      var badge = item.querySelector('.contact-unread');
+      if (hasUnread) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'contact-unread';
+          item.appendChild(badge);
+        }
+        badge.textContent = '\u2022'; /* bullet — keeps badge small */
+      } else if (badge) {
+        badge.remove();
+      }
+    }
+
+    /* ── Draft saving — Claude: 2026-02-27 ──────────────────────
+       Firestore path: messageDrafts/{uid}_{threadId}
+       Debounced 2s on input; restored on openThread; cleared on send. */
+    var _draftTimer = null;
+
+    function _draftRef(tid) {
+      return AA.db.collection('messageDrafts').doc(currentUser.uid + '_' + tid);
+    }
+
+    function _draftSave() {
+      if (!currentUser || !activeThreadId) return;
+      var text = document.getElementById('compose-text').value;
+      var statusEl = document.getElementById('draft-status');
+      if (!text.trim()) {
+        _draftRef(activeThreadId).delete().catch(function() {});
+        if (statusEl) statusEl.style.display = 'none';
+        return;
+      }
+      if (statusEl) { statusEl.textContent = 'Saving draft…'; statusEl.style.display = 'block'; }
+      _draftRef(activeThreadId).set({ text: text, savedAt: new Date().toISOString() })
+        .then(function() {
+          if (statusEl) {
+            statusEl.textContent = 'Draft saved';
+            setTimeout(function() { statusEl.style.display = 'none'; }, 2000);
+          }
+        })
+        .catch(function(err) {
+          console.warn('[AA] draft save:', err);
+          if (statusEl) statusEl.style.display = 'none';
+        });
+    }
+
+    function _draftLoad(tid) {
+      var ta = document.getElementById('compose-text');
+      var statusEl = document.getElementById('draft-status');
+      ta.value = '';
+      if (statusEl) statusEl.style.display = 'none';
+      if (!currentUser) return;
+      _draftRef(tid).get().then(function(doc) {
+        if (doc.exists && doc.data().text) {
+          ta.value = doc.data().text;
+          if (statusEl) {
+            statusEl.textContent = 'Draft restored';
+            statusEl.style.display = 'block';
+            setTimeout(function() { statusEl.style.display = 'none'; }, 2000);
+          }
+        }
+      }).catch(function() {});
+    }
+
+    function _draftClear(tid) {
+      if (!currentUser) return;
+      _draftRef(tid).delete().catch(function() {});
+      var statusEl = document.getElementById('draft-status');
+      if (statusEl) statusEl.style.display = 'none';
+    }
+
+    /* Attach debounce listener once — safe since textarea is always in DOM */
+    document.getElementById('compose-text').addEventListener('input', function() {
+      clearTimeout(_draftTimer);
+      _draftTimer = setTimeout(_draftSave, 2000);
+    });
+
+    /* ─────────────────────────────────────────────────────────
+       Network Chat — Claude: 2026-03-01
+       ───────────────────────────────────────────────────────── */
+
+    /* Show tab bar for non-student roles; adjust layout border-radius */
+    function setupTabs(myRole) {
+      if (myRole === 'student') return;
+      document.getElementById('msg-tabs').style.display = 'flex';
+      document.getElementById('msg-layout').style.marginTop    = '0';
+      document.getElementById('msg-layout').style.borderRadius = '0 0 12px 12px';
+    }
+
+    /* Switch between My Messages and Network Chat panels */
+    function switchTab(tab) {
+      document.querySelectorAll('.msg-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('tab-' + tab).classList.add('active');
+      var showMy = (tab === 'mymsg');
+      document.getElementById('msg-layout').style.display = showMy ? 'flex' : 'none';
+      document.getElementById('nc-layout').style.display  = showMy ? 'none' : 'flex';
+    }
+
+    /* Claude: BUG #9 FIX — populate student dropdown for support/network-lead/backstage-manager roles (2026-03-03) */
+    function populateNcStudentDropdown() {
+      var pickerWrap = document.getElementById('nc-student-picker-wrap');
+      var sel = document.getElementById('nc-student-select');
+      var isEmpty = document.getElementById('nc-student-empty');
+
+      if (_currentUserRole === 'student') {
+        pickerWrap.style.display = 'none';
+        return;
+      }
+
+      /* Query all students linked to this user */
+      var currentUid = currentUser.uid;
+      AA.db.collection('users').get().then(function (snap) {
+        var linkedStudents = [];
+        snap.forEach(function (doc) {
+          var d = doc.data();
+          if (d.role === 'student' && d.supportNetwork && d.supportNetwork[currentUid]) {
+            linkedStudents.push({ uid: doc.id, name: d.displayName || d.email || 'Unknown' });
+          }
+        });
+
+        if (linkedStudents.length === 0) {
+          isEmpty.style.display = 'block';
+          sel.style.display = 'none';
+          return;
+        }
+
+        isEmpty.style.display = 'none';
+        sel.innerHTML = '<option value="">— select a student —</option>';
+
+        /* Sort by name for readability */
+        linkedStudents.sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+        linkedStudents.forEach(function (s) {
+          var opt = document.createElement('option');
+          opt.value = s.uid;
+          opt.textContent = s.name;
+          sel.appendChild(opt);
+        });
+
+        /* If only one student: auto-select and load their chat */
+        if (linkedStudents.length === 1) {
+          ncStudentUid = linkedStudents[0].uid;
+          sel.value = ncStudentUid;
+          sel.disabled = true;
+          loadNetworkChat();
+        } else {
+          sel.style.display = 'block';
+          /* Leave placeholder showing until user selects */
+        }
+
+        pickerWrap.style.display = 'block';
+      }).catch(function (err) {
+        console.error('[AA] populateNcStudentDropdown error:', err);
+      });
+    }
+
+    /* Claude: BUG #9 FIX — switch active student in Network Chat dropdown (2026-03-03) */
+    function switchNcStudent(studentUid) {
+      if (!studentUid) {
+        var ncList = document.getElementById('nc-contact-list');
+        ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">Please select a student to view their network chat.</div>';
+        ncStudentUid = null;
+        return;
+      }
+      ncStudentUid = studentUid;
+      loadNetworkChat();
+    }
+
+    /* Load Network Chat contacts for the active student's network */
+    function loadNetworkChat() {
+      var ncList = document.getElementById('nc-contact-list');
+
+      /* Read student UID from mirror session cache (for student role) or dropdown selection (support roles) */
+      if (!ncStudentUid) {
+        var mirrorCache = null;
+        try { mirrorCache = JSON.parse(sessionStorage.getItem('aa-mirror') || 'null'); } catch (e) {}
+        ncStudentUid = (mirrorCache && mirrorCache.studentUid) || window.AA_MIRROR_UID || null;
+      }
+
+      if (!ncStudentUid) {
+        ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">⚠️ No student selected.<br>Use the dropdown above to pick a student first.</div>';
+        return;
+      }
+
+      ncList.innerHTML = '';
+
+      /* Group Chat entry — always first */
+      var groupItem = document.createElement('div');
+      groupItem.className = 'contact-item';
+      groupItem.id = 'nc-group-item';
+      groupItem.innerHTML =
+        '<div class="nc-group-icon">👥</div>' +
+        '<div class="contact-info">' +
+          '<div class="contact-name">Group Chat</div>' +
+          '<div class="contact-tier" style="color:#4a7f82;">All network members</div>' +
+        '</div>';
+      groupItem.addEventListener('click', function () {
+        openNcThread('group', 'Group Chat', 'All network members', groupItem, true);
+      });
+      ncList.appendChild(groupItem);
+
+      /* Fetch the student's supportNetwork for DM contacts */
+      AA.getUserDoc(ncStudentUid).then(function (doc) {
+        if (!doc.exists) {
+          ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">Student not found or has no network.</div>';
+          return;
+        }
+        var network  = doc.data().supportNetwork || {};
+        var peerUids = Object.keys(network).filter(function (uid) { return uid !== currentUser.uid; });
+        if (!peerUids.length) {
+          var emptyMsg = document.createElement('div');
+          emptyMsg.style.cssText = 'padding:16px 14px;font-size:0.85rem;color:#aaa;';
+          emptyMsg.textContent = 'This student has no support network members.';
+          ncList.appendChild(emptyMsg);
+          return;
+        }
+
+        var fetches = peerUids.map(function (uid) {
+          return AA.getUserDoc(uid).then(function (d) {
+            return d.exists ? { uid: uid, tier: network[uid], data: d.data() } : null;
+          });
+        });
+
+        Promise.all(fetches).then(function (peers) {
+          peers.filter(Boolean).forEach(function (p) {
+            var name = p.data.displayName || p.data.email || 'Unknown';
+            var tier = p.tier || 'support';
+            var dmId = [currentUser.uid, p.uid].sort().join('_');
+            var item = document.createElement('div');
+            item.className   = 'contact-item';
+            item.dataset.uid = p.uid;
+            item.innerHTML =
+              '<img class="contact-avatar" src="' + tierIcon(tier) + '" alt="" ' +
+                   'onerror="this.src=\'/Academic-Allies/modular/icons/icon-user-support.png\'">' +
+              '<div class="contact-info">' +
+                '<div class="contact-name">' + esc(name) + '</div>' +
+                '<div class="contact-tier tier-' + tier + '">' + (TIER_LABELS[tier] || tier) + '</div>' +
+              '</div>';
+            item.addEventListener('click', function () {
+              ncActivePeerUid = p.uid;
+              openNcThread(dmId, name, TIER_LABELS[tier] || tier, item, false);
+            });
+            ncList.appendChild(item);
+          });
+        });
+      }).catch(function (err) {
+        console.error('[AA] loadNetworkChat error:', err);
+        ncList.innerHTML = '<div style="padding:16px 14px;font-size:0.85rem;color:#aaa;">Error loading network: ' + esc(err.message) + '</div>';
+      });
+    }
+
+    /* Open a Network Chat thread (group or DM) */
+    function openNcThread(tid, name, sub, el, isGroup) {
+      if (unsubNcMessages) { unsubNcMessages(); unsubNcMessages = null; }
+      ncActiveThread  = tid;
+      ncActiveIsGroup = isGroup;
+
+      document.querySelectorAll('#nc-contact-list .contact-item').forEach(function (i) { i.classList.remove('active'); });
+      if (el) el.classList.add('active');
+
+      document.getElementById('nc-thread-placeholder').style.display = 'none';
+      document.getElementById('nc-thread-header').style.display      = 'flex';
+      document.getElementById('nc-messages-area').style.display      = 'flex';
+      document.getElementById('nc-compose-area').style.display       = 'flex';
+      document.getElementById('nc-thread-name').textContent = name;
+      document.getElementById('nc-thread-tier').textContent = sub;
+
+      var msgColl = isGroup
+        ? AA.db.collection('networkChat').doc(ncStudentUid).collection('group')
+        : AA.db.collection('networkChat').doc(ncStudentUid).collection('dms').doc(tid).collection('msgs');
+
+      unsubNcMessages = msgColl.orderBy('timestamp', 'asc').onSnapshot(function (snap) {
+        renderNcMessages(snap.docs);
+      }, function (err) { console.error('[AA networkChat]', err); });
+    }
+
+    /* Render Network Chat messages */
+    function renderNcMessages(docs) {
+      var area = document.getElementById('nc-messages-area');
+      area.innerHTML = '';
+      if (!docs.length) {
+        area.innerHTML = '<div style="text-align:center;color:#bbb;padding:30px;font-size:0.9rem;">No messages yet — say hello!</div>';
+        return;
+      }
+      docs.forEach(function (doc) {
+        var d    = doc.data();
+        var mine = (d.senderUid === currentUser.uid);
+        var b    = document.createElement('div');
+        b.className = 'msg-bubble ' + (mine ? 'mine' : 'theirs');
+        b.innerHTML =
+          '<div>' + esc(d.text || '') + '</div>' +
+          '<div class="msg-meta">' +
+            (mine ? '' : esc(d.senderName || '') + ' · ') +
+            fmtTime(d.timestamp) +
+          '</div>';
+        area.appendChild(b);
+      });
+      area.scrollTop = area.scrollHeight;
+    }
+
+    /* Send a Network Chat message */
+    // Claude: BUG #6 FIX — Network Chat messaging for support, network-lead, and other non-student roles
+    // Claude: BUG #9 FIX — Guard against null ncStudentUid with user-facing error message (2026-03-03)
+    function sendNcMessage() {
+      if (!ncStudentUid) {
+        alert('Please select a student from the dropdown before sending messages.');
+        return;
+      }
+      if (!ncActiveThread) return;
+      var ta   = document.getElementById('nc-compose-text');
+      var text = ta.value.trim();
+      if (!text) return;
+
+      var btn = document.getElementById('nc-btn-send');
+      btn.disabled = true;
+
+      var msgData = {
+        text:       text,
+        senderUid:  currentUser.uid,
+        senderName: currentUser.displayName || currentUser.email,
+        timestamp:  AA.FieldValue.serverTimestamp()
+      };
+
+      var msgColl;
+      if (ncActiveIsGroup) {
+        msgColl = AA.db.collection('networkChat').doc(ncStudentUid).collection('group');
+        AA.db.collection('networkChat').doc(ncStudentUid)
+          .set({ lastGroupAt: AA.FieldValue.serverTimestamp(), lastGroupMsg: text }, { merge: true });
+      } else {
+        var dmRef = AA.db.collection('networkChat').doc(ncStudentUid)
+          .collection('dms').doc(ncActiveThread);
+        msgColl = dmRef.collection('msgs');
+        dmRef.set({
+          participants: [currentUser.uid, ncActivePeerUid].filter(Boolean),
+          lastAt:  AA.FieldValue.serverTimestamp(),
+          lastMsg: text
+        }, { merge: true });
+      }
+
+      msgColl.add(msgData).then(function () {
+        ta.value     = '';
+        btn.disabled = false;
+        ta.focus();
+      }).catch(function (err) {
+        alert('Send failed: ' + err.message);
+        btn.disabled = false;
+      });
+    }
+
+    waitForAA(boot);
+  </script>
+</body>
+</html>

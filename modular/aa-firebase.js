@@ -88,10 +88,23 @@
 
   /* _persistenceReady resolves when onAuthStateChanged first fires — this is the
      true "session resolved" signal. setPersistence only sets the TYPE; the session
-     restoration from IndexedDB is a separate async process signalled by onAuthStateChanged. */
+     restoration from IndexedDB is a separate async process signalled by onAuthStateChanged.
+     Claude: 2026-03-16 — added 8-second timeout so UI is never blocked forever
+     if IndexedDB hangs or onAuthStateChanged fails to fire. */
   var _persistenceReady = _typeReady.then(function () {
     return new Promise(function (resolve) {
+      var _resolved = false;
+      var _timeout = setTimeout(function () {
+        if (!_resolved) {
+          _resolved = true;
+          console.warn('[AA] PERSISTENCE TIMEOUT: onAuthStateChanged did not fire within 8s — resolving with null. IndexedDB may be hung.');
+          resolve(null);
+        }
+      }, 8000);
       var unsub = auth.onAuthStateChanged(function (user) {
+        if (_resolved) return; /* timeout already fired */
+        _resolved = true;
+        clearTimeout(_timeout);
         unsub();
         console.log('[AA] Auth state resolved: ' + (user ? 'USER' + (_dbg() ? ' (' + user.email + ')' : '') : 'null'));
         /* Claude: 2026-03-12 — diagnostic: if LOCAL persistence was expected but no session
