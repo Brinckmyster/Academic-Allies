@@ -583,17 +583,6 @@
     var _checkedUsers  = {};      // uid → true, for merge selection
     var _adminUid      = null;    // UID guard — prevents loadDashboard() re-run on 45-min token refresh. Claude, 2026-03-07.
 
-    /* Claude: 2026-03-15 — wait for AA (shared-header loads Firebase async).
-       Without this, AA is undefined on page load → sign-in silently breaks.
-       Archive: admin_2026-03-15_pre-waitForAA.bak.html */
-    function waitForAA(cb, tries) {
-      tries = tries || 0;
-      if (window.AA && window.AA.auth) { cb(); return; }
-      if (tries > 40) { console.error('[AA] Firebase failed to load after 8s'); return; }
-      setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
-    }
-
-    waitForAA(function() {
     /* ── Auth gate ──────────────────────────────────────────── */
     AA.auth.onAuthStateChanged(function(user) {
       if (!user) {
@@ -611,7 +600,6 @@
       document.getElementById('admin-email').textContent = user.email;
       loadDashboard(); // loadPendingUsers() is called inside after _allUsers is populated
     });
-    }); // end waitForAA
 
     /* ── Invite / pending-users functions ───────────────────── */
     function inviteUser() {
