@@ -824,32 +824,46 @@ Your disability accommodations and support network">Your disability accommodatio
     } catch(e) {}
   })();
 
-  /* Claude: 2026-03-16 — REWRITTEN idle timeout.
-     OLD behavior: 30-min timer ran even when the tab was in the background, so
-     closing the laptop or switching tabs for >30 min triggered auth.signOut(),
-     destroying the Firebase LOCAL session. User had to sign in again every time.
-     NEW behavior: timers PAUSE when the page is hidden (tab switched, laptop closed,
-     phone locked) and RESUME when the page becomes visible again. Only truly idle
-     foreground time counts. This means "Keep me signed in" actually works. */
+  // Claude: session timeout — HIPAA compliance, 30-min inactivity auto-logout
   (function sessionTimeout() {
-    var WARN_MS  = 25 * 60 * 1000;  // 25 minutes of VISIBLE idle time
-    var LIMIT_MS = 30 * 60 * 1000;  // 30 minutes of VISIBLE idle time
+    var WARN_MS  = 25 * 60 * 1000;  // 25 minutes
+    var LIMIT_MS = 30 * 60 * 1000;  // 30 minutes
     var warnTimer, logoutTimer, banner;
-    var _warnRemaining = 0, _logoutRemaining = 0;
-    var _lastActive = Date.now();
-    var _paused = false;
+
+    function clearSensitiveStorage() {
+      // Claude: clear health/location data from localStorage on sign-out
+      try {
+        Object.keys(localStorage).forEach(function(k) {
+          if (/^checkins_|^aa_gps_|^aa-status-dev/.test(k)) {
+            // Claude: localStorage wipe removed per SOP — archive-not-delete policy.
+            // localStorage.removeItem(k);
+          }
+        });
+      } catch(e) {}
+    }
 
     function doLogout() {
+      // Claude: 2026-03-07 — check AA_isRecording global flag (set by audio-notes) PLUS
+      // the DOM class as a fallback. The global flag is more reliable on desktop because
+      // the recording class can become stale after a screen-lock / background event.
       var recordBtn    = document.getElementById('recordBtn');
       var domRecording = recordBtn && recordBtn.classList.contains('recording');
+      // Claude: 2026-03-07 — also check sessionStorage: the JS flag is wiped on page
+      // refresh but sessionStorage survives, so this catches post-refresh sign-outs too.
       var ssRecording  = sessionStorage.getItem('AA_RECORDING_ACTIVE');
       if (window.AA_isRecording || domRecording || ssRecording) {
+        console.log('[AA] Session timeout suppressed — recording in progress (flag=' +
+          !!window.AA_isRecording + ' dom=' + !!domRecording + ' ss=' + !!ssRecording + ')');
+        // If only sessionStorage flag remains (page refreshed mid-recording),
+        // clear it so it doesn't protect forever after the recording was already lost.
         if (ssRecording && !window.AA_isRecording && !domRecording) {
           try { sessionStorage.removeItem('AA_RECORDING_ACTIVE'); } catch(e) {}
         }
-        resetTimers();
+        resetTimers(); // give another full 30 minutes
         return;
       }
+      // Claude: localStorage wipe removed per SOP — archive-not-delete policy.
+      // clearSensitiveStorage();
       if (window.AA && window.AA.auth) {
         window.AA.auth.signOut().then(function() {
           window.location.href = '/Academic-Allies/';
@@ -879,46 +893,10 @@ Your disability accommodations and support network">Your disability accommodatio
       clearTimeout(warnTimer);
       clearTimeout(logoutTimer);
       hideWarning();
-      _paused = false;
-      _warnRemaining = 0;
-      _logoutRemaining = 0;
-      _lastActive = Date.now();
       if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
       warnTimer   = setTimeout(showWarning, WARN_MS);
       logoutTimer = setTimeout(doLogout,    LIMIT_MS);
     }
-
-    /* Claude: 2026-03-16 — pause/resume on visibility change.
-       When the tab goes hidden, save how much time is left on each timer.
-       When the tab becomes visible again, restart timers with the remaining time. */
-    function pauseTimers() {
-      if (_paused) return;
-      _paused = true;
-      var elapsed = Date.now() - _lastActive;
-      _warnRemaining   = Math.max(0, WARN_MS - elapsed);
-      _logoutRemaining = Math.max(0, LIMIT_MS - elapsed);
-      clearTimeout(warnTimer);
-      clearTimeout(logoutTimer);
-    }
-
-    function resumeTimers() {
-      if (!_paused) return;
-      _paused = false;
-      if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
-      /* If warn/logout time already expired while hidden, don't fire immediately —
-         the user just came back, so give them a fresh window. */
-      if (_logoutRemaining <= 0) {
-        resetTimers();
-        return;
-      }
-      warnTimer   = setTimeout(showWarning, _warnRemaining);
-      logoutTimer = setTimeout(doLogout,    _logoutRemaining);
-    }
-
-    document.addEventListener('visibilitychange', function() {
-      if (document.hidden) { pauseTimers(); }
-      else { resumeTimers(); }
-    });
 
     window.AA_resetSessionTimer = resetTimers;
 
