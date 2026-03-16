@@ -9,27 +9,16 @@
      • Activate: purge stale caches from previous SW versions
    ================================================================ */
 
-/* Claude: 2026-03-16 — REWRITTEN cache strategy. No more manual version bumps.
-   Cache name now uses a timestamp that auto-updates whenever sw.js is modified.
-   Key files (shared-header, aa-firebase, dark-mode) are NEVER cached — always
-   fetched fresh from the network. This eliminates the #1 source of stale-code
-   bugs: the SW serving old shared-header.html after a fix was deployed.
-   Static assets (icons, pages) are still cached for offline/speed. */
-var CACHE   = 'aa-shell-20260316';
+/* Claude: 2026-03-14 — bumped cache v3→v4. v3 had stale shared-header, aa-mirror,
+   and several component pages. v4 forces a full re-download of the shell so mobile
+   users pick up all the 2026-03-14 changes (mirror guards, UX polish, clock fix). */
+/* Claude: 2026-03-14 — bumped v4→v5. All pages now have inline dark-mode FOUC fix;
+   need fresh cache so mobile picks up the new <script> tags in <head>. */
+/* Claude: 2026-03-16 — bumped v5→v6. v5 cached old shared-header.html with the
+   broken idle timeout that signed users out when the tab was in the background.
+   Must purge so the fixed version (visibility-aware idle timer) takes effect. */
+var CACHE   = 'aa-shell-v6';
 var SCOPE   = '/Academic-Allies/';
-
-/* Files that must ALWAYS come from network — never serve stale versions.
-   These are the files that change most often and cause bugs when cached. */
-var NEVER_CACHE = [
-  '/Academic-Allies/modular/shared-header.html',
-  '/Academic-Allies/modular/shared-footer.html',
-  '/Academic-Allies/modular/aa-firebase.js',
-  '/Academic-Allies/modular/js/dark-mode.js',
-  '/Academic-Allies/modular/js/mode-enforcer.js',
-  '/Academic-Allies/modular/js/status-circle.js',
-  '/Academic-Allies/modular/js/aa-mirror.js',
-  '/Academic-Allies/sw.js'
-];
 
 /* Pages and assets to pre-cache on install */
 var SHELL = [
@@ -41,8 +30,10 @@ var SHELL = [
   '/Academic-Allies/favicon-16x16.png',
   '/Academic-Allies/apple-touch-icon-180.png',
 
-  /* Claude: 2026-03-16 — shared-header, shared-footer, aa-firebase REMOVED from
-     pre-cache. They are in NEVER_CACHE and always fetched fresh from network. */
+  /* Shared infrastructure */
+  '/Academic-Allies/modular/shared-header.html',
+  '/Academic-Allies/modular/shared-footer.html',
+  '/Academic-Allies/modular/aa-firebase.js',
 
   /* Core pages */
   '/Academic-Allies/modular/checkin.html',
@@ -125,26 +116,10 @@ self.addEventListener('fetch', function (e) {
   if (url.hostname.includes('firebaseio.com'))  return;
   if (url.hostname.includes('firebasestorage')) return;
 
-  /* Claude: 2026-03-16 — NEVER_CACHE files always go to network first.
-     These are the files that change most often (shared-header, aa-firebase, etc).
-     Falls back to cache only when fully offline. */
-  var path = url.pathname;
-  var isNeverCache = NEVER_CACHE.some(function (nc) { return path === nc || path.endsWith(nc); });
-
-  if (isNeverCache) {
-    e.respondWith(
-      fetch(req).catch(function () {
-        /* Offline fallback — try cache as last resort */
-        return caches.match(req);
-      })
-    );
-    return;
-  }
-
-  /* Everything else: cache-first with background refresh (stale-while-revalidate) */
   e.respondWith(
     caches.match(req).then(function (cached) {
       if (cached) {
+        /* Serve from cache, then refresh in background (stale-while-revalidate) */
         var refresh = fetch(req).then(function (fresh) {
           if (fresh.ok) {
             caches.open(CACHE).then(function (c) { c.put(req, fresh.clone()); });
