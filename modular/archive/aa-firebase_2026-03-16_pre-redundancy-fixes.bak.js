@@ -244,36 +244,20 @@
 
   /* ── Internal: write user profile doc ──────────────────── */
   // Claude: BUG #2 FIX — support network-lead role for scoped admin control
-  /* Claude: 2026-03-16 — REDUNDANCY LAYER: double-check doc.exists inside the
-     function itself. If doc already exists, only fill in missing fields (never
-     overwrite role, supportNetwork, etc.). This is the Mary Brinck safety net. */
+  /* Claude: 2026-03-16 — use merge:true so a re-fire never overwrites existing data.
+     Previously used plain .set() which would nuke supportNetwork, role, etc. if
+     onAuthStateChanged's doc.exists check ever returned a false negative
+     (e.g. during Firestore IndexedDB corruption). */
   function createUserDoc(user, role) {
-    return db.collection('users').doc(user.uid).get().then(function (existing) {
-      if (existing.exists) {
-        /* Doc exists — only patch missing fields, never overwrite */
-        console.warn('[AA] createUserDoc called but doc already exists for', user.uid, '— patching only.');
-        var data = existing.data();
-        var patch = {};
-        if (!data.displayName) patch.displayName = user.displayName || user.email;
-        if (!data.email)       patch.email = user.email;
-        /* Never overwrite role or supportNetwork on an existing doc */
-        patch.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-        if (Object.keys(patch).length > 1) {
-          return db.collection('users').doc(user.uid).update(patch);
-        }
-        return Promise.resolve(); /* nothing to patch */
-      }
-      /* Doc truly doesn't exist — safe to create with defaults */
-      return db.collection('users').doc(user.uid).set({
-        displayName:    user.displayName || user.email,
-        email:          user.email,
-        role:           role,
-        supportNetwork: {},   // map of uid → tier; student controls this
-        // Claude: BUG #2 — network-lead field to track their assigned student (if applicable)
-        linkedStudentId: null,  // set only if role === 'network-lead', points to their assigned student
-        createdAt:      firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-    });
+    return db.collection('users').doc(user.uid).set({
+      displayName:    user.displayName || user.email,
+      email:          user.email,
+      role:           role,
+      supportNetwork: {},   // map of uid → tier; student controls this
+      // Claude: BUG #2 — network-lead field to track their assigned student (if applicable)
+      linkedStudentId: null,  // set only if role === 'network-lead', points to their assigned student
+      createdAt:      firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
   }
 
   /* Resolve role for a brand-new user doc.
@@ -480,14 +464,13 @@
   };
 
   /* Clear nope — set everything to null/empty */
-  /* Claude: 2026-03-16 — merge:true so future fields on nope doc aren't wiped */
   window.AA.clearNope = function (uid) {
     return db.collection('nope').doc(uid).set({
       mode:              null,
       activatedAt:       null,
       semi_nope_visible: {},
       updatedAt:         firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    });
   };
 
   /* Append to nope activity log (sub-collection) */
@@ -518,7 +501,6 @@
   /* Admin calls this to pre-register an email before the person signs in.
      When they first sign in with Google, onAuthStateChanged will find this
      entry and assign them the correct role automatically. */
-  /* Claude: 2026-03-16 — merge:true so re-registering an email doesn't wipe addedAt */
   window.AA.preRegisterEmail = function (email, role) {
     if (!auth.currentUser) return Promise.reject(new Error('Must be signed in as admin'));
     return db.collection('pendingUsers').doc(email).set({
@@ -526,7 +508,7 @@
       role:    role || 'student',
       addedAt: firebase.firestore.FieldValue.serverTimestamp(),
       addedBy: auth.currentUser.email
-    }, { merge: true });
+    });
   };
 
   /* Returns a Firestore QuerySnapshot of all pending registrations */
@@ -683,7 +665,6 @@
      Added 2026-02-19 by Claude */
 
   /* Save/overwrite today's meal list */
-  /* Claude: 2026-03-16 — merge:true to protect any future metadata on meal docs */
   window.AA.saveMealLog = function (uid, dateKey, meals) {
     return db.collection('mealLogs').doc(uid)
       .collection('days').doc(dateKey)
@@ -691,7 +672,7 @@
         meals:     meals,
         date:      dateKey,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      });
   };
 
   /* Get a specific day's meal log */
@@ -723,9 +704,8 @@
   };
 
   // ── SpoonPal ────────────────────────────────────────────────────
-  /* Claude: 2026-03-16 — merge:true to protect SpoonPal data from overwrites */
   window.AA.saveSpoonPal = function (uid, obj) {
-    return db.collection('spoonPal').doc(uid).set(obj, { merge: true });
+    return db.collection('spoonPal').doc(uid).set(obj);
   };
 
   window.AA.getSpoonPal = function (uid) {
@@ -789,8 +769,7 @@
       usedBy:      null
     };
 
-    /* Claude: 2026-03-16 — merge:true for defensive consistency */
-    return db.collection('invites').doc(code).set(invite, { merge: true })
+    return db.collection('invites').doc(code).set(invite)
       .then(function () {
         console.log('[AA] Invite created:', code, '→', role);
         return { code: code, expiresAt: expiresAt };
