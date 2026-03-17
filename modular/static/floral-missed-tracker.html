@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/Academic-Allies/favicon.ico">
+<!-- Claude: 2026-03-17 — early dark mode detect -->
+<script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Missed Flowers — Academic Allies</title>
+<!-- Claude: 2026-03-17 — Missed flowers tracker: shows weakest flowers across all study sessions -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    background: #FAFAF9;
+    min-height: 100vh;
+    padding: 0 12px 40px;
+    color: #333;
+  }
+  html.aa-dark body { background: #121212; color: #e0e0e0; }
+
+  .mt-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding-top: 12px;
+  }
+
+  .back-link {
+    display: inline-block;
+    color: #6CA0A3;
+    text-decoration: none;
+    font-size: 11pt;
+    margin-bottom: 8px;
+  }
+  .back-link:hover { text-decoration: underline; }
+  html.aa-dark .back-link { color: #8ec5c8; }
+
+  h1 { font-size: 20pt; margin-bottom: 4px; color: #4a7f82; text-align: center; }
+  html.aa-dark h1 { color: #8ec5c8; }
+  .subtitle { text-align: center; font-size: 11pt; color: #888; margin-bottom: 16px; }
+
+  .summary-bar {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 16px;
+    font-size: 12pt;
+    font-weight: 600;
+  }
+  .summary-bar .trouble { color: #c62828; }
+  html.aa-dark .summary-bar .trouble { color: #ef5350; }
+  .summary-bar .solid { color: #2e7d32; }
+  html.aa-dark .summary-bar .solid { color: #66bb6a; }
+
+  .actions {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .actions button {
+    padding: 10px 20px;
+    border: 2px solid #6CA0A3;
+    border-radius: 12px;
+    background: #6CA0A3;
+    color: #fff;
+    font-weight: 700;
+    font-size: 11pt;
+    font-family: inherit;
+    cursor: pointer;
+    margin: 0 4px;
+  }
+  .actions button:hover { background: #4a7f82; }
+  .actions .secondary {
+    background: #fff;
+    color: #4a7f82;
+  }
+  html.aa-dark .actions .secondary { background: #1e1e1e; color: #8ec5c8; }
+  .actions .secondary:hover { background: #6CA0A3; color: #fff; }
+
+  /* Flower list */
+  .flower-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 6px;
+    transition: all 0.2s;
+  }
+  .flower-row:hover { transform: translateX(2px); }
+  .flower-row .rank {
+    width: 32px;
+    font-weight: 700;
+    font-size: 14pt;
+    color: #c62828;
+    flex-shrink: 0;
+  }
+  html.aa-dark .flower-row .rank { color: #ef5350; }
+  .flower-row .info { flex: 1; }
+  .flower-row .common-name {
+    font-weight: 700;
+    font-size: 12pt;
+    color: #333;
+  }
+  html.aa-dark .flower-row .common-name { color: #e0e0e0; }
+  .flower-row .genus-name {
+    font-style: italic;
+    font-size: 11pt;
+    color: #4a7f82;
+  }
+  html.aa-dark .flower-row .genus-name { color: #8ec5c8; }
+  .flower-row .quiz-tag {
+    font-size: 9pt;
+    color: #888;
+  }
+  .flower-row .miss-count {
+    background: #ffebee;
+    color: #c62828;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 11pt;
+    flex-shrink: 0;
+  }
+  html.aa-dark .flower-row .miss-count { background: #2e1a1a; color: #ef5350; }
+  .flower-row .miss-bar {
+    width: 80px;
+    height: 6px;
+    background: #e8f2f3;
+    border-radius: 3px;
+    margin-left: 12px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  html.aa-dark .flower-row .miss-bar { background: #2a3a3b; }
+  .flower-row .miss-fill {
+    height: 100%;
+    background: #c62828;
+    border-radius: 3px;
+  }
+
+  .trouble-bg { background: #fff5f5; }
+  html.aa-dark .trouble-bg { background: #1e1515; }
+  .ok-bg { background: #f5fff5; }
+  html.aa-dark .ok-bg { background: #151e15; }
+
+  .empty-msg {
+    text-align: center;
+    color: #2e7d32;
+    font-size: 14pt;
+    font-weight: 600;
+    padding: 40px;
+  }
+  html.aa-dark .empty-msg { color: #66bb6a; }
+
+  .mastered-section {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 2px solid #e8f2f3;
+  }
+  html.aa-dark .mastered-section { border-color: #333; }
+  .mastered-section h2 {
+    color: #2e7d32;
+    font-size: 14pt;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  html.aa-dark .mastered-section h2 { color: #66bb6a; }
+  .mastered-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+  .mastered-chip {
+    padding: 4px 10px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-radius: 12px;
+    font-size: 10pt;
+    font-weight: 600;
+  }
+  html.aa-dark .mastered-chip { background: #1a2e1a; color: #66bb6a; }
+
+  .credit { text-align: center; font-size: 0.7rem; color: #aaa; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260317b')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<div class="mt-container">
+  <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">&larr; Back to Study Tools</a>
+
+  <h1>Missed Flowers Tracker</h1>
+  <p class="subtitle">Your weakest flowers across all study sessions — focus here!</p>
+
+  <div class="summary-bar" id="summaryBar"></div>
+
+  <div class="actions" id="actionsBar">
+    <button onclick="practiceWeakest()">Practice Weakest 10</button>
+    <button class="secondary" onclick="clearData()">Reset Tracking</button>
+  </div>
+
+  <div id="trackerContent"></div>
+</div>
+
+<p class="credit">Built by Claude for Bruise — March 2026</p>
+
+<script>
+/* Claude: 2026-03-17 — Missed Flowers Tracker
+   Reads AA_FLORAL_MISSED from localStorage (shared with flashcards + speed round).
+   Shows flowers ranked by miss count, with a mastered section at the bottom. */
+
+var FLOWERS = {
+  "1": [
+    { common: "Carnation", genus: "Dianthus" },
+    { common: "Daisy Pom/Cushion Pom", genus: "Chrysanthemum" },
+    { common: "Rose", genus: "Rosa" },
+    { common: "Alstro", genus: "Alstroemeria" },
+    { common: "Lisianthus", genus: "Eustoma" },
+    { common: "Hydrangea", genus: "Hydrangea" },
+    { common: "Peony", genus: "Paeonia" },
+    { common: "Ranunculus", genus: "Ranunculus" },
+    { common: "Safari Sunset", genus: "Leucadendron" },
+    { common: "China Aster", genus: "Callistephus" }
+  ],
+  "2": [
+    { common: "Snapdragon", genus: "Antirrhinum" },
+    { common: "Larkspur", genus: "Consolida" },
+    { common: "Delphinium", genus: "Delphinium" },
+    { common: "Liatris", genus: "Liatris" },
+    { common: "Gladiola", genus: "Gladiolus" },
+    { common: "Stock", genus: "Matthiola" },
+    { common: "Bells of Ireland", genus: "Moluccella" },
+    { common: "Baby Blue Eucalyptus", genus: "Eucalyptus" },
+    { common: "Curly Willow", genus: "Salix" },
+    { common: "Dendrobium Orchid", genus: "Dendrobium" }
+  ],
+  "3": [
+    { common: "Solidago", genus: "Solidago" },
+    { common: "Misty Blue", genus: "Limonium" },
+    { common: "Statice", genus: "Limonium" },
+    { common: "Queen Anne's Lace", genus: "Ammi" },
+    { common: "Babies Breath", genus: "Gypsophila" },
+    { common: "Waxflower", genus: "Chamelaucium" },
+    { common: "Pixie Carnation", genus: "Dianthus" },
+    { common: "Aster", genus: "Aster" },
+    { common: "Hypericum Berries", genus: "Hypericum" },
+    { common: "Sea Holly", genus: "Eryngium" }
+  ],
+  "4": [
+    { common: "Sunflower", genus: "Helianthus" },
+    { common: "Calla Lily", genus: "Zantedeschia" },
+    { common: "Tulip", genus: "Tulipa" },
+    { common: "Bird of Paradise", genus: "Strelitzia" },
+    { common: "Disbud Mum", genus: "Chrysanthemum" },
+    { common: "Lily", genus: "Lilium" },
+    { common: "Billy Balls", genus: "Craspedia" },
+    { common: "Anthurium", genus: "Anthurium" },
+    { common: "Iris", genus: "Iris" },
+    { common: "Gerber Daisy", genus: "Gerbera" }
+  ],
+  "5": [
+    { common: "Leather Leaf", genus: "Rumohra" },
+    { common: "Bear Grass", genus: "Xerophyllum" },
+    { common: "Lily Grass", genus: "Liriope" },
+    { common: "Seeded Eucalyptus", genus: "Eucalyptus" },
+    { common: "Israeli Ruscus", genus: "Ruscus" },
+    { common: "Italian Ruscus", genus: "Ruscus" },
+    { common: "Salal/Lemon Leaf", genus: "Gaultheria" },
+    { common: "Grevillea", genus: "Grevillea" },
+    { common: "Pitt", genus: "Pittosporum" },
+    { common: "Myrtle", genus: "Myrtus" }
+  ]
+};
+
+var QUIZ_NAMES = {
+  "1": "Mass", "2": "Line", "3": "Filler", "4": "Form/Focal", "5": "Foliage"
+};
+
+var MISSED_KEY = 'AA_FLORAL_MISSED';
+
+function getAllFlowers() {
+  var pool = [];
+  ["1","2","3","4","5"].forEach(function(k) {
+    FLOWERS[k].forEach(function(f) {
+      pool.push({ common: f.common, genus: f.genus, quiz: k });
+    });
+  });
+  return pool;
+}
+
+function getMissedMap() {
+  try { return JSON.parse(localStorage.getItem(MISSED_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function buildTracker() {
+  var missedMap = getMissedMap();
+  var all = getAllFlowers();
+  var maxMiss = 0;
+
+  /* Build scored list */
+  var scored = [];
+  var mastered = [];
+  all.forEach(function(f) {
+    var count = missedMap[f.common] || 0;
+    if (count > maxMiss) maxMiss = count;
+    if (count > 0) {
+      scored.push({ common: f.common, genus: f.genus, quiz: f.quiz, count: count });
+    } else {
+      mastered.push(f);
+    }
+  });
+
+  /* Sort by miss count descending */
+  scored.sort(function(a, b) { return b.count - a.count; });
+
+  /* Summary */
+  var summaryEl = document.getElementById('summaryBar');
+  summaryEl.innerHTML =
+    '<span class="trouble">' + scored.length + ' need work</span>' +
+    '<span class="solid">' + mastered.length + ' mastered</span>';
+
+  var content = document.getElementById('trackerContent');
+
+  if (scored.length === 0) {
+    content.innerHTML =
+      '<div class="empty-msg">No missed flowers yet! Use Flashcards or Speed Round to start tracking.</div>';
+    document.getElementById('actionsBar').style.display = 'none';
+    return;
+  }
+  document.getElementById('actionsBar').style.display = '';
+
+  var html = '';
+
+  scored.forEach(function(f, i) {
+    var pct = maxMiss > 0 ? (f.count / maxMiss * 100) : 0;
+    var bgClass = f.count >= 3 ? 'trouble-bg' : 'ok-bg';
+    html += '<div class="flower-row ' + bgClass + '">';
+    html += '<div class="rank">' + (i + 1) + '</div>';
+    html += '<div class="info">';
+    html += '<div class="common-name">' + f.common + '</div>';
+    html += '<div class="genus-name">' + f.genus + '</div>';
+    html += '<div class="quiz-tag">Quiz ' + f.quiz + ' — ' + QUIZ_NAMES[f.quiz] + '</div>';
+    html += '</div>';
+    html += '<div class="miss-count">' + f.count + '×</div>';
+    html += '<div class="miss-bar"><div class="miss-fill" style="width:' + pct + '%;"></div></div>';
+    html += '</div>';
+  });
+
+  /* Mastered section */
+  if (mastered.length > 0) {
+    html += '<div class="mastered-section">';
+    html += '<h2>✅ Mastered (' + mastered.length + '/50)</h2>';
+    html += '<div class="mastered-list">';
+    mastered.forEach(function(f) {
+      html += '<span class="mastered-chip">' + f.common + '</span>';
+    });
+    html += '</div></div>';
+  }
+
+  content.innerHTML = html;
+}
+
+function practiceWeakest() {
+  /* Navigate to flashcards with missed filter */
+  window.location.href = '/Academic-Allies/modular/static/floral-flashcards.html?filter=missed';
+}
+
+function clearData() {
+  if (!confirm('Reset all missed flower tracking data? This cannot be undone.')) return;
+  try { localStorage.removeItem(MISSED_KEY); } catch(e) {}
+  buildTracker();
+}
+
+buildTracker();
+</script>
+</body>
+</html>
