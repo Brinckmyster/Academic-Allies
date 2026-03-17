@@ -444,28 +444,71 @@
                 🔄 Show Different Options
             </button>
         </div>
-        <!-- Claude: 2026-03-17 — Flower quizzes moved to Study Tools for Winter 2026.
-             Replaced inline Flower ID Quiz + Genus Practice with redirect card.
-             Originals archived: recovery-mode_2026-03-17_pre-quiz-extraction.bak.html -->
-        <div class="card" data-rm-edit style="text-align:center;">
-            <h2>🌺 Flower Practice — Moved to Study Tools!</h2>
-            <p style="margin-bottom:14px; color:#555; font-size:14pt; line-height:1.6;">
-                Flower ID, Genus Practice, Match Game, Flashcards, Speed Round, and more are all in Study Tools now — organized for your Winter 2026 semester.
+        <!-- Flower Identification Quiz -->
+        <div class="card flower-quiz" data-rm-edit>
+            <h2>🌺 Flower Arranging Class Practice</h2>
+            <p style="margin-bottom: 10px;">Keep your skills fresh while you rest 💚</p>
+            <p style="font-size: 16pt; color: #666; margin-bottom: 15px;">All varieties — every flower gets equal time! 🌸</p>
+           
+            <!-- PICTURE FIRST -->
+            <img id="flower-image" class="flower-image" src="" alt="Flower to identify">
+            <div id="flower-hint" style="text-align: center; color: #6CA0A3; font-weight: 600; margin: 15px 0; font-size: 14pt; display: none;"></div>
+            
+            <!-- RESULT MESSAGE - appears above buttons after answer -->
+            <div id="quiz-result" style="background: #f0f4ff; padding: 15px; border-radius: 12px; margin: 15px 0; text-align: center; font-weight: 600; font-size: 18pt; border: 2px solid #6CA0A3;  min-height: 100px; max-height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span style="opacity: 0.5;">Select your answer...</span></div>
+            
+            <!-- BUTTONS - stay visible -->
+            <div class="quiz-buttons" id="quiz-options"></div>
+            <button class="btn" onclick="loadNewFlower()" id="next-flower-btn" style="margin-top:5px;" aria-label="Load next flower for quiz">🌸 Next Flower</button>
+            <button class="btn" onclick="reportWrongCategory()" style="background:#ff9500; margin-top:5px; display:none;" id="report-btn" aria-label="Report wrong flower category">⚠️ Report Wrong Category</button>
+            <button class="btn" onclick="viewReports()" style="background:#999; margin-top:10px;" aria-label="View submitted reports">📋 View Reports (<span id="report-count">0</span>)</button>
+            <div class="progress-bar">
+                <div class="progress-fill" id="quiz-progress" style="width: 0%"></div>
+            </div>
+            <p style="text-align: center; margin-top: 10px; color: #666;">
+                Flowers identified today: <span id="flower-count">0</span>
             </p>
+        </div>
+
+        <!-- Claude: 2026-03-17 — Study Tools card with links to hub and match game -->
+        <div class="card" data-rm-edit style="text-align:center;">
+            <h2>📚 Study Tools</h2>
+            <p style="margin-bottom:12px; color:#555; font-size:14pt;">Quiz games and study aids for your classes — match games, study sheets, and more.</p>
             <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
                 <a href="/Academic-Allies/modular/static/study-tools.html"
                    style="display:inline-block;padding:14px 24px;background:#6CA0A3;color:#fff;border-radius:14px;font-size:14pt;font-family:inherit;text-decoration:none;font-weight:600;min-height:19mm;line-height:19mm;">
-                    📚 Study Tools Hub
+                    Study Tools Hub 📚
                 </a>
-                <a href="/Academic-Allies/modular/static/floral-flower-id.html"
+                <a href="/Academic-Allies/modular/static/floral-match-game.html"
                    style="display:inline-block;padding:14px 24px;background:#4a7f82;color:#fff;border-radius:14px;font-size:14pt;font-family:inherit;text-decoration:none;font-weight:600;min-height:19mm;line-height:19mm;">
-                    🌺 Flower ID
-                </a>
-                <a href="/Academic-Allies/modular/static/floral-genus-practice.html"
-                   style="display:inline-block;padding:14px 24px;background:#4a7f82;color:#fff;border-radius:14px;font-size:14pt;font-family:inherit;text-decoration:none;font-weight:600;min-height:19mm;line-height:19mm;">
-                    🌿 Genus Practice
+                    Match Game 🎯
                 </a>
             </div>
+        </div>
+
+        <!-- Genus Practice Quiz — Added 2026-02-25 by Claude -->
+        <div class="card" data-rm-edit>
+            <h2>🌿 Genus Practice</h2>
+            <div style="background:#f0f7f8;border-left:4px solid #6CA0A3;border-radius:0 10px 10px 0;padding:10px 14px;font-size:14pt;color:#555;margin-bottom:14px;line-height:1.5;">
+                All quizzes — every flower tested. See a photo — pick the right answer.
+            </div>
+            <!-- Mode toggle -->
+            <div style="display:flex;gap:10px;margin-bottom:16px;">
+                <button id="gqModeGenus" onclick="gqSetMode('genus')"
+                    style="flex:1;padding:10px;border-radius:10px;border:2px solid #6CA0A3;background:#6CA0A3;color:#fff;font-family:inherit;font-size:14pt;cursor:pointer;min-height:19mm;">
+                    🔬 What's the genus?
+                </button>
+                <button id="gqModeCommon" onclick="gqSetMode('common')"
+                    style="flex:1;padding:10px;border-radius:10px;border:2px solid #ddd;background:#f0f4f5;color:#555;font-family:inherit;font-size:14pt;cursor:pointer;min-height:19mm;">
+                    🌸 Common name?
+                </button>
+            </div>
+            <div id="genusQuiz"></div>
+            <div id="genusScore" style="display:none;text-align:center;font-size:18pt;color:#6CA0A3;padding:20px 0;"></div>
+            <button id="genusRestart" onclick="gqStart()"
+                style="display:none;width:100%;padding:14px;background:#6CA0A3;color:#fff;border:none;border-radius:14px;font-size:16pt;font-family:inherit;cursor:pointer;margin-top:8px;min-height:19mm;">
+                Play Again 🌱
+            </button>
         </div>
 
         <!-- Tiny Self-Care Wins -->
@@ -614,13 +657,41 @@
             /* Claude-credit: was a placeholder alert — now navigates to actual page 2026-02-26 */
             window.location.href = '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html';
         }
-        /* Claude: 2026-03-17 — Flower Quiz JS removed (moved to standalone page:
-           modular/static/floral-flower-id.html). Archived in:
-           recovery-mode_2026-03-17_pre-quiz-extraction.bak.html */
-        var flowers = []; // kept as empty stub so reportWrongCategory/viewReports don't error
-        var currentFlower = null;
-        var flowerCount = 0;
-        var reportedFlowers = [];
+        // Flower Quiz — shuffle-deck so every flower appears equally before repeating
+        let flowers = [];
+        let flowerDeck = [];   // current shuffled deck (depleted as flowers are shown)
+
+        function shuffleDeck(arr) {
+            // Fisher-Yates shuffle into a fresh deck
+            var a = arr.slice();
+            for (var i = a.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+            }
+            return a;
+        }
+
+        function nextFromDeck() {
+            if (flowerDeck.length === 0) {
+                // All flowers seen — reshuffle entire set
+                flowerDeck = shuffleDeck(flowers);
+                console.log('[FlowerQuiz] Deck exhausted — reshuffled ' + flowerDeck.length + ' flowers');
+            }
+            return flowerDeck.pop();
+        }
+
+        fetch("../icons/flowers/flowers.json")
+          .then(r => r.json())
+          .then(data => {
+            flowers = data.flowers;
+            flowerDeck = shuffleDeck(flowers);
+            console.log("Loaded " + flowers.length + " flowers into shuffle deck");
+            loadNewFlower();
+          })
+          .catch(err => console.error("Failed to load flowers:", err));
+        let currentFlower = null;
+        let flowerCount = parseInt(localStorage.getItem('flowerCount') || '0');
+        document.getElementById('flower-count').textContent = flowerCount;
         // Comforting scriptures
         const comfortingScriptures = [
             { text: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.", reference: "Matthew 11:28" },
@@ -714,9 +785,133 @@
         // Default to Mary's options; swapped to generic after auth if not Mary.
         // See onAuthStateChanged below. Added 2026-02-28 by Claude.
         let mealOptions = maryMealOptions;
-        /* Claude: 2026-03-17 — Flower quiz functions (viewReports, reportWrongCategory,
-           loadNewFlower, checkAnswer) removed — moved to standalone page:
-           modular/static/floral-flower-id.html */
+        let reportedFlowers = JSON.parse(localStorage.getItem('reportedFlowers') || '[]');
+        function viewReports() {
+            if (reportedFlowers.length === 0) {
+                alert("No flowers reported yet!");
+                return;
+            }
+            const reportList = reportedFlowers.map(name => {
+                const flower = flowers.find(f => f.name === name);
+                return flower ? `• ${flower.name} - Quiz ${flower.quiz}` : `• ${name}`;
+            }).join("\n");
+            const message = `Reported Flowers (${reportedFlowers.length}):\n\n${reportList}\n\nCopy this list and send to Claude for corrections!`;
+            alert(message);
+        }
+        function reportWrongCategory() {
+            if (!reportedFlowers.includes(currentFlower.name)) {
+                reportedFlowers.push(currentFlower.name);
+                localStorage.setItem('reportedFlowers', JSON.stringify(reportedFlowers));
+                document.getElementById('report-count').textContent = reportedFlowers.length;
+                /* Claude: 2026-03-14 — replaced dorothy email check with AA_MIRROR_CAN_WRITE */
+                // Firebase sync (silent, non-blocking) — skip in read-only mirror mode
+                if (window.AA && AA.auth && AA.auth.currentUser) {
+                    if (!window.AA_MIRROR_UID || window.AA_MIRROR_CAN_WRITE) {
+                        var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+                        AA.patchFlowerQuiz(writeUid, { reportedFlowers: reportedFlowers });
+                    }
+                }
+                alert(`✅ Reported: ${currentFlower.name} - Quiz ${currentFlower.quiz}\n\nTotal reports: ${reportedFlowers.length}`);
+            } else {
+                alert(`Already reported: ${currentFlower.name}`);
+            }
+        }
+        function loadNewFlower() {
+            if (!flowers || flowers.length === 0) return;
+            
+            // Clear previous result and button states
+            document.getElementById('quiz-result').innerHTML = "<span style=\"opacity: 0.5;\">Select your answer...</span>";
+            const allButtons = document.querySelectorAll('.quiz-btn');
+            allButtons.forEach(btn => {
+                btn.classList.remove('correct', 'incorrect');
+                btn.disabled = false;
+            });
+            
+            currentFlower = nextFromDeck();
+            const correctAnswer = currentFlower.name;
+            const allNames = flowers.map(f => f.name).filter(n => n !== currentFlower.name);
+            const wrongAnswers = allNames.sort(() => Math.random() - 0.5).slice(0, 3);
+            const options = [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5);
+            const randomImage = currentFlower.images[Math.floor(Math.random() * currentFlower.images.length)];
+            document.getElementById('flower-image').src = randomImage;
+            const hintDiv = document.getElementById('flower-hint');
+            if (currentFlower.description) {
+                hintDiv.textContent = currentFlower.description;
+                hintDiv.style.display = 'block';
+            } else {
+                hintDiv.style.display = 'none';
+            }
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+           
+            options.forEach(option => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-btn';
+                btn.textContent = option;
+                btn.onclick = () => checkAnswer(option, btn, correctAnswer);
+                optionsContainer.appendChild(btn);
+            });
+           
+            document.getElementById('report-btn').style.display = 'block';
+        }
+        function checkAnswer(selected, button, correctAnswer) {
+            const allButtons = document.querySelectorAll('.quiz-btn');
+            allButtons.forEach(btn => btn.disabled = true);
+           
+            const correctMessages = [
+                `✨ Perfect! That's ${currentFlower.name}! Your class skills are sharp! ✨`,
+                `🌸 Yes! ${currentFlower.name} — your arranging eye is spot on today! 🌸`,
+                `🎉 Nailed it! That's ${currentFlower.name}. You're getting so good at this! 🎉`,
+                `💚 Spot on! ${currentFlower.name} — your flower knowledge is blooming beautifully! 💚`,
+                `🌟 Wonderful! That's exactly ${currentFlower.name}. Keep shining! 🌟`
+            ];
+            const incorrectMessages = [
+                `That's okay! It's ${currentFlower.name}. You're studying and that's what matters! 💜`,
+                `Close one! It's ${currentFlower.name} — you\'re learning fast and that's wonderful! 🌷`,
+                `No worries at all! That's ${currentFlower.name}. Every try helps your skills grow! 😊`,
+                `You're doing beautifully anyway! It's ${currentFlower.name} — keep going at your own pace. 💚`,
+                `All good! That's ${currentFlower.name}. Your effort is what shines through every time. ✨`
+            ];
+           
+            if (selected === correctAnswer) {
+                button.classList.add('correct');
+                flowerCount++;
+                localStorage.setItem('flowerCount', flowerCount);
+                document.getElementById('flower-count').textContent = flowerCount;
+                // Firebase sync — debounced so rapid answers don't hammer the DB
+                /* Claude: 2026-03-14 — replaced dorothy email check with AA_MIRROR_CAN_WRITE */
+                // Skip write in read-only mirror mode
+                clearTimeout(window._fcTimer);
+                window._fcTimer = setTimeout(function() {
+                    if (window.AA && AA.auth && AA.auth.currentUser) {
+                        if (!window.AA_MIRROR_UID || window.AA_MIRROR_CAN_WRITE) {
+                            var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+                            AA.patchFlowerQuiz(writeUid, { flowerCount: flowerCount });
+                        }
+                    }
+                }, 3000);
+                document.getElementById('quiz-progress').style.width = Math.min(flowerCount * 5, 100) + '%';
+               
+                const result = document.getElementById('quiz-result');
+                result.textContent = correctMessages[Math.floor(Math.random() * correctMessages.length)];
+                // Message stays visible
+            } else {
+                button.classList.add('incorrect');
+                const correctBtn = Array.from(allButtons).find(btn => btn.textContent === correctAnswer);
+                if (correctBtn) correctBtn.classList.add('correct');
+                const result = document.getElementById('quiz-result');
+                result.textContent = incorrectMessages[Math.floor(Math.random() * incorrectMessages.length)];
+                // Message stays visible
+            }
+            
+            // Don't clear the result - it stays visible until Next Flower is clicked
+            // Re-enable buttons after a short delay so user can click Next Flower
+            setTimeout(() => {
+                allButtons.forEach(btn => {
+                    btn.disabled = false;
+                });
+            }, 1000);
+        }
         function generateNewMeals() {
             const suggestions = document.getElementById('meal-suggestions');
             const breakfast = mealOptions.breakfast[Math.floor(Math.random() * mealOptions.breakfast.length)];
@@ -985,9 +1180,154 @@
         }
         // ── End Spoon Plan loader ──────────────────────────────────────────────
     </script>
-    <!-- Claude: 2026-03-17 — Genus Practice Quiz JS removed (moved to standalone page:
-         modular/static/floral-genus-practice.html). Archived in:
-         recovery-mode_2026-03-17_pre-quiz-extraction.bak.html -->
+    <script>
+        // ── Genus Practice Quiz — 2026-02-25 by Claude ────────────────────────
+        var GQ_FLOWERS = [
+            // Quiz 1–3
+            { image: "../icons/flowers/flower1-1Carnation.png",              genus: "Dianthus",        common: "Carnation" },
+            { image: "../icons/flowers/flower2-1 Daisy Pom.png",             genus: "Chrysanthemum",   common: "Daisy Pom" },
+            { image: "../icons/flowers/flower3-1 Rose.png",                  genus: "Rosa",             common: "Rose" },
+            { image: "../icons/flowers/flower4-1 Alstro.png",                genus: "Alstroemeria",    common: "Alstro" },
+            { image: "../icons/flowers/flower5-1 Lisianthus.png",            genus: "Eustoma",         common: "Lisianthus" },
+            { image: "../icons/flowers/flower6-1 Hydrangea.png",             genus: "Hydrangea",       common: "Hydrangea" },
+            { image: "../icons/flowers/flower7-1 Peony.png",                 genus: "Paeonia",         common: "Peony" },
+            { image: "../icons/flowers/flower8-1 Ranunculus.png",            genus: "Ranunculus",      common: "Ranunculus" },
+            { image: "../icons/flowers/flower9-1 Safari Sunset.png",         genus: "Leucadendron",    common: "Safari Sunset" },
+            { image: "../icons/flowers/flower10-1 China Aster.png",          genus: "Callistephus",    common: "China Aster" },
+            { image: "../icons/flowers/flower11-1 Snapdragon.png",           genus: "Antirrhinum",     common: "Snapdragon" },
+            { image: "../icons/flowers/flower12-1 Larkspur.png",             genus: "Consolida",       common: "Larkspur" },
+            { image: "../icons/flowers/flower13-1 Delphinium.png",           genus: "Delphinium",      common: "Delphinium" },
+            { image: "../icons/flowers/flower14-1 Liatris.png",              genus: "Liatris",         common: "Liatris" },
+            { image: "../icons/flowers/flower15-1 Gladiola.png",             genus: "Gladiolus",       common: "Gladiola" },
+            { image: "../icons/flowers/flower16-1 Stock.png",                genus: "Matthiola",       common: "Stock" },
+            /* Claude: 2026-03-10 — genus corrected from Daucus to Ammi per Mary’s note */
+            { image: "../icons/flowers/flower17-1 Queen Anne’s Lace.png", genus: "Ammi",          common: "Queen Anne’s Lace" },
+            { image: "../icons/flowers/flower18-1 Sea Holly.png",            genus: "Eryngium",        common: "Sea Holly" },
+            { image: "../icons/flowers/flower19-1 Hypericum Berries.png",    genus: "Hypericum",       common: "Hypericum Berries" },
+            { image: "../icons/flowers/flower20-1 Pixie Carnation.png",      genus: "Dianthus",        common: "Pixie Carnation" },
+            { image: "../icons/flowers/flower21-1 Waxflower.png",            genus: "Chamelaucium",    common: "Waxflower" },
+            { image: "../icons/flowers/flower22-1 Babies Breath.png",        genus: "Gypsophila",      common: "Babies Breath" },
+            { image: "../icons/flowers/flower23-1 Statice.png",              genus: "Limonium",        common: "Statice" },
+            { image: "../icons/flowers/flower24-1 Misty Blue.png",           genus: "Limonium",        common: "Misty Blue" },
+            { image: "../icons/flowers/flower25-1 Solidago.png",             genus: "Solidago",        common: "Solidago" },
+            { image: "../icons/flowers/flower26-1 Dendrobium Orchid.png",    genus: "Dendrobium",      common: "Dendrobium Orchid" },
+            { image: "../icons/flowers/flower27-1 Curly Willow.png",         genus: "Salix",           common: "Curly Willow" },
+            { image: "../icons/flowers/flower28-1 Baby Blue Eucalyptus.png", genus: "Eucalyptus",      common: "Baby Blue Eucalyptus" },
+            { image: "../icons/flowers/flower29-1 Bells of Ireland.png",     genus: "Moluccella",      common: "Bells of Ireland" },
+            { image: "../icons/flowers/flower30-1 Dianthus.jpg",             genus: "Dianthus",        common: "Dianthus" },
+            // Quiz 4–5
+            { image: "../icons/flowers/flower31-1 Iris.jpg",                 genus: "Iris",            common: "Iris" },
+            { image: "../icons/flowers/flower32-1 Lily.jpg",                 genus: "Lilium",          common: "Lily" },
+            { image: "../icons/flowers/flower33-1 Calla Lily.jpg",           genus: "Zantedeschia",    common: "Calla Lily" },
+            { image: "../icons/flowers/flower34-1 Gerber Daisy.jpg",         genus: "Gerbera",         common: "Gerber Daisy" },
+            { image: "../icons/flowers/flower35-1 Anthurium.jpg",            genus: "Anthurium",       common: "Anthurium" },
+            { image: "../icons/flowers/flower36-1 Billy Balls.jpg",          genus: "Craspedia",       common: "Billy Balls" },
+            { image: "../icons/flowers/flower37-1 Disbud Mum.jpg",           genus: "Chrysanthemum",   common: "Disbud Mum" },
+            { image: "../icons/flowers/flower38-1 Bird of Paradise.jpg",     genus: "Strelitzia",      common: "Bird of Paradise" },
+            { image: "../icons/flowers/flower39-1 Tulip.jpg",                genus: "Tulipa",          common: "Tulip" },
+            { image: "../icons/flowers/flower40-1 Sunflower.jpg",            genus: "Helianthus",      common: "Sunflower" },
+            { image: "../icons/flowers/flower41-1 Leather leaf.jpg",         genus: "Leucadendron",    common: "Leather Leaf" },
+            { image: "../icons/flowers/flower42-1 Bear Grass.jpg",           genus: "Xerophyllum",     common: "Bear Grass" },
+            { image: "../icons/flowers/flower43-1 Lilly Grass.jpg",          genus: "Liriope",         common: "Lilly Grass" },
+            { image: "../icons/flowers/flower44-1 Israeli Ruscus.png",       genus: "Ruscus",          common: "Israeli Ruscus" },
+            { image: "../icons/flowers/flower45-1 Salal.jpg",                genus: "Gaultheria",      common: "Salal" },
+            { image: "../icons/flowers/flower46-1 Grevillea.jpg",            genus: "Grevillea",       common: "Grevillea" },
+            { image: "../icons/flowers/flower47-1 Pitt.jpg",                 genus: "Pittosporum",     common: "Pitt" },
+            { image: "../icons/flowers/flower48-1 Myrtle.jpg",               genus: "Myrtus",          common: "Myrtle" },
+            { image: "../icons/flowers/flower49-1 Italian Ruscus.jpg",       genus: "Ruscus",          common: "Italian Ruscus" },
+        ]
+        var gqMode = 'genus', gqPool = [], gqIndex = 0, gqScore = 0, GQ_ROUNDS = 10;
+
+        function gqSetMode(mode) {
+            gqMode = mode;
+            var bg = document.getElementById('gqModeGenus');
+            var bc = document.getElementById('gqModeCommon');
+            bg.style.background = mode === 'genus' ? '#6CA0A3' : '#f0f4f5';
+            bg.style.color      = mode === 'genus' ? '#fff'     : '#555';
+            bg.style.border     = mode === 'genus' ? '2px solid #6CA0A3' : '2px solid #ddd';
+            bc.style.background = mode === 'common' ? '#6CA0A3' : '#f0f4f5';
+            bc.style.color      = mode === 'common' ? '#fff'     : '#555';
+            bc.style.border     = mode === 'common' ? '2px solid #6CA0A3' : '2px solid #ddd';
+            gqStart();
+        }
+
+        function gqShuffle(arr) {
+            var a = arr.slice();
+            for (var i = a.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var t = a[i]; a[i] = a[j]; a[j] = t;
+            }
+            return a;
+        }
+
+        function gqStart() {
+            gqPool  = gqShuffle(GQ_FLOWERS).slice(0, GQ_ROUNDS);
+            gqIndex = 0; gqScore = 0;
+            document.getElementById('genusScore').style.display   = 'none';
+            document.getElementById('genusRestart').style.display = 'none';
+            gqShowQuestion();
+        }
+
+        function gqShowQuestion() {
+            var container = document.getElementById('genusQuiz');
+            if (gqIndex >= gqPool.length) { gqShowScore(); return; }
+            var flower    = gqPool[gqIndex];
+            var isGenus   = (gqMode === 'genus');
+            var prompt    = isGenus ? flower.common : flower.genus;
+            var correct   = isGenus ? flower.genus  : flower.common;
+            var promptLbl = isGenus ? 'Common Name' : 'Genus';
+            var answerLbl = isGenus ? 'Genus'       : 'Common Name';
+            var others = gqShuffle(GQ_FLOWERS.filter(function(f) {
+                return (isGenus ? f.genus : f.common) !== correct;
+            })).slice(0, 3);
+            var options = gqShuffle([correct].concat(others.map(function(f) {
+                return isGenus ? f.genus : f.common;
+            })));
+            var correctIdx = options.indexOf(correct);
+            var imgSrc = flower.image;
+            var html = '<div style="text-align:center;">';
+            html += '<p style="font-size:13pt;color:#888;margin:0 0 8px;">Question ' + (gqIndex + 1) + ' of ' + gqPool.length + '</p>';
+            html += '<img src="' + imgSrc + '" '
+                 +  'style="width:240px;height:240px;object-fit:contain;border-radius:14px;box-shadow:0 3px 12px rgba(0,0,0,0.12);margin-bottom:14px;" '
+                 +  'alt="' + flower.common + '">';
+            html += '<p style="font-size:16pt;margin:0 0 6px;"><strong>' + promptLbl + ':</strong> ' + prompt + '</p>';
+            html += '<p style="font-size:13pt;color:#888;margin:0 0 12px;">↓ Pick the ' + answerLbl + '</p>';
+            html += '<div class="quiz-buttons">';
+            options.forEach(function(opt, i) {
+                html += '<button class="quiz-btn" onclick="gqAnswer(' + i + ',' + correctIdx + ')" '
+                     +  'style="font-size:14pt;padding:12px;min-height:19mm;">' + opt + '</button>';
+            });
+            html += '</div></div>';
+            container.innerHTML = html;
+        }
+
+        function gqAnswer(selected, correct) {
+            var btns = document.querySelectorAll('#genusQuiz .quiz-btn');
+            btns.forEach(function(b, i) {
+                b.disabled = true;
+                if (i === correct) b.classList.add('correct');
+                else if (i === selected) b.classList.add('incorrect');
+            });
+            if (selected === correct) gqScore++;
+            setTimeout(function() { gqIndex++; gqShowQuestion(); }, 1400);
+        }
+
+        function gqShowScore() {
+            document.getElementById('genusQuiz').innerHTML = '';
+            var pct = Math.round((gqScore / gqPool.length) * 100);
+            var msg = pct === 100 ? '🏆 Perfect! You know your genus!' :
+                      pct >= 70  ? '🌸 Nice work — keep practicing!' :
+                                   '🌱 Keep going — you\'re learning!';
+            document.getElementById('genusScore').innerHTML =
+                gqScore + ' / ' + gqPool.length + ' correct &nbsp;·&nbsp; ' + pct + '%<br>' +
+                '<span style="font-size:16pt;">' + msg + '</span>';
+            document.getElementById('genusScore').style.display   = 'block';
+            document.getElementById('genusRestart').style.display = 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() { gqStart(); });
+        if (document.readyState !== 'loading') { gqStart(); }
+    </script>
 
     <script>
         // ── Session tracking & new-day reset — Claude 2026-02-27 ──────────────
