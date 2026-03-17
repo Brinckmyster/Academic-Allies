@@ -883,10 +883,8 @@
       try { sessionStorage.removeItem('AA_RECORDING_ACTIVE'); } catch(e) {}
       stopSpeechRecognition();
       stopTimer();
-      /* Claude: 2026-03-16 — DO NOT stop periodic backup here. Keep it running
-         until the user actually saves or discards. This protects unsaved audio
-         on mobile where beforeunload is unreliable. Previously this was the gap
-         that caused Bruise's audio recordings to be lost. */
+      // Claude: 2026-03-06 — stop periodic transcript backup when recording ends
+      _stopTranscriptBackup();
       mediaRecorder.stop();
 
       recordBtn.textContent = '🎙️';
@@ -1082,8 +1080,6 @@
             // Claude: 2026-03-08 — hide draft action buttons after successful save
             var draftAct = document.getElementById('draftActions');
             if (draftAct) draftAct.style.display = 'none';
-            /* Claude: 2026-03-16 — NOW stop the periodic backup (audio is safely saved) */
-            _stopTranscriptBackup();
             audioChunks = [];
             transcript = '';
             interimText = '';
@@ -1546,8 +1542,6 @@
       /* Claude: 2026-03-08 — discard recovered draft (clears transcript, audio, and UI) */
       /* Claude: 2026-03-08 — discard recovered draft */
       window._discardDraft = function() {
-        /* Claude: 2026-03-16 — stop periodic backup on discard (user chose to throw it away) */
-        _stopTranscriptBackup();
         transcript = '';
         audioChunks = [];
         noteTitle = '';
@@ -1601,8 +1595,6 @@
             var liveEl = document.getElementById('liveTranscript');
             if (liveEl) { liveEl.style.display = 'none'; liveEl.textContent = ''; }
             transcript = '';
-            /* Claude: 2026-03-16 — stop periodic backup after Docs save */
-            _stopTranscriptBackup();
             var draftActions = document.getElementById('draftActions');
             if (draftActions) draftActions.style.display = 'none';
             var statusEl = document.getElementById('recordStatus');
@@ -1752,15 +1744,10 @@
         _saveEmergencyDraft(blob);
       }
 
-      /* Claude: 2026-03-16 — warn for BOTH active recording AND unsaved stopped audio.
-         Previously only warned during recording, so if Mary stopped recording and
-         accidentally tapped a link, no warning appeared and audio could be lost on mobile. */
-      if (isRecording || hasChunks) {
-        var msg = isRecording
-          ? 'Recording in progress — your audio is being saved. Tap "Stay" to keep recording, or leave to restore it later.'
-          : 'You have unsaved audio! Tap "Stay" to go back and save it, or leave to restore it later.';
+      // 3. Warn only if actively recording so user knows they can restore
+      if (isRecording) {
         e.preventDefault();
-        e.returnValue = msg;
+        e.returnValue = 'Recording in progress — your audio is being saved. Tap "Stay" to keep recording, or leave to restore it later.';
         return e.returnValue;
       }
     });
