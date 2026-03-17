@@ -1185,22 +1185,6 @@
       };
     });
 
-    /* Claude: 2026-03-16 — click-outside-to-close: tapping the overlay (not the modal content)
-       closes the modal and returns to save/discard options. Recording is NOT lost. */
-    catModal.onclick = function(e) {
-      if (e.target === catModal) {
-        catModal.classList.remove('open');
-        var draftAct = document.getElementById('draftActions');
-        if (draftAct && (transcript || (audioChunks && audioChunks.length))) {
-          draftAct.style.display = 'flex';
-          draftAct.style.justifyContent = 'center';
-          draftAct.style.gap = '8px';
-          draftAct.style.flexWrap = 'wrap';
-          recordStatus.textContent = 'What would you like to do with this recording?';
-        }
-      }
-    };
-
     document.getElementById('cancelCat').onclick = function() {
       catModal.classList.remove('open');
       // Claude: 2026-03-08 — re-show draftActions so user can still pick Docs or Discard
@@ -1298,12 +1282,7 @@
             clearTimeout(saveTimer);
             // Claude: 2026-03-05 — audit log compliance for audio note saves
             window.AA.logAccess('write', writeUid, 'audioNote');
-            /* Claude: 2026-03-16 — clear messaging about Drive success/failure */
-            if (driveResult) {
-              showToast('Note saved with audio link!', 4000);
-            } else {
-              showToast('⚠️ Note saved but audio upload failed — you can re-upload from the note card.', 6000);
-            }
+            showToast(driveResult ? 'Note saved with audio' : 'Note saved');
             recordStatus.textContent = 'Tap to start recording';
             liveTranscript.style.display = 'none';
             speechWarning.style.display = 'none';
@@ -1670,18 +1649,8 @@
           return;
         }
         var tx = db.transaction('drafts', 'readwrite');
-        var store = tx.objectStore('drafts');
-        var req = store.put(draft);
-        /* Claude: 2026-03-16 — detect IndexedDB quota exceeded and warn user */
-        req.onerror = function(evt) {
-          console.error('[AA] Emergency draft save failed:', evt.target.error);
-          /* Fall back to transcript-only localStorage save */
-          try { localStorage.setItem('AA_AUDIO_DRAFT_TEXT', draft.transcript); } catch(e2) {}
-          /* Only show toast if page is visible (not during pagehide) */
-          if (!document.hidden && typeof showToast === 'function') {
-            showToast('⚠️ Storage full — transcript saved but audio backup may be lost. Save to Drive now!', 8000);
-          }
-        };
+        tx.objectStore('drafts').put(draft);
+        // Silent on background saves; toasts only on sign-out path
       });
     }
 
@@ -2035,26 +2004,8 @@
        Archive: old version saved transcript-only to localStorage every 30s. */
     var _transcriptBackupTimer = null;
 
-    /* Claude: 2026-03-16 — REWRITTEN to fix memory explosion on long recordings.
-       OLD BEHAVIOR: rebuilt the ENTIRE audio blob from all chunks every 10 seconds.
-       For a 1-hour class recording (3600 chunks × ~100KB each = 360MB), this caused
-       massive memory churn and would crash the browser on phones.
-
-       NEW BEHAVIOR:
-       - Every 10 seconds: save transcript + metadata to localStorage (fast, tiny)
-       - Every 5 minutes: save full audio blob to IndexedDB (one big write, infrequent)
-       - Critical events (visibilitychange, beforeunload, pagehide, sign-out)
-         still do a full blob save immediately — those handlers are unchanged.
-
-       This means the worst case for audio loss is 5 minutes instead of 10 seconds,
-       but memory usage stays flat instead of growing quadratically. For Mary's
-       1-hour class recordings, this is the difference between working and crashing. */
-    var _lastFullBlobSave = 0; /* timestamp of last full IndexedDB blob save */
-    var BLOB_SAVE_INTERVAL = 5 * 60 * 1000; /* 5 minutes between full blob saves */
-
     function _startTranscriptBackup() {
       _stopTranscriptBackup();
-      _lastFullBlobSave = Date.now(); /* first full save happens in 5 min, not immediately */
       _transcriptBackupTimer = setInterval(function () {
         // Claude 2026-03-07: reset session timeout on every tick so a long recording
         // is never killed by inactivity — even if the screen locked and the OS paused
@@ -2064,23 +2015,23 @@
         var t = (transcript || '').trim();
         var hasChunks = audioChunks && audioChunks.length > 0;
 
-        // Every 10 seconds: save transcript + metadata to localStorage (fast, tiny)
+        // Claude: 2026-03-08 — save transcript to localStorage (fast, synchronous)
+        // Even if transcript is empty, save a marker that audio exists
         if (t || hasChunks) {
           try {
             localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
               transcript: t,
               title:      (document.getElementById('noteTitleInput') || {}).value || '',
               hasAudio:   hasChunks,
-              chunkCount: audioChunks ? audioChunks.length : 0,
               savedAt:    new Date().toISOString()
             }));
           } catch (e) {}
         }
 
-        // Every 5 minutes: save full audio blob to IndexedDB
-        var now = Date.now();
-        if ((hasChunks || t) && (now - _lastFullBlobSave) >= BLOB_SAVE_INTERVAL) {
-          _lastFullBlobSave = now;
+        // Claude: 2026-03-08 — save FULL draft (audio + transcript) to IndexedDB
+        // This is the critical fix: on mobile, unload events are unreliable,
+        // so we save during recording instead of waiting for page death.
+        if (hasChunks || t) {
           try {
             var blob = hasChunks ? new Blob(audioChunks, { type: recordingMimeType }) : null;
             _openDraftDB(function(db) {
@@ -2099,13 +2050,13 @@
               };
               var tx = db.transaction('drafts', 'readwrite');
               tx.objectStore('drafts').put(draft);
-              console.log('[AA] Full audio blob backed up to IndexedDB (' + (audioChunks ? audioChunks.length : 0) + ' chunks)');
+              // Silent — no toast, this is background save
             });
           } catch(e) {
             console.warn('[AudioNotes] Periodic IndexedDB backup failed:', e);
           }
         }
-      }, 10000); // every 10 seconds for transcript; full blob only every 5 minutes
+      }, 10000); // every 10 seconds (was 30s — tighter window for mobile survival)
     }
 
     function _stopTranscriptBackup() {
