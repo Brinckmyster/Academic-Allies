@@ -1,7 +1,8 @@
 <!-- shared-footer.html — Academic Allies site footer
      Claude: 2026-03-12 — extracted from shared-header.html.
+     Claude: 2026-03-16 — added check-in reminder nudge + quick check-in panel.
      Loaded via fetch on every page, same as shared-header.
-     Contains: site footer links + attribution credit bar. -->
+     Contains: site footer links + attribution credit bar + nudge system. -->
 
 <style>
 /* ── Site footer ──────────────────────────────────────── */
@@ -47,14 +48,317 @@
 }
 #aa-credit-footer a { color: #6CA0A3; text-decoration: none; }
 #aa-credit-footer a:hover { text-decoration: underline; }
+
+/* ── Check-in nudge banner ────────────────────────────── */
+/* Claude: 2026-03-16 — soft gentle nudge for daily check-in reminder */
+#aa-nudge-banner {
+  position: fixed;
+  bottom: 28px;
+  left: 0;
+  right: 0;
+  background: rgba(108, 160, 163, 0.95);
+  border-top: 2px solid #6CA0A3;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #fff;
+  text-align: center;
+  z-index: 600;
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  animation: slideUp 0.3s ease-out;
+}
+
+html.aa-dark #aa-nudge-banner {
+  background: rgba(77, 120, 123, 0.95);
+  border-top-color: #6CA0A3;
+}
+
+body.reduced-motion #aa-nudge-banner {
+  animation: none;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+#aa-nudge-banner.show {
+  display: flex;
+}
+
+#aa-nudge-banner .nudge-msg {
+  flex: 1;
+  min-width: 180px;
+  text-align: center;
+}
+
+#aa-nudge-banner button,
+#aa-nudge-banner a {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  white-space: nowrap;
+  min-height: 32px;
+  transition: background 0.15s, color 0.15s;
+}
+
+#aa-nudge-banner .nudge-quick-btn {
+  background: #fff;
+  color: #4d787b;
+  border: none;
+}
+
+#aa-nudge-banner .nudge-quick-btn:hover {
+  background: #f0f0f0;
+}
+
+#aa-nudge-banner .nudge-full-link {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: 1px solid #fff;
+}
+
+#aa-nudge-banner .nudge-full-link:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#aa-nudge-banner .nudge-dismiss {
+  background: transparent;
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  padding: 2px 6px;
+  cursor: pointer;
+  min-height: auto;
+}
+
+#aa-nudge-banner .nudge-dismiss:hover {
+  opacity: 0.8;
+}
+
+/* ── Quick check-in panel ────────────────────────────── */
+#aa-quickcheckin-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: none;
+  z-index: 1000;
+  align-items: flex-end;
+  animation: fadeIn 0.2s ease-out;
+}
+
+body.reduced-motion #aa-quickcheckin-overlay {
+  animation: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+#aa-quickcheckin-overlay.show {
+  display: flex;
+}
+
+#aa-quickcheckin-panel {
+  background: #fff;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  padding: 20px;
+  max-width: 100%;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideUpPanel 0.3s ease-out;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+}
+
+html.aa-dark #aa-quickcheckin-panel {
+  background: #1e1e1e;
+  color: #e0e0e0;
+}
+
+body.reduced-motion #aa-quickcheckin-panel {
+  animation: none;
+}
+
+@keyframes slideUpPanel {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 500px) {
+  #aa-quickcheckin-panel {
+    width: 90%;
+    max-width: 450px;
+    border-radius: 12px;
+    margin: auto;
+  }
+
+  #aa-quickcheckin-overlay {
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+#aa-quickcheckin-panel h2 {
+  font-size: 1.3rem;
+  color: #4d787b;
+  margin: 0 0 20px 0;
+  text-align: center;
+  font-family: 'Atkinson Hyperlegible', sans-serif;
+}
+
+html.aa-dark #aa-quickcheckin-panel h2 {
+  color: #6CA0A3;
+}
+
+.aa-quickcheckin-emojis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+
+.aa-quickcheckin-emoji-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border: 2px solid #D9E4E5;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: center;
+  min-width: 60px;
+  min-height: 60px;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: inherit;
+  justify-content: center;
+}
+
+html.aa-dark .aa-quickcheckin-emoji-btn {
+  background: #2a2a2a;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+.aa-quickcheckin-emoji-btn:hover {
+  border-color: #6CA0A3;
+}
+
+.aa-quickcheckin-emoji-btn .em {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.aa-quickcheckin-emoji-btn .lbl {
+  font-size: 0.65rem;
+  color: #5a6a6b;
+  line-height: 1.2;
+  margin-top: 4px;
+  display: none;
+}
+
+html.aa-dark .aa-quickcheckin-emoji-btn .lbl {
+  color: #aaa;
+}
+
+.aa-quickcheckin-emoji-btn.sel-g {
+  background: #e6f4ea;
+  border-color: #28a745;
+}
+
+html.aa-dark .aa-quickcheckin-emoji-btn.sel-g {
+  background: rgba(40, 167, 69, 0.2);
+  border-color: #28a745;
+}
+
+.aa-quickcheckin-emoji-btn.sel-y {
+  background: #fff9e6;
+  border-color: #ffc107;
+}
+
+html.aa-dark .aa-quickcheckin-emoji-btn.sel-y {
+  background: rgba(255, 193, 7, 0.2);
+  border-color: #ffc107;
+}
+
+.aa-quickcheckin-emoji-btn.sel-o {
+  background: #fff3e0;
+  border-color: #fd7e14;
+}
+
+html.aa-dark .aa-quickcheckin-emoji-btn.sel-o {
+  background: rgba(253, 126, 20, 0.2);
+  border-color: #fd7e14;
+}
+
+.aa-quickcheckin-emoji-btn.sel-r {
+  background: #fde8ea;
+  border-color: #dc3545;
+}
+
+html.aa-dark .aa-quickcheckin-emoji-btn.sel-r {
+  background: rgba(220, 53, 69, 0.2);
+  border-color: #dc3545;
+}
+
+#aa-quickcheckin-status {
+  text-align: center;
+  font-size: 14px;
+  color: #5a6a6b;
+  min-height: 20px;
+  margin-top: 12px;
+}
+
+html.aa-dark #aa-quickcheckin-status {
+  color: #aaa;
+}
+
+#aa-quickcheckin-status.saving {
+  color: #6CA0A3;
+  font-weight: 700;
+}
+
+#aa-quickcheckin-status.saved {
+  color: #28a745;
+  font-weight: 700;
+}
 </style>
 
 <!-- Site footer (links) — only injected if page doesn't already have one -->
 <script>
 (function() {
   /* Claude: 2026-03-12 — add body padding so fixed credit bar doesn't overlap content.
-     Archive: shared-footer_2026-03-12_pre-overlap-fix.bak.html */
-  document.body.style.paddingBottom = '32px';
+     Archive: shared-footer_2026-03-12_pre-overlap-fix.bak.html
+     Claude: 2026-03-16 — increased to 60px to accommodate nudge + credit bars */
+  document.body.style.paddingBottom = '60px';
 
   if (document.querySelector('.site-footer') || document.querySelector('footer.site-footer')) return;
   var f = document.createElement('footer');
@@ -71,8 +375,230 @@
 })();
 </script>
 
+<!-- Check-in nudge banner and quick check-in panel -->
+<div id="aa-nudge-banner" role="status" aria-live="polite" aria-label="Check-in reminder">
+  <span class="nudge-msg">Haven't checked in yet today — tap here for a quick one!</span>
+  <button class="nudge-quick-btn" id="aa-nudge-quick-btn" aria-label="Quick check-in">Quick Check-In</button>
+  <a href="/Academic-Allies/modular/checkin.html" class="nudge-full-link" aria-label="Full daily check-in">Full Check-In →</a>
+  <button class="nudge-dismiss" id="aa-nudge-dismiss" aria-label="Dismiss nudge">✕</button>
+</div>
+
+<!-- Quick check-in overlay and panel -->
+<div id="aa-quickcheckin-overlay">
+  <div id="aa-quickcheckin-panel">
+    <h2>How are you feeling?</h2>
+    <div class="aa-quickcheckin-emojis" id="aa-quickcheckin-emojis"></div>
+    <div id="aa-quickcheckin-status"></div>
+  </div>
+</div>
+
 <!-- Attribution credit bar -->
 <div id="aa-credit-footer">
   Originally scaffolded with <a href="https://www.perplexity.ai" target="_blank" rel="noopener">Perplexity AI</a>
   &nbsp;&middot;&nbsp; Continued development with <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a> &mdash; Anthropic
 </div>
+
+<script>
+/* Claude: 2026-03-16 — Check-in nudge system with quick check-in panel */
+(function() {
+  var EMOJIS = [
+    { e:'😁', lbl:'Fully Charged',      t:'g', v:1  },
+    { e:'😊', lbl:'Energized',           t:'g', v:2  },
+    { e:'🙂', lbl:'Pretty Good',         t:'g', v:3  },
+    { e:'🙂', lbl:'Doing Okay',          t:'g', v:4  },
+    { e:'😐', lbl:'Neutral',             t:'y', v:5  },
+    { e:'😕', lbl:'Starting to Tire',    t:'o', v:6  },
+    { e:'😟', lbl:'Pretty Tired',        t:'o', v:7  },
+    { e:'😫', lbl:'Very Exhausted',      t:'r', v:8  },
+    { e:'😩', lbl:'Almost Empty',        t:'r', v:9  },
+    { e:'☠️', lbl:'Completely Depleted', t:'r', v:10 }
+  ];
+
+  var nudgeBanner = document.getElementById('aa-nudge-banner');
+  var quickcheckinOverlay = document.getElementById('aa-quickcheckin-overlay');
+  var quickcheckinPanel = document.getElementById('aa-quickcheckin-panel');
+  var emojisContainer = document.getElementById('aa-quickcheckin-emojis');
+  var statusMsg = document.getElementById('aa-quickcheckin-status');
+  var quickBtn = document.getElementById('aa-nudge-quick-btn');
+  var dismissBtn = document.getElementById('aa-nudge-dismiss');
+
+  function getTodayKey() {
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = String(now.getMonth() + 1).padStart(2, '0');
+    var d = String(now.getDate()).padStart(2, '0');
+    return 'checkins_' + y + '-' + m + '-' + d;
+  }
+
+  function buildEmojiButtons() {
+    emojisContainer.innerHTML = '';
+    EMOJIS.forEach(function(emoji) {
+      var btn = document.createElement('button');
+      btn.className = 'aa-quickcheckin-emoji-btn';
+      btn.setAttribute('aria-label', emoji.lbl + ', energy level ' + emoji.v);
+      btn.innerHTML = '<span class="em">' + emoji.e + '</span>'
+        + '<span class="lbl">' + emoji.lbl + '</span>';
+      btn.onclick = function() {
+        saveQuickCheckin(emoji);
+      };
+      emojisContainer.appendChild(btn);
+    });
+  }
+
+  function saveQuickCheckin(emoji) {
+    if (window.AA_MIRROR_UID) {
+      return;
+    }
+
+    statusMsg.textContent = 'Saving...';
+    statusMsg.className = 'saving';
+
+    try {
+      var todayKey = getTodayKey();
+      var checkinsArray = [];
+      try {
+        var stored = localStorage.getItem(todayKey);
+        if (stored) {
+          checkinsArray = JSON.parse(stored);
+        }
+      } catch (e) {}
+
+      /* Claude: 2026-03-16 — map single-letter flag to full word for Firestore compat */
+      var FLAG_FULL = { g: 'green', y: 'yellow', o: 'orange', r: 'red' };
+      var flag = FLAG_FULL[emoji.t] || 'green';
+      var entry = {
+        timestamp: new Date().toISOString(),
+        bbdMode: false,
+        categories: {
+          mental: {
+            gateway: 'yes',
+            checked: [],
+            emojiV: emoji.v,
+            mood: emoji.lbl,
+            note: ''
+          }
+        },
+        basics: [],
+        thumping: false,
+        emergency: false,
+        finalNote: '(Quick check-in)',
+        energyLevel: emoji.v,
+        mood: emoji.lbl,
+        symptoms: false,
+        symptomList: [],
+        support: false,
+        planner: false,
+        flag: flag,
+        quickCheckin: true
+      };
+
+      checkinsArray.push(entry);
+
+      try {
+        localStorage.setItem(todayKey, JSON.stringify(checkinsArray));
+      } catch (e) {
+        console.error('localStorage error:', e);
+      }
+
+      /* Claude: 2026-03-16 — strip 'checkins_' prefix for Firestore dateKey (YYYY-MM-DD) */
+      if (window.AA && window.AA.auth && window.AA.auth.currentUser && window.AA.saveCheckin) {
+        var firestoreDateKey = todayKey.replace('checkins_', '');
+        window.AA.saveCheckin(window.AA.auth.currentUser.uid, firestoreDateKey, entry);
+      }
+
+      /* Claude: 2026-03-16 — notify supporters on non-green quick check-ins */
+      if (flag !== 'green' && window.AA && window.AA.auth && window.AA.auth.currentUser && window.AA.addNotification) {
+        var msg = 'Quick check-in logged: ' + emoji.lbl + ' (' + flag + ' flag)';
+        window.AA.addNotification(window.AA.auth.currentUser.uid, flag + '_flag', msg);
+      }
+
+      statusMsg.textContent = 'Saved! 💛';
+      statusMsg.className = 'saved';
+
+      setTimeout(function() {
+        hideNudgeAndPanel();
+      }, 1000);
+
+    } catch (e) {
+      console.error('Quick check-in error:', e);
+      statusMsg.textContent = 'Error saving. Try the full check-in.';
+      statusMsg.className = '';
+    }
+  }
+
+  function hideNudgeAndPanel() {
+    if (nudgeBanner) nudgeBanner.classList.remove('show');
+    if (quickcheckinOverlay) quickcheckinOverlay.classList.remove('show');
+    try {
+      sessionStorage.setItem('AA_NUDGE_DISMISSED', 'true');
+    } catch (e) {}
+  }
+
+  function showNudge() {
+    if (!nudgeBanner) return;
+    if (window.AA_MIRROR_UID) return;
+    if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
+    if (location.pathname.indexOf('checkin') !== -1) return;
+
+    try {
+      if (sessionStorage.getItem('AA_NUDGE_DISMISSED')) return;
+    } catch (e) {}
+
+    var todayKey = getTodayKey();
+    try {
+      var stored = localStorage.getItem(todayKey);
+      if (stored) {
+        var checkinsArray = JSON.parse(stored);
+        if (checkinsArray && checkinsArray.length > 0) {
+          return;
+        }
+      }
+    } catch (e) {}
+
+    nudgeBanner.classList.add('show');
+  }
+
+  function checkAndShowNudge() {
+    var attempts = 0;
+    var maxAttempts = 6;
+
+    var pollInterval = setInterval(function() {
+      attempts++;
+
+      if (window.AA && window.AA.auth && window.AA.auth.currentUser) {
+        clearInterval(pollInterval);
+        setTimeout(showNudge, 3000);
+        return;
+      }
+
+      if (attempts >= maxAttempts) {
+        clearInterval(pollInterval);
+      }
+    }, 5000);
+  }
+
+  if (quickBtn) {
+    quickBtn.onclick = function() {
+      if (quickcheckinOverlay) {
+        quickcheckinOverlay.classList.add('show');
+      }
+      buildEmojiButtons();
+      statusMsg.textContent = '';
+    };
+  }
+
+  if (dismissBtn) {
+    dismissBtn.onclick = hideNudgeAndPanel;
+  }
+
+  if (quickcheckinOverlay) {
+    quickcheckinOverlay.onclick = function(e) {
+      if (e.target === quickcheckinOverlay) {
+        hideNudgeAndPanel();
+      }
+    };
+  }
+
+  checkAndShowNudge();
+})();
+</script>
