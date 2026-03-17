@@ -821,51 +821,6 @@
       return '';  // let browser pick default
     }
 
-    /* Claude: 2026-03-16 — recover from a dead MediaRecorder. This happens when:
-       - User hits F5, gets beforeunload "Stay" dialog, clicks Stay — browser may kill the recorder
-       - Bluetooth headset disconnects mid-recording
-       - Browser throttles the tab and kills the audio stream
-       - Any MediaRecorder.onerror fires
-       We DON'T throw away the chunks — we show the save/discard UI with whatever we captured. */
-    function _recoverFromRecorderDeath(reason) {
-      console.warn('[AudioNotes] Recovering from recorder death:', reason);
-      /* Clean up recording state */
-      window.AA_isRecording = false;
-      try { sessionStorage.removeItem('AA_RECORDING_ACTIVE'); } catch(e) {}
-      stopSpeechRecognition();
-      stopTimer();
-
-      /* Update UI to show what happened + offer save/discard */
-      recordBtn.textContent = '🎙️';
-      recordBtn.classList.remove('recording');
-      recordBtn.title = 'Tap to record';
-      if (noteTitleInput) noteTitleInput.disabled = false;
-
-      var hasChunks = audioChunks && audioChunks.length > 0;
-      var hasTxt = transcript && transcript.trim();
-
-      if (hasChunks || hasTxt) {
-        recordStatus.textContent = '⚠️ Recording interrupted — but your audio was saved! Choose what to do:';
-        recordStatus.style.color = '#ffc107';
-        var draftActions = document.getElementById('draftActions');
-        if (draftActions) {
-          draftActions.style.display = 'flex';
-          draftActions.style.justifyContent = 'center';
-          draftActions.style.gap = '8px';
-          draftActions.style.flexWrap = 'wrap';
-        }
-        /* Do one final emergency save to IndexedDB so it survives another crash */
-        try {
-          var blob = new Blob(audioChunks, { type: recordingMimeType });
-          _saveEmergencyDraft(blob);
-        } catch(e) {}
-        showToast('Recording interrupted — your audio is safe. Save it now!', 6000);
-      } else {
-        recordStatus.textContent = '⚠️ Recording interrupted — no audio was captured.';
-        recordStatus.style.color = '#dc3545';
-      }
-    }
-
     function startRecording() {
       // Claude: 2026-03-05 — capture title at start of recording
       noteTitle = noteTitleInput ? noteTitleInput.value.trim() : '';
@@ -882,13 +837,6 @@
           mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
           mediaRecorder.onstop = function() {
             stream.getTracks().forEach(function(t) { t.stop(); });
-          };
-          /* Claude: 2026-03-16 — detect recorder death (e.g. after beforeunload "Stay",
-             browser killing the stream, or hardware disconnection). When this fires,
-             recover whatever chunks we have and show save/discard options. */
-          mediaRecorder.onerror = function(evt) {
-            console.error('[AudioNotes] MediaRecorder error:', evt.error || evt);
-            _recoverFromRecorderDeath('The recorder encountered an error.');
           };
           /* Claude 2026-03-07: 10s timeslice — ondataavailable fires every 10s so
              audioChunks fills DURING recording, not only on stop. This means
@@ -1004,21 +952,6 @@
       }
 
       // ── Page becoming visible again ──
-      /* Claude: 2026-03-16 — health check: is the recorder still alive?
-         After beforeunload "Stay", the browser may have killed the MediaRecorder
-         or its audio stream. Detect this and recover instead of leaving the user
-         staring at a broken recording UI with no way to save. */
-      if (window.AA_isRecording || (recordBtn && recordBtn.classList.contains('recording'))) {
-        var recorderDead = !mediaRecorder
-          || mediaRecorder.state === 'inactive'
-          || (mediaRecorder.stream && mediaRecorder.stream.getTracks().every(function(t) { return t.readyState === 'ended'; }));
-        if (recorderDead) {
-          console.warn('[AA] Recorder found dead after visibility restore');
-          _recoverFromRecorderDeath('Recorder stopped while page was hidden or after refresh dialog.');
-          return; /* skip SR restart — recorder is dead */
-        }
-      }
-
       // Reset session timer so screen-lock can't trigger a sign-out
       if (window.AA_isRecording || sessionStorage.getItem('AA_RECORDING_ACTIVE')) {
         if (window.AA_resetSessionTimer) {
