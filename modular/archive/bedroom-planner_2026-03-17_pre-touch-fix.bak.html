@@ -23,7 +23,7 @@
   .ph{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;font-weight:500;color:var(--paper);padding:7px 11px;background:var(--ink);}
   .pb{padding:9px;}
   .flist{display:flex;flex-direction:column;gap:4px;}
-  .chip{padding:6px 9px;border-radius:4px;font-size:.65rem;cursor:grab;user-select:none;border:1.5px solid transparent;transition:border-color .12s;touch-action:none;}
+  .chip{padding:6px 9px;border-radius:4px;font-size:.65rem;cursor:grab;user-select:none;border:1.5px solid transparent;transition:border-color .12s;}
   .chip:active{cursor:grabbing;}
   .cn{font-weight:500;display:block;}
   .cd{font-size:.58rem;color:var(--muted);}
@@ -47,14 +47,13 @@
   .cwrap{background:var(--paper);border:1.5px solid rgba(26,18,8,.12);border-radius:5px;padding:14px 72px 40px 72px;}
   .clabel{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:28px;}
   .router{position:relative;}
-  /* Claude: 2026-03-17 — touch-action:none prevents browser scroll-hijack on mobile drag */
-  .room{position:relative;background:#fefcf5;border:3px solid var(--ink);touch-action:none;}
+  .room{position:relative;background:#fefcf5;border:3px solid var(--ink);}
   .room::before{content:'';position:absolute;inset:0;
     background-image:linear-gradient(rgba(26,18,8,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(26,18,8,.04) 1px,transparent 1px);
     background-size:var(--gx) var(--gy);pointer-events:none;z-index:0;}
   .furn{position:absolute;z-index:10;display:flex;align-items:center;justify-content:center;
         font-size:.55rem;font-family:'DM Mono',monospace;text-align:center;border-radius:2px;
-        user-select:none;cursor:grab;border:1.5px solid transparent;overflow:hidden;padding:2px;line-height:1.3;touch-action:none;}
+        user-select:none;cursor:grab;border:1.5px solid transparent;overflow:hidden;padding:2px;line-height:1.3;}
   .furn:active{cursor:grabbing;}
   .furn.mo{background:rgba(61,107,82,.18);border-color:var(--green);color:#1a3d28;}
   .furn.fs{background:rgba(90,61,138,.15);border-color:var(--purple);color:#2d1a55;}
@@ -432,7 +431,7 @@ function updateSidebar(){
       c.innerHTML=`<span class="cn">${d.name}</span><span class="cd">${d.w}"×${d.l}" · ${d.height}" tall</span>`;
       if(!inRoom){
         c.addEventListener('mousedown',e=>{if(e.button!==0)return;sdrag=d.id;e.preventDefault();});
-        c.addEventListener('touchstart',e=>{e.preventDefault();sdrag=d.id;},{passive:false});
+        c.addEventListener('touchstart',()=>{sdrag=d.id;},{passive:true});
       }
       list.appendChild(c);
     });
@@ -559,9 +558,6 @@ document.addEventListener('mouseup',e=>{
 });
 room.addEventListener('mousedown',e=>{if(e.target===room){sel=null;render();}});
 croom.addEventListener('mousedown',e=>{if(e.target===croom){sel=null;render();}});
-/* Claude: 2026-03-17 — touch deselect on empty room tap */
-room.addEventListener('touchstart',e=>{if(e.target===room){sel=null;render();}},{passive:true});
-croom.addEventListener('touchstart',e=>{if(e.target===croom){sel=null;render();}},{passive:true});
 function onFurnTouch(e){
   e.preventDefault();
   const t=e.touches[0],id=e.currentTarget.dataset.id;
