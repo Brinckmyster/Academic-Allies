@@ -68,17 +68,30 @@
      sessionStorage mirrors the pref as a same-tab backup: if localStorage is wiped
      mid-session the current tab stays on LOCAL rather than unknowingly flipping. */
   (function _stampPersistPref() {
-    if (localStorage.getItem('AA_KEEP_SIGNED_IN') === null) {
-      localStorage.setItem('AA_KEEP_SIGNED_IN', 'true'); // explicit stamp — LOCAL by default
+    /* Claude: 2026-03-16 — safe storage read/write for persistence pref */
+    try {
+      if (localStorage.getItem('AA_KEEP_SIGNED_IN') === null) {
+        localStorage.setItem('AA_KEEP_SIGNED_IN', 'true'); // explicit stamp — LOCAL by default
+      }
+      // Short-term mirror so we survive a localStorage wipe within the same tab.
+      sessionStorage.setItem('AA_KEEP_SIGNED_IN_SS', localStorage.getItem('AA_KEEP_SIGNED_IN'));
+    } catch (e) {
+      console.warn('[AA] localStorage persistence pref failed:', e.message);
     }
-    // Short-term mirror so we survive a localStorage wipe within the same tab.
-    sessionStorage.setItem('AA_KEEP_SIGNED_IN_SS', localStorage.getItem('AA_KEEP_SIGNED_IN'));
   }());
 
   /* Resolve: prefer localStorage; fall back to sessionStorage mirror if LS was cleared. */
-  var _keepSignedIn = (localStorage.getItem('AA_KEEP_SIGNED_IN')
-                       || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
-  console.log('[AA] Persistence preference: ' + (_keepSignedIn ? 'LOCAL' : 'SESSION') + ' | AA_KEEP_SIGNED_IN=' + localStorage.getItem('AA_KEEP_SIGNED_IN'));
+  /* Claude: 2026-03-16 — safe storage read for persistence pref */
+  var _keepSignedInValue = null;
+  var _keepSignedInDisplay = null;
+  try {
+    _keepSignedInValue = localStorage.getItem('AA_KEEP_SIGNED_IN');
+    _keepSignedInDisplay = localStorage.getItem('AA_KEEP_SIGNED_IN');
+  } catch (e) {
+    console.warn('[AA] localStorage read failed (using fallback):', e.message);
+  }
+  var _keepSignedIn = (_keepSignedInValue || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
+  console.log('[AA] Persistence preference: ' + (_keepSignedIn ? 'LOCAL' : 'SESSION') + ' | AA_KEEP_SIGNED_IN=' + (_keepSignedInDisplay || 'unavailable'));
 
   /* Only call setPersistence when the user opted into SESSION (non-default).
      LOCAL is Firebase's default — calling setPersistence(LOCAL) redundantly
@@ -1458,7 +1471,13 @@
       String(now.getMonth() + 1).padStart(2, '0') + '-' +
       String(now.getDate()).padStart(2, '0');
     var throttleKey = 'AA_MEAL_ALERT_' + dateKey;
-    if (localStorage.getItem(throttleKey)) return Promise.resolve(false);
+    /* Claude: 2026-03-16 — safe storage read for throttle key */
+    try {
+      if (localStorage.getItem(throttleKey)) return Promise.resolve(false);
+    } catch (e) {
+      console.warn('[AA] localStorage throttle read failed:', e.message);
+      // Fall through if read fails — better to fire alert twice than not at all
+    }
 
     /* Read student's alert config (default: alert after 2 PM / 14:00) */
     return db.collection('users').doc(uid).get().then(function (userDoc) {
@@ -1475,7 +1494,12 @@
           if (meals.length > 0) return false; /* student has eaten — all good */
 
           /* No meals logged past the alert hour — fire notification */
-          localStorage.setItem(throttleKey, '1');
+          /* Claude: 2026-03-16 — safe storage write for throttle key */
+          try {
+            localStorage.setItem(throttleKey, '1');
+          } catch (e) {
+            console.warn('[AA] localStorage throttle write failed:', e.message);
+          }
           return window.AA.addNotification(uid, 'missed_meal',
             '🍽️ No meals logged today as of ' +
               now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

@@ -456,28 +456,20 @@ function persistContacts() {
   /* Claude: 2026-03-13 — mirror guard: supporters cannot modify emergency contacts */
   if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
   var status = document.getElementById('save-status');
-  /* Claude: 2026-03-16 — double-click protection: disable all save buttons during Firestore write */
-  var buttons = document.querySelectorAll('.btn-save, .btn-delete, #add-contact-btn');
-  buttons.forEach(function(btn) { btn.disabled = true; });
   status.textContent = 'Saving…';
-  /* Claude: 2026-03-16 — merge:true for data safety */
   AA.db.collection('emergencyContacts').doc(_studentUid).set({
     contacts:  _contacts,
     updatedBy: AA.auth.currentUser ? AA.auth.currentUser.uid : '',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true })
+  })
   .then(function() {
     status.textContent = '✓ Saved';
     renderEditForms();
     setTimeout(function(){ status.textContent = ''; }, 3000);
-    /* Claude: 2026-03-16 — re-enable buttons after success */
-    buttons.forEach(function(btn) { btn.disabled = false; });
   })
   .catch(function(err) {
     console.error('[AA] emergencyContacts save:', err);
     status.textContent = '⚠️ Save failed — please try again.';
-    /* Claude: 2026-03-16 — re-enable buttons after error */
-    buttons.forEach(function(btn) { btn.disabled = false; });
   });
 }
 

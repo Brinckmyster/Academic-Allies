@@ -1567,7 +1567,6 @@
     try {
       if (window.AA && window.AA.db && currentUid) {
         // Claude: Archive full snapshot to subcollection spoonPal/{uid}/days/{dateKey}
-        /* Claude: 2026-03-16 — merge:true for data safety */
         window.AA.db.collection('spoonPal').doc(currentUid).collection('days').doc(dateKey).set({
           timeline,
           checkIn,
@@ -1577,7 +1576,7 @@
           dailyBudget: calculateDailyBudget(),
           dateKey,
           archivedAt: new Date().toISOString()
-        }, { merge: true }).catch(err => console.error('[SpoonPal] Rollover archive error:', err));
+        }).catch(err => console.error('[SpoonPal] Rollover archive error:', err));
       }
     } catch (archiveErr) {
       console.error('[SpoonPal] Rollover archive threw:', archiveErr);
@@ -1779,18 +1778,7 @@
      and are managed by SpoonPlanner. SpoonPal saves its overlay: per-task
      tracking (lmj, fixed, status, notes) plus budget/check-in/debt/weather.
      Archive: spoon-pal_2026-03-10_pre-planner-connect.html */
-
-  /* Claude: 2026-03-16 — debounce guard to prevent concurrent Firestore writes */
-  var _savePending = false;
-  var _saveQueued = false;
-
   function saveData() {
-    /* Claude: 2026-03-16 — double-click protection: guard against concurrent writes */
-    if (_savePending) {
-      _saveQueued = true;
-      return;
-    }
-
     /* Claude: 2026-03-14 — mirror mode guard. Supporters viewing a student's
        SpoonPal must NOT write to the student's Firestore doc. Read-only only.
        This closes a security gap where supporters could modify student data. */
@@ -1824,22 +1812,8 @@
       savedAt: new Date().toISOString()
     };
     if (window.AA && window.AA.db && currentUid) {
-      _savePending = true;
-      /* Claude: 2026-03-16 — merge:true for data safety */
-      window.AA.db.collection('spoonPal').doc(currentUid).set(obj, { merge: true })
-        .then(function() {
-          /* Claude: 2026-03-16 — debounce: handle queued saves */
-          _savePending = false;
-          if (_saveQueued) {
-            _saveQueued = false;
-            saveData();
-          }
-        })
-        .catch(function(err) {
-          console.error('[SpoonPal] Firestore save error:', err);
-          /* Claude: 2026-03-16 — clear flag on error to allow retries */
-          _savePending = false;
-        });
+      window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
+        .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
     }
   }
 

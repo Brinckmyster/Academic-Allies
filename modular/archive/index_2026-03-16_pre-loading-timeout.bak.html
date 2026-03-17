@@ -1016,21 +1016,7 @@
         var isStudentSupporter = (role === 'student' && data.isSupporter === true);
         if (SUPPORT_ROLES.indexOf(role) === -1 && !isStudentSupporter) return;
 
-        /* Claude: 2026-03-16 — loading timeout with retry for My Students cards */
-        var _loadingTimerStudents = null;
-        function startStudentsLoadTimer() {
-          if (_loadingTimerStudents) clearTimeout(_loadingTimerStudents);
-          _loadingTimerStudents = setTimeout(function () {
-            var el = document.getElementById('my-students-grid');
-            if (el && el.textContent.indexOf('Loading') !== -1) {
-              el.innerHTML = '⚠️ Having trouble loading. Check your connection and try again.<br>' +
-                '<button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
-            }
-          }, 15000);
-        }
-
         /* Find students in this user's network */
-        startStudentsLoadTimer();
         window.AA.db.collection('users').where('role', '==', 'student').get()
           .then(function (snap) {
             var myStudents = [];
@@ -1043,7 +1029,6 @@
               }
             });
 
-            clearTimeout(_loadingTimerStudents);
             var grid = document.getElementById('my-students-grid');
 
             if (myStudents.length === 0) {

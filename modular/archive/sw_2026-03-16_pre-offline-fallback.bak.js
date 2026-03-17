@@ -64,10 +64,7 @@ var SHELL = [
   '/Academic-Allies/modular/components/message-system/message-system.html',
 
   /* App icon */
-  '/Academic-Allies/modular/icons/branding.png',
-
-  /* Claude: 2026-03-16 — offline fallback page */
-  '/Academic-Allies/offline.html'
+  '/Academic-Allies/modular/icons/branding.png'
 ];
 
 /* ── Install: pre-cache shell ───────────────────────────────── */
@@ -170,10 +167,9 @@ self.addEventListener('fetch', function (e) {
         }
         return response;
       }).catch(function () {
-        /* Fully offline and not cached — return offline fallback for navigation
-           Claude: 2026-03-16 — offline fallback page */
+        /* Fully offline and not cached — return index for navigation */
         if (req.mode === 'navigate') {
-          return caches.match('/Academic-Allies/offline.html');
+          return caches.match('/Academic-Allies/index.html');
         }
         /* For other resources just fail gracefully */
       });

@@ -1447,8 +1447,6 @@
         var _journalSessionId = Date.now().toString(36) + Math.random().toString(36).slice(2);
 
         function _journalAutoSave() {
-            /* Claude: 2026-03-16 — mirror guard: supporters cannot auto-save journal entries */
-            if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
             if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
             var text = (document.getElementById('journal-textarea').value || '').trim();
             if (!text) return;
@@ -1462,7 +1460,7 @@
                 response: text,
                 savedAt: new Date().toISOString()
             };
-            AA.db.collection('recoveryJournal').doc(_journalSessionId).set(entry, { merge: true }) /* Claude: 2026-03-16 — merge:true for data safety */
+            AA.db.collection('recoveryJournal').doc(_journalSessionId).set(entry)
                 .then(function() {
                     if (statusEl) {
                         statusEl.textContent = '✓ Saved';

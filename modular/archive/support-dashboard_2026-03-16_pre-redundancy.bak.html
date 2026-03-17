@@ -432,18 +432,7 @@
     }
 
     /* ── Find which student(s) this viewer is in ──────── */
-    /* Claude: 2026-03-16 — loading timeout with retry */
-    var _loadingTimerMain = null;
     function findStudents() {
-      /* Start timeout for initial data load */
-      if (_loadingTimerMain) clearTimeout(_loadingTimerMain);
-      _loadingTimerMain = setTimeout(function () {
-        var el = document.getElementById('loading-msg');
-        if (el && el.style.display !== 'none') {
-          el.innerHTML = '⚠️ Having trouble loading. Check your connection and try again.<br>' +
-            '<button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
-        }
-      }, 15000);
       /* Scan all users for supportNetwork entries containing this viewer */
       AA.db.collection('users').get().then(function(snap) {
         studentsInNetwork = [];
@@ -485,7 +474,6 @@
           buildStudentPicker();
         }
 
-        clearTimeout(_loadingTimerMain);
         showDashboard(studentsInNetwork[0].uid, studentsInNetwork[0].name);
         loadStudentGrid(); /* Claude: 2026-03-14 — render compact status grid at top */
       }).catch(function(err) {

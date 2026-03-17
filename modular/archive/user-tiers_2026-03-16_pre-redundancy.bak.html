@@ -939,11 +939,6 @@
       }
       if (!currentStudentUid) return;
       var statusEl = document.getElementById('perm-status-' + memberUid);
-      /* Claude: 2026-03-16 — double-click protection: disable button during save */
-      var btn = document.querySelector('[data-member-uid="' + memberUid + '"] .btn-perms-save');
-      if (!btn) btn = document.querySelector('.btn-perms-save[onclick*="' + memberUid + '"]');
-      var origText = btn ? btn.textContent : '';
-      if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
       /* Gather current toggle states */
       var perms = {};
@@ -974,15 +969,11 @@
           _loadedNetworkPerms[memberUid] = overrides;
           if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Permissions saved!'; }
           setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 3000);
-          /* Claude: 2026-03-16 — restore button state on success */
-          if (btn) { btn.disabled = false; btn.textContent = origText; }
           /* Claude: 2026-03-09 — audit log */
           if (AA.logAccess) AA.logAccess('write', currentStudentUid, 'networkPermissions');
         })
         .catch(function(err) {
           if (statusEl) { statusEl.style.color = '#c0392b'; statusEl.textContent = '❌ ' + err.message; }
-          /* Claude: 2026-03-16 — restore button state on error */
-          if (btn) { btn.disabled = false; btn.textContent = origText; }
         });
     }
 
@@ -1392,18 +1383,9 @@
       var sel  = document.getElementById('tier-' + memberUid);
       var tier = sel ? sel.value : null;
       if (!tier || !currentStudentUid) return;
-      /* Claude: 2026-03-16 — double-click protection: find and disable button */
-      var btn = document.querySelector('#card-' + memberUid + ' .btn-save');
-      if (btn) { btn.disabled = true; var origText = btn.textContent; btn.textContent = 'Saving…'; }
       AA.setNetworkMember(currentStudentUid, memberUid, tier)
-        .then(function() {
-          if (btn) { btn.disabled = false; btn.textContent = origText; }
-          flashSaved(memberUid);
-        })
-        .catch(function(err) {
-          if (btn) { btn.disabled = false; btn.textContent = origText; }
-          alert('Save failed: ' + err.message);
-        });
+        .then(function() { flashSaved(memberUid); })
+        .catch(function(err) { alert('Save failed: ' + err.message); });
     }
 
     function flashSaved(memberUid) {
@@ -1967,10 +1949,6 @@
     // Claude: BUG #2 FIX — gather component visibility state and save to Firebase
     function saveProfile() {
       if (!currentStudentUid) { alert('No student selected.'); return; }
-      /* Claude: 2026-03-16 — double-click protection: disable button during save */
-      var btn = document.getElementById('profile-save-btn');
-      var origText = btn ? btn.textContent : '';
-      if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
       /* Gather modules state — Claude: BUG #2 ensures component visibility is saved */
       var activeModules = {};
       Object.keys(DEFAULT_MODULES).forEach(function (k) {
@@ -1998,12 +1976,8 @@
         renderProfileView();
         if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Profile saved!'; }
         setTimeout(function () { if (statusEl) statusEl.textContent = ''; }, 3000);
-        /* Claude: 2026-03-16 — restore button state on success */
-        if (btn) { btn.disabled = false; btn.textContent = origText; }
       }).catch(function (err) {
         if (statusEl) { statusEl.style.color = '#c0392b'; statusEl.textContent = '❌ ' + err.message; }
-        /* Claude: 2026-03-16 — restore button state on error */
-        if (btn) { btn.disabled = false; btn.textContent = origText; }
       });
     }
 
