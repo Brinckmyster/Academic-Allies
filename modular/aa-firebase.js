@@ -174,9 +174,11 @@
      Only OAuth providers can be used in signInWithPopup; email/password
      cannot be auto-linked without the user's password. */
   function _providerFor(method) {
-    if (method === 'google.com')   return new firebase.auth.GoogleAuthProvider();
-    if (method === 'github.com')   return new firebase.auth.GithubAuthProvider();
-    if (method === 'facebook.com') return new firebase.auth.FacebookAuthProvider();
+    if (method === 'google.com')    return new firebase.auth.GoogleAuthProvider();
+    if (method === 'apple.com')     return new firebase.auth.OAuthProvider('apple.com');
+    if (method === 'microsoft.com') return new firebase.auth.OAuthProvider('microsoft.com');
+    if (method === 'github.com')    return new firebase.auth.GithubAuthProvider();
+    if (method === 'facebook.com')  return new firebase.auth.FacebookAuthProvider();
     return null;
   }
 
@@ -243,6 +245,107 @@
           });
       });
     }); /* Claude: end setPersistence.then() */
+  };
+
+  /* Claude: 2026-03-16 — Email/Password sign-in. Universal fallback that works on every device. */
+  window.AA.signInWithEmail = function (email, password) {
+    var keepPref = 'true';
+    try { keepPref = localStorage.getItem('AA_KEEP_SIGNED_IN') || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS') || 'true'; } catch(e) {}
+    var pType = keepPref !== 'false'
+      ? firebase.auth.Auth.Persistence.LOCAL
+      : firebase.auth.Auth.Persistence.SESSION;
+    return auth.setPersistence(pType).then(function () {
+      return auth.signInWithEmailAndPassword(email, password);
+    });
+  };
+
+  /* Claude: 2026-03-16 — Email/Password account creation */
+  window.AA.createAccountWithEmail = function (email, password) {
+    var keepPref = 'true';
+    try { keepPref = localStorage.getItem('AA_KEEP_SIGNED_IN') || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS') || 'true'; } catch(e) {}
+    var pType = keepPref !== 'false'
+      ? firebase.auth.Auth.Persistence.LOCAL
+      : firebase.auth.Auth.Persistence.SESSION;
+    return auth.setPersistence(pType).then(function () {
+      return auth.createUserWithEmailAndPassword(email, password);
+    });
+  };
+
+  /* Claude: 2026-03-16 — Password reset email */
+  window.AA.sendPasswordReset = function (email) {
+    return auth.sendPasswordResetEmail(email);
+  };
+
+  /* Claude: 2026-03-16 — Apple Sign-In. Native on Apple devices, falls back to redirect.
+     Requires: Enable Apple provider in Firebase Console → Authentication → Sign-in method.
+     Also requires Apple Developer account Service ID configuration. */
+  window.AA.signInWithApple = function () {
+    var appleProvider = new firebase.auth.OAuthProvider('apple.com');
+    appleProvider.addScope('email');
+    appleProvider.addScope('name');
+    var keepPref = 'true';
+    try { keepPref = localStorage.getItem('AA_KEEP_SIGNED_IN') || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS') || 'true'; } catch(e) {}
+    var pType = keepPref !== 'false'
+      ? firebase.auth.Auth.Persistence.LOCAL
+      : firebase.auth.Auth.Persistence.SESSION;
+    return auth.setPersistence(pType).then(function () {
+      return auth.signInWithPopup(appleProvider)
+        .catch(function (err) {
+          if (_isPopupBlocked(err)) {
+            console.warn('[AA] Apple popup blocked — falling back to redirect');
+            return auth.signInWithRedirect(appleProvider);
+          }
+          if (err.code === 'auth/account-exists-with-different-credential') {
+            var pendingCred = err.credential;
+            var email = err.email;
+            return auth.fetchSignInMethodsForEmail(email).then(function (methods) {
+              var existingProvider = _providerFor(methods[0]);
+              if (!existingProvider) {
+                throw new Error('This email (' + email + ') is registered via "' + methods[0] + '". Please sign in with that method first.');
+              }
+              return auth.signInWithPopup(existingProvider).then(function (result) {
+                return result.user.linkWithCredential(pendingCred);
+              });
+            });
+          }
+          throw err;
+        });
+    });
+  };
+
+  /* Claude: 2026-03-16 — Microsoft Sign-In. For college .edu accounts.
+     Requires: Enable Microsoft provider in Firebase Console with Azure AD app registration. */
+  window.AA.signInWithMicrosoft = function () {
+    var msProvider = new firebase.auth.OAuthProvider('microsoft.com');
+    msProvider.addScope('user.read');
+    var keepPref = 'true';
+    try { keepPref = localStorage.getItem('AA_KEEP_SIGNED_IN') || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS') || 'true'; } catch(e) {}
+    var pType = keepPref !== 'false'
+      ? firebase.auth.Auth.Persistence.LOCAL
+      : firebase.auth.Auth.Persistence.SESSION;
+    return auth.setPersistence(pType).then(function () {
+      return auth.signInWithPopup(msProvider)
+        .catch(function (err) {
+          if (_isPopupBlocked(err)) {
+            console.warn('[AA] Microsoft popup blocked — falling back to redirect');
+            return auth.signInWithRedirect(msProvider);
+          }
+          if (err.code === 'auth/account-exists-with-different-credential') {
+            var pendingCred = err.credential;
+            var email = err.email;
+            return auth.fetchSignInMethodsForEmail(email).then(function (methods) {
+              var existingProvider = _providerFor(methods[0]);
+              if (!existingProvider) {
+                throw new Error('This email (' + email + ') is registered via "' + methods[0] + '". Please sign in with that method first.');
+              }
+              return auth.signInWithPopup(existingProvider).then(function (result) {
+                return result.user.linkWithCredential(pendingCred);
+              });
+            });
+          }
+          throw err;
+        });
+    });
   };
 
   // Claude: clear cached user on sign-out so re-auth isn't attempted next load
