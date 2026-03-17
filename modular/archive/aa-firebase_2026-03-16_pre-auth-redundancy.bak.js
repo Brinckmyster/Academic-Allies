@@ -342,12 +342,9 @@
        If Firebase persistence fails (virtual desktops, cleared IndexedDB),
        shared-header can read this to attempt silent re-auth. */
     if (user) {
-      /* Claude: 2026-03-16 — enhanced: add lastLogin timestamp + persistence type for diagnostics */
       try {
         localStorage.setItem('AA_LAST_USER', JSON.stringify({
-          email: user.email, displayName: user.displayName, uid: user.uid,
-          lastLogin: new Date().toISOString(),
-          persistence: _keepSignedIn ? 'LOCAL' : 'SESSION'
+          email: user.email, displayName: user.displayName, uid: user.uid
         }));
       } catch (e) {}
       /* Claude: 2026-03-05 — silently refresh token every 45 min when LOCAL persistence
@@ -375,14 +372,10 @@
               /* Claude: 2026-03-06 — tab returned to foreground with no current user.
                  Firebase may have expired the session while throttled in background.
                  Clear AA_REAUTH_DONE so the re-auth poll can run on next null event. */
-              /* Claude: 2026-03-16 — tab returned with no user. Reset re-auth cooldown
-                 so GIS can retry immediately when onAuthStateChanged fires null. */
               var lastUser = null;
               try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
               if (lastUser && lastUser.email) {
                 sessionStorage.removeItem('AA_REAUTH_DONE');
-                sessionStorage.removeItem('AA_REAUTH_LAST');
-                /* Don't reset AA_REAUTH_COUNT — keep the 3-retry cap per page load */
               }
             }
           }

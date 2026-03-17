@@ -558,20 +558,10 @@ Your disability accommodations and support network">Your disability accommodatio
           var lastUser = null;
           try { lastUser = JSON.parse(localStorage.getItem('AA_LAST_USER')); } catch (e) {}
           var keepPref = localStorage.getItem('AA_KEEP_SIGNED_IN');
-          /* Claude: 2026-03-16 — replaced one-shot AA_REAUTH_DONE with 30-second cooldown.
-             Previously, if auth dropped mid-session (IndexedDB cleared, token expiry,
-             Firestore corruption), re-auth would never retry. Now it retries after a
-             30-second cooldown, so Mary's session recovers automatically even if auth
-             drops multiple times. Max 3 retries per page load to prevent infinite loops. */
-          var _lastReauthTime = parseInt(sessionStorage.getItem('AA_REAUTH_LAST') || '0', 10);
-          var _reauthCount = parseInt(sessionStorage.getItem('AA_REAUTH_COUNT') || '0', 10);
-          var _reauthCooldownOk = (Date.now() - _lastReauthTime) > 30000;
-          var _reauthUnderLimit = _reauthCount < 3;
-          var canTryReauth = _reauthCooldownOk && _reauthUnderLimit;
+          var alreadyTried = sessionStorage.getItem('AA_REAUTH_DONE');
 
-          if (lastUser && lastUser.email && keepPref !== 'false' && canTryReauth && !_intentionalSignOut) {
-            sessionStorage.setItem('AA_REAUTH_LAST', String(Date.now()));
-            sessionStorage.setItem('AA_REAUTH_COUNT', String(_reauthCount + 1));
+          if (lastUser && lastUser.email && keepPref !== 'false' && !alreadyTried && !_intentionalSignOut) {
+            sessionStorage.setItem('AA_REAUTH_DONE', '1');
             if (window.AA_DEBUG) console.log('[AA] Attempting silent re-auth for', lastUser.email);
 
             /* Show welcome-back message while re-auth runs */
@@ -675,9 +665,6 @@ Your disability accommodations and support network">Your disability accommodatio
         }
         /* Claude: 2026-03-08 — sign-in succeeded, clear re-auth loop counter */
         sessionStorage.removeItem('AA_REAUTH_ATTEMPTS');
-        /* Claude: 2026-03-16 — reset re-auth cooldown on successful sign-in */
-        sessionStorage.removeItem('AA_REAUTH_COUNT');
-        sessionStorage.removeItem('AA_REAUTH_LAST');
 
         if (user.uid === _shUid) return; // token refresh — skip role-lookup re-run
         _shUid = user.uid;
