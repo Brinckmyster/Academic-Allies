@@ -200,9 +200,6 @@
       <!-- Record section -->
       <div id="recordSection" class="record-wrap" role="region" aria-label="Recording controls">
         <button id="recordBtn" title="Tap to record" aria-label="Start recording audio note">🎙️</button>
-        <!-- Claude: 2026-03-16 — video toggle: tap to switch between audio-only and video recording -->
-        <button id="videoToggleBtn" title="Switch to video recording" aria-label="Toggle video recording mode"
-          style="font-size:1.3rem;background:transparent;border:1px solid #555;border-radius:50%;width:44px;height:44px;cursor:pointer;margin-left:8px;vertical-align:middle;color:#aaa;">🎥</button>
         <div id="recordStatus" aria-live="polite">Tap to start recording</div>
         <div id="gpsStatus"></div>
         <!-- Claude: speech fallback populated by JS with Otter.ai link -->
@@ -295,14 +292,10 @@
     var timerInterval = null;
     var allNotes = [];          // cached notes from Firestore listener
     var unsubNotes = null;      // Firestore listener unsubscribe
-    var _videoMode = false;       // Claude: 2026-03-16 — true = record video+audio, false = audio only
-    var _videoPreview = null;     // Claude: 2026-03-16 — <video> element for camera preview
-    var _wakeLock = null;         // Claude: 2026-03-16 — Wake Lock sentinel (keeps screen alive during recording)
 
     // ── DOM refs ───────────────────────────────────────────────────────────────
     var noteTitleInput = document.getElementById('noteTitleInput'); // Claude: 2026-03-05
     var recordBtn      = document.getElementById('recordBtn');
-    var videoToggleBtn = document.getElementById('videoToggleBtn');
     var recordStatus   = document.getElementById('recordStatus');
     var gpsStatusEl    = document.getElementById('gpsStatus');
     var speechWarning  = document.getElementById('speechWarning');
@@ -314,25 +307,6 @@
     var categoryFilter = document.getElementById('categoryFilter');
     var mirrorBanner   = document.getElementById('mirrorBanner');
     var toastEl        = document.getElementById('toast');
-
-    /* Claude: 2026-03-16 — Native app capability bridge.
-       When Academic Allies becomes a native app (e.g. via Capacitor, React Native WebView,
-       or a custom native shell), the native layer exposes window.AA_NATIVE with methods
-       that override web APIs for better performance and background support.
-
-       Expected AA_NATIVE interface (implemented by the native shell, NOT by us):
-         AA_NATIVE.getStream(constraints)   → Promise<MediaStream>  (native camera/mic)
-         AA_NATIVE.wakeLock(on)             → void  (keep screen/CPU alive)
-         AA_NATIVE.backgroundRecord(on)     → void  (keep recording when app is backgrounded)
-         AA_NATIVE.hasCamera                → boolean
-         AA_NATIVE.hasMicrophone            → boolean
-         AA_NATIVE.saveFile(blob, name)     → Promise<{path}>  (save to device storage)
-         AA_NATIVE.isNative                 → true
-
-       Until the native shell exists, all these are undefined and web APIs are used instead.
-       Every call site checks: if (AA_NATIVE && AA_NATIVE.method) use it, else fall back to web. */
-    var _isNative = !!(window.AA_NATIVE && window.AA_NATIVE.isNative);
-    if (_isNative) { console.log('[AA] Native app detected — using native bridges'); }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
     // Claude: duration param — errors stay visible longer (10s) than success (3s)
@@ -359,57 +333,6 @@
       var d = document.createElement('div');
       d.textContent = str || '';
       return d.innerHTML;
-    }
-
-    /* Claude: 2026-03-16 — video mode toggle. Switches between audio-only and video+audio recording.
-       Native app plumbing: check AA_NATIVE.hasCamera for native camera access in future. */
-    if (videoToggleBtn) {
-      videoToggleBtn.onclick = function () {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          showToast('Stop recording first before switching modes.', 3000);
-          return;
-        }
-        _videoMode = !_videoMode;
-        videoToggleBtn.style.color = _videoMode ? '#4a7f82' : '#aaa';
-        videoToggleBtn.style.borderColor = _videoMode ? '#4a7f82' : '#555';
-        videoToggleBtn.title = _videoMode ? 'Switch to audio-only' : 'Switch to video recording';
-        recordStatus.textContent = _videoMode ? 'Video mode — tap 🎙️ to start' : 'Tap to start recording';
-        showToast(_videoMode ? 'Video mode ON — front camera will record' : 'Audio-only mode', 2000);
-      };
-    }
-
-    /* Claude: 2026-03-16 — Wake Lock API: keeps the screen alive during recording.
-       Critical for Mary's phone so the screen doesn't auto-lock mid-recording.
-       Native app plumbing: AA_NATIVE.wakeLock() for future native keep-awake. */
-    function _acquireWakeLock() {
-      /* Native bridge takes priority */
-      if (window.AA_NATIVE && window.AA_NATIVE.wakeLock) {
-        try { window.AA_NATIVE.wakeLock(true); } catch(e) {}
-        return;
-      }
-      if ('wakeLock' in navigator) {
-        navigator.wakeLock.request('screen').then(function(lock) {
-          _wakeLock = lock;
-          _wakeLock.addEventListener('release', function() {
-            console.log('[AA] Wake Lock released');
-            _wakeLock = null;
-          });
-          console.log('[AA] Wake Lock acquired — screen will stay on during recording');
-        }).catch(function(err) {
-          console.warn('[AA] Wake Lock failed:', err.message);
-        });
-      }
-    }
-
-    function _releaseWakeLock() {
-      if (window.AA_NATIVE && window.AA_NATIVE.wakeLock) {
-        try { window.AA_NATIVE.wakeLock(false); } catch(e) {}
-        return;
-      }
-      if (_wakeLock) {
-        _wakeLock.release().catch(function() {});
-        _wakeLock = null;
-      }
     }
 
     // ── Google Drive Upload ───────────────────────────────────────────────────
@@ -587,35 +510,25 @@
       });
     }
 
-    /* Claude: 2026-03-16 — updated to handle video recordings (skip WAV conversion for video) */
+    // Claude: 2026-03-08 — best-effort Drive upload with WAV conversion
+    // Archive: old attemptDriveUpload uploaded raw webm/ogg — replaced to convert to WAV first
     function attemptDriveUpload(blob) {
-      var isVideo = recordingMimeType && recordingMimeType.indexOf('video') !== -1;
-
-      var convertPromise = isVideo
-        ? Promise.resolve(blob) /* video: upload as-is (webm/mp4) */
-        : convertToWav(blob).catch(function(err) {
-            console.warn('[AudioNotes] WAV conversion failed, uploading original format:', err);
-            return blob;
-          });
-
-      return convertPromise
+      return convertToWav(blob)
+        .catch(function(err) {
+          console.warn('[AudioNotes] WAV conversion failed, uploading original format:', err);
+          return blob; // fallback: upload original if conversion fails
+        })
         .then(function(uploadBlob) {
           var isWav = uploadBlob.type === 'audio/wav';
           return getDriveToken().then(function(token) {
             return getOrCreateDriveFolder(token).then(function(folderId) {
               var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-              var ext;
-              if (isVideo) {
-                ext = recordingMimeType.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
-              } else if (isWav) {
-                ext = 'wav';
-              } else {
+              var ext = isWav ? 'wav' : 'webm';
+              if (!isWav) {
                 if (recordingMimeType.indexOf('mp4') !== -1) ext = 'mp4';
                 else if (recordingMimeType.indexOf('ogg') !== -1) ext = 'ogg';
-                else ext = 'webm';
               }
-              var prefix = isVideo ? 'video-note-' : 'audio-note-';
-              var filename = prefix + ts + '.' + ext;
+              var filename = 'audio-note-' + ts + '.' + ext;
               return uploadFileToDrive(token, folderId, uploadBlob, filename);
             });
           });
@@ -901,14 +814,6 @@
     // ── Recording ──────────────────────────────────────────────────────────────
     // Claude: pick best audio format Drive can preview — mp4 > ogg > webm fallback
     function pickMimeType() {
-      /* Claude: 2026-03-16 — pick best mime type for audio or video recording */
-      if (_videoMode) {
-        var videoPrefs = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
-        for (var i = 0; i < videoPrefs.length; i++) {
-          if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(videoPrefs[i])) return videoPrefs[i];
-        }
-        return '';
-      }
       var prefs = ['audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm'];
       for (var i = 0; i < prefs.length; i++) {
         if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(prefs[i])) return prefs[i];
@@ -929,7 +834,6 @@
       try { sessionStorage.removeItem('AA_RECORDING_ACTIVE'); } catch(e) {}
       stopSpeechRecognition();
       stopTimer();
-      _releaseWakeLock();
 
       /* Update UI to show what happened + offer save/discard */
       recordBtn.textContent = '🎙️';
@@ -968,16 +872,7 @@
       /* Claude: 2026-03-14 — null guard for defensive safety */
       if (noteTitleInput) noteTitleInput.disabled = true; // lock while recording
 
-      /* Claude: 2026-03-16 — request video+audio in video mode, audio-only otherwise.
-         facingMode:'user' = front/selfie camera. Native app plumbing: if AA_NATIVE.getStream
-         exists, use that instead (future native camera bridge). */
-      var _mediaConstraints = { audio: true };
-      if (_videoMode) {
-        _mediaConstraints.video = { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } };
-      }
-      (window.AA_NATIVE && window.AA_NATIVE.getStream
-        ? window.AA_NATIVE.getStream(_mediaConstraints)
-        : navigator.mediaDevices.getUserMedia(_mediaConstraints))
+      navigator.mediaDevices.getUserMedia({ audio: true })
         .then(function(stream) {
           audioChunks = [];
           // Claude: request preferred mimeType for Drive compatibility
@@ -988,18 +883,6 @@
           mediaRecorder.onstop = function() {
             stream.getTracks().forEach(function(t) { t.stop(); });
           };
-          /* Claude: 2026-03-16 — show camera preview in video mode */
-          if (_videoMode && stream.getVideoTracks().length > 0) {
-            _videoPreview = document.createElement('video');
-            _videoPreview.setAttribute('playsinline', '');
-            _videoPreview.setAttribute('muted', '');
-            _videoPreview.muted = true;
-            _videoPreview.autoplay = true;
-            _videoPreview.srcObject = stream;
-            _videoPreview.style.cssText = 'width:100%;max-width:400px;border-radius:12px;margin:10px auto;display:block;background:#000;';
-            var recordSection = document.getElementById('recordSection');
-            if (recordSection) recordSection.parentNode.insertBefore(_videoPreview, recordSection.nextSibling);
-          }
           /* Claude: 2026-03-16 — detect recorder death (e.g. after beforeunload "Stay",
              browser killing the stream, or hardware disconnection). When this fires,
              recover whatever chunks we have and show save/discard options. */
@@ -1038,12 +921,6 @@
           }
           // Claude: 2026-03-06 — start periodic transcript backup (unstable-device resilience)
           _startTranscriptBackup();
-          // Claude: 2026-03-16 — keep screen alive during recording
-          _acquireWakeLock();
-          /* Claude: 2026-03-16 — native: request background recording permission */
-          if (window.AA_NATIVE && window.AA_NATIVE.backgroundRecord) {
-            try { window.AA_NATIVE.backgroundRecord(true); } catch(e) {}
-          }
         })
         .catch(function(err) {
           showToast('Microphone access denied');
@@ -1063,18 +940,6 @@
          on mobile where beforeunload is unreliable. Previously this was the gap
          that caused Bruise's audio recordings to be lost. */
       mediaRecorder.stop();
-      /* Claude: 2026-03-16 — remove camera preview on stop */
-      if (_videoPreview) {
-        _videoPreview.srcObject = null;
-        if (_videoPreview.parentNode) _videoPreview.parentNode.removeChild(_videoPreview);
-        _videoPreview = null;
-      }
-      // Claude: 2026-03-16 — release wake lock when recording stops
-      _releaseWakeLock();
-      /* Claude: 2026-03-16 — native: release background recording */
-      if (window.AA_NATIVE && window.AA_NATIVE.backgroundRecord) {
-        try { window.AA_NATIVE.backgroundRecord(false); } catch(e) {}
-      }
 
       recordBtn.textContent = '🎙️';
       recordBtn.classList.remove('recording');
@@ -1091,12 +956,6 @@
         draftActions.style.justifyContent = 'center';
         draftActions.style.gap = '8px';
         draftActions.style.flexWrap = 'wrap';
-      }
-      /* Claude: 2026-03-16 — update button labels for video mode */
-      var driveBtn = document.getElementById('saveToDriveBtn');
-      if (driveBtn) {
-        driveBtn.innerHTML = _videoMode ? '🎬 Save video to Drive' : '🎵 Save audio to Drive';
-        driveBtn.setAttribute('aria-label', _videoMode ? 'Save video recording to Google Drive' : 'Save audio recording to Google Drive');
       }
     }
 
