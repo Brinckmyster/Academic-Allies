@@ -980,9 +980,6 @@
         : navigator.mediaDevices.getUserMedia(_mediaConstraints))
         .then(function(stream) {
           audioChunks = [];
-          _lastBackedUpIndex = 0;
-          _chunkBatchCounter = 0;
-          _clearIncrementalChunks(); /* Claude: 2026-03-16 — fresh start, clear old incremental chunks */
           // Claude: request preferred mimeType for Drive compatibility
           var preferredMime = pickMimeType();
           var recOpts = preferredMime ? { mimeType: preferredMime } : undefined;
@@ -1215,7 +1212,6 @@
         draftAct.style.flexWrap = 'wrap';
         recordStatus.textContent = 'What would you like to do with this recording?';
       } else {
-        _clearIncrementalChunks();
         audioChunks = [];
         transcript = '';
         interimText = '';
@@ -1317,7 +1313,6 @@
             if (draftAct) draftAct.style.display = 'none';
             /* Claude: 2026-03-16 — NOW stop the periodic backup (audio is safely saved) */
             _stopTranscriptBackup();
-            _clearIncrementalChunks();
             audioChunks = [];
             transcript = '';
             interimText = '';
@@ -1645,112 +1640,22 @@
        cause of lost recordings on mobile refresh.
        Archive: were inside waitForAA(function() { ... }) */
     var _draftDB = null;
-    /* Claude: 2026-03-16 — REWRITTEN: DB v2 adds 'chunks' store for incremental audio backup.
-       Instead of saving one giant blob, we save small batches of audio chunks every 10 seconds.
-       This keeps memory flat and ensures even 1-hour class recordings are fully recoverable.
-       The 'drafts' store still holds transcript + metadata (no audio blob). */
-    var _DB_VERSION = 2;
     function _openDraftDB(cb) {
       if (_draftDB) { cb(_draftDB); return; }
-      try {
-        var req = indexedDB.open('AA_AudioDrafts', _DB_VERSION);
-        req.onupgradeneeded = function(e) {
-          var db = e.target.result;
-          /* v1 store — keep for backward compat, but audioBlob will be null going forward */
-          if (!db.objectStoreNames.contains('drafts')) {
-            db.createObjectStore('drafts', { keyPath: 'id' });
-          }
-          /* v2 store — incremental audio chunks. Each record is a small batch of chunks. */
-          if (!db.objectStoreNames.contains('chunks')) {
-            db.createObjectStore('chunks', { keyPath: 'batchId' });
-          }
-        };
-        req.onsuccess = function(e) { _draftDB = e.target.result; cb(_draftDB); };
-        req.onerror   = function()  { cb(null); };
-      } catch(e) {
-        cb(null);
-      }
-    }
-
-    /* Claude: 2026-03-16 — Incremental chunk backup. Saves only the NEW chunks since
-       last backup. Each batch gets a sequential ID so we can reassemble in order.
-       A 1-hour recording = ~360 batch saves of ~10 chunks each (10 seconds of audio).
-       Each batch is ~1MB instead of one 360MB blob. */
-    var _lastBackedUpIndex = 0;  /* index into audioChunks of last backed-up chunk */
-    var _chunkBatchCounter = 0;  /* sequential batch ID for ordering on recovery */
-
-    function _saveIncrementalChunks() {
-      if (!audioChunks || audioChunks.length <= _lastBackedUpIndex) return; /* nothing new */
-      var newChunks = audioChunks.slice(_lastBackedUpIndex);
-      var batchBlob = new Blob(newChunks, { type: recordingMimeType || 'audio/webm' });
-      var batchId = _chunkBatchCounter++;
-      _lastBackedUpIndex = audioChunks.length;
-
-      _openDraftDB(function(db) {
-        if (!db || !db.objectStoreNames.contains('chunks')) return;
-        try {
-          var tx = db.transaction('chunks', 'readwrite');
-          tx.objectStore('chunks').put({
-            batchId: batchId,
-            blob: batchBlob,
-            chunkCount: newChunks.length,
-            savedAt: new Date().toISOString()
-          });
-          tx.onerror = function(evt) {
-            console.warn('[AA] Incremental chunk save failed:', evt.target.error);
-          };
-        } catch(e) {
-          console.warn('[AA] Chunk save error:', e);
-        }
-      });
-    }
-
-    /* Clear all incremental chunks (after successful save or discard) */
-    function _clearIncrementalChunks() {
-      _lastBackedUpIndex = 0;
-      _chunkBatchCounter = 0;
-      _openDraftDB(function(db) {
-        if (!db || !db.objectStoreNames.contains('chunks')) return;
-        try {
-          var tx = db.transaction('chunks', 'readwrite');
-          tx.objectStore('chunks').clear();
-        } catch(e) {}
-      });
-    }
-
-    /* Reassemble all backed-up chunks into a single blob (for recovery) */
-    function _reassembleChunks(cb) {
-      _openDraftDB(function(db) {
-        if (!db || !db.objectStoreNames.contains('chunks')) { cb(null); return; }
-        try {
-          var tx = db.transaction('chunks', 'readonly');
-          var store = tx.objectStore('chunks');
-          var getAll = store.getAll();
-          getAll.onsuccess = function(e) {
-            var batches = e.target.result || [];
-            if (batches.length === 0) { cb(null); return; }
-            /* Sort by batchId to ensure correct order */
-            batches.sort(function(a, b) { return a.batchId - b.batchId; });
-            var blobs = batches.map(function(b) { return b.blob; });
-            var fullBlob = new Blob(blobs, { type: recordingMimeType || 'audio/webm' });
-            var totalChunks = 0;
-            batches.forEach(function(b) { totalChunks += (b.chunkCount || 0); });
-            console.log('[AA] Reassembled ' + batches.length + ' batches (' + totalChunks + ' chunks) into ' + Math.round(fullBlob.size / 1024) + 'KB blob');
-            cb(fullBlob);
-          };
-          getAll.onerror = function() { cb(null); };
-        } catch(e) { cb(null); }
-      });
+      var req = indexedDB.open('AA_AudioDrafts', 1);
+      req.onupgradeneeded = function(e) {
+        e.target.result.createObjectStore('drafts', { keyPath: 'id' });
+      };
+      req.onsuccess = function(e) { _draftDB = e.target.result; cb(_draftDB); };
+      req.onerror   = function()  { cb(null); };
     }
 
     function _saveEmergencyDraft(audioBlob) {
-      /* Claude: 2026-03-16 — save any remaining un-backed-up chunks incrementally first */
-      _saveIncrementalChunks();
       var draft = {
         id: 'pending',
         uid: writeUid || '',
         transcript: (transcript || '').trim(),
-        audioBlob: null, /* Claude: 2026-03-16 — audio is now in incremental chunks store */
+        audioBlob: audioBlob || null,
         mimeType: recordingMimeType || 'audio/webm',
         title: noteTitle || '',
         gps: recordingGps || null,
@@ -1820,26 +1725,16 @@
             /* Justify center */
             if (draftActions) { draftActions.style.justifyContent = 'center'; draftActions.style.gap = '8px'; }
 
-            /* Claude: 2026-03-16 — try incremental chunks first (v2), fall back to legacy blob (v1) */
-            _reassembleChunks(function(recoveredBlob) {
-              if (recoveredBlob) {
-                audioChunks = [recoveredBlob];
-                recordingMimeType = draft.mimeType || 'audio/webm';
-                recordStartTime = Date.now() - (draft.duration || 0) * 1000;
-                if (statusEl) statusEl.textContent = 'Recording recovered! Choose what to do below.';
-                showToast('Recording recovered (' + Math.round(recoveredBlob.size / 1024) + 'KB)! Save to Docs, Drive, or discard.', 10000);
-              } else if (draft.audioBlob) {
-                /* Legacy v1 recovery — single blob stored in drafts */
-                audioChunks = [draft.audioBlob];
-                recordingMimeType = draft.mimeType || 'audio/webm';
-                recordStartTime = Date.now() - (draft.duration || 0) * 1000;
-                if (statusEl) statusEl.textContent = 'Recording recovered! Choose what to do below.';
-                showToast('Recording recovered! Save to Docs, Drive, or discard.', 10000);
-              } else if (transcript) {
-                if (statusEl) statusEl.textContent = 'Transcript recovered! Choose what to do below.';
-                showToast('Transcript recovered. Save to Docs or discard.', 8000);
-              }
-            });
+            if (draft.audioBlob) {
+              audioChunks    = [draft.audioBlob];
+              recordingMimeType = draft.mimeType || 'audio/webm';
+              recordStartTime   = Date.now() - (draft.duration || 0) * 1000;
+              if (statusEl) statusEl.textContent = 'Recording recovered! Choose what to do below.';
+              showToast('Recording recovered! Save to Docs, Drive, or discard.', 10000);
+            } else {
+              if (statusEl) statusEl.textContent = 'Transcript recovered! Choose what to do below.';
+              showToast('Transcript recovered. Save to Docs or discard.', 8000);
+            }
             /* Also add flexWrap for mobile layout */
             if (draftActions) draftActions.style.flexWrap = 'wrap';
           };
@@ -1892,7 +1787,6 @@
       window._discardDraft = function() {
         /* Claude: 2026-03-16 — stop periodic backup on discard (user chose to throw it away) */
         _stopTranscriptBackup();
-        _clearIncrementalChunks();
         transcript = '';
         audioChunks = [];
         noteTitle = '';
@@ -1948,8 +1842,6 @@
             transcript = '';
             /* Claude: 2026-03-16 — stop periodic backup after Docs save */
             _stopTranscriptBackup();
-            _clearIncrementalChunks();
-            audioChunks = [];
             var draftActions = document.getElementById('draftActions');
             if (draftActions) draftActions.style.display = 'none';
             var statusEl = document.getElementById('recordStatus');
@@ -2157,8 +2049,12 @@
        This means the worst case for audio loss is 5 minutes instead of 10 seconds,
        but memory usage stays flat instead of growing quadratically. For Mary's
        1-hour class recordings, this is the difference between working and crashing. */
+    var _lastFullBlobSave = 0; /* timestamp of last full IndexedDB blob save */
+    var BLOB_SAVE_INTERVAL = 5 * 60 * 1000; /* 5 minutes between full blob saves */
+
     function _startTranscriptBackup() {
       _stopTranscriptBackup();
+      _lastFullBlobSave = Date.now(); /* first full save happens in 5 min, not immediately */
       _transcriptBackupTimer = setInterval(function () {
         // Claude 2026-03-07: reset session timeout on every tick so a long recording
         // is never killed by inactivity — even if the screen locked and the OS paused
@@ -2181,11 +2077,33 @@
           } catch (e) {}
         }
 
-        /* Claude: 2026-03-16 — incremental chunk save: only NEW chunks since last backup.
-           Each save is tiny (~1MB for 10 seconds of audio), so it completes fast and
-           doesn't balloon memory. A 1-hour recording = ~360 small saves, not one 360MB blob. */
-        if (hasChunks && audioChunks.length > _lastBackedUpIndex) {
-          _saveIncrementalChunks();
+        // Every 5 minutes: save full audio blob to IndexedDB
+        var now = Date.now();
+        if ((hasChunks || t) && (now - _lastFullBlobSave) >= BLOB_SAVE_INTERVAL) {
+          _lastFullBlobSave = now;
+          try {
+            var blob = hasChunks ? new Blob(audioChunks, { type: recordingMimeType }) : null;
+            _openDraftDB(function(db) {
+              if (!db) return;
+              var draft = {
+                id: 'pending',
+                uid: writeUid || '',
+                transcript: t,
+                audioBlob: blob,
+                mimeType: recordingMimeType || 'audio/webm',
+                title: noteTitle || '',
+                gps: recordingGps || null,
+                address: recordingAddress || null,
+                duration: recordStartTime ? Math.round((Date.now() - recordStartTime) / 1000) : 0,
+                savedAt: new Date().toISOString()
+              };
+              var tx = db.transaction('drafts', 'readwrite');
+              tx.objectStore('drafts').put(draft);
+              console.log('[AA] Full audio blob backed up to IndexedDB (' + (audioChunks ? audioChunks.length : 0) + ' chunks)');
+            });
+          } catch(e) {
+            console.warn('[AudioNotes] Periodic IndexedDB backup failed:', e);
+          }
         }
       }, 10000); // every 10 seconds for transcript; full blob only every 5 minutes
     }
