@@ -618,6 +618,8 @@
       var email  = (document.getElementById('invite-email').value || '').trim().toLowerCase();
       var role   = document.getElementById('invite-role').value;
       var status = document.getElementById('invite-status');
+      /* Claude: 2026-03-16 — double-click protection on invite button */
+      var invBtn = document.querySelector('[onclick*="inviteUser"]') || document.getElementById('invite-btn');
 
       if (!email || !email.includes('@')) {
         status.style.color   = '#ffc107';
@@ -625,6 +627,7 @@
         return;
       }
 
+      if (invBtn) invBtn.disabled = true;
       status.style.color = '#aaa';
       status.textContent = 'Saving…';
 
@@ -632,13 +635,15 @@
         .then(function () {
           status.style.color = '#28a745';
           status.textContent = '✅ ' + email + ' added as ' + role +
-            '. They\'ll get this role automatically when they first sign in with Google.';
+            '. They\'ll get this role automatically when they first sign in.';
           document.getElementById('invite-email').value = '';
+          if (invBtn) invBtn.disabled = false;
           loadPendingUsers();
         })
         .catch(function (err) {
           status.style.color = '#dc3545';
           status.textContent = '❌ Error: ' + err.message;
+          if (invBtn) invBtn.disabled = false;
         });
     }
 
