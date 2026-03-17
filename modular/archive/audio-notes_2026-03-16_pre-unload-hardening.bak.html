@@ -1111,10 +1111,6 @@
       }
     };
 
-    /* Claude: 2026-03-16 — FIX C: visibility change debounce */
-    var _lastVisibilitySaveTime = 0;
-    var _VISIBILITY_DEBOUNCE_MS = 2000; /* don't save more than once per 2 seconds */
-
     /* Claude: 2026-03-07 — visibilitychange: session + SR recovery when tab returns.
        On Windows, screen-lock makes the tab "hidden". On unlock it becomes "visible".
        We reset the 30-min inactivity timer immediately AND restart SpeechRecognition
@@ -1126,21 +1122,12 @@
          screen-lock. beforeunload/pagehide often DON'T fire on mobile phones.
          Archive: previously only handled visibility-restored (SR restart). */
       if (document.hidden) {
-        /* Claude: 2026-03-16 — debounce rapid visibility toggles */
-        var now = Date.now();
-        if (now - _lastVisibilitySaveTime < _VISIBILITY_DEBOUNCE_MS) {
-          console.log('[AA] Visibility save debounced');
-          return;
-        }
-        _lastVisibilitySaveTime = now;
         var isRec = mediaRecorder && mediaRecorder.state === 'recording';
         var hasChunks = audioChunks && audioChunks.length > 0;
         var hasTxt = transcript && transcript.trim();
         if (isRec || hasChunks || hasTxt) {
           // Flush any buffered partial chunk
           if (isRec) { try { mediaRecorder.requestData(); } catch(ex) {} }
-          /* Claude: 2026-03-16 — FIX A: sync checkpoint before async save */
-          _syncCheckpoint();
           // Sync save transcript to localStorage (always completes)
           try {
             localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
@@ -1692,29 +1679,6 @@
     var _lastBackedUpIndex = 0;  /* index into audioChunks of last backed-up chunk */
     var _chunkBatchCounter = 0;  /* sequential batch ID for ordering on recovery */
 
-    /* Claude: 2026-03-16 — FIX A: synchronous checkpoint for mobile unload safety.
-       IndexedDB writes are async and may not complete on mobile before page dies.
-       We save metadata to localStorage synchronously so recovery knows chunks exist. */
-    function _syncCheckpoint() {
-      if (!audioChunks || audioChunks.length === 0) return;
-      try {
-        localStorage.setItem('AA_AUDIO_CHECKPOINT', JSON.stringify({
-          ts: Date.now(),
-          chunkCount: audioChunks.length,
-          backedUpIndex: _lastBackedUpIndex,
-          batchCount: _chunkBatchCounter,
-          mimeType: recordingMimeType || 'audio/webm',
-          title: (document.getElementById('audioTitle') || {}).value || (document.getElementById('noteTitleInput') || {}).value || '',
-          transcript: (document.getElementById('transcriptContent') || {}).textContent || (document.getElementById('liveTranscript') || {}).textContent || '',
-          duration: (document.getElementById('duration') || {}).textContent || ''
-        }));
-      } catch(e) {}
-    }
-
-    /* Claude: 2026-03-16 — FIX B: chunk save failure warning with retry queue */
-    var _chunkSaveFailCount = 0;
-    var _chunkSaveFailShown = false;
-
     function _saveIncrementalChunks() {
       if (!audioChunks || audioChunks.length <= _lastBackedUpIndex) return; /* nothing new */
       var newChunks = audioChunks.slice(_lastBackedUpIndex);
@@ -1734,22 +1698,9 @@
           });
           tx.onerror = function(evt) {
             console.warn('[AA] Incremental chunk save failed:', evt.target.error);
-            _chunkSaveFailCount++;
-            _lastBackedUpIndex -= newChunks.length; // roll back so next attempt retries these chunks
-            if (_chunkSaveFailCount >= 3 && !_chunkSaveFailShown) {
-              _chunkSaveFailShown = true;
-              var warn = document.getElementById('recordStatus') || document.getElementById('record-status');
-              if (warn) warn.textContent = '⚠️ Storage running low — save your recording soon to avoid losing audio!';
-              // Also try to save transcript to localStorage as emergency backup
-              try {
-                var t = (document.getElementById('transcriptContent') || {}).textContent || (document.getElementById('liveTranscript') || {}).textContent || '';
-                if (t) localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', t);
-              } catch(e) {}
-            }
           };
         } catch(e) {
           console.warn('[AA] Chunk save error:', e);
-          _chunkSaveFailCount++;
         }
       });
     }
@@ -1758,10 +1709,6 @@
     function _clearIncrementalChunks() {
       _lastBackedUpIndex = 0;
       _chunkBatchCounter = 0;
-      /* Claude: 2026-03-16 — clear checkpoint when saving/discarding */
-      try { localStorage.removeItem('AA_AUDIO_CHECKPOINT'); } catch(e) {}
-      _chunkSaveFailCount = 0;
-      _chunkSaveFailShown = false;
       _openDraftDB(function(db) {
         if (!db || !db.objectStoreNames.contains('chunks')) return;
         try {
@@ -1875,25 +1822,11 @@
 
             /* Claude: 2026-03-16 — try incremental chunks first (v2), fall back to legacy blob (v1) */
             _reassembleChunks(function(recoveredBlob) {
-              /* Claude: 2026-03-16 — check checkpoint to warn if partial recovery */
-              var cpRaw = null;
-              try { cpRaw = localStorage.getItem('AA_AUDIO_CHECKPOINT'); } catch(e) {}
-              var checkpoint = cpRaw ? JSON.parse(cpRaw) : null;
-
               if (recoveredBlob) {
                 audioChunks = [recoveredBlob];
                 recordingMimeType = draft.mimeType || 'audio/webm';
                 recordStartTime = Date.now() - (draft.duration || 0) * 1000;
-                if (statusEl) {
-                  var msg = 'Recording recovered! Choose what to do below.';
-                  if (checkpoint && checkpoint.chunkCount > 0) {
-                    var recovered = recoveredBlob.size > 0 ? Math.round(recoveredBlob.size / 1024) : 0;
-                    if (recovered < (checkpoint.chunkCount * 10)) { // rough heuristic: ~10KB per chunk
-                      msg = '⚠️ Partial recovery — some audio from the end may be missing. Choose what to do below.';
-                    }
-                  }
-                  statusEl.textContent = msg;
-                }
+                if (statusEl) statusEl.textContent = 'Recording recovered! Choose what to do below.';
                 showToast('Recording recovered (' + Math.round(recoveredBlob.size / 1024) + 'KB)! Save to Docs, Drive, or discard.', 10000);
               } else if (draft.audioBlob) {
                 /* Legacy v1 recovery — single blob stored in drafts */
@@ -2140,16 +2073,10 @@
          2. Async-save audio blob to IndexedDB (best-effort; completes in most browsers)
          3. Show dialog only if actively recording; unsaved transcript silently auto-saves */
     window.addEventListener('beforeunload', function(e) {
-      /* Claude: 2026-03-16 — FIX D: stop backup timer before emergency save */
-      _stopTranscriptBackup();
-
       var isRecording = mediaRecorder && mediaRecorder.state === 'recording';
       var hasChunks   = audioChunks && audioChunks.length > 0;
       var hasTxt      = transcript && transcript.trim();
       if (!isRecording && !hasChunks && !hasTxt) return; // nothing to protect
-
-      /* Claude: 2026-03-16 — FIX A: sync checkpoint before async save */
-      _syncCheckpoint();
 
       // 1. Synchronous localStorage save — survives even if IndexedDB doesn't finish
       // Claude: 2026-03-08 — save even if transcript is empty (Android has no SR)
@@ -2271,9 +2198,6 @@
     }
 
     window.AA_PRESIGNOUT = function() {
-      /* Claude: 2026-03-16 — FIX D: stop backup timer before emergency save */
-      _stopTranscriptBackup();
-
       var isActiveRecording = mediaRecorder && mediaRecorder.state === 'recording';
       if (!isActiveRecording && !audioChunks.length && !transcript.trim()) return; // nothing to save
       return new Promise(function(resolve) {
