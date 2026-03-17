@@ -420,9 +420,6 @@
         }
       });
 
-      /* Claude: 2026-03-16 — disable save button during operation */
-      var btn = document.querySelector('[onclick*="saveModeConfig(\'' + modeKey + '\')"]');
-      if (btn) btn.disabled = true;
       if (statusEl) { statusEl.style.color = '#888'; statusEl.textContent = 'Saving…'; }
 
       var update = {};
@@ -431,15 +428,11 @@
         .then(function() {
           _modeSettings[modeKey] = config;
           if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Saved!'; }
-          if (btn) btn.disabled = false;
-          /* Claude: 2026-03-16 — backup mode config to localStorage */
-          try { localStorage.setItem('AA_MODE_CONFIG_BACKUP', JSON.stringify(_modeSettings)); } catch(e) {}
           setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 3000);
           if (AA.logAccess) AA.logAccess('write', _uid, 'modeSettings');
         })
         .catch(function(err) {
           if (statusEl) { statusEl.style.color = '#c0392b'; statusEl.textContent = '❌ ' + err.message; }
-          if (btn) btn.disabled = false;
         });
     };
 
@@ -545,22 +538,13 @@
           }
 
           /* Load custom mode settings */
-          /* Claude: 2026-03-16 — 15-second loading timeout with retry */
-          var _modesLoadTimer = setTimeout(function() {
-            var container = document.getElementById('mode-configs');
-            if (container && container.children.length === 0) {
-              container.innerHTML = '<p style="text-align:center;color:#999;padding:2rem;">Taking longer than expected… <button onclick="location.reload()" style="color:#6CA0A3;background:none;border:none;cursor:pointer;font-weight:700;text-decoration:underline;">Retry</button></p>';
-            }
-          }, 15000);
           AA.getUserDoc(_uid).then(function(doc) {
-            clearTimeout(_modesLoadTimer);
             if (doc.exists && doc.data().modeSettings) {
               _modeSettings = doc.data().modeSettings;
             }
             renderModeConfigs();
             highlightActive();
           }).catch(function() {
-            clearTimeout(_modesLoadTimer);
             renderModeConfigs();
             highlightActive();
           });

@@ -292,15 +292,7 @@
        AA.watchMealLog keeps todaysMeals in sync across all devices. */
     function startMealListener() {
       if (unsubMealLog) { unsubMealLog(); }
-      /* Claude: 2026-03-16 — 15-second loading timeout with retry */
-      var _mealLoadTimer = setTimeout(function() {
-        var mealList = document.getElementById('mealList');
-        if (mealList && mealList.children.length === 0) {
-          mealList.innerHTML = '<p style="text-align:center;color:#999;padding:2rem;">Taking longer than expected…</p><button onclick="location.reload()" style="color:#2e6b4f;background:none;border:none;cursor:pointer;font-weight:700;text-decoration:underline;">Retry</button>';
-        }
-      }, 15000);
       unsubMealLog = AA.watchMealLog(currentUid, dateKey, function(data) {
-        clearTimeout(_mealLoadTimer);
         todaysMeals = (data && Array.isArray(data.meals)) ? data.meals : [];
         displayMeals();
       });
@@ -420,60 +412,22 @@
         return;
       }
 
-      /* Claude: 2026-03-16 — double-click protection on add button */
-      var btn = document.querySelector('[onclick*="addMeal()"]');
-      if (btn) {
-        var origText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Adding…';
-      }
-
       todaysMeals.push({ name: name || '(unnamed)', time: time, notes: notes, type: type, addedAt: Date.now() });
       AA.saveMealLog(currentUid, dateKey, todaysMeals)
-        .then(function() {
-          document.getElementById('mealName').value  = '';
-          document.getElementById('mealTime').value  = '';
-          document.getElementById('mealNotes').value = '';
-          document.getElementById('mealType').value  = '';
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = origText;
-          }
-        })
-        .catch(function(err) {
-          console.error('[AA] saveMealLog:', err);
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = origText;
-          }
-        });
+        .catch(function(err) { console.error('[AA] saveMealLog:', err); });
+
+      document.getElementById('mealName').value  = '';
+      document.getElementById('mealTime').value  = '';
+      document.getElementById('mealNotes').value = '';
+      document.getElementById('mealType').value  = '';
     }
 
     /* ── Remove a meal ── */
     function removeMeal(index) {
       if (_isMealMirror()) return; /* blocked */
-      /* Claude: 2026-03-16 — double-click protection on remove button */
-      var btn = document.querySelector('[onclick*="removeMeal(' + index + ')"]');
-      if (btn) {
-        var origText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Removing…';
-      }
       todaysMeals.splice(index, 1);
       AA.saveMealLog(currentUid, dateKey, todaysMeals)
-        .then(function() {
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = origText;
-          }
-        })
-        .catch(function(err) {
-          console.error('[AA] saveMealLog:', err);
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = origText;
-          }
-        });
+        .catch(function(err) { console.error('[AA] saveMealLog:', err); });
     }
 
     /* ── Reset today's plan ── */

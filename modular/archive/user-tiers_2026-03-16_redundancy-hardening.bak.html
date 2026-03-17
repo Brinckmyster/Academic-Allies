@@ -1246,16 +1246,7 @@
       /* Show live status panel in mirror mode or network-lead mode */
       if (isMirrorMode || isNetworkLeadMode) { loadStudentStatus(studentUid, studentName); }
 
-      /* Claude: 2026-03-16 — 15-second loading timeout with retry */
-      var _ntLoadTimer = setTimeout(function() {
-        var loadMsg = document.getElementById('loading-msg');
-        if (loadMsg && loadMsg.style.display === 'block') {
-          loadMsg.innerHTML = '<p style="color:#999;">Taking longer than expected…</p><button onclick="location.reload()" style="color:#6CA0A3;background:none;border:none;cursor:pointer;font-weight:700;text-decoration:underline;">Retry</button>';
-        }
-      }, 15000);
-
       AA.getUserDoc(studentUid).then(function(doc) {
-        clearTimeout(_ntLoadTimer);
         if (!doc.exists) { showError('No profile found.'); return; }
         var data    = doc.data();
         var network = data.supportNetwork || {};
@@ -1276,7 +1267,6 @@
           renderNetwork(studentUid, studentName, members);
         });
       }).catch(function(err) {
-        clearTimeout(_ntLoadTimer);
         showError('Error loading network: ' + err.message);
       });
     }

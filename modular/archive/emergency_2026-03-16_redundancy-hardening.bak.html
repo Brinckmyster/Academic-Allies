@@ -472,8 +472,6 @@ function persistContacts() {
     setTimeout(function(){ status.textContent = ''; }, 3000);
     /* Claude: 2026-03-16 — re-enable buttons after success */
     buttons.forEach(function(btn) { btn.disabled = false; });
-    /* Claude: 2026-03-16 — backup contacts to localStorage */
-    try { localStorage.setItem('AA_EMERGENCY_BACKUP', JSON.stringify(_contacts)); } catch(e) {}
   })
   .catch(function(err) {
     console.error('[AA] emergencyContacts save:', err);
@@ -657,23 +655,8 @@ AA.auth.onAuthStateChanged(function(user) {
 
   /* Real-time listener */
   if (_unsubContacts) _unsubContacts();
-  /* Claude: 2026-03-16 — 15-second loading timeout with retry */
-  var _ecLoadTimer = setTimeout(function() {
-    var container = document.getElementById('ec-view');
-    if (container && !container.dataset.loaded) {
-      hide('ec-loading');
-      container.style.display = 'none';
-      var timeoutMsg = document.createElement('div');
-      timeoutMsg.style.cssText = 'text-align:center;color:#999;padding:2rem;';
-      timeoutMsg.innerHTML = '<p style="margin-bottom:1rem;">Taking longer than expected…</p><button onclick="location.reload()" style="color:#6CA0A3;background:none;border:none;cursor:pointer;font-weight:700;text-decoration:underline;">Retry</button>';
-      document.querySelector('.page-wrap').insertBefore(timeoutMsg, container.nextSibling);
-    }
-  }, 15000);
   _unsubContacts = AA.db.collection('emergencyContacts').doc(_studentUid)
     .onSnapshot(function(doc) {
-      clearTimeout(_ecLoadTimer);
-      var container = document.getElementById('ec-view');
-      if (container) container.dataset.loaded = 'true';
       _contacts = (doc.exists && Array.isArray(doc.data().contacts))
         ? doc.data().contacts : [];
       renderContacts(_contacts);
@@ -685,7 +668,6 @@ AA.auth.onAuthStateChanged(function(user) {
         _initialLoadDone = true;
       }
     }, function(err) {
-      clearTimeout(_ecLoadTimer);
       console.error('[AA] emergencyContacts read:', err);
       hide('ec-loading');
       document.getElementById('ec-subtitle').textContent =
