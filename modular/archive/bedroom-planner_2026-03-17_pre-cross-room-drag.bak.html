@@ -499,16 +499,8 @@ function onFurnDown(e){
   doff={x:e.clientX-r.left,y:e.clientY-r.top};
   render();
 }
-/* Claude: 2026-03-17 — live cross-room drag: switch dragRoom when cursor enters other room */
 document.addEventListener('mousemove',e=>{
   if(!dragging)return;
-  /* Check if cursor is now over the OTHER room */
-  const rr=room.getBoundingClientRect();
-  const cr=croom.getBoundingClientRect();
-  const overRoom=e.clientX>=rr.left&&e.clientX<=rr.right&&e.clientY>=rr.top&&e.clientY<=rr.bottom;
-  const overCloset=e.clientX>=cr.left&&e.clientX<=cr.right&&e.clientY>=cr.top&&e.clientY<=cr.bottom;
-  if(overRoom&&dragRoom==='closet'){dragRoom='master';placed[dragging].room='master';}
-  else if(overCloset&&dragRoom==='master'){dragRoom='closet';placed[dragging].room='closet';}
   const inC=dragRoom==='closet';
   const r=(inC?croom:room).getBoundingClientRect();
   const rm=inC?CLOSET:ROOM;
@@ -519,9 +511,6 @@ document.addEventListener('mousemove',e=>{
   placed[dragging].y=Math.max(0,Math.min(rm.h-h,toInY(e.clientY-r.top-doff.y)));
   render();
 });
-/* Claude: 2026-03-17 — cross-room drag: detect when a placed piece is dragged
-   from one room into the other (room ↔ closet). Previously only sidebar drops
-   checked both rooms; placed-piece drags stayed locked to their original room. */
 document.addEventListener('mouseup',e=>{
   if(sdrag){
     const r=room.getBoundingClientRect();
@@ -534,24 +523,7 @@ document.addEventListener('mouseup',e=>{
     }
     sdrag=null;
   }
-  if(dragging){
-    /* Check if piece was dragged into the OTHER room */
-    const fromCloset=dragRoom==='closet';
-    const targetEl=fromCloset?room:croom;
-    const targetName=fromCloset?'master':'closet';
-    const tr=targetEl.getBoundingClientRect();
-    if(e.clientX>=tr.left&&e.clientX<=tr.right&&e.clientY>=tr.top&&e.clientY<=tr.bottom){
-      /* Dropped in the other room — transfer it */
-      const toInX2=targetName==='closet'?cinX:inX;
-      const toInY2=targetName==='closet'?cinY:inY;
-      const rm2=targetName==='closet'?CLOSET:ROOM;
-      const w2=cw(dragging),h2=ch(dragging);
-      placed[dragging].x=Math.max(0,Math.min(rm2.w-w2,toInX2(e.clientX-tr.left-doff.x)));
-      placed[dragging].y=Math.max(0,Math.min(rm2.h-h2,toInY2(e.clientY-tr.top-doff.y)));
-      placed[dragging].room=targetName;
-    }
-    dragging=null;render();
-  }
+  if(dragging){dragging=null;render();}
 });
 room.addEventListener('mousedown',e=>{if(e.target===room){sel=null;render();}});
 croom.addEventListener('mousedown',e=>{if(e.target===croom){sel=null;render();}});
@@ -564,18 +536,10 @@ function onFurnTouch(e){
   doff={x:t.clientX-r.left,y:t.clientY-r.top};
   render();
 }
-/* Claude: 2026-03-17 — live cross-room touch drag */
 document.addEventListener('touchmove',e=>{
   if(!dragging)return;
-  const t=e.touches[0];
-  const rr=room.getBoundingClientRect();
-  const cr2=croom.getBoundingClientRect();
-  const overRoom=t.clientX>=rr.left&&t.clientX<=rr.right&&t.clientY>=rr.top&&t.clientY<=rr.bottom;
-  const overCloset=t.clientX>=cr2.left&&t.clientX<=cr2.right&&t.clientY>=cr2.top&&t.clientY<=cr2.bottom;
-  if(overRoom&&dragRoom==='closet'){dragRoom='master';placed[dragging].room='master';}
-  else if(overCloset&&dragRoom==='master'){dragRoom='closet';placed[dragging].room='closet';}
   const inC=dragRoom==='closet';
-  const r=(inC?croom:room).getBoundingClientRect();
+  const t=e.touches[0],r=(inC?croom:room).getBoundingClientRect();
   const rm=inC?CLOSET:ROOM;
   const toInX=inC?cinX:inX;
   const toInY=inC?cinY:inY;
@@ -584,7 +548,6 @@ document.addEventListener('touchmove',e=>{
   placed[dragging].y=Math.max(0,Math.min(rm.h-h,toInY(t.clientY-r.top-doff.y)));
   render();
 },{passive:false});
-/* Claude: 2026-03-17 — cross-room touch drag (same fix as mouse) */
 document.addEventListener('touchend',e=>{
   if(sdrag){
     const r=room.getBoundingClientRect();
@@ -597,23 +560,7 @@ document.addEventListener('touchend',e=>{
     }
     sdrag=null;
   }
-  if(dragging){
-    const t=e.changedTouches[0];
-    const fromCloset=dragRoom==='closet';
-    const targetEl=fromCloset?room:croom;
-    const targetName=fromCloset?'master':'closet';
-    const tr=targetEl.getBoundingClientRect();
-    if(t.clientX>=tr.left&&t.clientX<=tr.right&&t.clientY>=tr.top&&t.clientY<=tr.bottom){
-      const toInX2=targetName==='closet'?cinX:inX;
-      const toInY2=targetName==='closet'?cinY:inY;
-      const rm2=targetName==='closet'?CLOSET:ROOM;
-      const w2=cw(dragging),h2=ch(dragging);
-      placed[dragging].x=Math.max(0,Math.min(rm2.w-w2,toInX2(t.clientX-tr.left-doff.x)));
-      placed[dragging].y=Math.max(0,Math.min(rm2.h-h2,toInY2(t.clientY-tr.top-doff.y)));
-      placed[dragging].room=targetName;
-    }
-    dragging=null;render();
-  }
+  if(dragging){dragging=null;render();}
 });
 // ── Buttons ──────────────────────────────
 document.getElementById('btnRot').addEventListener('click',()=>{
