@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Floral ID Match Game — Study for Finals</title>
+<!-- Claude: 2026-03-17 — Created floral matching game for Bruise's floral ID final -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #f5f0ff 0%, #e8f5e9 100%);
+    min-height: 100vh;
+    padding: 12px;
+    color: #333;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+    color: #4a148c;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 10px;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .controls button, .controls select {
+    padding: 8px 16px;
+    border: 2px solid #7b1fa2;
+    border-radius: 20px;
+    background: #fff;
+    color: #7b1fa2;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .controls button:hover, .controls select:hover {
+    background: #7b1fa2;
+    color: #fff;
+  }
+  .controls select {
+    appearance: auto;
+  }
+  .score-bar {
+    text-align: center;
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #4a148c;
+  }
+  .score-bar .correct { color: #2e7d32; }
+  .score-bar .wrong { color: #c62828; }
+  .game-area {
+    display: flex;
+    gap: 12px;
+    max-width: 800px;
+    margin: 0 auto;
+    justify-content: center;
+  }
+  .column {
+    flex: 1;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .col-header {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 6px;
+    border-radius: 8px;
+    color: #fff;
+  }
+  .col-left .col-header { background: #7b1fa2; }
+  .col-right .col-header { background: #2e7d32; }
+  .card {
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    text-align: center;
+    position: relative;
+  }
+  .card-common {
+    background: #e1bee7;
+    color: #4a148c;
+    border-color: #ce93d8;
+  }
+  .card-genus {
+    background: #c8e6c9;
+    color: #1b5e20;
+    border-color: #a5d6a7;
+  }
+  .card.selected {
+    border-color: #ff6f00;
+    box-shadow: 0 0 0 3px rgba(255, 111, 0, 0.3);
+    transform: scale(1.03);
+  }
+  .card.matched {
+    opacity: 0.5;
+    cursor: default;
+    transform: scale(0.97);
+    border-style: dashed;
+  }
+  .card.correct-flash {
+    animation: correctPulse 0.6s ease;
+    border-color: #2e7d32;
+    background: #a5d6a7;
+  }
+  .card.wrong-flash {
+    animation: wrongShake 0.5s ease;
+    border-color: #c62828;
+  }
+  .card .genus-reveal {
+    display: none;
+    font-size: 0.7rem;
+    color: #666;
+    margin-top: 2px;
+  }
+  .card.matched .genus-reveal { display: block; }
+
+  @keyframes correctPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); background: #66bb6a; }
+    100% { transform: scale(0.97); }
+  }
+  @keyframes wrongShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+  }
+
+  .complete-banner {
+    display: none;
+    text-align: center;
+    padding: 20px;
+    margin: 20px auto;
+    max-width: 500px;
+    background: linear-gradient(135deg, #e8f5e9, #f3e5f5);
+    border-radius: 16px;
+    border: 3px solid #7b1fa2;
+  }
+  .complete-banner h2 { color: #2e7d32; margin-bottom: 8px; }
+  .complete-banner .stats { font-size: 1.1rem; margin-bottom: 12px; }
+  .complete-banner button {
+    padding: 10px 24px;
+    border: 2px solid #7b1fa2;
+    border-radius: 20px;
+    background: #7b1fa2;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .instructions {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 8px;
+    font-style: italic;
+  }
+
+  /* Drag ghost */
+  .dragging {
+    opacity: 0.4;
+  }
+  .drag-over {
+    border-color: #ff6f00 !important;
+    background: #fff3e0 !important;
+  }
+
+  /* Mobile stacked */
+  @media (max-width: 600px) {
+    .game-area { flex-direction: column; align-items: center; }
+    .column { max-width: 100%; width: 100%; }
+    .card { font-size: 0.9rem; padding: 12px; }
+    h1 { font-size: 1.3rem; }
+  }
+
+  .credit {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #aaa;
+    margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+<!-- Claude: 2026-03-17 — Added shared header/footer for nav consistency -->
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260317a')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<h1>Floral ID Match Game</h1>
+<p class="subtitle">Common Name &harr; Genus Name &mdash; Study for your final on March 24!</p>
+
+<div class="controls">
+  <select id="quizPicker" onchange="loadQuiz()">
+    <option value="all">All Flowers</option>
+    <option value="1">Quiz 1 &mdash; Mass Flowers</option>
+    <option value="2">Quiz 2 &mdash; Line Flowers</option>
+    <option value="3">Quiz 3 &mdash; Filler Flowers</option>
+    <option value="4">Quiz 4 &mdash; Form/Focal Flowers</option>
+    <option value="5">Quiz 5 &mdash; Foliage</option>
+    <option value="random10">Random 10</option>
+  </select>
+  <button onclick="loadQuiz()">Shuffle &amp; Reset</button>
+</div>
+
+<div class="score-bar">
+  Matched: <span class="correct" id="scoreCorrect">0</span> |
+  Misses: <span class="wrong" id="scoreMisses">0</span> |
+  Left: <span id="scoreLeft">0</span>
+</div>
+
+<p class="instructions" id="instrText">Tap a common name, then tap its genus to match!</p>
+
+<div class="game-area">
+  <div class="column col-left" id="colLeft">
+    <div class="col-header">Common Name</div>
+  </div>
+  <div class="column col-right" id="colRight">
+    <div class="col-header">Genus Name</div>
+  </div>
+</div>
+
+<div class="complete-banner" id="completeBanner">
+  <h2>Round Complete!</h2>
+  <div class="stats" id="completeStats"></div>
+  <button onclick="loadQuiz()">Play Again</button>
+</div>
+
+<p class="credit">Built by Claude for Bruise &mdash; March 2026</p>
+
+<script>
+/* Claude: 2026-03-17 — Floral matching game for floral ID final prep */
+
+/* Claude: 2026-03-17 — Updated from Bruise's actual study guide screenshots */
+var FLOWERS = {
+  "1": [
+    { common: "Carnation", genus: "Dianthus" },
+    { common: "Daisy Pom/Cushion Pom", genus: "Chrysanthemum" },
+    { common: "Rose", genus: "Rosa" },
+    { common: "Alstro", genus: "Alstroemeria" },
+    { common: "Lisianthus", genus: "Eustoma" },
+    { common: "Hydrangea", genus: "Hydrangea" },
+    { common: "Peony", genus: "Paeonia" },
+    { common: "Ranunculus", genus: "Ranunculus" },
+    { common: "Safari Sunset", genus: "Leucadendron" },
+    { common: "China Aster", genus: "Callistephus" }
+  ],
+  "2": [
+    { common: "Snapdragon", genus: "Antirrhinum" },
+    { common: "Larkspur", genus: "Consolida" },
+    { common: "Delphinium", genus: "Delphinium" },
+    { common: "Liatris", genus: "Liatris" },
+    { common: "Gladiola", genus: "Gladiolus" },
+    { common: "Stock", genus: "Matthiola" },
+    { common: "Bells of Ireland", genus: "Moluccella" },
+    { common: "Baby Blue Eucalyptus", genus: "Eucalyptus" },
+    { common: "Curly Willow", genus: "Salix" },
+    { common: "Dendrobium Orchid", genus: "Dendrobium" }
+  ],
+  "3": [
+    { common: "Solidago", genus: "Solidago" },
+    { common: "Misty Blue", genus: "Limonium" },
+    { common: "Statice", genus: "Limonium" },
+    { common: "Queen Anne's Lace", genus: "Ammi" },
+    { common: "Babies Breath", genus: "Gypsophila" },
+    { common: "Waxflower", genus: "Chamelaucium" },
+    { common: "Pixie Carnation", genus: "Dianthus" },
+    { common: "Aster", genus: "Aster" },
+    { common: "Hypericum Berries", genus: "Hypericum" },
+    { common: "Sea Holly", genus: "Eryngium" }
+  ],
+  "4": [
+    { common: "Sunflower", genus: "Helianthus" },
+    { common: "Calla Lily", genus: "Zantedeschia" },
+    { common: "Tulip", genus: "Tulipa" },
+    { common: "Bird of Paradise", genus: "Strelitzia" },
+    { common: "Disbud Mum", genus: "Chrysanthemum" },
+    { common: "Lily", genus: "Lilium" },
+    { common: "Billy Balls", genus: "Craspedia" },
+    { common: "Anthurium", genus: "Anthurium" },
+    { common: "Iris", genus: "Iris" },
+    { common: "Gerber Daisy", genus: "Gerbera" }
+  ],
+  /* Claude: 2026-03-17 — Quiz 5 updated from Mary's study guide screenshot */
+  "5": [
+    { common: "Leather Leaf", genus: "Rumohra" },
+    { common: "Bear Grass", genus: "Xerophyllum" },
+    { common: "Lily Grass", genus: "Liriope" },
+    { common: "Seeded Eucalyptus", genus: "Eucalyptus" },
+    { common: "Israeli Ruscus", genus: "Ruscus" },
+    { common: "Italian Ruscus", genus: "Ruscus" },
+    { common: "Salal/Lemon Leaf", genus: "Gaultheria" },
+    { common: "Grevillea", genus: "Grevillea" },
+    { common: "Pitt", genus: "Pittosporum" },
+    { common: "Myrtle", genus: "Myrtus" }
+  ]
+};
+
+var state = {
+  flowers: [],
+  selectedCommon: null,
+  selectedGenus: null,
+  correct: 0,
+  misses: 0,
+  total: 0,
+  matched: 0
+};
+
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function loadQuiz() {
+  var pick = document.getElementById("quizPicker").value;
+  var pool = [];
+
+  if (pick === "all") {
+    pool = FLOWERS["1"].concat(FLOWERS["2"]).concat(FLOWERS["3"]).concat(FLOWERS["4"]).concat(FLOWERS["5"]);
+  } else if (pick === "random10") {
+    var all = FLOWERS["1"].concat(FLOWERS["2"]).concat(FLOWERS["3"]).concat(FLOWERS["4"]).concat(FLOWERS["5"]);
+    pool = shuffle(all).slice(0, 10);
+  } else {
+    pool = (FLOWERS[pick] || []).slice();
+  }
+
+  /* Handle duplicate genus names — add common name hint for disambiguation */
+  var genusCounts = {};
+  pool.forEach(function(f) {
+    genusCounts[f.genus] = (genusCounts[f.genus] || 0) + 1;
+  });
+
+  state.flowers = pool;
+  state.selectedCommon = null;
+  state.selectedGenus = null;
+  state.correct = 0;
+  state.misses = 0;
+  state.total = pool.length;
+  state.matched = 0;
+
+  var colLeft = document.getElementById("colLeft");
+  var colRight = document.getElementById("colRight");
+  colLeft.innerHTML = '<div class="col-header">Common Name</div>';
+  colRight.innerHTML = '<div class="col-header">Genus Name</div>';
+
+  var shuffledCommon = shuffle(pool.map(function(f, i) { return { text: f.common, idx: i }; }));
+  var shuffledGenus = shuffle(pool.map(function(f, i) { return { text: f.genus, idx: i, common: f.common, isDup: genusCounts[f.genus] > 1 }; }));
+
+  shuffledCommon.forEach(function(item) {
+    var card = document.createElement("div");
+    card.className = "card card-common";
+    card.textContent = item.text;
+    card.setAttribute("data-idx", item.idx);
+    card.setAttribute("draggable", "true");
+    card.onclick = function() { selectCommon(card); };
+    card.ondragstart = function(e) {
+      card.classList.add("dragging");
+      e.dataTransfer.setData("text/plain", item.idx);
+    };
+    card.ondragend = function() { card.classList.remove("dragging"); };
+    colLeft.appendChild(card);
+  });
+
+  shuffledGenus.forEach(function(item) {
+    var card = document.createElement("div");
+    card.className = "card card-genus";
+    card.textContent = item.text;
+    if (item.isDup) {
+      var hint = document.createElement("div");
+      hint.className = "genus-reveal";
+      hint.textContent = "(" + item.common + ")";
+      card.appendChild(hint);
+    }
+    card.setAttribute("data-idx", item.idx);
+    card.onclick = function() { selectGenus(card); };
+    card.ondragover = function(e) { e.preventDefault(); card.classList.add("drag-over"); };
+    card.ondragleave = function() { card.classList.remove("drag-over"); };
+    card.ondrop = function(e) {
+      e.preventDefault();
+      card.classList.remove("drag-over");
+      var dragIdx = parseInt(e.dataTransfer.getData("text/plain"));
+      var dropIdx = parseInt(card.getAttribute("data-idx"));
+      handleMatch(dragIdx, dropIdx);
+    };
+    colRight.appendChild(card);
+  });
+
+  document.getElementById("completeBanner").style.display = "none";
+  updateScore();
+}
+
+function selectCommon(card) {
+  if (card.classList.contains("matched")) return;
+  clearSelections("card-common");
+  card.classList.add("selected");
+  state.selectedCommon = parseInt(card.getAttribute("data-idx"));
+  tryMatch();
+}
+
+function selectGenus(card) {
+  if (card.classList.contains("matched")) return;
+  clearSelections("card-genus");
+  card.classList.add("selected");
+  state.selectedGenus = parseInt(card.getAttribute("data-idx"));
+  tryMatch();
+}
+
+function clearSelections(cls) {
+  var cards = document.querySelectorAll("." + cls + ".selected");
+  for (var i = 0; i < cards.length; i++) {
+    cards[i].classList.remove("selected");
+  }
+}
+
+function tryMatch() {
+  if (state.selectedCommon === null || state.selectedGenus === null) return;
+  handleMatch(state.selectedCommon, state.selectedGenus);
+}
+
+function handleMatch(commonIdx, genusIdx) {
+  var commonCard = document.querySelector('.card-common[data-idx="' + commonIdx + '"]');
+  var genusCard = document.querySelector('.card-genus[data-idx="' + genusIdx + '"]');
+  if (!commonCard || !genusCard) return;
+  if (commonCard.classList.contains("matched") || genusCard.classList.contains("matched")) return;
+
+  if (commonIdx === genusIdx) {
+    /* Correct match */
+    state.correct++;
+    state.matched++;
+    commonCard.classList.remove("selected");
+    genusCard.classList.remove("selected");
+    commonCard.classList.add("matched", "correct-flash");
+    genusCard.classList.add("matched", "correct-flash");
+
+    /* Show genus on the common name card too */
+    var reveal = document.createElement("div");
+    reveal.className = "genus-reveal";
+    reveal.style.display = "block";
+    reveal.textContent = "= " + state.flowers[commonIdx].genus;
+    commonCard.appendChild(reveal);
+  } else {
+    /* Wrong match */
+    state.misses++;
+    commonCard.classList.add("wrong-flash");
+    genusCard.classList.add("wrong-flash");
+    setTimeout(function() {
+      commonCard.classList.remove("wrong-flash", "selected");
+      genusCard.classList.remove("wrong-flash", "selected");
+    }, 500);
+  }
+
+  state.selectedCommon = null;
+  state.selectedGenus = null;
+  updateScore();
+
+  if (state.matched >= state.total) {
+    setTimeout(showComplete, 600);
+  }
+}
+
+function updateScore() {
+  document.getElementById("scoreCorrect").textContent = state.correct;
+  document.getElementById("scoreMisses").textContent = state.misses;
+  document.getElementById("scoreLeft").textContent = (state.total - state.matched);
+}
+
+function showComplete() {
+  var pct = state.total > 0 ? Math.round((state.correct / (state.correct + state.misses)) * 100) : 0;
+  var msg = "";
+  if (state.misses === 0) {
+    msg = "PERFECT SCORE! " + state.correct + "/" + state.correct + " — 100%! You're ready for that final!";
+  } else {
+    msg = state.correct + " correct, " + state.misses + " misses — " + pct + "% accuracy. Keep practicing!";
+  }
+  document.getElementById("completeStats").textContent = msg;
+  document.getElementById("completeBanner").style.display = "block";
+}
+
+/* Start on load */
+loadQuiz();
+</script>
+</body>
+</html>

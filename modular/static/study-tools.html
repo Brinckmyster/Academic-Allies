@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/Academic-Allies/favicon.ico">
+<!-- Claude: 2026-03-17 — early dark mode detect to prevent FOUC -->
+<script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Tools — Academic Allies</title>
+<!-- Claude: 2026-03-17 — Study Tools hub page with BYU-I trimester organization -->
+<!-- Claude: 2026-03-17 — Auto-collapses past semesters, shows current semester expanded -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    background: #FAFAF9;
+    color: #333;
+    min-height: 100vh;
+    padding: 0 12px 40px;
+  }
+  html.aa-dark body { background: #121212; color: #e0e0e0; }
+
+  .study-hub {
+    max-width: 700px;
+    margin: 0 auto;
+    padding-top: 20px;
+  }
+  .study-hub h1 {
+    color: #6CA0A3;
+    font-size: 22pt;
+    margin-bottom: 6px;
+  }
+  html.aa-dark .study-hub h1 { color: #8ec5c8; }
+  .study-hub .sub {
+    color: #888;
+    font-size: 12pt;
+    margin-bottom: 24px;
+  }
+
+  /* Semester headings */
+  .semester-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #e8f2f3;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+  }
+  html.aa-dark .semester-heading { background: #1a2a2b; }
+  .semester-heading:hover { background: #d8eaeb; }
+  html.aa-dark .semester-heading:hover { background: #223535; }
+  .semester-heading h2 {
+    color: #4a7f82;
+    font-size: 15pt;
+    margin: 0;
+  }
+  html.aa-dark .semester-heading h2 { color: #8ec5c8; }
+  .semester-heading .sem-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .semester-heading .sem-badge {
+    background: #6CA0A3;
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 9pt;
+    font-weight: 700;
+  }
+  .semester-heading .sem-badge.past {
+    background: #aaa;
+  }
+  html.aa-dark .semester-heading .sem-badge.past { background: #555; }
+  .semester-heading .toggle-arrow {
+    font-size: 12pt;
+    color: #888;
+    transition: transform 0.2s;
+  }
+  .semester-heading .toggle-arrow.collapsed { transform: rotate(-90deg); }
+
+  .semester-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .semester-body.collapsed {
+    max-height: 0 !important;
+    margin-bottom: 0;
+  }
+
+  .tool-card {
+    background: #fff;
+    border: 2px solid #e8f2f3;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: all 0.2s;
+  }
+  html.aa-dark .tool-card {
+    background: #1e1e1e;
+    border-color: #333;
+  }
+  .tool-card:hover {
+    border-color: #6CA0A3;
+    box-shadow: 0 4px 12px rgba(108, 160, 163, 0.15);
+  }
+  .tool-card h3 {
+    color: #4a7f82;
+    font-size: 16pt;
+    margin-bottom: 8px;
+  }
+  html.aa-dark .tool-card h3 { color: #8ec5c8; }
+  .tool-card p {
+    color: #666;
+    font-size: 12pt;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  html.aa-dark .tool-card p { color: #aaa; }
+  .tool-card .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .tool-card .tag {
+    background: #e8f2f3;
+    color: #4a7f82;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 10pt;
+    font-weight: 600;
+  }
+  html.aa-dark .tool-card .tag {
+    background: #2a3a3b;
+    color: #8ec5c8;
+  }
+  .tool-card .play-btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #6CA0A3;
+    color: #fff;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 13pt;
+    transition: background 0.2s;
+  }
+  .tool-card .play-btn:hover {
+    background: #4a7f82;
+  }
+
+  .exam-countdown {
+    text-align: center;
+    background: linear-gradient(135deg, #e8f2f3, #f0f7f8);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 2px solid #b2d8db;
+  }
+  html.aa-dark .exam-countdown {
+    background: linear-gradient(135deg, #1a2a2b, #1e2e2f);
+    border-color: #3a5a5c;
+  }
+  .exam-countdown .days {
+    font-size: 28pt;
+    font-weight: 700;
+    color: #4a7f82;
+  }
+  html.aa-dark .exam-countdown .days { color: #8ec5c8; }
+  .exam-countdown .label {
+    font-size: 11pt;
+    color: #888;
+  }
+
+  .empty-past {
+    text-align: center;
+    color: #aaa;
+    font-style: italic;
+    padding: 12px;
+    font-size: 11pt;
+  }
+
+  .credit {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #aaa;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260317b')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<div class="study-hub">
+  <h1>📚 Study Tools</h1>
+  <p class="sub">Practice games and study aids organized by trimester</p>
+
+  <div id="semesterContent"></div>
+</div>
+
+<p class="credit">Built by Claude for Bruise — March 2026</p>
+
+<script>
+/* Claude: 2026-03-17 — Study Tools hub with BYU-I trimester organization
+   Trimesters auto-detect current vs past. Past trimesters collapse automatically.
+   BYU-I three-track system: Fall (Sep–Dec), Winter (Jan–Apr), Spring (May–Jul)
+   Plus bonus Summer Session (~7 weeks between Spring and Fall) */
+
+/* Trimester definitions — add new trimesters as classes are taken */
+var TRIMESTERS = [
+  {
+    id: "winter-2026",
+    label: "Winter 2026",
+    /* BYU-I Winter trimester: roughly Jan–Apr */
+    start: "2026-01-05",
+    end: "2026-04-11",
+    tools: [
+      {
+        type: "countdown",
+        examDate: "2026-03-24",
+        label: "days until Floral ID Final (March 24)"
+      },
+      {
+        type: "card",
+        icon: "🎯",
+        title: "Floral ID Match Game",
+        desc: "Match common flower names to their genus (botanical) names. Now with reverse mode! Tap or drag to pair them up. Tracks your score and accuracy.",
+        tags: ["FCS 240", "All 5 Quizzes", "50 Flowers", "Drag & Drop", "Reverse Mode"],
+        href: "/Academic-Allies/modular/static/floral-match-game.html",
+        btnText: "Play Match Game"
+      },
+      {
+        type: "card",
+        icon: "🌿",
+        title: "Genus Practice Quiz",
+        desc: "See a flower photo, pick the genus or common name. Tests both directions. Lives on the Recovery Mode page alongside flower ID practice.",
+        tags: ["FCS 240", "Photo-Based", "Multiple Choice"],
+        href: "/Academic-Allies/modular/components/recovery-mode.html#genus-practice",
+        btnText: "Go to Genus Practice"
+      },
+      {
+        type: "card",
+        icon: "🌺",
+        title: "Flower ID Practice",
+        desc: "Identify flowers from photos — all varieties get equal time. Includes hint system and progress tracking.",
+        tags: ["FCS 240", "Photo-Based", "All Varieties"],
+        href: "/Academic-Allies/modular/components/recovery-mode.html#flower-quiz",
+        btnText: "Go to Flower ID"
+      },
+      {
+        type: "card",
+        icon: "📋",
+        title: "Floral ID Study Sheet",
+        desc: "Quick-reference sheet with all 50 flowers organized by quiz category. Search, hide genus or common names for self-testing, collapse sections, and print-friendly.",
+        tags: ["FCS 240", "Reference", "Self-Test", "Printable"],
+        href: "/Academic-Allies/modular/static/floral-study-sheet.html",
+        btnText: "Open Study Sheet"
+      }
+    ]
+  }
+  /* Claude: BYU-I three-track system — add future trimesters here:
+  ,{
+    id: "spring-2026",
+    label: "Spring 2026",
+    start: "2026-04-27",
+    end: "2026-07-18",
+    tools: [ ... ]
+  }
+  ,{
+    id: "summer-2026",
+    label: "Summer 2026 ☀️",
+    bonus: true,  // bonus 7-week session between Spring and Fall
+    start: "2026-07-20",
+    end: "2026-09-05",
+    tools: [ ... ]
+  }
+  ,{
+    id: "fall-2026",
+    label: "Fall 2026",
+    start: "2026-09-14",
+    end: "2026-12-12",
+    tools: [ ... ]
+  }
+  */
+];
+
+function getCurrentSemesterId() {
+  var now = new Date();
+  for (var i = 0; i < TRIMESTERS.length; i++) {
+    var s = TRIMESTERS[i];
+    if (now >= new Date(s.start) && now <= new Date(s.end + "T23:59:59")) {
+      return s.id;
+    }
+  }
+  /* If between semesters, show the most recent one as current */
+  var latest = null;
+  for (var j = TRIMESTERS.length - 1; j >= 0; j--) {
+    if (now > new Date(TRIMESTERS[j].end + "T23:59:59")) {
+      return null; /* All semesters are past */
+    }
+    latest = TRIMESTERS[j].id;
+  }
+  return latest;
+}
+
+function isSemesterPast(sem) {
+  return new Date() > new Date(sem.end + "T23:59:59");
+}
+
+function buildCountdown(tool) {
+  var examDate = new Date(tool.examDate + "T00:00:00");
+  var now = new Date();
+  var diff = examDate - now;
+  var days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+  if (days < -7) return ""; /* Hide countdown more than a week after exam */
+
+  var html = '<div class="exam-countdown">';
+  if (days > 0) {
+    html += '<div class="days">' + days + '</div>';
+  } else if (days === 0) {
+    html += '<div class="days" style="color:#c62828;">TODAY</div>';
+  } else {
+    html += '<div class="days" style="color:#888;font-size:16pt;">Exam passed</div>';
+  }
+  html += '<div class="label">' + tool.label + '</div>';
+  html += '</div>';
+  return html;
+}
+
+function buildCard(tool) {
+  var html = '<div class="tool-card">';
+  html += '<h3>' + tool.icon + ' ' + tool.title + '</h3>';
+  html += '<p>' + tool.desc + '</p>';
+  html += '<div class="tags">';
+  tool.tags.forEach(function(t) {
+    html += '<span class="tag">' + t + '</span>';
+  });
+  html += '</div>';
+  html += '<a href="' + tool.href + '" class="play-btn">' + tool.btnText + '</a>';
+  html += '</div>';
+  return html;
+}
+
+function toggleSemester(id) {
+  var body = document.getElementById('sem-body-' + id);
+  var arrow = document.getElementById('sem-arrow-' + id);
+  if (body.classList.contains('collapsed')) {
+    body.classList.remove('collapsed');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    arrow.classList.remove('collapsed');
+  } else {
+    body.classList.add('collapsed');
+    body.style.maxHeight = '0';
+    arrow.classList.add('collapsed');
+  }
+}
+
+function buildPage() {
+  var currentId = getCurrentSemesterId();
+  var html = '';
+
+  TRIMESTERS.forEach(function(sem) {
+    var past = isSemesterPast(sem);
+    var isCurrent = (sem.id === currentId);
+    var startCollapsed = past && !isCurrent;
+
+    /* Semester heading */
+    html += '<div class="semester-heading" onclick="toggleSemester(\'' + sem.id + '\')">';
+    html += '<h2>' + sem.label + '</h2>';
+    html += '<div class="sem-meta">';
+    if (sem.bonus) {
+      html += '<span class="sem-badge" style="background:#e8a838;">Bonus</span>';
+    }
+    if (isCurrent) {
+      html += '<span class="sem-badge">Current Trimester</span>';
+    } else if (past) {
+      html += '<span class="sem-badge past">Past</span>';
+    }
+    html += '<span class="toggle-arrow' + (startCollapsed ? ' collapsed' : '') + '" id="sem-arrow-' + sem.id + '">▼</span>';
+    html += '</div></div>';
+
+    /* Semester body */
+    html += '<div class="semester-body' + (startCollapsed ? ' collapsed' : '') + '" id="sem-body-' + sem.id + '"' +
+            (startCollapsed ? ' style="max-height:0;"' : '') + '>';
+
+    sem.tools.forEach(function(tool) {
+      if (tool.type === "countdown") {
+        html += buildCountdown(tool);
+      } else if (tool.type === "card") {
+        html += buildCard(tool);
+      }
+    });
+
+    html += '</div>';
+  });
+
+  if (TRIMESTERS.length === 0) {
+    html = '<div class="empty-past">No study tools yet — they\'ll appear here as you add classes!</div>';
+  }
+
+  document.getElementById('semesterContent').innerHTML = html;
+
+  /* Set proper max-height for expanded sections */
+  TRIMESTERS.forEach(function(sem) {
+    var body = document.getElementById('sem-body-' + sem.id);
+    if (body && !body.classList.contains('collapsed')) {
+      body.style.maxHeight = body.scrollHeight + 'px';
+    }
+  });
+}
+
+buildPage();
+</script>
+</body>
+</html>
