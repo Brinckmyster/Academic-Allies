@@ -26,6 +26,7 @@ You turn ideas into reality. Never ask her to read, edit, or search code manuall
 - Only push AFTER the full task is complete — not mid-task.
 - Never chain Bash steps where step 2 depends on untested output from step 1.
 - Give all Bash in ONE copy-paste code box unless steps genuinely must be separate.
+- **Git lock files:** NEVER ask for permission to delete `.git/index.lock` yourself. Instead, give Bruise the `rm -f` command and she will run it. She will NEVER grant Claude permission to delete lock files directly. Just provide the command.
 
 ## Code Style
 - KISS — Keep It Simple, Stupid. No over-engineering.

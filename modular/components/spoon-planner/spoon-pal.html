@@ -1211,8 +1211,9 @@
 
   // ── Add task ──────────────────────────────────────────────────────────────────
   /* Claude: 2026-03-14 — mirror guard added */
+  /* Claude: 2026-03-17 — standardized mirror guard */
   function addTask() {
-    if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== (window.AA && window.AA.auth && window.AA.auth.currentUser ? window.AA.auth.currentUser.uid : '')) return;
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
     const lmj = uniqueLMJ();
     const startMinutes = dayStart * 60;
     const time = formatTime(startMinutes);
@@ -1232,9 +1233,9 @@
   }
 
   // Delete task
-  /* Claude: 2026-03-14 — mirror guard added */
+  /* Claude: 2026-03-17 — standardized mirror guard */
   function deleteTask(index) {
-    if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== (window.AA && window.AA.auth && window.AA.auth.currentUser ? window.AA.auth.currentUser.uid : '')) return;
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
     if (!confirm('Delete this task?')) return;
     timeline.splice(index, 1);
     saveData();
@@ -1565,6 +1566,8 @@
     const borrowedSpoons = Math.max(0, -endOfDayBalance);
 
     try {
+      /* Claude: 2026-03-17 — defense-in-depth mirror guard (page is in NO_MIRROR but guard anyway) */
+      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       if (window.AA && window.AA.db && currentUid) {
         // Claude: Archive full snapshot to subcollection spoonPal/{uid}/days/{dateKey}
         /* Claude: 2026-03-16 — merge:true for data safety */
@@ -1791,13 +1794,8 @@
       return;
     }
 
-    /* Claude: 2026-03-14 — mirror mode guard. Supporters viewing a student's
-       SpoonPal must NOT write to the student's Firestore doc. Read-only only.
-       This closes a security gap where supporters could modify student data. */
-    if (window.AA_MIRROR_UID && window.AA && window.AA.auth && window.AA.auth.currentUser &&
-        window.AA_MIRROR_UID !== window.AA.auth.currentUser.uid) {
-      return;
-    }
+    /* Claude: 2026-03-17 — standardized mirror guard (was custom uid compare, now uses standard pattern) */
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
     // Skip save during initial load to prevent overwriting remote data
     if (isInitialLoad) return; /* Claude: 2026-03-14 — debug log removed */
 
