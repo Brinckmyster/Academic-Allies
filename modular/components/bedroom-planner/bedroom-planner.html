@@ -140,9 +140,14 @@
     </div>
     <!-- Claude: 2026-03-11 — Walk-in closet drop zone -->
     <!-- Claude: 2026-03-17 — closet resized to 8'×5' minus 5" for walls, rotated 90° -->
+    <!-- Claude: 2026-03-18 — clothing zone on LEFT side of closet -->
     <div class="clabel" style="margin-top:24px;">Walk-in Closet — 55" × 91" (8' × 5' minus walls, rotated) — drag pieces here too</div>
     <div class="router" id="closetRouter">
-      <div class="room" id="closetRoom"></div>
+      <div class="room" id="closetRoom">
+        <div id="clothingZone" style="position:absolute;left:0;top:0;border-right:2px dashed #b85c2a;background:repeating-linear-gradient(90deg,rgba(184,92,42,0.04),rgba(184,92,42,0.04) 4px,transparent 4px,transparent 8px);z-index:1;pointer-events:none;display:flex;align-items:center;justify-content:center;">
+          <span style="writing-mode:vertical-rl;text-orientation:mixed;font-size:9px;color:#b85c2a;opacity:0.6;font-family:'DM Mono',monospace;letter-spacing:1px;">CLOTHING</span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -670,7 +675,7 @@ document.getElementById('btnReset').addEventListener('click',()=>{placed={};sel=
 //   4. Big bookcase stays on LEFT wall between bathroom and closet doors
 //   5. Bunk must NOT block the TV for anyone
 //
-// LAYOUT LOGIC (v14 — flush against walls, desk flush against bunk):
+// LAYOUT LOGIC (v15 — B wall toward balcony, closet clothes LEFT, bookcase RIGHT):
 //   B wall (TOP): Nightstand(x:2), Vanity(ROT), Bookcase2(ROT), Heritage Dresser(ROT flush right)
 //     All flush y=0. Packed left-to-right with no gaps except nightstand 2" off left (closet door).
 //     Heritage Dresser flush against W wall (right edge = 189.5). ✓
@@ -693,12 +698,16 @@ document.getElementById('btnReset').addEventListener('click',()=>{placed={};sel=
    Claude: 2026-03-17 — v12: Bunk moved from TV wall to B wall.
    Claude: 2026-03-18 — v13: Layout from Bruise's screenshots.
    Claude: 2026-03-18 — v14: Furniture flush against walls, desk flush against bunk.
+   Claude: 2026-03-18 — v15: B wall items toward balcony, closet clothes LEFT, bookcase RIGHT.
      Archive: bedroom-planner_2026-03-17_pre-tv-and-audit.bak.html */
 const SUGGESTED = [
-  // ── B wall (TOP) — flush y=0, packed left-to-right ──
-  { id:'nightstand',  x:2,     y:0,     rotated:false, room:'master' },  // 15×14.5 (2" off left for closet door)
-  { id:'vanity',      x:17,    y:0,     rotated:true,  room:'master' },  // 47×20 → ends x:64
-  { id:'bookcase2',   x:64,    y:0,     rotated:true,  room:'master' },  // 37×13 → ends x:101
+  // ── B wall (TOP) — packed toward balcony (right side), left of door hinge ──
+  /* Claude: 2026-03-18 — v15: items shifted right toward balcony per Bruise.
+     Packed right-to-left from hinge (118.5): bookcase2, vanity, nightstand.
+     Heritage dresser stays flush right past the door opening. */
+  { id:'nightstand',  x:19,    y:0,     rotated:false, room:'master' },  // 15×14.5 → ends x:34
+  { id:'vanity',      x:34,    y:0,     rotated:true,  room:'master' },  // 47×20 → ends x:81
+  { id:'bookcase2',   x:81,    y:0,     rotated:true,  room:'master' },  // 37×13 → ends x:118 (0.5" from hinge)
   { id:'hdresser',    x:156.5, y:0,     rotated:true,  room:'master' },  // 33×20 → ends x:189.5 flush right
   // ── BC wall (LEFT) — Big Bookcase flush left wall ──
   { id:'bigbookcase', x:0,     y:44,    rotated:false, room:'master' },  // 13×42 → ends y:86
@@ -710,9 +719,11 @@ const SUGGESTED = [
   { id:'bunk',        x:128,   y:66.5,  rotated:false, room:'master' },  // 49×86 → ends (177,152.5)
   // ── Heritage Bed flush TV wall ──
   { id:'hbed',        x:37,    y:109.5, rotated:true,  room:'master' },  // 84×43 → ends (121,152.5)
-  // ── Walk-in Closet — flush against walls ──
+  // ── Walk-in Closet — clothes LEFT, furniture RIGHT ──
+  /* Claude: 2026-03-18 — v15: bookcase flush right wall per Bruise.
+     Walk-in closet: clothes hang on LEFT side, furniture on RIGHT. */
   { id:'smdresser',   x:0,     y:0,     rotated:false, room:'closet' },  // 19×30 flush top-left corner
-  { id:'bookcase1',   x:0,     y:58,    rotated:false, room:'closet' },  // 15×33 flush left+bottom
+  { id:'bookcase1',   x:40,    y:58,    rotated:false, room:'closet' },  // 15×33 → ends x:55 flush right, y:91 flush bottom
 ];
 document.getElementById('btnSuggest').addEventListener('click',()=>{
   placed = {};
@@ -745,6 +756,9 @@ function layoutRoom(){
   CRPX={w:CW,h:CH};
   croom.style.setProperty('--gx',cpx(12)+'px');
   croom.style.setProperty('--gy',cpy(12)+'px');
+  /* Claude: 2026-03-18 — size the clothing zone (LEFT side, ~24" deep) */
+  var clothZone=document.getElementById('clothingZone');
+  if(clothZone){clothZone.style.width=cpx(24)+'px';clothZone.style.height=CH+'px';}
   drawFeatures(); drawBaseboard(); render();
 }
 window.addEventListener('resize',layoutRoom);
