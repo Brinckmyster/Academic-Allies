@@ -406,5 +406,16 @@ service cloud.firestore {
                          && draftId[0:request.auth.uid.size()] == request.auth.uid;
     }
 
+    // ── Student Configuration — network-lead customizations ────────
+    // Path: /studentConfig/{uid}
+    // Students can read their own config (uid matches auth).
+    // Network leads can read AND write configs for students they support.
+    // Backstage managers can read and write any config.
+    // Added 2026-03-18 by Claude.
+    match /studentConfig/{uid} {
+      allow read: if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
+      allow write: if isNetworkLead(uid) || isBackstageManager();
+    }
+
   }
 }

@@ -577,9 +577,6 @@
         populateMealsList('liquids', meals.liquids || []);
         document.getElementById('meals-dietary-note').value = meals.dietaryNote || '';
 
-        /* Quizzes */
-        populateQuizzes();
-
         /* Comfort */
         populateComfortScriptures();
         populateComfortMessages();
@@ -717,8 +714,7 @@
       });
 
       document.getElementById('btn-add-quiz').addEventListener('click', function() {
-        /* Claude: 2026-03-18 — Add quiz with data array structure */
-        currentConfig.quizzes.push({ title: 'New Quiz', type: 'fill-blank', description: '', data: [] });
+        currentConfig.quizzes.push({ title: 'New Quiz', type: 'fill-blank', terms: [] });
         populateQuizzes();
       });
 
@@ -865,30 +861,6 @@
         currentConfig.comfort.breathingIn = parseInt(document.getElementById('breathing-in').value) || 4;
         currentConfig.comfort.breathingOut = parseInt(document.getElementById('breathing-out').value) || 4;
 
-        /* Quizzes */
-        /* Claude: 2026-03-18 — Collect quiz data array structure */
-        var quizzes = [];
-        document.querySelectorAll('.quiz-item-row').forEach(function(quizRow) {
-          var title = quizRow.querySelector('.quiz-title').value || 'Untitled Quiz';
-          var type = quizRow.querySelector('.quiz-type').value || 'fill-blank';
-          var description = quizRow.querySelector('.quiz-desc').value || '';
-          var dataArray = [];
-          quizRow.querySelectorAll('.quiz-term-row').forEach(function(termRow) {
-            dataArray.push({
-              term: termRow.querySelector('.term-key').value || '',
-              answer: termRow.querySelector('.term-val').value || '',
-              hints: []
-            });
-          });
-          quizzes.push({
-            type: type,
-            title: title,
-            description: description,
-            data: dataArray
-          });
-        });
-        currentConfig.quizzes = quizzes;
-
         /* Alerts */
         currentConfig.alerts.debtDaysCritical = parseInt(document.getElementById('alerts-debt-critical').value) || 5;
         currentConfig.alerts.debtDaysWarning = parseInt(document.getElementById('alerts-debt-warning').value) || 2;
@@ -903,7 +875,6 @@
         return items;
       }
 
-      /* Claude: 2026-03-18 — Quiz rendering with data array support */
       function populateQuizzes() {
         var container = document.getElementById('quizzes-container');
         var quizzes = currentConfig.quizzes || [];
@@ -916,15 +887,13 @@
           html += '<option value="match" ' + (quiz.type === 'match' ? 'selected' : '') + '>Match</option>';
           html += '<option value="flashcards" ' + (quiz.type === 'flashcards' ? 'selected' : '') + '>Flashcards</option>';
           html += '</select></div>';
-          html += '<div class="form-group"><label>Description</label><textarea class="quiz-desc" style="min-height: 60px;">' + (quiz.description || '') + '</textarea></div>';
           html += '<div style="margin-top: 12px;"><strong>Terms:</strong></div>';
           html += '<div class="quiz-terms" data-idx="' + idx + '">';
-          var dataArray = quiz.data || [];
-          if (dataArray.length) {
-            dataArray.forEach(function(item, tidx) {
+          if (quiz.terms && quiz.terms.length) {
+            quiz.terms.forEach(function(term, tidx) {
               html += '<div class="quiz-term-row" data-tidx="' + tidx + '">';
-              html += '<input type="text" class="term-key" value="' + (item.term || '') + '" placeholder="Term">';
-              html += '<input type="text" class="term-val" value="' + (item.answer || '') + '" placeholder="Answer">';
+              html += '<input type="text" class="term-key" value="' + (term.term || '') + '" placeholder="Term">';
+              html += '<input type="text" class="term-val" value="' + (term.answer || '') + '" placeholder="Answer">';
               html += '<button type="button" class="btn btn-danger btn-small quiz-term-remove">✕</button>';
               html += '</div>';
             });
@@ -935,78 +904,6 @@
           html += '</div>';
         });
         container.innerHTML = html;
-        attachQuizEventListeners();
-      }
-
-      /* Claude: 2026-03-18 — Event delegation for quiz buttons */
-      function attachQuizEventListeners() {
-        var container = document.getElementById('quizzes-container');
-
-        /* Add Term button */
-        container.addEventListener('click', function(e) {
-          if (e.target.classList.contains('quiz-add-term')) {
-            var quizIdx = parseInt(e.target.getAttribute('data-idx'));
-            if (!currentConfig.quizzes[quizIdx].data) {
-              currentConfig.quizzes[quizIdx].data = [];
-            }
-            currentConfig.quizzes[quizIdx].data.push({ term: '', answer: '', hints: [] });
-            populateQuizzes();
-          }
-        });
-
-        /* Remove Term button */
-        container.addEventListener('click', function(e) {
-          if (e.target.classList.contains('quiz-term-remove')) {
-            var row = e.target.closest('.quiz-term-row');
-            var termsDiv = row.closest('.quiz-terms');
-            var quizIdx = parseInt(termsDiv.getAttribute('data-idx'));
-            var termIdx = parseInt(row.getAttribute('data-tidx'));
-            if (currentConfig.quizzes[quizIdx].data) {
-              currentConfig.quizzes[quizIdx].data.splice(termIdx, 1);
-              populateQuizzes();
-            }
-          }
-        });
-
-        /* Remove Quiz button */
-        container.addEventListener('click', function(e) {
-          if (e.target.classList.contains('quiz-remove')) {
-            var quizIdx = parseInt(e.target.getAttribute('data-idx'));
-            if (confirm('Remove this quiz?')) {
-              currentConfig.quizzes.splice(quizIdx, 1);
-              populateQuizzes();
-            }
-          }
-        });
-
-        /* Quiz title/type/description change handlers */
-        container.addEventListener('change', function(e) {
-          var quizRow = e.target.closest('.quiz-item-row');
-          if (!quizRow) return;
-          var quizIdx = parseInt(quizRow.getAttribute('data-idx'));
-          if (e.target.classList.contains('quiz-title')) {
-            currentConfig.quizzes[quizIdx].title = e.target.value;
-          } else if (e.target.classList.contains('quiz-type')) {
-            currentConfig.quizzes[quizIdx].type = e.target.value;
-          } else if (e.target.classList.contains('quiz-desc')) {
-            currentConfig.quizzes[quizIdx].description = e.target.value;
-          }
-        });
-
-        /* Term/answer input updates */
-        container.addEventListener('input', function(e) {
-          var row = e.target.closest('.quiz-term-row');
-          if (!row) return;
-          var termsDiv = row.closest('.quiz-terms');
-          var quizIdx = parseInt(termsDiv.getAttribute('data-idx'));
-          var termIdx = parseInt(row.getAttribute('data-tidx'));
-          if (!currentConfig.quizzes[quizIdx].data) return;
-          if (e.target.classList.contains('term-key')) {
-            currentConfig.quizzes[quizIdx].data[termIdx].term = e.target.value;
-          } else if (e.target.classList.contains('term-val')) {
-            currentConfig.quizzes[quizIdx].data[termIdx].answer = e.target.value;
-          }
-        });
       }
 
       function showStatus(msg, type) {
