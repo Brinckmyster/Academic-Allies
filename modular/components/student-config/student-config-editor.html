@@ -362,6 +362,52 @@
       <!-- ── Quizzes Tab ── -->
       <div id="tab-quizzes" class="tab-panel">
         <div class="config-section">
+          <h2>Hide Built-in Study Tools</h2>
+          <!-- Claude: 2026-03-18 — Hidden tools checkboxes for floral modules -->
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 12px;">
+            Check the boxes below to hide these tools for this student:
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-countdown" class="hidden-tool-checkbox" value="floral-countdown">
+              <label for="hidden-floral-countdown" style="margin: 0; cursor: pointer;">Floral ID Countdown</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-match" class="hidden-tool-checkbox" value="floral-match">
+              <label for="hidden-floral-match" style="margin: 0; cursor: pointer;">Floral ID Match Game</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-fill-blank" class="hidden-tool-checkbox" value="floral-fill-blank">
+              <label for="hidden-floral-fill-blank" style="margin: 0; cursor: pointer;">Fill in the Blank</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-genus" class="hidden-tool-checkbox" value="floral-genus">
+              <label for="hidden-floral-genus" style="margin: 0; cursor: pointer;">Genus Practice Quiz</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-flower-id" class="hidden-tool-checkbox" value="floral-flower-id">
+              <label for="hidden-floral-flower-id" style="margin: 0; cursor: pointer;">Flower ID Practice</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-study-sheet" class="hidden-tool-checkbox" value="floral-study-sheet">
+              <label for="hidden-floral-study-sheet" style="margin: 0; cursor: pointer;">Floral ID Study Sheet</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-flashcards" class="hidden-tool-checkbox" value="floral-flashcards">
+              <label for="hidden-floral-flashcards" style="margin: 0; cursor: pointer;">Floral Flashcards</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-speed-round" class="hidden-tool-checkbox" value="floral-speed-round">
+              <label for="hidden-floral-speed-round" style="margin: 0; cursor: pointer;">Speed Round</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-missed-tracker" class="hidden-tool-checkbox" value="floral-missed-tracker">
+              <label for="hidden-floral-missed-tracker" style="margin: 0; cursor: pointer;">Missed Flowers Tracker</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="config-section">
           <h2>Custom Quizzes</h2>
           <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 12px;">
             Add custom quizzes for your student's study tools.
@@ -577,7 +623,12 @@
         populateMealsList('liquids', meals.liquids || []);
         document.getElementById('meals-dietary-note').value = meals.dietaryNote || '';
 
-        /* Quizzes */
+        /* Quizzes & Hidden Tools */
+        /* Claude: 2026-03-18 — Load hiddenTools into checkboxes */
+        var hiddenTools = currentConfig.hiddenTools || [];
+        document.querySelectorAll('.hidden-tool-checkbox').forEach(function(cb) {
+          cb.checked = hiddenTools.indexOf(cb.value) !== -1;
+        });
         populateQuizzes();
 
         /* Comfort */
@@ -733,6 +784,12 @@
 
       /* ── Save Config ───────────────────────────────────────────── */
       document.getElementById('btn-save-config').addEventListener('click', function() {
+        /* Claude: 2026-03-18 — Add loading state on save button */
+        var btn = this;
+        var originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
         /* Collect updates from UI */
         collectUIUpdates();
 
@@ -740,6 +797,9 @@
           showStatus('✅ Configuration saved successfully!', 'success');
         }).catch(function(err) {
           showStatus('❌ Failed to save: ' + err.message, 'error');
+        }).finally(function() {
+          btn.disabled = false;
+          btn.textContent = originalText;
         });
       });
 
@@ -864,6 +924,16 @@
 
         currentConfig.comfort.breathingIn = parseInt(document.getElementById('breathing-in').value) || 4;
         currentConfig.comfort.breathingOut = parseInt(document.getElementById('breathing-out').value) || 4;
+
+        /* Hidden Tools */
+        /* Claude: 2026-03-18 — Collect hiddenTools from checkboxes */
+        var hiddenTools = [];
+        document.querySelectorAll('.hidden-tool-checkbox').forEach(function(cb) {
+          if (cb.checked) {
+            hiddenTools.push(cb.value);
+          }
+        });
+        currentConfig.hiddenTools = hiddenTools;
 
         /* Quizzes */
         /* Claude: 2026-03-18 — Collect quiz data array structure */
@@ -1030,7 +1100,7 @@
 
   <!-- ── Shared Header ── -->
   <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260318a')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260318b')
       .then(function(r) { return r.text(); })
       .then(function(html) {
         var c = document.getElementById('site-header');
