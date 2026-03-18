@@ -151,8 +151,6 @@
 </head>
 <body>
   <div id="site-header"></div>
-  <!-- Claude: 2026-03-18 — Load student config system for per-student mode customization -->
-  <script src="/Academic-Allies/modular/js/student-config.js"></script>
   <script>
     fetch('/Academic-Allies/modular/shared-header.html?v=20260316a')
       .then(function(response) { return response.text(); })
@@ -548,7 +546,6 @@
 
           /* Load custom mode settings */
           /* Claude: 2026-03-16 — 15-second loading timeout with retry */
-          /* Claude: 2026-03-18 — Added per-student config merge for custom mode names/icons/descriptions */
           var _modesLoadTimer = setTimeout(function() {
             var container = document.getElementById('mode-configs');
             if (container && container.children.length === 0) {
@@ -560,31 +557,8 @@
             if (doc.exists && doc.data().modeSettings) {
               _modeSettings = doc.data().modeSettings;
             }
-            /* Claude: 2026-03-18 — Load custom mode names/icons/descriptions from per-student config */
-            if (window.AA_CONFIG) {
-              window.AA_CONFIG.load(_uid).then(function(config) {
-                var customModes = window.AA_CONFIG.get('modes.custom', null);
-                if (customModes) {
-                  MODES.forEach(function(mode) {
-                    if (customModes[mode.key]) {
-                      var override = customModes[mode.key];
-                      if (override.name) mode.name = override.name;
-                      if (override.icon) mode.icon = override.icon;
-                      if (override.desc) mode.desc = override.desc;
-                    }
-                  });
-                }
-                renderModeConfigs();
-                highlightActive();
-              }).catch(function(err) {
-                console.warn('[ModesPage] AA_CONFIG.load failed:', err.message);
-                renderModeConfigs();
-                highlightActive();
-              });
-            } else {
-              renderModeConfigs();
-              highlightActive();
-            }
+            renderModeConfigs();
+            highlightActive();
           }).catch(function() {
             clearTimeout(_modesLoadTimer);
             renderModeConfigs();

@@ -617,9 +617,8 @@
         }
         /* Claude: 2026-03-17 — Flower Quiz JS removed (moved to standalone page:
            modular/static/floral-flower-id.html) */
-        /* Claude: 2026-03-18 — Changed const to var for comfort arrays to allow config override */
         // Comforting scriptures
-        var comfortingScriptures = [
+        const comfortingScriptures = [
             { text: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.", reference: "Matthew 11:28" },
             { text: "Peace I leave with you, my peace I give unto you: not as the world giveth, give I unto you. Let not your heart be troubled, neither let it be afraid.", reference: "John 14:27" },
             { text: "Cast thy burden upon the Lord, and he shall sustain thee.", reference: "Psalm 55:22" },
@@ -627,7 +626,7 @@
             { text: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee.", reference: "Isaiah 41:10" }
         ];
         function showNewScripture() {
-            var scripture = comfortingScriptures[Math.floor(Math.random() * comfortingScriptures.length)];
+            const scripture = comfortingScriptures[Math.floor(Math.random() * comfortingScriptures.length)];
             document.getElementById('scripture-verse').innerHTML = `
                 "${scripture.text}"
                 <div style="margin-top: 15px; font-size: 16pt; font-style: normal; font-weight: 600;">
@@ -636,7 +635,7 @@
             `;
         }
         // Support messages
-        var supportMessages = [
+        const supportMessages = [
             "You're doing better than you think. This moment doesn't define you.",
             "Rest is not weakness. Rest is medicine.",
             "Your body knows what it needs. Listen to it gently.",
@@ -774,10 +773,6 @@
             const message = supportMessages[Math.floor(Math.random() * supportMessages.length)];
             document.getElementById('support-message').textContent = message;
         }
-        /* Claude: 2026-03-18 — Breathing timing variables for config override */
-        var BREATHING_INHALE = 4000;  // ms
-        var BREATHING_EXHALE = 4000;  // ms
-
         // ── Breathing circle controller ─────────────────────
         function startBreathing() {
             var phaseEl  = document.getElementById('breathing-phase');
@@ -793,9 +788,9 @@
                 return;
             }
 
-            var INHALE = BREATHING_INHALE;
-            var EXHALE = BREATHING_EXHALE;
-            var CYCLE  = INHALE + EXHALE;
+            var INHALE = 4000;   // ms
+            var EXHALE = 4000;   // ms
+            var CYCLE  = INHALE + EXHALE;  // 8000ms
             var startTime = Date.now();
 
             function tick() {
@@ -879,24 +874,6 @@
                           console.log('[RecoveryMode] Loaded meals from studentConfig for', _readUid);
                         } else {
                           console.log('[RecoveryMode] No meals in studentConfig, using defaults');
-                        }
-
-                        /* Claude: 2026-03-18 — Load comfort content overrides (scriptures, messages, breathing) */
-                        var configComfort = window.AA_CONFIG.get('comfort', null);
-                        if (configComfort) {
-                          if (configComfort.scriptures && configComfort.scriptures.length > 0) {
-                            comfortingScriptures = configComfort.scriptures;
-                            console.log('[RecoveryMode] Loaded ' + comfortingScriptures.length + ' custom scriptures from studentConfig');
-                          }
-                          if (configComfort.messages && configComfort.messages.length > 0) {
-                            supportMessages = configComfort.messages;
-                            console.log('[RecoveryMode] Loaded ' + supportMessages.length + ' custom support messages from studentConfig');
-                          }
-                          if (configComfort.breathingIn && configComfort.breathingOut) {
-                            BREATHING_INHALE = configComfort.breathingIn;
-                            BREATHING_EXHALE = configComfort.breathingOut;
-                            console.log('[RecoveryMode] Set custom breathing timings: ' + BREATHING_INHALE + 'ms in, ' + BREATHING_EXHALE + 'ms out');
-                          }
                         }
                       }).catch(function(err) {
                         console.warn('[RecoveryMode] AA_CONFIG.load failed:', err.message);

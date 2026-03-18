@@ -290,8 +290,6 @@
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
   </script>
-<!-- Claude: 2026-03-18 — Load student config system for per-student task definitions -->
-<script src="/Academic-Allies/modular/js/student-config.js?v=20260318"></script>
 <div class="container" role="main" aria-label="SpoonPal Mini App for chronic pain management and spoon accounting">
   <h1>SpoonPal Mini App</h1>
   <div id="timestamp" aria-live="polite"></div>
@@ -558,13 +556,9 @@
     shop: '🛒', grocery: '🛒', errand: '🛒'
   };
 
-  // Claude: 2026-03-18 — per-student config overrides
-  var _configBaseBudget = null;
-
   // Constants and locked protocol data (corrected: B🍽️, S🤟, ZZ📵, C🔗 Word Connect, I🎨 NightCafe, all streak savers)
-  // Claude: 2026-03-18 — changed from const to var so they can be overridden from student config
-  var LOCKED_LMJ_ORDER = ['A', 'V', 'B', 'C', 'D', 'S', 'L', 'I', 'G', 'N', 'ME', 'H', 'CC', 'DD', 'EE', 'FF', 'ZZ'];
-  var LOCKED_LMJ_META = {
+  const LOCKED_LMJ_ORDER = ['A', 'V', 'B', 'C', 'D', 'S', 'L', 'I', 'G', 'N', 'ME', 'H', 'CC', 'DD', 'EE', 'FF', 'ZZ'];
+  const LOCKED_LMJ_META = {
     A:  {emoji: '💊',  desc: 'Morning Medications',           defaultCost: 2, fixed: true},
     V:  {emoji: '🦾',  desc: 'CPAP Prep / Wrist Brace',       defaultCost: 1, fixed: true},
     B:  {emoji: '🍽️', desc: 'Family Scriptures / Breakfast',  defaultCost: 2, fixed: false},
@@ -586,16 +580,14 @@
 
   // ── Fix #4: Protected Normal Day template (constant — not stored, not deletable) ───
   // Claude: BUG #4 FIX — Corrected all times to match canonical schedule
-  // Claude: 2026-03-18 — changed from const to var so it can be overridden from student config
-  var NORMAL_DAY_TIMES = {
+  const NORMAL_DAY_TIMES = {
     A: '9:00 AM',   V: '9:15 AM',   B: '9:30 AM',   C: '11:00 AM',
     D: '11:30 AM',  S: '12:00 PM',  L: '12:30 PM',  I: '1:00 PM',
     G: '2:00 PM',   N: '7:00 PM',   ME: '8:00 PM',  H: '8:30 PM',
     CC: '9:00 PM',  DD: '9:30 PM',  EE: '9:45 PM',  FF: '10:00 PM',
     ZZ: '10:30 PM'
   };
-  // Claude: 2026-03-18 — changed from const to var so it can be rebuilt from student config
-  var NORMAL_DAY_TEMPLATE = {
+  const NORMAL_DAY_TEMPLATE = {
     name: 'Normal Day',
     type: 'day',
     locked: true,
@@ -1654,8 +1646,7 @@
     // Claude: 2026-03-07 — also subtract borrowed spoons so task modal impact matches budget bar (cache bust #21)
     const _todayEntry = spoonDebtHistory.find(h => h.date === new Date().toDateString());
     const _borrowed = (_todayEntry && _todayEntry.borrowedFromPrevDay) || 0;
-    // Claude: 2026-03-18 — use config override if available
-    let base = _configBaseBudget || 20;
+    let base = 20;
     base -= Math.max(0, checkIn.pain - 5);
     base -= Math.max(0, checkIn.fatigue - 5);
     if (checkIn.sleep < 7) base -= 2 * (7 - checkIn.sleep);
@@ -2140,73 +2131,13 @@
         // If uid hasn't changed it's a token refresh — skip the full reload.
         if (user.uid === currentUid) return;
         currentUid = user.uid; // always the signed-in user's own data — no mirror
-
-        // Claude: 2026-03-18 — load student config and override task definitions
-        var _readUid = window.AA_MIRROR_UID || user.uid;
-        window.AA_CONFIG.load(_readUid).then(function(config) {
-          var configTasks = window.AA_CONFIG.get('spoonPlan.tasks', null);
-          if (configTasks && configTasks.length > 0) {
-            // Override LOCKED_LMJ_META and LOCKED_LMJ_ORDER from config
-            LOCKED_LMJ_ORDER = configTasks.map(function(t) { return t.code; });
-            LOCKED_LMJ_META = {};
-            configTasks.forEach(function(t) {
-              LOCKED_LMJ_META[t.code] = {
-                emoji: t.emoji,
-                desc: t.desc,
-                defaultCost: t.cost,
-                fixed: t.fixed
-              };
-            });
-            // Also override NORMAL_DAY_TIMES if time is in config
-            NORMAL_DAY_TIMES = {};
-            configTasks.forEach(function(t) {
-              if (t.time) NORMAL_DAY_TIMES[t.code] = t.time;
-            });
-            // Rebuild NORMAL_DAY_TEMPLATE from config tasks
-            NORMAL_DAY_TEMPLATE = {
-              name: 'Normal Day',
-              type: 'day',
-              locked: true,
-              tasks: configTasks.map(function(t) {
-                return {
-                  time: t.time || '8:30 AM',
-                  lmj: t.code,
-                  description: t.desc,
-                  spoon: t.cost,
-                  priority: 'High',
-                  fixed: t.fixed,
-                  status: 'incomplete',
-                  notes: ''
-                };
-              })
-            };
-          }
-
-          // Override base budget from config
-          var configBase = window.AA_CONFIG.get('spoonPlan.formula.base', null);
-          if (configBase !== null) {
-            _configBaseBudget = configBase;
-          }
-
-          // Now load user data with config in place
-          loadData(function() {
-            calculateSpoons();
-            renderTimeline();
-            restoreQuickEntry(); // reflect loaded checkIn state in the buttons
-            fetchWeather();      // safe to fetch now — Firestore data already loaded
-            // Claude 2026-03-06: check for missed tasks immediately after data loads
-            checkOverdueTasks();
-          });
-        }).catch(function(err) {
-          console.warn('[SpoonPal] Config load failed, proceeding with defaults:', err);
-          // Fall back to default behavior if config load fails
-          loadData(function() {
-            calculateSpoons();
-            renderTimeline();
-            restoreQuickEntry();
-            fetchWeather();
-            checkOverdueTasks();
-          });
+        loadData(function() {
+          calculateSpoons();
+          renderTimeline();
+          restoreQuickEntry(); // reflect loaded checkIn state in the buttons
+          fetchWeather();      // safe to fetch now — Firestore data already loaded
+          // Claude 2026-03-06: check for missed tasks immediately after data loads
+          checkOverdueTasks();
         });
       });
     });
