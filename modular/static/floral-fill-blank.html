@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fill in the Blank — Floral Quiz</title>
+
+  <!-- Claude: 2026-03-17 — Fill-in-the-blank flower genus quiz for FCS 240 -->
+
+  <!-- Dark mode early detect (prevent FOUC) -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    html.aa-dark {
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+
+    body {
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    /* Header container */
+    #site-header {
+      margin-bottom: 1rem;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+
+    h1 {
+      text-align: center;
+      color: #6CA0A3;
+      margin-bottom: 2rem;
+      font-size: 2rem;
+    }
+
+    html.aa-dark h1 {
+      color: #8fc0c5;
+    }
+
+    /* Mode toggle */
+    .mode-toggle {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .mode-btn {
+      padding: 0.75rem 1.5rem;
+      border: 2px solid #6CA0A3;
+      background: white;
+      color: #6CA0A3;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      font-weight: 700;
+      transition: all 0.3s ease;
+    }
+
+    html.aa-dark .mode-btn {
+      background: #1e1e1e;
+      border-color: #8fc0c5;
+      color: #8fc0c5;
+    }
+
+    .mode-btn.active {
+      background: #6CA0A3;
+      color: white;
+    }
+
+    html.aa-dark .mode-btn.active {
+      background: #4a7f82;
+      color: white;
+    }
+
+    .mode-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Quiz filter */
+    .quiz-filter {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      padding: 0.5rem 1rem;
+      border: 1px solid #ccc;
+      background: white;
+      color: #333;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      transition: all 0.3s ease;
+    }
+
+    html.aa-dark .filter-pill {
+      background: #2a2a2a;
+      border-color: #444;
+      color: #e0e0e0;
+    }
+
+    .filter-pill.active {
+      background: #6CA0A3;
+      color: white;
+      border-color: #6CA0A3;
+    }
+
+    html.aa-dark .filter-pill.active {
+      background: #4a7f82;
+      border-color: #4a7f82;
+    }
+
+    .filter-pill:hover {
+      border-color: #6CA0A3;
+    }
+
+    /* Claude: 2026-03-17 — dark mode for spelling warning */
+    html.aa-dark .spelling-warning {
+      background: #3e2700 !important;
+      border-color: #b86e00 !important;
+      color: #ffb74d !important;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+
+    html.aa-dark .progress-bar {
+      background: #333;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #6CA0A3;
+      transition: width 0.3s ease;
+    }
+
+    /* Card */
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    html.aa-dark .card {
+      background: #1e1e1e;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .card.correct-flash {
+      animation: flash-correct 0.6s ease;
+    }
+
+    .card.incorrect-flash {
+      animation: flash-incorrect 0.6s ease;
+    }
+
+    @keyframes flash-correct {
+      0%, 100% { background: white; }
+      50% { background: #c8e6c9; }
+    }
+
+    html.aa-dark .card.correct-flash {
+      animation: flash-correct-dark 0.6s ease;
+    }
+
+    @keyframes flash-correct-dark {
+      0%, 100% { background: #1e1e1e; }
+      50% { background: #2d5d3a; }
+    }
+
+    @keyframes flash-incorrect {
+      0%, 100% { background: white; }
+      50% { background: #ffcdd2; }
+    }
+
+    html.aa-dark .card.incorrect-flash {
+      animation: flash-incorrect-dark 0.6s ease;
+    }
+
+    @keyframes flash-incorrect-dark {
+      0%, 100% { background: #1e1e1e; }
+      50% { background: #5c2d2d; }
+    }
+
+    .prompt-label {
+      font-size: 0.9rem;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 0.5rem;
+    }
+
+    html.aa-dark .prompt-label {
+      color: #aaa;
+    }
+
+    .prompt-text {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 1rem;
+    }
+
+    html.aa-dark .prompt-text {
+      color: #e0e0e0;
+    }
+
+    .pronunciation-btn {
+      background: none;
+      border: none;
+      color: #6CA0A3;
+      cursor: pointer;
+      font-size: 1.2rem;
+      margin-left: 0.5rem;
+      padding: 0;
+      vertical-align: middle;
+      transition: transform 0.2s;
+    }
+
+    html.aa-dark .pronunciation-btn {
+      color: #8fc0c5;
+    }
+
+    .pronunciation-btn:hover {
+      transform: scale(1.2);
+    }
+
+    /* Answer area */
+    .answer-area {
+      margin-bottom: 1rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 1rem;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      min-height: 48px;
+      transition: border-color 0.3s;
+    }
+
+    html.aa-dark input[type="text"] {
+      background: #2a2a2a;
+      border-color: #444;
+      color: #e0e0e0;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #6CA0A3;
+    }
+
+    .check-btn, .next-btn {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: #6CA0A3;
+      color: white;
+      min-height: 48px;
+    }
+
+    .check-btn:hover, .next-btn:hover {
+      background: #4a7f82;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .check-btn:active, .next-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Feedback */
+    .feedback {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      display: none;
+    }
+
+    .feedback.show {
+      display: block;
+    }
+
+    .feedback.correct {
+      background: #c8e6c9;
+      color: #2e7d32;
+    }
+
+    html.aa-dark .feedback.correct {
+      background: #2d5d3a;
+      color: #81c784;
+    }
+
+    .feedback.incorrect {
+      background: #ffcdd2;
+      color: #c62828;
+    }
+
+    html.aa-dark .feedback.incorrect {
+      background: #5c2d2d;
+      color: #ef5350;
+    }
+
+    .correct-answer {
+      margin-top: 0.5rem;
+      font-weight: normal;
+      font-size: 0.9rem;
+    }
+
+    /* Score display */
+    .score-display {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+      color: #666;
+    }
+
+    html.aa-dark .score-display {
+      color: #aaa;
+    }
+
+    .score-display .number {
+      color: #6CA0A3;
+      font-weight: 700;
+      font-size: 1.3rem;
+    }
+
+    html.aa-dark .score-display .number {
+      color: #8fc0c5;
+    }
+
+    /* End screen */
+    .end-screen {
+      text-align: center;
+    }
+
+    .end-screen h2 {
+      font-size: 1.5rem;
+      color: #6CA0A3;
+      margin-bottom: 1rem;
+    }
+
+    html.aa-dark .end-screen h2 {
+      color: #8fc0c5;
+    }
+
+    .end-screen .final-score {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #6CA0A3;
+      margin-bottom: 1rem;
+    }
+
+    html.aa-dark .end-screen .final-score {
+      color: #8fc0c5;
+    }
+
+    .end-screen p {
+      margin-bottom: 0.5rem;
+      color: #666;
+    }
+
+    html.aa-dark .end-screen p {
+      color: #aaa;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .retry-btn, .home-btn {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      min-height: 48px;
+    }
+
+    .retry-btn {
+      background: #6CA0A3;
+      color: white;
+    }
+
+    .retry-btn:hover {
+      background: #4a7f82;
+      transform: translateY(-2px);
+    }
+
+    .home-btn {
+      background: #ddd;
+      color: #333;
+      border: 2px solid #6CA0A3;
+    }
+
+    html.aa-dark .home-btn {
+      background: #2a2a2a;
+      color: #e0e0e0;
+      border-color: #4a7f82;
+    }
+
+    .home-btn:hover {
+      background: #ccc;
+      border-color: #4a7f82;
+    }
+
+    html.aa-dark .home-btn:hover {
+      background: #333;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #999;
+      font-size: 0.85rem;
+    }
+
+    html.aa-dark footer {
+      color: #666;
+    }
+
+    a {
+      color: #6CA0A3;
+      text-decoration: none;
+    }
+
+    html.aa-dark a {
+      color: #8fc0c5;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .container {
+        margin: 1rem auto;
+        padding: 0.5rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .card {
+        padding: 1.5rem;
+      }
+
+      .prompt-text {
+        font-size: 1.4rem;
+      }
+
+      .mode-toggle, .quiz-filter {
+        gap: 0.25rem;
+      }
+
+      .mode-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+      }
+
+      .filter-pill {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+      }
+
+      .input-group {
+        flex-direction: column;
+      }
+
+      .button-group {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .retry-btn, .home-btn, .check-btn, .next-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Shared header -->
+<div id="site-header"></div>
+<script>
+  fetch('/Academic-Allies/modular/shared-header.html?v=20260317b')
+    .then(function(response) { return response.text(); })
+    .then(function(html) {
+      var container = document.getElementById('site-header');
+      container.innerHTML = html;
+      var scripts = container.querySelectorAll('script');
+      scripts.forEach(function(oldScript) {
+        var newScript = document.createElement('script');
+        Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+        newScript.textContent = oldScript.textContent;
+        oldScript.replaceWith(newScript);
+      });
+    })
+    .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<div class="container">
+  <h1>Fill in the Blank</h1>
+
+  <!-- Mode toggle -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" data-mode="genus">Type the Genus</button>
+    <button class="mode-btn" data-mode="common">Type the Common Name</button>
+  </div>
+
+  <!-- Quiz filter -->
+  <div class="quiz-filter">
+    <button class="filter-pill active" data-quiz="all">All</button>
+    <button class="filter-pill" data-quiz="1">Quiz 1</button>
+    <button class="filter-pill" data-quiz="2">Quiz 2</button>
+    <button class="filter-pill" data-quiz="3">Quiz 3</button>
+    <button class="filter-pill" data-quiz="4">Quiz 4</button>
+    <button class="filter-pill" data-quiz="5">Quiz 5</button>
+  </div>
+
+  <!-- Claude: 2026-03-17 — Spelling warning (strict mode for exam prep) -->
+  <div class="spelling-warning" style="text-align:center;background:#fff3e0;border:2px solid #ff9800;border-radius:10px;padding:10px 16px;margin-bottom:1.5rem;font-size:0.95rem;color:#e65100;">
+    <strong>Spelling counts!</strong> You must spell the answer exactly right — just like on the real test.
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-bar">
+    <div class="progress-fill"></div>
+  </div>
+
+  <!-- Score display -->
+  <div class="score-display">
+    <span class="number">0</span> / <span class="total">0</span> correct
+    (<span class="percentage">0</span>%)
+  </div>
+
+  <!-- Quiz card -->
+  <div class="card">
+    <div class="prompt-label" id="promptLabel">Type the Genus</div>
+    <div class="prompt-text" id="promptText">Loading...</div>
+    <div class="answer-area">
+      <div class="input-group">
+        <input type="text" id="answerInput" placeholder="Type your answer..." autocomplete="off">
+        <button class="check-btn" id="checkBtn">Check</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+    </div>
+    <button class="next-btn" id="nextBtn" style="display: none;">Next</button>
+  </div>
+
+  <!-- End screen (hidden) -->
+  <div class="end-screen" id="endScreen" style="display: none;">
+    <h2>Quiz Complete!</h2>
+    <div class="final-score" id="finalScore">0%</div>
+    <p id="finalMessage">Great job!</p>
+    <div class="button-group">
+      <button class="retry-btn" id="retryMissedBtn" style="display: none;">Retry Missed</button>
+      <button class="home-btn" id="homeBtn">Back to Home</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>Built by Claude for Bruise — March 2026</p>
+</footer>
+
+<script>
+  /* Claude: 2026-03-17 — Fill-in-the-blank quiz with all 5 categories */
+
+  /* Flower data with quiz categories */
+  var flowerData = [
+    // Quiz 1: Mass Flowers
+    { quiz: 1, common: 'Carnation', genus: 'Dianthus', aliases: [] },
+    { quiz: 1, common: 'Daisy Pom', genus: 'Chrysanthemum', aliases: ['Cushion Pom'] },
+    { quiz: 1, common: 'Rose', genus: 'Rosa', aliases: [] },
+    { quiz: 1, common: 'Alstro', genus: 'Alstroemeria', aliases: [] },
+    { quiz: 1, common: 'Lisianthus', genus: 'Eustoma', aliases: [] },
+    { quiz: 1, common: 'Hydrangea', genus: 'Hydrangea', aliases: [] },
+    { quiz: 1, common: 'Peony', genus: 'Paeonia', aliases: [] },
+    { quiz: 1, common: 'Ranunculus', genus: 'Ranunculus', aliases: [] },
+    { quiz: 1, common: 'Safari Sunset', genus: 'Leucadendron', aliases: [] },
+    { quiz: 1, common: 'China Aster', genus: 'Callistephus', aliases: ['Crown Aster', 'Matsomoto Aster'] },
+
+    // Quiz 2: Line Flowers
+    { quiz: 2, common: 'Snapdragon', genus: 'Antirrhinum', aliases: [] },
+    { quiz: 2, common: 'Larkspur', genus: 'Consolida', aliases: [] },
+    { quiz: 2, common: 'Delphinium', genus: 'Delphinium', aliases: [] },
+    { quiz: 2, common: 'Liatris', genus: 'Liatris', aliases: [] },
+    { quiz: 2, common: 'Gladiola', genus: 'Gladiolus', aliases: [] },
+    { quiz: 2, common: 'Stock', genus: 'Matthiola', aliases: [] },
+    { quiz: 2, common: 'Bells of Ireland', genus: 'Moluccella', aliases: [] },
+    { quiz: 2, common: 'Baby Blue Eucalyptus', genus: 'Eucalyptus', aliases: [] },
+    { quiz: 2, common: 'Curly Willow', genus: 'Salix', aliases: [] },
+    { quiz: 2, common: 'Dendrobium Orchid', genus: 'Dendrobium', aliases: [] },
+
+    // Quiz 3: Filler Flowers
+    { quiz: 3, common: 'Solidago', genus: 'Solidago', aliases: [] },
+    { quiz: 3, common: 'Misty Blue', genus: 'Limonium', aliases: [] },
+    { quiz: 3, common: 'Statice', genus: 'Limonium', aliases: [] },
+    { quiz: 3, common: 'Queen Anne\'s Lace', genus: 'Ammi', aliases: [] },
+    { quiz: 3, common: 'Babies Breath', genus: 'Gypsophila', aliases: [] },
+    { quiz: 3, common: 'Waxflower', genus: 'Chamelaucium', aliases: [] },
+    { quiz: 3, common: 'Pixie Carnation', genus: 'Dianthus', aliases: [] },
+    { quiz: 3, common: 'Aster', genus: 'Aster', aliases: [] },
+    { quiz: 3, common: 'Hypericum Berries', genus: 'Hypericum', aliases: [] },
+    { quiz: 3, common: 'Sea Holly', genus: 'Eryngium', aliases: [] },
+
+    // Quiz 4: Form/Focal Flowers
+    { quiz: 4, common: 'Sunflower', genus: 'Helianthus', aliases: [] },
+    { quiz: 4, common: 'Calla Lily', genus: 'Zantedeschia', aliases: [] },
+    { quiz: 4, common: 'Tulip', genus: 'Tulipa', aliases: [] },
+    { quiz: 4, common: 'Bird of Paradise', genus: 'Strelitzia', aliases: [] },
+    { quiz: 4, common: 'Disbud Mum', genus: 'Chrysanthemum', aliases: [] },
+    { quiz: 4, common: 'Lily', genus: 'Lilium', aliases: [] },
+    { quiz: 4, common: 'Billy Balls', genus: 'Craspedia', aliases: [] },
+    { quiz: 4, common: 'Anthurium', genus: 'Anthurium', aliases: [] },
+    { quiz: 4, common: 'Iris', genus: 'Iris', aliases: [] },
+    { quiz: 4, common: 'Gerber Daisy', genus: 'Gerbera', aliases: [] },
+
+    // Quiz 5: Foliage
+    { quiz: 5, common: 'Leather Leaf', genus: 'Rumohra', aliases: [] },
+    { quiz: 5, common: 'Bear Grass', genus: 'Xerophyllum', aliases: [] },
+    { quiz: 5, common: 'Lily Grass', genus: 'Liriope', aliases: [] },
+    { quiz: 5, common: 'Seeded Eucalyptus', genus: 'Eucalyptus', aliases: [] },
+    { quiz: 5, common: 'Israeli Ruscus', genus: 'Ruscus', aliases: [] },
+    { quiz: 5, common: 'Italian Ruscus', genus: 'Ruscus', aliases: [] },
+    { quiz: 5, common: 'Salal', genus: 'Gaultheria', aliases: ['Lemon Leaf'] },
+    { quiz: 5, common: 'Grevillea', genus: 'Grevillea', aliases: [] },
+    { quiz: 5, common: 'Pitt', genus: 'Pittosporum', aliases: [] },
+    { quiz: 5, common: 'Myrtle', genus: 'Myrtus', aliases: [] }
+  ];
+
+  /* Quiz state */
+  var quizState = {
+    mode: 'genus', // 'genus' or 'common'
+    selectedQuiz: 'all', // 'all' or '1'-'5'
+    currentDeck: [],
+    currentIndex: 0,
+    correct: 0,
+    total: 0,
+    missed: [],
+    retryingMissed: false
+  };
+
+  /* DOM elements */
+  var promptLabel = document.getElementById('promptLabel');
+  var promptText = document.getElementById('promptText');
+  var answerInput = document.getElementById('answerInput');
+  var checkBtn = document.getElementById('checkBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var feedback = document.getElementById('feedback');
+  var scoreDisplay = document.querySelector('.score-display .number');
+  var totalDisplay = document.querySelector('.score-display .total');
+  var percentageDisplay = document.querySelector('.score-display .percentage');
+  var progressFill = document.querySelector('.progress-fill');
+  var card = document.querySelector('.card');
+  var endScreen = document.getElementById('endScreen');
+  var finalScore = document.getElementById('finalScore');
+  var finalMessage = document.getElementById('finalMessage');
+  var retryMissedBtn = document.getElementById('retryMissedBtn');
+  var homeBtn = document.getElementById('homeBtn');
+
+  /* Fisher-Yates shuffle */
+  function shuffle(array) {
+    var arr = array.slice();
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = temp;
+    }
+    return arr;
+  }
+
+  /* Build deck from selected quiz */
+  function buildDeck() {
+    var filtered = flowerData.filter(function(flower) {
+      if (quizState.selectedQuiz === 'all') return true;
+      return flower.quiz === parseInt(quizState.selectedQuiz, 10);
+    });
+    quizState.currentDeck = shuffle(filtered);
+    quizState.currentIndex = 0;
+    quizState.correct = 0;
+    quizState.total = quizState.currentDeck.length;
+    quizState.missed = [];
+    updateDisplay();
+  }
+
+  /* Build deck from missed items */
+  function buildMissedDeck() {
+    quizState.currentDeck = shuffle(quizState.missed);
+    quizState.currentIndex = 0;
+    quizState.correct = 0;
+    quizState.total = quizState.currentDeck.length;
+    quizState.missed = [];
+    quizState.retryingMissed = true;
+    updateDisplay();
+  }
+
+  /* Update score and progress */
+  function updateDisplay() {
+    scoreDisplay.textContent = quizState.correct;
+    totalDisplay.textContent = quizState.total;
+    var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+    percentageDisplay.textContent = pct;
+    var progressPct = quizState.total > 0 ? ((quizState.currentIndex + 1) / quizState.total) * 100 : 0;
+    progressFill.style.width = progressPct + '%';
+    displayQuestion();
+  }
+
+  /* Display current question */
+  function displayQuestion() {
+    resetCard();
+    if (quizState.currentIndex >= quizState.currentDeck.length) {
+      showEndScreen();
+      return;
+    }
+    var flower = quizState.currentDeck[quizState.currentIndex];
+    if (quizState.mode === 'genus') {
+      promptLabel.textContent = 'Type the Genus';
+      promptText.innerHTML = flower.common;
+    } else {
+      promptLabel.textContent = 'Type the Common Name';
+      promptText.innerHTML = flower.genus + ' <button class="pronunciation-btn" title="Pronounce">\u{1F50A}</button>';
+      var pronounceBtn = promptText.querySelector('.pronunciation-btn');
+      pronounceBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        pronounce(flower.genus);
+      });
+    }
+    answerInput.focus();
+  }
+
+  /* Text-to-speech pronunciation */
+  function pronounce(text) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      var utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  /* Claude: 2026-03-17 — Levenshtein distance for "close but wrong" feedback */
+  function editDistance(a, b) {
+    var m = a.length, n = b.length;
+    var dp = [];
+    for (var i = 0; i <= m; i++) {
+      dp[i] = [i];
+      for (var j = 1; j <= n; j++) {
+        dp[i][j] = i === 0 ? j : 0;
+      }
+    }
+    for (var i = 1; i <= m; i++) {
+      for (var j = 1; j <= n; j++) {
+        if (a[i - 1] === b[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1];
+        } else {
+          dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+        }
+      }
+    }
+    return dp[m][n];
+  }
+
+  /* Check answer — STRICT spelling, case-insensitive only */
+  function checkAnswer() {
+    var flower = quizState.currentDeck[quizState.currentIndex];
+    var userAnswer = answerInput.value.trim();
+    var isCorrect = false;
+
+    if (quizState.mode === 'genus') {
+      isCorrect = userAnswer.toLowerCase() === flower.genus.toLowerCase();
+    } else {
+      // Type common name mode
+      isCorrect = userAnswer.toLowerCase() === flower.common.toLowerCase();
+      if (!isCorrect) {
+        // Check aliases
+        for (var i = 0; i < flower.aliases.length; i++) {
+          if (userAnswer.toLowerCase() === flower.aliases[i].toLowerCase()) {
+            isCorrect = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (isCorrect) {
+      quizState.correct++;
+      card.classList.add('correct-flash');
+      feedback.classList.add('show', 'correct');
+      feedback.innerHTML = '✓ Correct!';
+      updateMissedCounter(false);
+    } else {
+      card.classList.add('incorrect-flash');
+      feedback.classList.add('show', 'incorrect');
+      var correctText = quizState.mode === 'genus' ? flower.genus : flower.common;
+      /* Show "close!" encouragement if within 2 edits — helps Mary learn without just punishing */
+      var dist = editDistance(userAnswer.toLowerCase(), correctText.toLowerCase());
+      var closeMsg = '';
+      if (userAnswer.length > 0 && dist <= 2) {
+        closeMsg = '<div style="color:#e65100;font-size:0.85rem;margin-top:4px;">So close! Check your spelling carefully.</div>';
+      }
+      feedback.innerHTML = '✗ Incorrect.' + closeMsg + '<div class="correct-answer">Answer: <strong>' + correctText + '</strong></div>';
+      quizState.missed.push(flower);
+      updateMissedCounter(true);
+    }
+
+    checkBtn.style.display = 'none';
+    nextBtn.style.display = 'inline-block';
+    answerInput.disabled = true;
+  }
+
+  /* Update localStorage missed counter */
+  function updateMissedCounter(isMiss) {
+    var missed = parseInt(localStorage.getItem('AA_FLORAL_MISSED') || '0', 10);
+    if (isMiss) {
+      localStorage.setItem('AA_FLORAL_MISSED', String(missed + 1));
+    } else {
+      if (missed > 0) {
+        localStorage.setItem('AA_FLORAL_MISSED', String(missed - 1));
+      }
+    }
+  }
+
+  /* Reset card to initial state */
+  function resetCard() {
+    card.classList.remove('correct-flash', 'incorrect-flash');
+    feedback.classList.remove('show', 'correct', 'incorrect');
+    feedback.innerHTML = '';
+    answerInput.value = '';
+    answerInput.disabled = false;
+    checkBtn.style.display = 'inline-block';
+    nextBtn.style.display = 'none';
+  }
+
+  /* Show end screen */
+  function showEndScreen() {
+    card.style.display = 'none';
+    endScreen.style.display = 'block';
+    var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+    finalScore.textContent = pct + '%';
+
+    if (quizState.retryingMissed) {
+      finalMessage.textContent = 'Nice work on the retry!';
+      retryMissedBtn.style.display = 'none';
+    } else {
+      if (pct === 100) {
+        finalMessage.textContent = 'Perfect score! You\'re ready for the exam!';
+        retryMissedBtn.style.display = 'none';
+      } else if (quizState.missed.length > 0) {
+        finalMessage.textContent = 'You missed ' + quizState.missed.length + ' — want to try again?';
+        retryMissedBtn.style.display = 'inline-block';
+      } else {
+        finalMessage.textContent = 'Great job!';
+        retryMissedBtn.style.display = 'none';
+      }
+    }
+  }
+
+  /* Event listeners */
+  document.querySelectorAll('.mode-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.mode-btn').forEach(function(b) {
+        b.classList.remove('active');
+      });
+      btn.classList.add('active');
+      quizState.mode = btn.getAttribute('data-mode');
+      card.style.display = 'block';
+      endScreen.style.display = 'none';
+      buildDeck();
+    });
+  });
+
+  document.querySelectorAll('.filter-pill').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.filter-pill').forEach(function(b) {
+        b.classList.remove('active');
+      });
+      btn.classList.add('active');
+      quizState.selectedQuiz = btn.getAttribute('data-quiz');
+      card.style.display = 'block';
+      endScreen.style.display = 'none';
+      buildDeck();
+    });
+  });
+
+  checkBtn.addEventListener('click', checkAnswer);
+  answerInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      checkAnswer();
+    }
+  });
+
+  nextBtn.addEventListener('click', function() {
+    quizState.currentIndex++;
+    updateDisplay();
+  });
+
+  retryMissedBtn.addEventListener('click', function() {
+    buildMissedDeck();
+    card.style.display = 'block';
+    endScreen.style.display = 'none';
+  });
+
+  homeBtn.addEventListener('click', function() {
+    window.location.href = '/Academic-Allies/';
+  });
+
+  /* Initialize */
+  buildDeck();
+</script>
+
+</body>
+</html>
