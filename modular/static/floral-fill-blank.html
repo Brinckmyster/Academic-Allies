@@ -413,6 +413,38 @@
     html.aa-dark #retrySpellingBtn { border-color: #ffb74d; color: #ffb74d; }
     html.aa-dark #retryWrongBtn { border-color: #ef5350; color: #ef5350; }
 
+    /* Claude: 2026-03-18 — Report wrong answer button + options */
+    .report-btn {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      color: #888;
+      font-size: 0.8rem;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+    }
+    .report-btn:hover { border-color: #e65100; color: #e65100; }
+    html.aa-dark .report-btn { border-color: #555; color: #888; }
+    html.aa-dark .report-btn:hover { border-color: #ffb74d; color: #ffb74d; }
+    .report-option {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      color: #333;
+    }
+    .report-option:hover { background: #fff3e0; border-color: #ff9800; }
+    html.aa-dark .report-option { background: #2a2a2a; border-color: #444; color: #ccc; }
+    html.aa-dark .report-option:hover { background: #3e2f00; border-color: #b86e00; }
+
     /* Score display */
     .score-display {
       text-align: center;
@@ -662,6 +694,19 @@
       </div>
       <div class="feedback" id="feedback"></div>
     </div>
+    <!-- Claude: 2026-03-18 — Report button + inline report form -->
+    <div id="reportArea" style="display:none;margin-top:12px;">
+      <button class="report-btn" id="reportBtn">Report wrong answer</button>
+      <div id="reportForm" style="display:none;margin-top:8px;">
+        <div style="font-size:0.85rem;color:#888;margin-bottom:6px;">What's wrong?</div>
+        <button class="report-option" data-reason="wrong-genus">Wrong genus listed</button>
+        <button class="report-option" data-reason="wrong-spelling">Spelling error in answer key</button>
+        <button class="report-option" data-reason="wrong-common">Wrong common name</button>
+        <button class="report-option" data-reason="missing-alias">My answer should also be accepted</button>
+        <button class="report-option" data-reason="other">Other</button>
+        <div id="reportConfirm" style="display:none;margin-top:8px;color:#2e7d32;font-size:0.9rem;font-weight:700;"></div>
+      </div>
+    </div>
     <button class="next-btn" id="nextBtn" style="display: none;">Next</button>
   </div>
 
@@ -837,6 +882,10 @@
   var retryWrongBtn = document.getElementById('retryWrongBtn');
   var missBreakdown = document.getElementById('missBreakdown');
   var homeBtn = document.getElementById('homeBtn');
+  var reportArea = document.getElementById('reportArea');
+  var reportBtn = document.getElementById('reportBtn');
+  var reportForm = document.getElementById('reportForm');
+  var reportConfirm = document.getElementById('reportConfirm');
 
   /* Fisher-Yates shuffle */
   function shuffle(array) {
@@ -1014,11 +1063,32 @@
         }
         hintsHtml += '</div>';
       }
-      feedback.innerHTML = '<div class="knew-it">You KNEW it! But the spelling was off.</div>' +
+      /* Claude: 2026-03-18 — varied encouragement so it doesn't get annoying */
+      var knewItMsgs = [
+        'You KNEW it! Just a spelling hiccup.',
+        'Right flower, wrong letters! So close.',
+        'Your brain got it — your fingers just need to catch up.',
+        'That is the right answer with the wrong outfit on.',
+        'Knowledge: A+. Spelling: needs work.',
+        'You knew this one! Let the spelling helpers sink in.',
+        'Correct answer, creative spelling.',
+        'The flower knowledge is THERE. Spelling is the last boss.',
+        'Almost perfect — just some letters in the wrong order.',
+        'You recognized it! Now let\'s lock in that spelling.'
+      ];
+      var knewItMsg = knewItMsgs[Math.floor(Math.random() * knewItMsgs.length)];
+      var testWarnings = [
+        'Still counts as a miss — the test won\'t be this nice!',
+        'Marked as a miss — your teacher won\'t give partial credit.',
+        'Still a miss for scoring — but YOU know that you know it.',
+        'The test will want exact spelling. You are so close though.'
+      ];
+      var testWarn = testWarnings[Math.floor(Math.random() * testWarnings.length)];
+      feedback.innerHTML = '<div class="knew-it">' + knewItMsg + '</div>' +
         '<div class="correct-answer">Correct spelling: <strong>' + correctText + '</strong></div>' +
         '<div class="you-wrote">You wrote: <span style="text-decoration:line-through;">' + userAnswer + '</span></div>' +
         hintsHtml +
-        '<div style="font-size:0.8rem;color:#888;margin-top:8px;">Still counts as a miss — the test won\'t be this nice!</div>';
+        '<div style="font-size:0.8rem;color:#888;margin-top:8px;">' + testWarn + '</div>';
       quizState.missedSpelling.push(flower);
       updateMissedCounter(true);
     } else {
@@ -1033,6 +1103,10 @@
     checkBtn.style.display = 'none';
     nextBtn.style.display = 'inline-block';
     answerInput.disabled = true;
+    /* Claude: 2026-03-18 — show report button after answer is revealed */
+    reportArea.style.display = 'block';
+    reportForm.style.display = 'none';
+    reportConfirm.style.display = 'none';
   }
 
   /* Update localStorage missed counter */
@@ -1056,6 +1130,7 @@
     answerInput.disabled = false;
     checkBtn.style.display = 'inline-block';
     nextBtn.style.display = 'none';
+    reportArea.style.display = 'none';
   }
 
   /* Claude: 2026-03-18 — End screen with spelling vs knowledge breakdown */
@@ -1171,6 +1246,98 @@
 
   homeBtn.addEventListener('click', function() {
     window.location.href = '/Academic-Allies/';
+  });
+
+  /* Claude: 2026-03-18 — Report wrong answer system.
+     Saves to Firestore: /quizReports/{auto-id}
+     Also sends a message to Bruise's in-app message system so she sees it. */
+  reportBtn.addEventListener('click', function() {
+    reportForm.style.display = 'block';
+    reportBtn.style.display = 'none';
+  });
+
+  document.querySelectorAll('.report-option').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var reason = btn.getAttribute('data-reason');
+      var flower = quizState.currentDeck[quizState.currentIndex] ||
+                   quizState.currentDeck[quizState.currentIndex - 1]; // might have advanced
+      if (!flower) { reportConfirm.textContent = 'Could not identify the flower. Try again?'; reportConfirm.style.display = 'block'; return; }
+
+      var report = {
+        common: flower.common,
+        genus: flower.genus,
+        quiz: flower.quiz,
+        reason: reason,
+        userAnswer: answerInput.value.trim(),
+        mode: quizState.mode,
+        timestamp: new Date().toISOString(),
+        source: 'fill-in-the-blank'
+      };
+
+      // Save to localStorage as fallback
+      try {
+        var reports = JSON.parse(localStorage.getItem('AA_QUIZ_REPORTS') || '[]');
+        reports.push(report);
+        localStorage.setItem('AA_QUIZ_REPORTS', JSON.stringify(reports));
+      } catch(e) {}
+
+      // Save to Firestore + send message to Bruise
+      function _saveReport() {
+        if (!window.AA || !window.AA.db) return;
+        var user = window.AA.auth && window.AA.auth.currentUser;
+        report.reportedBy = user ? user.displayName || user.email || user.uid : 'anonymous';
+        report.reporterUid = user ? user.uid : null;
+
+        // Save to quizReports collection
+        window.AA.db.collection('quizReports').add(report)
+          .catch(function(err) { console.warn('[AA] Report save failed:', err); });
+
+        // Send in-app message to Bruise (brinckmyster)
+        // Find Bruise's UID by checking admin or using known email
+        if (window.AA.db) {
+          window.AA.db.collection('users').where('email', '==', 'brinckmyster@gmail.com').get()
+            .then(function(snap) {
+              if (snap.empty) return;
+              var bruiseUid = snap.docs[0].id;
+              var reasonLabels = {
+                'wrong-genus': 'Wrong genus listed',
+                'wrong-spelling': 'Spelling error in answer key',
+                'wrong-common': 'Wrong common name',
+                'missing-alias': 'Answer should also be accepted',
+                'other': 'Other issue'
+              };
+              var msgText = 'Quiz Report: ' + flower.common + ' (' + flower.genus + ') — ' +
+                (reasonLabels[reason] || reason) + '. User typed: "' + report.userAnswer + '"';
+              window.AA.db.collection('messages').add({
+                to: bruiseUid,
+                from: report.reporterUid || 'system',
+                fromName: report.reportedBy || 'Quiz Reporter',
+                text: msgText,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                read: false,
+                type: 'quiz-report'
+              }).catch(function(err) { console.warn('[AA] Report message failed:', err); });
+            })
+            .catch(function(err) { console.warn('[AA] Bruise lookup failed:', err); });
+        }
+      }
+
+      // Wait for AA if not ready
+      if (window.AA && window.AA.db) { _saveReport(); }
+      else {
+        var tries = 0;
+        var poll = setInterval(function() {
+          tries++;
+          if (window.AA && window.AA.db) { clearInterval(poll); _saveReport(); }
+          if (tries > 20) clearInterval(poll);
+        }, 300);
+      }
+
+      // Show confirmation
+      reportForm.style.display = 'none';
+      reportConfirm.textContent = 'Reported! Bruise will review this. Thanks for helping!';
+      reportConfirm.style.display = 'block';
+    });
   });
 
   /* Initialize */
