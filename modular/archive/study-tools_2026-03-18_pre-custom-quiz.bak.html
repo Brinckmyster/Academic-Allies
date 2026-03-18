@@ -195,8 +195,6 @@
 </head>
 <body>
 <div id="site-header"></div>
-<!-- Claude: 2026-03-18 — Load student config system for custom quizzes -->
-<script src="/Academic-Allies/modular/js/student-config.js?v=20260318"></script>
 <script>
     fetch('/Academic-Allies/modular/shared-header.html?v=20260317b')
       .then(function(response) { return response.text(); })
@@ -470,44 +468,6 @@ function buildPage() {
       body.style.maxHeight = body.scrollHeight + 'px';
     }
   });
-
-  /* Claude: 2026-03-18 — Load and render custom quizzes from student config */
-  if (window.AA && window.AA.auth && window.AA.auth.currentUser) {
-    window.AA_CONFIG.load(window.AA.auth.currentUser.uid).then(function(config) {
-      var customQuizzes = window.AA_CONFIG.get('quizzes', []);
-      if (customQuizzes && customQuizzes.length > 0) {
-        var customHtml = '<div style="margin-top: 24px;"><h2 style="color: #6CA0A3; font-size: 16pt; margin-bottom: 12px;">Custom Quizzes</h2>';
-        customQuizzes.forEach(function(quiz, idx) {
-          customHtml += '<div class="tool-card">';
-          customHtml += '<h3>';
-          if (quiz.type === 'fill-blank') {
-            customHtml += '✏️ ';
-          } else if (quiz.type === 'match') {
-            customHtml += '🎯 ';
-          } else if (quiz.type === 'flashcards') {
-            customHtml += '🃏 ';
-          }
-          customHtml += (quiz.title || 'Custom Quiz') + '</h3>';
-          customHtml += '<p>' + (quiz.description || 'A custom quiz configured by your network lead.') + '</p>';
-          var typeLabel = quiz.type === 'fill-blank' ? 'Fill-in-the-Blank' : quiz.type === 'match' ? 'Match Game' : 'Flashcards';
-          var itemCount = quiz.data ? quiz.data.length : 0;
-          customHtml += '<div class="tags">';
-          customHtml += '<span class="tag">Custom</span>';
-          customHtml += '<span class="tag">' + typeLabel + '</span>';
-          if (itemCount > 0) {
-            customHtml += '<span class="tag">' + itemCount + ' items</span>';
-          }
-          customHtml += '</div>';
-          customHtml += '<a href="/Academic-Allies/modular/static/custom-quiz.html?quiz=' + idx + '" class="play-btn">Start Quiz</a>';
-          customHtml += '</div>';
-        });
-        customHtml += '</div>';
-        document.getElementById('semesterContent').innerHTML += customHtml;
-      }
-    }).catch(function(err) {
-      console.warn('[Study Tools] Custom quiz load failed:', err);
-    });
-  }
 }
 
 buildPage();
