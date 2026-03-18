@@ -200,10 +200,12 @@ function hingeInches(door) {
 // Claude 2026-03-17 — updated from 48×48 to 91×55 per Bruise's measurements
 // Claude 2026-03-17 — rotated 90° per Bruise: now 55 wide × 91 deep
 // ═══════════════════════════════════════════════════════
-/* Claude: 2026-03-18 — closet door: entry at BOTTOM (y=91), hinged LEFT, swings RIGHT.
-   Arc covers x:0-30, y:61-91. Clothing zone: LEFT side (x:0-24). */
+/* Claude: 2026-03-18 — closet door: entry at BOTTOM (y=91), hinged RIGHT, swings LEFT.
+   Door is on the RIGHT side of the entry wall, swings left to rest against clothing wall.
+   Arc covers left side near entry. Clothing zone: LEFT wall (x:0-24).
+   Door is NOT inside the clothing zone — it's on the opposite wall. */
 const CLOSET = { w: 55, h: 91,
-  door: { wall:'bottom', pos:0, size:30, hinge:'start' },  // hinge at (0,91), swings right
+  door: { wall:'bottom', pos:25, size:30, hinge:'end' },  // hinge at right side (x:55,y:91), swings left
   clothingZone: 24  // clothing hangs on LEFT wall, 24" deep
 };
 // ═══════════════════════════════════════════════════════
@@ -321,18 +323,18 @@ function getClosetCollisions(id, x, y) {
   /* Claude: 2026-03-18 — clothing zone: furniture shouldn't be in x:0-24 (LEFT side) */
   if(CLOSET.clothingZone && x < CLOSET.clothingZone)
     msgs.push('In clothing zone — clothes hang here');
-  /* Claude: 2026-03-18 — closet door arc: hinge at (0,91), 30" swings right.
-     Arc covers x:0-30, y:61-91. Check quarter-circle intersection. */
+  /* Claude: 2026-03-18 — closet door arc: hinge at RIGHT side of entry (55,91), swings LEFT.
+     Arc covers x:25-55, y:61-91. Door sweeps LEFT + UP from hinge. */
   if(CLOSET.door){
     var cd=CLOSET.door;
-    var chx=0, chy=CLOSET.h; // hinge at bottom-left
+    var chx=CLOSET.w, chy=CLOSET.h; // hinge at bottom-right (55,91)
     var cnx=Math.max(x,Math.min(chx,x+w));
     var cny=Math.max(y,Math.min(chy,y+h));
     var cdist=Math.hypot(cnx-chx,cny-chy);
     if(cdist<cd.size){
-      // Quadrant check: door swings RIGHT (positive x) and UP (negative y) from hinge
+      // Quadrant check: door swings LEFT (negative x) and UP (negative y) from hinge
       var cinQ=true;
-      if(cnx<chx) cinQ=false; // must be right of hinge
+      if(cnx>chx) cinQ=false; // must be left of hinge
       if(cny>chy) cinQ=false; // must be above hinge
       if(cinQ) msgs.push('In closet door swing arc');
     }
@@ -793,15 +795,15 @@ function layoutRoom(){
     closetArc.style.width=CW+'px';closetArc.style.height=CH+'px';
     var cctx=closetArc.getContext('2d');
     cctx.clearRect(0,0,CW,CH);
-    // Door bar on bottom wall
+    // Door bar on bottom wall — right side (where the door opening is)
     cctx.fillStyle='#c49a3c';
-    cctx.fillRect(0,CH-5,cpx(cd.size),5);
-    // Arc: hinge at (0, CH), swings right+up
+    cctx.fillRect(cpx(cd.pos),CH-5,cpx(cd.size),5);
+    // Arc: hinge at bottom-RIGHT (CW, CH), swings LEFT+UP
     var crp=(cpx(cd.size)+cpy(cd.size))/2;
     cctx.save();
     cctx.beginPath();
-    cctx.moveTo(0,CH);
-    cctx.arc(0,CH,crp,-Math.PI/2,0,false); // -90° to 0° = up to right
+    cctx.moveTo(CW,CH);
+    cctx.arc(CW,CH,crp,Math.PI,-Math.PI/2,false); // 180° to -90° = left to up
     cctx.closePath();
     cctx.fillStyle='rgba(196,154,60,0.13)';
     cctx.fill();
@@ -815,7 +817,7 @@ function layoutRoom(){
     cctx.font='8px DM Mono,monospace';
     cctx.fillStyle='#8a6a10';
     cctx.textAlign='center';
-    cctx.fillText('Door 30"',cpx(cd.size/2),CH+14);
+    cctx.fillText('Door 30"',cpx(cd.pos+cd.size/2),CH+14);
   }
   drawFeatures(); drawBaseboard(); render();
 }
