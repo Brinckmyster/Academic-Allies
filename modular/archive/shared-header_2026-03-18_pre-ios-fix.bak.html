@@ -717,19 +717,6 @@ Your disability accommodations and support network">Your disability accommodatio
          No grace period timer — persistence is resolved before the listener registers,
          so the first onAuthStateChanged callback has the real auth state. */
       function _setupAuthListener() {
-      /* Claude: 2026-03-18 — Handle redirect sign-in result (critical for iOS Safari).
-         Ensures any page the user lands on after a redirect will capture the result. */
-      try {
-        window.AA.auth.getRedirectResult().then(function(result) {
-          if (result && result.user) {
-            console.log('[AA] Redirect sign-in completed for:', result.user.email);
-          }
-        }).catch(function(err) {
-          console.warn('[AA] getRedirectResult error (non-critical):', err.message);
-        });
-      } catch(e) {
-        console.warn('[AA] getRedirectResult not available:', e.message);
-      }
       window.AA.auth.onAuthStateChanged(function (user) {
         if (!user) {
           /* Claude: 2026-03-12 — silent re-auth via Google Identity Services.
@@ -1050,13 +1037,10 @@ Your disability accommodations and support network">Your disability accommodatio
      destroying the Firebase LOCAL session. User had to sign in again every time.
      NEW behavior: timers PAUSE when the page is hidden (tab switched, laptop closed,
      phone locked) and RESUME when the page becomes visible again. Only truly idle
-     foreground time counts. This means "Keep me signed in" actually works.
-     Claude: 2026-03-18 — mobile timeout increased to 60 min to account for iOS
-     background tab behavior where pages freeze and don't count as idle. */
+     foreground time counts. This means "Keep me signed in" actually works. */
   (function sessionTimeout() {
-    var isMobile = window.innerWidth <= 768 || /iPhone|iPad|Android/i.test(navigator.userAgent);
-    var WARN_MS  = isMobile ? (55 * 60 * 1000) : (25 * 60 * 1000);  // 55 or 25 minutes of VISIBLE idle time
-    var LIMIT_MS = isMobile ? (60 * 60 * 1000) : (30 * 60 * 1000);  // 60 or 30 minutes of VISIBLE idle time
+    var WARN_MS  = 25 * 60 * 1000;  // 25 minutes of VISIBLE idle time
+    var LIMIT_MS = 30 * 60 * 1000;  // 30 minutes of VISIBLE idle time
     var warnTimer, logoutTimer, banner;
     var _warnRemaining = 0, _logoutRemaining = 0;
     var _lastActive = Date.now();

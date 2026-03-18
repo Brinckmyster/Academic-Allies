@@ -529,18 +529,6 @@
     ready.then(_attachAuthListener).catch(_attachAuthListener);
   });
   function _attachAuthListener() {
-    /* Claude: 2026-03-18 — Handle redirect sign-in result (critical for iOS Safari) */
-    try {
-      window.AA.auth.getRedirectResult().then(function(result) {
-        if (result && result.user) {
-          console.log('[AA] Redirect sign-in completed for:', result.user.email);
-        }
-      }).catch(function(err) {
-        console.warn('[AA] getRedirectResult error (non-critical):', err.message);
-      });
-    } catch(e) {
-      console.warn('[AA] getRedirectResult not available:', e.message);
-    }
     /* Claude: 2026-03-12 — diagnostic logs removed; persistence is stable now */
     window.AA.auth.onAuthStateChanged(function (user) {
       var heroName = document.getElementById('heroName');
@@ -1015,12 +1003,9 @@
         /* Claude: 2026-03-14 — auto-redirect support roles to Support Dashboard.
            Support/family/nearby-help/network-lead/backstage-manager land on the dashboard
            instead of the student home page. Use ?stay=1 param to bypass (so nav home link
-           can still bring them here if they want).
-           Claude: 2026-03-18 — wrap in setTimeout to give getRedirectResult() time to resolve first */
+           can still bring them here if they want). */
         if (SUPPORT_ROLES.indexOf(role) !== -1 && !window.location.search.match(/stay=1/)) {
-          setTimeout(function() {
-            window.location.href = '/Academic-Allies/modular/components/support-dashboard/support-dashboard.html';
-          }, 1500);
+          window.location.href = '/Academic-Allies/modular/components/support-dashboard/support-dashboard.html';
           return;
         }
 

@@ -109,20 +109,17 @@
      true "session resolved" signal. setPersistence only sets the TYPE; the session
      restoration from IndexedDB is a separate async process signalled by onAuthStateChanged.
      Claude: 2026-03-16 — added 8-second timeout so UI is never blocked forever
-     if IndexedDB hangs or onAuthStateChanged fails to fire.
-     Claude: 2026-03-18 — increased to 15s on mobile (iOS IndexedDB restoration slow). */
+     if IndexedDB hangs or onAuthStateChanged fails to fire. */
   var _persistenceReady = _typeReady.then(function () {
     return new Promise(function (resolve) {
       var _resolved = false;
-      var isMobile = window.innerWidth <= 768 || /iPhone|iPad|Android/i.test(navigator.userAgent);
-      var timeoutMs = isMobile ? 15000 : 8000;
       var _timeout = setTimeout(function () {
         if (!_resolved) {
           _resolved = true;
-          console.warn('[AA] PERSISTENCE TIMEOUT: onAuthStateChanged did not fire within ' + timeoutMs + 'ms — resolving with null. IndexedDB may be hung.');
+          console.warn('[AA] PERSISTENCE TIMEOUT: onAuthStateChanged did not fire within 8s — resolving with null. IndexedDB may be hung.');
           resolve(null);
         }
-      }, timeoutMs);
+      }, 8000);
       var unsub = auth.onAuthStateChanged(function (user) {
         if (_resolved) return; /* timeout already fired */
         _resolved = true;
