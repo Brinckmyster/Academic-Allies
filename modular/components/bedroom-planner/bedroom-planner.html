@@ -147,6 +147,7 @@
         <div id="clothingZone" style="position:absolute;left:0;top:0;border-right:2px dashed #b85c2a;background:repeating-linear-gradient(90deg,rgba(184,92,42,0.04),rgba(184,92,42,0.04) 4px,transparent 4px,transparent 8px);z-index:1;pointer-events:none;display:flex;align-items:center;justify-content:center;">
           <span style="writing-mode:vertical-rl;text-orientation:mixed;font-size:9px;color:#b85c2a;opacity:0.6;font-family:'DM Mono',monospace;letter-spacing:1px;">CLOTHING</span>
         </div>
+        <canvas id="closetDoorArc" style="position:absolute;top:0;left:0;z-index:3;pointer-events:none;overflow:visible;"></canvas>
       </div>
     </div>
   </div>
@@ -199,7 +200,12 @@ function hingeInches(door) {
 // Claude 2026-03-17 — updated from 48×48 to 91×55 per Bruise's measurements
 // Claude 2026-03-17 — rotated 90° per Bruise: now 55 wide × 91 deep
 // ═══════════════════════════════════════════════════════
-const CLOSET = { w: 55, h: 91 };
+/* Claude: 2026-03-18 — closet door: entry at BOTTOM (y=91), hinged LEFT, swings RIGHT.
+   Arc covers x:0-30, y:61-91. Clothing zone: LEFT side (x:0-24). */
+const CLOSET = { w: 55, h: 91,
+  door: { wall:'bottom', pos:0, size:30, hinge:'start' },  // hinge at (0,91), swings right
+  clothingZone: 24  // clothing hangs on LEFT wall, 24" deep
+};
 // ═══════════════════════════════════════════════════════
 // FURNITURE  — height used only for window-blocking check
 // w = depth into room, l = run along wall
@@ -312,6 +318,25 @@ function getClosetCollisions(id, x, y) {
   if(y<0) msgs.push('Past top wall');
   if(x+w>CLOSET.w) msgs.push('Past right wall');
   if(y+h>CLOSET.h) msgs.push('Past bottom wall');
+  /* Claude: 2026-03-18 — clothing zone: furniture shouldn't be in x:0-24 (LEFT side) */
+  if(CLOSET.clothingZone && x < CLOSET.clothingZone)
+    msgs.push('In clothing zone — clothes hang here');
+  /* Claude: 2026-03-18 — closet door arc: hinge at (0,91), 30" swings right.
+     Arc covers x:0-30, y:61-91. Check quarter-circle intersection. */
+  if(CLOSET.door){
+    var cd=CLOSET.door;
+    var chx=0, chy=CLOSET.h; // hinge at bottom-left
+    var cnx=Math.max(x,Math.min(chx,x+w));
+    var cny=Math.max(y,Math.min(chy,y+h));
+    var cdist=Math.hypot(cnx-chx,cny-chy);
+    if(cdist<cd.size){
+      // Quadrant check: door swings RIGHT (positive x) and UP (negative y) from hinge
+      var cinQ=true;
+      if(cnx<chx) cinQ=false; // must be right of hinge
+      if(cny>chy) cinQ=false; // must be above hinge
+      if(cinQ) msgs.push('In closet door swing arc');
+    }
+  }
   for(const [oid,op] of Object.entries(placed)){
     if(oid===id||op.room!=='closet') continue;
     if(x<op.x+cw(oid)&&x+w>op.x&&y<op.y+ch(oid)&&y+h>op.y)
@@ -719,11 +744,12 @@ const SUGGESTED = [
   { id:'bunk',        x:128,   y:66.5,  rotated:false, room:'master' },  // 49×86 → ends (177,152.5)
   // ── Heritage Bed flush TV wall ──
   { id:'hbed',        x:37,    y:109.5, rotated:true,  room:'master' },  // 84×43 → ends (121,152.5)
-  // ── Walk-in Closet — clothes LEFT, furniture RIGHT ──
-  /* Claude: 2026-03-18 — v15: bookcase flush right wall per Bruise.
-     Walk-in closet: clothes hang on LEFT side, furniture on RIGHT. */
-  { id:'smdresser',   x:0,     y:0,     rotated:false, room:'closet' },  // 19×30 flush top-left corner
-  { id:'bookcase1',   x:40,    y:58,    rotated:false, room:'closet' },  // 15×33 → ends x:55 flush right, y:91 flush bottom
+  // ── Walk-in Closet — clothes LEFT (x:0-24), furniture RIGHT, door at bottom-left ──
+  /* Claude: 2026-03-18 — v16: dresser out of clothing zone, bookcase out of door arc.
+     Door: hinge (0,91), 30" arc swings right → covers x:0-30, y:61-91.
+     Clothing zone: x:0-24 (LEFT side). Furniture goes x:24+ only. */
+  { id:'smdresser',   x:24,    y:0,     rotated:true,  room:'closet' },  // ROT 30×19 → ends (54,19) right of clothing zone, flush top
+  { id:'bookcase1',   x:40,    y:19,    rotated:false, room:'closet' },  // 15×33 → ends (55,52) flush right, below dresser, clear of door arc
 ];
 document.getElementById('btnSuggest').addEventListener('click',()=>{
   placed = {};
@@ -758,7 +784,39 @@ function layoutRoom(){
   croom.style.setProperty('--gy',cpy(12)+'px');
   /* Claude: 2026-03-18 — size the clothing zone (LEFT side, ~24" deep) */
   var clothZone=document.getElementById('clothingZone');
-  if(clothZone){clothZone.style.width=cpx(24)+'px';clothZone.style.height=CH+'px';}
+  if(clothZone){clothZone.style.width=cpx(CLOSET.clothingZone||24)+'px';clothZone.style.height=CH+'px';}
+  /* Claude: 2026-03-18 — draw closet door arc + door bar */
+  var closetArc=document.getElementById('closetDoorArc');
+  if(closetArc&&CLOSET.door){
+    var cd=CLOSET.door;
+    closetArc.width=CW;closetArc.height=CH;
+    closetArc.style.width=CW+'px';closetArc.style.height=CH+'px';
+    var cctx=closetArc.getContext('2d');
+    cctx.clearRect(0,0,CW,CH);
+    // Door bar on bottom wall
+    cctx.fillStyle='#c49a3c';
+    cctx.fillRect(0,CH-5,cpx(cd.size),5);
+    // Arc: hinge at (0, CH), swings right+up
+    var crp=(cpx(cd.size)+cpy(cd.size))/2;
+    cctx.save();
+    cctx.beginPath();
+    cctx.moveTo(0,CH);
+    cctx.arc(0,CH,crp,-Math.PI/2,0,false); // -90° to 0° = up to right
+    cctx.closePath();
+    cctx.fillStyle='rgba(196,154,60,0.13)';
+    cctx.fill();
+    cctx.setLineDash([4,3]);
+    cctx.strokeStyle='rgba(196,154,60,0.6)';
+    cctx.lineWidth=1.2;
+    cctx.stroke();
+    cctx.setLineDash([]);
+    cctx.restore();
+    // Label
+    cctx.font='8px DM Mono,monospace';
+    cctx.fillStyle='#8a6a10';
+    cctx.textAlign='center';
+    cctx.fillText('Door 30"',cpx(cd.size/2),CH+14);
+  }
   drawFeatures(); drawBaseboard(); render();
 }
 window.addEventListener('resize',layoutRoom);
