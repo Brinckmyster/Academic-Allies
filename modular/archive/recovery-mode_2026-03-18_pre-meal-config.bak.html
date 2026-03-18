@@ -553,8 +553,6 @@
             setTimeout(function() { _waitForAA(cb, n + 1); }, 100);
         }
     </script>
-    <!-- Claude: 2026-03-18 — Load student config system (per-student Firestore settings) -->
-    <script src="/Academic-Allies/modular/js/student-config.js"></script>
     <script>
         // Spoon Management
         // UID guards — prevent full re-init on Firebase ~45-min token refresh. Claude, 2026-03-07.
@@ -645,9 +643,8 @@
             "Heavenly Father knows your heart. He sees your efforts.",
             "You are a daughter of God. Your worth is infinite."
         ];
-        /* Claude: 2026-03-18 — Renamed maryMealOptions to defaultMaryMeals.
-           Legacy fallback; per-student meal config now loaded from Firestore via AA_CONFIG */
-        const defaultMaryMeals = {
+        // Mary's gastroparesis-safe meal options — DO NOT CHANGE
+        const maryMealOptions = {
             breakfast: [
                 "Post Fruity Pebbles with Lactaid 2% milk",
                 "Pop-Tarts (Frosted Cherry)",
@@ -708,9 +705,9 @@
                 "Broth (instant or carton)"
             ]
         };
-        // Default to Mary's options; will be overridden by per-student Firestore config after auth.
-        // Added 2026-02-28 by Claude. Claude: 2026-03-18 — updated to use Firestore config.
-        let mealOptions = defaultMaryMeals;
+        // Default to Mary's options; swapped to generic after auth if not Mary.
+        // See onAuthStateChanged below. Added 2026-02-28 by Claude.
+        let mealOptions = maryMealOptions;
         /* Claude: 2026-03-17 — Flower quiz functions (viewReports, reportWrongCategory,
            loadNewFlower, checkAnswer) removed — moved to standalone page:
            modular/static/floral-flower-id.html */
@@ -862,23 +859,16 @@
                         if (nameEl) nameEl.textContent = firstName;
                         document.title = 'Recovery Mode \u2014 ' + firstName + '\u2019s Safe Space';
                     }
-                    /* Claude: 2026-03-18 — Load per-student meal config from Firestore.
-                       Config is the source of truth. Falls back to legacy email check,
-                       then to hardcoded defaults if config not found. Respects mirror mode. */
+                    /* Claude: 2026-03-12 — fix: check the STUDENT's email (via Firestore),
+                       not the viewer's email. In mirror mode, user.email is the supporter's
+                       email, which wrongly gave all students Mary's gastroparesis meals. */
                     var _readUid = window.AA_MIRROR_UID || user.uid;
-                    if (window.AA_CONFIG) {
-                      window.AA_CONFIG.load(_readUid).then(function(config) {
-                        var configMeals = window.AA_CONFIG.get('meals', null);
-                        if (configMeals && configMeals.breakfast) {
-                          mealOptions = configMeals;
-                          console.log('[RecoveryMode] Loaded meals from studentConfig for', _readUid);
-                        } else {
-                          console.log('[RecoveryMode] No meals in studentConfig, using defaults');
-                        }
-                      }).catch(function(err) {
-                        console.warn('[RecoveryMode] AA_CONFIG.load failed:', err.message);
-                      });
-                    }
+                    AA.db.collection('users').doc(_readUid).get().then(function(sDoc) {
+                      var studentEmail = sDoc.exists ? sDoc.data().email : '';
+                      if (studentEmail !== 'mbrinck90@gmail.com') {
+                        mealOptions = genericMealOptions;
+                      }
+                    }).catch(function() { mealOptions = genericMealOptions; });
                     /* Claude: 2026-03-17 — Restore energyLevel from Firebase if not already set locally */
                     if (window.AA && AA.db) {
                         AA.db.collection('users').doc(_readUid).get().then(function(doc) {
