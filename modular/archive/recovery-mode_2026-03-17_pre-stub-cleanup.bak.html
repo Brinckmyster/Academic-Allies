@@ -556,6 +556,7 @@
     <script>
         // Spoon Management
         // UID guards — prevent full re-init on Firebase ~45-min token refresh. Claude, 2026-03-07.
+        var _rmFlowerUid  = null; // guards listener #1: greeting/meal-options/flower-quiz
         var _rmSpoonUid   = null; // guards listener #2: spoon-plan loader
         var _rmJournalUid = null; // guards _journalUpdateAuth
         /* Claude: 2026-03-09 — _isSupporterRole flag: true when the signed-in
@@ -614,7 +615,12 @@
             window.location.href = '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html';
         }
         /* Claude: 2026-03-17 — Flower Quiz JS removed (moved to standalone page:
-           modular/static/floral-flower-id.html) */
+           modular/static/floral-flower-id.html). Archived in:
+           recovery-mode_2026-03-17_pre-quiz-extraction.bak.html */
+        var flowers = []; // kept as empty stub so reportWrongCategory/viewReports don't error
+        var currentFlower = null;
+        var flowerCount = 0;
+        var reportedFlowers = [];
         // Comforting scriptures
         const comfortingScriptures = [
             { text: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.", reference: "Matthew 11:28" },
@@ -811,6 +817,10 @@
 
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
+            // loadNewFlower() is called by the fetch callback once flowers.json loads
+            /* Claude: 2026-03-17 — guard removed element (flower quiz moved to Study Tools) */
+            var _rcEl = document.getElementById('report-count');
+            if (_rcEl) _rcEl.textContent = reportedFlowers.length;
             showNewMessage();
             showNewScripture();
             startBreathing();
@@ -836,6 +846,8 @@
                         loadSpoonPlanFromStorage();
                         return;
                     }
+                    if (user.uid === _rmFlowerUid) return; // token refresh — skip re-init
+                    _rmFlowerUid = user.uid;
 
                     /* Claude: 2026-03-09 — fetch user role and set _isSupporterRole flag */
                     if (window.AA && AA.db) {
@@ -869,21 +881,43 @@
                         mealOptions = genericMealOptions;
                       }
                     }).catch(function() { mealOptions = genericMealOptions; });
-                    /* Claude: 2026-03-17 — Restore energyLevel from Firebase if not already set locally */
-                    if (window.AA && AA.db) {
-                        AA.db.collection('users').doc(_readUid).get().then(function(doc) {
-                            if (!doc.exists) return;
-                            var data = doc.data();
-                            if (data.energyLevel && !localStorage.getItem('energyLevel')) {
-                                var energyEls = document.querySelectorAll('.energy-option');
-                                energyEls.forEach(function(opt) { opt.classList.remove('selected'); });
-                                var energyEl = document.querySelector('[data-level="' + data.energyLevel + '"]');
-                                if (energyEl) energyEl.classList.add('selected');
-                            }
-                        }).catch(function(err) {
-                            console.warn('[AA] energyLevel restore error (non-critical):', err);
-                        });
-                    }
+                    var quizUid  = (window.AA_flower_uid && !window.AA_MIRROR_UID)
+                        ? window.AA_flower_uid(user.uid, user.email) : _readUid;
+                    AA.getFlowerQuiz(quizUid).then(function(doc) {
+                        if (!doc.exists) return; // first time — nothing to load yet
+                        var data = doc.data();
+
+                        // Load flowerCount from Firebase if it's higher than local
+                        // (takes the max so progress is never lost)
+                        if (typeof data.flowerCount === 'number' && data.flowerCount > flowerCount) {
+                            flowerCount = data.flowerCount;
+                            localStorage.setItem('flowerCount', flowerCount);
+                            var countEl = document.getElementById('flower-count');
+                            if (countEl) countEl.textContent = flowerCount;
+                            var progressEl = document.getElementById('quiz-progress');
+                            if (progressEl) progressEl.style.width = Math.min(flowerCount * 5, 100) + '%';
+                        }
+
+                        // Merge reportedFlowers (union of local + cloud)
+                        if (Array.isArray(data.reportedFlowers) && data.reportedFlowers.length > 0) {
+                            data.reportedFlowers.forEach(function(name) {
+                                if (!reportedFlowers.includes(name)) reportedFlowers.push(name);
+                            });
+                            localStorage.setItem('reportedFlowers', JSON.stringify(reportedFlowers));
+                            var reportCountEl = document.getElementById('report-count');
+                            if (reportCountEl) reportCountEl.textContent = reportedFlowers.length;
+                        }
+
+                        // Restore energyLevel from Firebase if not already set locally
+                        if (data.energyLevel && !localStorage.getItem('energyLevel')) {
+                            var energyEls = document.querySelectorAll('.energy-option');
+                            energyEls.forEach(function(opt) { opt.classList.remove('selected'); });
+                            var energyEl = document.querySelector('[data-level="' + data.energyLevel + '"]');
+                            if (energyEl) energyEl.classList.add('selected');
+                        }
+                    }).catch(function(err) {
+                        console.warn('[AA] FlowerQuiz load error (non-critical):', err);
+                    });
                 });
             });
         });
