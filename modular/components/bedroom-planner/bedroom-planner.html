@@ -670,49 +670,49 @@ document.getElementById('btnReset').addEventListener('click',()=>{placed={};sel=
 //   4. Big bookcase stays on LEFT wall between bathroom and closet doors
 //   5. Bunk must NOT block the TV for anyone
 //
-// LAYOUT LOGIC (v13 — from Bruise's screenshots, collision-verified):
-//   B wall (TOP): Nightstand, Vanity(ROT), Bookcase2(ROT), Heritage Dresser(ROT)
-//     Four pieces along B wall. Bookcase2 ends x:117, 1.5" left of balcony hinge. ✓
-//     Heritage Dresser at x:156, past balcony door opening. ✓
-//   LEFT wall: Big Bookcase at x:0, y:44 — between closet and bathroom doors. ✓
-//   RIGHT side: Desk(ROT) at x:130, y:44 + Hamper at x:177, y:44.
-//   LOWER-RIGHT: Bunk (not rotated, 49×86) at x:128, y:66. Ends (177,152).
-//     Clear of baseboard (right edge 177 < 177.5). ✓
-//   NEAR TV WALL: Heritage Bed ROTATED (84×43) at x:37, y:109. Ends (121,152).
-//     1" past entry door edge (x:37 > door end x:36). Clears entry arc by 1". ✓
-//     Short enough for TV (40" < 52" mount). ✓
-//   CLOSET: Small Dresser + Bookcase 1 (Heir).
+// LAYOUT LOGIC (v14 — flush against walls, desk flush against bunk):
+//   B wall (TOP): Nightstand(x:2), Vanity(ROT), Bookcase2(ROT), Heritage Dresser(ROT flush right)
+//     All flush y=0. Packed left-to-right with no gaps except nightstand 2" off left (closet door).
+//     Heritage Dresser flush against W wall (right edge = 189.5). ✓
+//   LEFT wall: Big Bookcase at x:0, y:44 — flush BC wall, between closet and bathroom doors. ✓
+//   RIGHT side: Hamper flush W wall (right edge = 189.5). ✓
+//   DESK: Rotated (45×20), flush against bunk top edge. x:128 aligned with bunk. ✓
+//   LOWER-RIGHT: Bunk (49×86) flush TV wall (bottom = 152.5). x:128 max before baseboard. ✓
+//   NEAR TV WALL: Heritage Bed ROTATED (84×43) flush TV wall (bottom = 152.5).
+//     x:37 clears entry door arc by 1". 40" tall < 52" TV mount. ✓
+//   CLOSET: Small Dresser flush top-left corner. Bookcase 1 flush left+bottom walls.
 //
 //   TV at x:56-85 (29" wide, 52" from ground). Heritage bed under it is 40" tall = fine.
-//   WALKWAYS: 7" between hbed (x:121) and bunk (x:128). 14" between desk/bunk columns.
+//   WALKWAYS: 7" between hbed (x:121) and bunk (x:128).
 //   DOOR ACCESS: entry ✓ balcony ✓ closet ✓ bathroom ✓
-//   TV VISIBILITY: Heritage bed looks south, bunk looks south. Both see TV. ✓
+//   TV VISIBILITY: both beds look south → clear sightline. ✓
 //   COLLISIONS: zero (verified programmatically 2026-03-18). ✓
 /* Claude: 2026-03-10 — v1 mirrored left-right.
    Claude: 2026-03-11 — v2–v8 iterations.
    Claude: 2026-03-14 — v9–v11 various fixes.
    Claude: 2026-03-17 — v12: Bunk moved from TV wall to B wall.
-   Claude: 2026-03-18 — v13: Layout from Bruise's screenshots. B wall = dresser/vanity/bookcase2.
-     Heritage bed near TV wall (rotated). Bunk lower-right. Desk+hamper right side.
+   Claude: 2026-03-18 — v13: Layout from Bruise's screenshots.
+   Claude: 2026-03-18 — v14: Furniture flush against walls, desk flush against bunk.
      Archive: bedroom-planner_2026-03-17_pre-tv-and-audit.bak.html */
 const SUGGESTED = [
-  // ── B wall (TOP) — Nightstand, Vanity, Bookcase 2, Heritage Dresser ──
-  { id:'nightstand',  x:15,  y:0,   rotated:false, room:'master' },  // 15×14.5
-  { id:'vanity',      x:32,  y:0,   rotated:true,  room:'master' },  // 47×20 → ends x:79
-  { id:'bookcase2',   x:80,  y:0,   rotated:true,  room:'master' },  // 37×13 → ends x:117
-  { id:'hdresser',    x:156, y:0,   rotated:true,  room:'master' },  // 33×20 → ends x:189
-  // ── BC wall (LEFT) — Big Bookcase between closet and bathroom doors ──
-  { id:'bigbookcase', x:0,   y:44,  rotated:false, room:'master' },  // 13×42 → ends y:86
-  // ── RIGHT side — Desk (rotated) + Hamper ──
-  { id:'desk',        x:130, y:44,  rotated:true,  room:'master' },  // 45×20 → ends (175,64)
-  { id:'hamper',      x:177, y:44,  rotated:false, room:'master' },  // 12×20 → ends (189,64)
-  // ── LOWER-RIGHT — Bunk Bed ──
-  { id:'bunk',        x:128, y:66,  rotated:false, room:'master' },  // 49×86 → ends (177,152)
-  // ── NEAR TV WALL — Heritage Bed ROTATED ──
-  { id:'hbed',        x:37,  y:109, rotated:true,  room:'master' },  // 84×43 → ends (121,152)
-  // ── Walk-in Closet ──
-  { id:'smdresser',   x:5,   y:5,   rotated:false, room:'closet' },  // 19×30
-  { id:'bookcase1',   x:20,  y:55,  rotated:false, room:'closet' },  // 15×33
+  // ── B wall (TOP) — flush y=0, packed left-to-right ──
+  { id:'nightstand',  x:2,     y:0,     rotated:false, room:'master' },  // 15×14.5 (2" off left for closet door)
+  { id:'vanity',      x:17,    y:0,     rotated:true,  room:'master' },  // 47×20 → ends x:64
+  { id:'bookcase2',   x:64,    y:0,     rotated:true,  room:'master' },  // 37×13 → ends x:101
+  { id:'hdresser',    x:156.5, y:0,     rotated:true,  room:'master' },  // 33×20 → ends x:189.5 flush right
+  // ── BC wall (LEFT) — Big Bookcase flush left wall ──
+  { id:'bigbookcase', x:0,     y:44,    rotated:false, room:'master' },  // 13×42 → ends y:86
+  // ── W wall (RIGHT) — Hamper flush right wall ──
+  { id:'hamper',      x:177.5, y:44,    rotated:false, room:'master' },  // 12×20 → ends (189.5,64)
+  // ── Desk flush against bunk top ──
+  { id:'desk',        x:128,   y:46.5,  rotated:true,  room:'master' },  // 45×20 → ends (173,66.5)
+  // ── Bunk flush TV wall ──
+  { id:'bunk',        x:128,   y:66.5,  rotated:false, room:'master' },  // 49×86 → ends (177,152.5)
+  // ── Heritage Bed flush TV wall ──
+  { id:'hbed',        x:37,    y:109.5, rotated:true,  room:'master' },  // 84×43 → ends (121,152.5)
+  // ── Walk-in Closet — flush against walls ──
+  { id:'smdresser',   x:0,     y:0,     rotated:false, room:'closet' },  // 19×30 flush top-left corner
+  { id:'bookcase1',   x:0,     y:58,    rotated:false, room:'closet' },  // 15×33 flush left+bottom
 ];
 document.getElementById('btnSuggest').addEventListener('click',()=>{
   placed = {};
