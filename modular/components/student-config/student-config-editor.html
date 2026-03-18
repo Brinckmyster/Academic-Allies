@@ -1,0 +1,945 @@
+<!-- ============================================================
+     student-config/student-config-editor.html
+     Academic Allies Student Configuration Editor
+     Created: 2026-03-18 by Claude
+
+     Network-lead tool for configuring the entire app experience
+     for their assigned student. Includes modes, spoon plan, meals,
+     quizzes, comfort content, and alerts with AI assistant panel.
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-18 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Student Configuration — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+
+    html.aa-dark {
+      --bg:     #121212;
+      --card:   #1e1e1e;
+      --border: #333;
+      --text:   #e0e0e0;
+      --muted:  #999;
+      --shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 3rem;
+    }
+
+    #site-header { min-height: 56px; }
+
+    .page-wrap { max-width: 900px; margin: 0 auto; padding: 1.5rem 1.5rem 2rem; }
+
+    h1 { font-size: 1.75rem; color: var(--teal-dk); margin-bottom: 0.5rem; }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2rem; }
+
+    .alert-banner {
+      background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 2rem; font-size: 0.9rem;
+    }
+
+    html.aa-dark .alert-banner {
+      background: #4a3f1f; color: #ffd699; border-color: #6b5f2e;
+    }
+
+    /* ── Tab Navigation ────────────────────────────────────── */
+    .tabs-nav {
+      display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border);
+      overflow-x: auto;
+    }
+    .tabs-nav button {
+      flex: 0 0 auto; padding: 12px 20px; background: transparent; border: none;
+      color: var(--muted); cursor: pointer; font-size: 0.95rem; font-weight: 600;
+      border-bottom: 3px solid transparent; margin-bottom: -2px;
+      transition: color .2s, border-color .2s;
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    }
+    .tabs-nav button:hover { color: var(--text); }
+    .tabs-nav button.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+    /* ── Tab Panels ────────────────────────────────────────── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Section Cards ─────────────────────────────────────── */
+    .config-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow);
+    }
+    .config-section h2 { font-size: 1.1rem; color: var(--teal-dk); margin-bottom: 16px; }
+
+    /* ── Form Controls ─────────────────────────────────────── */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 6px; color: var(--text); font-size: 0.9rem; }
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group input[type="email"],
+    .form-group select,
+    .form-group textarea {
+      width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      font-size: 0.95rem; color: var(--text); background: var(--card);
+    }
+
+    html.aa-dark .form-group input,
+    html.aa-dark .form-group select,
+    html.aa-dark .form-group textarea {
+      background: #2a2a2a; color: #e0e0e0; border-color: #444;
+    }
+
+    .form-group textarea { min-height: 100px; resize: vertical; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(108, 160, 163, 0.1);
+    }
+
+    /* ── Button Group ──────────────────────────────────────── */
+    .button-group { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;
+      font-weight: 600; font-size: 0.9rem; font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      transition: all .2s; min-height: 44px; min-width: 44px;
+    }
+    .btn-primary { background: var(--teal); color: white; }
+    .btn-primary:hover { background: var(--teal-dk); }
+    .btn-secondary { background: white; color: var(--muted); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: #f5f5f5; }
+    .btn-danger { background: #f8d7da; color: #721c24; }
+    .btn-danger:hover { background: #f5c6cb; }
+    .btn-small { padding: 6px 12px; font-size: 0.85rem; min-height: auto; }
+
+    /* ── Spoon Plan Editor ─────────────────────────────────── */
+    .spoon-tasks-list { margin-top: 16px; }
+    .spoon-task-row {
+      display: flex; gap: 10px; align-items: flex-start; padding: 12px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .spoon-task-emoji { font-size: 1.5rem; line-height: 1; min-width: 30px; text-align: center; }
+    .spoon-task-form { flex: 1; min-width: 200px; display: grid; grid-template-columns: 1fr 1fr 1fr 80px; gap: 8px; align-items: center; }
+    .spoon-task-form input { padding: 6px; }
+    .spoon-task-checkbox { display: flex; align-items: center; gap: 6px; }
+    .spoon-task-remove { flex: 0 0 auto; }
+
+    /* ── Meals Lists ───────────────────────────────────────── */
+    .meal-items-list { margin-top: 12px; }
+    .meal-item-row {
+      display: flex; gap: 8px; align-items: center; padding: 8px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px;
+    }
+    .meal-item-row input { flex: 1; padding: 6px; }
+    .meal-item-remove { flex: 0 0 auto; }
+
+    /* ── Comfort Lists ─────────────────────────────────────── */
+    .comfort-item-row {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; margin-bottom: 12px;
+    }
+    .comfort-item-row input, .comfort-item-row textarea {
+      margin-bottom: 8px; font-size: 0.9rem;
+    }
+    .comfort-item-row .form-group { margin-bottom: 8px; }
+    .comfort-item-remove { margin-top: 8px; }
+
+    /* ── Quiz Editor ───────────────────────────────────────── */
+    .quiz-item-row {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 16px; margin-bottom: 16px;
+    }
+    .quiz-terms { margin-top: 12px; }
+    .quiz-term-row {
+      display: flex; gap: 8px; align-items: center; padding: 8px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px;
+    }
+    .quiz-term-row input { flex: 1; padding: 6px; }
+    .quiz-term-remove { flex: 0 0 auto; }
+
+    /* ── AI Assistant Panel ────────────────────────────────── */
+    .ai-assistant-panel {
+      background: var(--card); border: 2px solid #d4af37; border-radius: var(--radius);
+      padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow);
+    }
+    .ai-assistant-header {
+      font-size: 1.05rem; font-weight: 700; color: var(--teal-dk); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ai-assistant-header::before { content: '✨'; font-size: 1.2rem; }
+    .ai-assistant-desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.5; }
+    .ai-prompt-section { margin-bottom: 16px; }
+    .ai-prompt-section label { display: block; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+    .ai-prompt-section textarea { width: 100%; min-height: 120px; padding: 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-family: monospace; font-size: 0.85rem; color: var(--text); background: var(--card);
+    }
+    .ai-response-section { margin-bottom: 16px; }
+    .ai-clipboard-btn {
+      padding: 8px 14px; background: #d4af37; color: #000; border: none; border-radius: 4px;
+      cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: background .2s;
+    }
+    .ai-clipboard-btn:hover { background: #c99d2d; }
+    .ai-clipboard-btn.copied { background: #28a745; color: white; }
+
+    /* ── Status Messages ───────────────────────────────────── */
+    .status-msg { padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; display: none; }
+    .status-msg.show { display: block; }
+    .status-msg.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .status-msg.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .status-msg.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+    html.aa-dark .status-msg.success { background: #1e4620; color: #7cfc00; border-color: #2d5f2d; }
+    html.aa-dark .status-msg.error { background: #4a2b2b; color: #ff8080; border-color: #6b3f3f; }
+    html.aa-dark .status-msg.info { background: #1e3a42; color: #8dd9e8; border-color: #2d5a6b; }
+
+    /* ── Mobile Responsive ─────────────────────────────────── */
+    @media (max-width: 768px) {
+      .page-wrap { padding: 1rem; }
+      h1 { font-size: 1.4rem; }
+      .spoon-task-form { grid-template-columns: 1fr 1fr; }
+      .tabs-nav { gap: 0; }
+      .tabs-nav button { padding: 10px 12px; font-size: 0.85rem; }
+      .button-group { flex-direction: column; }
+      .btn { width: 100%; }
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.1rem; }
+      .config-section { padding: 12px; }
+      .config-section h2 { font-size: 0.95rem; }
+      .spoon-task-row { flex-direction: column; }
+      .spoon-task-form { grid-template-columns: 1fr; }
+      .ai-assistant-panel { border-width: 1px; }
+      .tabs-nav button { padding: 8px 10px; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="site-header"></div>
+
+  <div class="page-wrap">
+    <h1>📋 Student Configuration</h1>
+    <p class="subtitle">Customize the entire app experience for your student</p>
+
+    <div id="not-authorized" style="display: none;">
+      <div class="alert-banner">
+        ⛔ You must be a Network Lead to access this page.
+      </div>
+    </div>
+
+    <div id="main-content" style="display: none;">
+      <div id="status-message" class="status-msg"></div>
+
+      <!-- ── Tab Navigation ── -->
+      <div class="tabs-nav">
+        <button class="tab-btn active" data-tab="modes">🎛️ Modes</button>
+        <button class="tab-btn" data-tab="spoon-plan">🥄 Spoon Plan</button>
+        <button class="tab-btn" data-tab="meals">🍽️ Meals</button>
+        <button class="tab-btn" data-tab="quizzes">📚 Quizzes</button>
+        <button class="tab-btn" data-tab="comfort">💜 Comfort</button>
+        <button class="tab-btn" data-tab="alerts">⚠️ Alerts</button>
+        <button class="tab-btn" data-tab="ai">✨ AI Assistant</button>
+      </div>
+
+      <!-- ── Modes Tab ── -->
+      <div id="tab-modes" class="tab-panel active">
+        <div class="config-section">
+          <h2>Available Modes</h2>
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 12px;">
+            These are the modes available to your student. You can customize the name, icon, and description for each.
+          </p>
+          <div id="modes-container"></div>
+        </div>
+      </div>
+
+      <!-- ── Spoon Plan Tab ── -->
+      <div id="tab-spoon-plan" class="tab-panel">
+        <div class="config-section">
+          <h2>Base Budget</h2>
+          <div class="form-group">
+            <label for="spoon-base-budget">Daily Spoon Budget (base)</label>
+            <input type="number" id="spoon-base-budget" min="1" max="100">
+          </div>
+        </div>
+
+        <div class="config-section">
+          <h2>Spoon Calculation Formula</h2>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label for="spoon-pain-scale">Pain Scale Factor</label>
+              <input type="number" id="spoon-pain-scale" min="0" max="5" step="0.1">
+            </div>
+            <div class="form-group">
+              <label for="spoon-fatigue-scale">Fatigue Scale Factor</label>
+              <input type="number" id="spoon-fatigue-scale" min="0" max="5" step="0.1">
+            </div>
+            <div class="form-group">
+              <label for="spoon-sleep-low-threshold">Sleep Low Threshold (hours)</label>
+              <input type="number" id="spoon-sleep-low-threshold" min="0" max="12">
+            </div>
+            <div class="form-group">
+              <label for="spoon-sleep-low-penalty">Sleep Low Penalty (spoons)</label>
+              <input type="number" id="spoon-sleep-low-penalty" min="0" max="20">
+            </div>
+            <div class="form-group">
+              <label for="spoon-sleep-high-threshold">Sleep High Threshold (hours)</label>
+              <input type="number" id="spoon-sleep-high-threshold" min="0" max="12">
+            </div>
+            <div class="form-group">
+              <label for="spoon-sleep-high-bonus">Sleep High Bonus (spoons)</label>
+              <input type="number" id="spoon-sleep-high-bonus" min="0" max="10">
+            </div>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <h2>Daily Tasks</h2>
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 12px;">
+            Drag to reorder, edit task details, or remove tasks.
+          </p>
+          <div id="spoon-tasks-container" class="spoon-tasks-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" id="btn-add-task">+ Add Task</button>
+        </div>
+      </div>
+
+      <!-- ── Meals Tab ── -->
+      <div id="tab-meals" class="tab-panel">
+        <div class="config-section">
+          <h2>Breakfast Options</h2>
+          <div id="meals-breakfast" class="meal-items-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" data-meal="breakfast">+ Add Meal</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Lunch Options</h2>
+          <div id="meals-lunch" class="meal-items-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" data-meal="lunch">+ Add Meal</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Dinner Options</h2>
+          <div id="meals-dinner" class="meal-items-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" data-meal="dinner">+ Add Meal</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Liquids / Drinks</h2>
+          <div id="meals-liquids" class="meal-items-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" data-meal="liquids">+ Add Drink</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Dietary Notes</h2>
+          <div class="form-group">
+            <label for="meals-dietary-note">Any dietary restrictions or preferences?</label>
+            <textarea id="meals-dietary-note" placeholder="e.g., allergies, preferences, medication timing constraints..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Quizzes Tab ── -->
+      <div id="tab-quizzes" class="tab-panel">
+        <div class="config-section">
+          <h2>Custom Quizzes</h2>
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 12px;">
+            Add custom quizzes for your student's study tools.
+          </p>
+          <div id="quizzes-container"></div>
+          <button type="button" class="btn btn-secondary btn-small" id="btn-add-quiz">+ Add Quiz</button>
+        </div>
+      </div>
+
+      <!-- ── Comfort Tab ── -->
+      <div id="tab-comfort" class="tab-panel">
+        <div class="config-section">
+          <h2>Inspirational Scriptures</h2>
+          <div id="comfort-scriptures" class="comfort-items"></div>
+          <button type="button" class="btn btn-secondary btn-small" id="btn-add-scripture">+ Add Scripture</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Comfort Messages</h2>
+          <div id="comfort-messages" class="comfort-items"></div>
+          <button type="button" class="btn btn-secondary btn-small" id="btn-add-message">+ Add Message</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Breathing Exercise</h2>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label for="breathing-in">Breathe In (seconds)</label>
+              <input type="number" id="breathing-in" min="1" max="10">
+            </div>
+            <div class="form-group">
+              <label for="breathing-out">Breathe Out (seconds)</label>
+              <input type="number" id="breathing-out" min="1" max="10">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Alerts Tab ── -->
+      <div id="tab-alerts" class="tab-panel">
+        <div class="config-section">
+          <h2>Alert Thresholds</h2>
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 16px;">
+            Configure when the app alerts your student about low spoons or debt.
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label for="alerts-debt-critical">Critical Debt (days)</label>
+              <input type="number" id="alerts-debt-critical" min="0" max="30">
+              <small style="color: var(--muted);">Shows red alert when debt exceeds this many days</small>
+            </div>
+            <div class="form-group">
+              <label for="alerts-debt-warning">Warning Debt (days)</label>
+              <input type="number" id="alerts-debt-warning" min="0" max="30">
+              <small style="color: var(--muted);">Shows yellow alert when debt exceeds this many days</small>
+            </div>
+            <div class="form-group">
+              <label for="alerts-low-spoon">Low Spoon Threshold (%)</label>
+              <input type="number" id="alerts-low-spoon" min="0" max="100" step="5">
+              <small style="color: var(--muted);">Shows alert when remaining spoons drop below this % of budget</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── AI Assistant Tab ── -->
+      <div id="tab-ai" class="tab-panel">
+        <div class="ai-assistant-panel">
+          <div class="ai-assistant-header">AI Configuration Assistant</div>
+          <div class="ai-assistant-desc">
+            Paste your student's specific needs here. The AI assistant will generate a config prompt that you can
+            paste into Claude, Perplexity, or your preferred AI. The AI will respond with a custom configuration JSON.
+          </div>
+
+          <div class="ai-prompt-section">
+            <label for="ai-student-notes">Your Student's Needs & Background:</label>
+            <textarea id="ai-student-notes" placeholder="Example: My student has POTS, migraines, chronic fatigue. They use mobility aids. Their school schedule is..."></textarea>
+          </div>
+
+          <div class="button-group">
+            <button type="button" class="btn btn-primary" id="btn-generate-prompt">Generate AI Prompt</button>
+            <button type="button" class="ai-clipboard-btn" id="btn-copy-prompt" style="display: none;">📋 Copy to Clipboard</button>
+          </div>
+
+          <div id="ai-prompt-display" style="display: none; margin-top: 16px;">
+            <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 0.85rem; max-height: 400px; overflow-y: auto; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;" id="ai-prompt-text"></div>
+          </div>
+
+          <div class="ai-response-section" style="margin-top: 16px;">
+            <label for="ai-response-json">AI Response (paste JSON here):</label>
+            <textarea id="ai-response-json" placeholder="Paste the AI's JSON response here..."></textarea>
+          </div>
+
+          <div class="button-group">
+            <button type="button" class="btn btn-secondary" id="btn-import-ai">Import AI Response</button>
+            <button type="button" class="btn btn-secondary" id="btn-preview-ai">Preview Changes</button>
+          </div>
+
+          <div id="ai-preview-msg" class="status-msg"></div>
+        </div>
+      </div>
+
+      <!-- ── Save / Reset Controls ── -->
+      <div style="margin-top: 2rem; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);">
+        <div class="button-group">
+          <button type="button" class="btn btn-primary" id="btn-save-config">💾 Save Configuration</button>
+          <button type="button" class="btn btn-secondary" id="btn-preview-config">👁️ Preview for Student</button>
+          <button type="button" class="btn btn-danger" id="btn-reset-config">⟲ Reset to Defaults</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Scripts ── -->
+  <script src="/Academic-Allies/modular/js/student-config.js"></script>
+
+  <script>
+    /* Claude: 2026-03-18 — Student Config Editor */
+    (function() {
+      'use strict';
+
+      var currentStudentUid = null;
+      var currentConfig = null;
+      var statusTimeout = null;
+
+      /* ── Initialize ────────────────────────────────────────────── */
+      function init() {
+        return new Promise(function(resolve) {
+          var check = setInterval(function() {
+            if (window.AA && window.AA.auth) {
+              clearInterval(check);
+              resolve();
+            }
+          }, 50);
+        }).then(function() {
+          window.AA.auth.onAuthStateChanged(function(user) {
+            if (!user) {
+              showSigninMsg();
+              return;
+            }
+            checkAuthorization(user);
+          });
+        });
+      }
+
+      function showSigninMsg() {
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('not-authorized').innerHTML = '<div class="alert-banner">Please sign in to continue.</div>';
+        document.getElementById('not-authorized').style.display = 'block';
+      }
+
+      function checkAuthorization(user) {
+        /* Check if user is network-lead (can write config) */
+        if (!window.AA_MIRROR_CAN_WRITE) {
+          document.getElementById('main-content').style.display = 'none';
+          document.getElementById('not-authorized').style.display = 'block';
+          return;
+        }
+
+        currentStudentUid = window.AA_MIRROR_UID || user.uid;
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('not-authorized').style.display = 'none';
+
+        loadConfig();
+      }
+
+      /* ── Load Config ───────────────────────────────────────────── */
+      function loadConfig() {
+        window.AA_CONFIG.load(currentStudentUid).then(function(config) {
+          currentConfig = config;
+          populateUI();
+        }).catch(function(err) {
+          showStatus('Failed to load configuration: ' + err.message, 'error');
+        });
+      }
+
+      /* ── Populate UI from Config ───────────────────────────────── */
+      function populateUI() {
+        /* Modes */
+        var modesHtml = '';
+        var modes = currentConfig.modes.available || [];
+        modes.forEach(function(modeCode) {
+          var customMode = (currentConfig.modes.custom || {})[modeCode];
+          var name = customMode && customMode.name ? customMode.name : modeCode.charAt(0).toUpperCase() + modeCode.slice(1).replace('-', ' ');
+          var icon = customMode && customMode.icon ? customMode.icon : '🎛️';
+          modesHtml += '<div class="config-section" style="margin-bottom: 12px;">';
+          modesHtml += '<h3 style="font-size: 0.95rem; margin-bottom: 8px;">' + icon + ' ' + name + '</h3>';
+          modesHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">';
+          modesHtml += '<div class="form-group"><label>Name</label><input type="text" class="mode-name-input" data-mode="' + modeCode + '" value="' + name + '"></div>';
+          modesHtml += '<div class="form-group"><label>Icon (emoji)</label><input type="text" class="mode-icon-input" data-mode="' + modeCode + '" value="' + icon + '" maxlength="2"></div>';
+          modesHtml += '<div class="form-group" style="grid-column: 1 / -1;"><label>Description</label><textarea class="mode-desc-input" data-mode="' + modeCode + '" style="min-height: 60px;">' + (customMode && customMode.desc ? customMode.desc : '') + '</textarea></div>';
+          modesHtml += '</div></div>';
+        });
+        document.getElementById('modes-container').innerHTML = modesHtml;
+
+        /* Spoon Plan */
+        document.getElementById('spoon-base-budget').value = currentConfig.spoonPlan.baseBudget || 20;
+        var formula = currentConfig.spoonPlan.formula || {};
+        document.getElementById('spoon-pain-scale').value = formula.painScale || 1;
+        document.getElementById('spoon-fatigue-scale').value = formula.fatigueScale || 1;
+        document.getElementById('spoon-sleep-low-threshold').value = formula.sleepLowThreshold || 7;
+        document.getElementById('spoon-sleep-low-penalty').value = formula.sleepLowPenalty || 2;
+        document.getElementById('spoon-sleep-high-threshold').value = formula.sleepHighThreshold || 9;
+        document.getElementById('spoon-sleep-high-bonus').value = formula.sleepHighBonus || 1;
+
+        populateSpoonTasks();
+
+        /* Meals */
+        var meals = currentConfig.meals || {};
+        populateMealsList('breakfast', meals.breakfast || []);
+        populateMealsList('lunch', meals.lunch || []);
+        populateMealsList('dinner', meals.dinner || []);
+        populateMealsList('liquids', meals.liquids || []);
+        document.getElementById('meals-dietary-note').value = meals.dietaryNote || '';
+
+        /* Comfort */
+        populateComfortScriptures();
+        populateComfortMessages();
+        var breathing = currentConfig.comfort || {};
+        document.getElementById('breathing-in').value = breathing.breathingIn || 4;
+        document.getElementById('breathing-out').value = breathing.breathingOut || 4;
+
+        /* Alerts */
+        var alerts = currentConfig.alerts || {};
+        document.getElementById('alerts-debt-critical').value = alerts.debtDaysCritical || 5;
+        document.getElementById('alerts-debt-warning').value = alerts.debtDaysWarning || 2;
+        document.getElementById('alerts-low-spoon').value = (alerts.lowSpoonPercent * 100) || 25;
+      }
+
+      function populateSpoonTasks() {
+        var container = document.getElementById('spoon-tasks-container');
+        var tasks = currentConfig.spoonPlan.tasks || [];
+        var html = '';
+        tasks.forEach(function(task, idx) {
+          html += '<div class="spoon-task-row" data-idx="' + idx + '">';
+          html += '<div class="spoon-task-emoji">' + task.emoji + '</div>';
+          html += '<div class="spoon-task-form">';
+          html += '<input type="text" class="task-code" value="' + task.code + '" placeholder="Code" style="max-width: 60px;">';
+          html += '<input type="text" class="task-desc" value="' + task.desc + '" placeholder="Description">';
+          html += '<input type="number" class="task-cost" value="' + task.cost + '" min="0" max="10" style="max-width: 60px;">';
+          html += '<label class="spoon-task-checkbox"><input type="checkbox" class="task-fixed" ' + (task.fixed ? 'checked' : '') + '> Fixed</label>';
+          html += '</div>';
+          html += '<button type="button" class="btn btn-danger btn-small spoon-task-remove" data-idx="' + idx + '">✕</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('.spoon-task-remove').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-idx'), 10);
+            var newTasks = currentConfig.spoonPlan.tasks.filter(function(_, i) { return i !== idx; });
+            currentConfig.spoonPlan.tasks = newTasks;
+            populateSpoonTasks();
+          });
+        });
+      }
+
+      function populateMealsList(mealType, items) {
+        var container = document.getElementById('meals-' + mealType);
+        var html = '';
+        items.forEach(function(item, idx) {
+          html += '<div class="meal-item-row" data-type="' + mealType + '" data-idx="' + idx + '">';
+          html += '<input type="text" value="' + item + '" class="meal-input">';
+          html += '<button type="button" class="btn btn-danger btn-small meal-item-remove">✕</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('.meal-item-remove').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var row = this.closest('.meal-item-row');
+            var type = row.getAttribute('data-type');
+            var idx = parseInt(row.getAttribute('data-idx'), 10);
+            currentConfig.meals[type] = currentConfig.meals[type].filter(function(_, i) { return i !== idx; });
+            populateMealsList(type, currentConfig.meals[type]);
+          });
+        });
+      }
+
+      function populateComfortScriptures() {
+        var container = document.getElementById('comfort-scriptures');
+        var scriptures = currentConfig.comfort.scriptures || [];
+        var html = '';
+        scriptures.forEach(function(scripture, idx) {
+          html += '<div class="comfort-item-row" data-type="scripture" data-idx="' + idx + '">';
+          html += '<div class="form-group"><label>Scripture Text</label><textarea class="scripture-text">' + scripture.text + '</textarea></div>';
+          html += '<div class="form-group"><label>Reference</label><input type="text" class="scripture-ref" value="' + scripture.reference + '"></div>';
+          html += '<button type="button" class="btn btn-danger btn-small comfort-item-remove">✕ Remove</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('[data-type="scripture"] .comfort-item-remove').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var row = this.closest('.comfort-item-row');
+            var idx = parseInt(row.getAttribute('data-idx'), 10);
+            currentConfig.comfort.scriptures = currentConfig.comfort.scriptures.filter(function(_, i) { return i !== idx; });
+            populateComfortScriptures();
+          });
+        });
+      }
+
+      function populateComfortMessages() {
+        var container = document.getElementById('comfort-messages');
+        var messages = currentConfig.comfort.messages || [];
+        var html = '';
+        messages.forEach(function(msg, idx) {
+          html += '<div class="comfort-item-row" data-type="message" data-idx="' + idx + '">';
+          html += '<div class="form-group"><label>Message</label><textarea class="message-text" style="min-height: 60px;">' + msg + '</textarea></div>';
+          html += '<button type="button" class="btn btn-danger btn-small comfort-item-remove">✕ Remove</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('[data-type="message"] .comfort-item-remove').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var row = this.closest('.comfort-item-row');
+            var idx = parseInt(row.getAttribute('data-idx'), 10);
+            currentConfig.comfort.messages = currentConfig.comfort.messages.filter(function(_, i) { return i !== idx; });
+            populateComfortMessages();
+          });
+        });
+      }
+
+      /* ── Tab Navigation ────────────────────────────────────────── */
+      document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var tabName = this.getAttribute('data-tab');
+          document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+          document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+          this.classList.add('active');
+          document.getElementById('tab-' + tabName).classList.add('active');
+        });
+      });
+
+      /* ── Add Item Buttons ──────────────────────────────────────── */
+      document.getElementById('btn-add-task').addEventListener('click', function() {
+        currentConfig.spoonPlan.tasks.push({ code: '', emoji: '📌', desc: 'New Task', cost: 1, fixed: false, time: '' });
+        populateSpoonTasks();
+      });
+
+      document.getElementById('btn-add-scripture').addEventListener('click', function() {
+        currentConfig.comfort.scriptures.push({ text: '', reference: '' });
+        populateComfortScriptures();
+      });
+
+      document.getElementById('btn-add-message').addEventListener('click', function() {
+        currentConfig.comfort.messages.push('');
+        populateComfortMessages();
+      });
+
+      document.getElementById('btn-add-quiz').addEventListener('click', function() {
+        currentConfig.quizzes.push({ title: 'New Quiz', type: 'fill-blank', terms: [] });
+        populateQuizzes();
+      });
+
+      /* ── Meal Add Buttons ──────────────────────────────────────── */
+      document.querySelectorAll('[data-meal]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var mealType = this.getAttribute('data-meal');
+          currentConfig.meals[mealType].push('');
+          populateMealsList(mealType, currentConfig.meals[mealType]);
+        });
+      });
+
+      /* ── Save Config ───────────────────────────────────────────── */
+      document.getElementById('btn-save-config').addEventListener('click', function() {
+        /* Collect updates from UI */
+        collectUIUpdates();
+
+        window.AA_CONFIG.save(currentStudentUid, currentConfig).then(function() {
+          showStatus('✅ Configuration saved successfully!', 'success');
+        }).catch(function(err) {
+          showStatus('❌ Failed to save: ' + err.message, 'error');
+        });
+      });
+
+      /* ── Reset Config ──────────────────────────────────────────── */
+      document.getElementById('btn-reset-config').addEventListener('click', function() {
+        if (confirm('Are you sure? This will reset all configuration to defaults.')) {
+          currentConfig = window.AA_CONFIG.getDefaults();
+          populateUI();
+          showStatus('⟲ Configuration reset to defaults. Click Save to confirm.', 'info');
+        }
+      });
+
+      /* ── AI Assistant ──────────────────────────────────────────– */
+      document.getElementById('btn-generate-prompt').addEventListener('click', function() {
+        var notes = document.getElementById('ai-student-notes').value || '(No notes provided)';
+        var prompt = generateAIPrompt(notes);
+        document.getElementById('ai-prompt-text').textContent = prompt;
+        document.getElementById('ai-prompt-display').style.display = 'block';
+        document.getElementById('btn-copy-prompt').style.display = 'inline-block';
+      });
+
+      document.getElementById('btn-copy-prompt').addEventListener('click', function() {
+        var text = document.getElementById('ai-prompt-text').textContent;
+        navigator.clipboard.writeText(text).then(function() {
+          var btn = document.getElementById('btn-copy-prompt');
+          btn.classList.add('copied');
+          btn.textContent = '✓ Copied!';
+          setTimeout(function() {
+            btn.classList.remove('copied');
+            btn.textContent = '📋 Copy to Clipboard';
+          }, 2000);
+        });
+      });
+
+      document.getElementById('btn-import-ai').addEventListener('click', function() {
+        var json = document.getElementById('ai-response-json').value;
+        try {
+          var parsed = JSON.parse(json);
+          var deepMerge = function(target, source) {
+            if (!source || typeof source !== 'object') return target;
+            var result = Object.assign({}, target);
+            for (var key in source) {
+              if (source.hasOwnProperty(key)) {
+                if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                  result[key] = deepMerge(result[key] || {}, source[key]);
+                } else {
+                  result[key] = source[key];
+                }
+              }
+            }
+            return result;
+          };
+          currentConfig = deepMerge(currentConfig, parsed);
+          populateUI();
+          showStatus('✅ AI configuration imported!', 'success');
+        } catch (e) {
+          showStatus('❌ Invalid JSON: ' + e.message, 'error');
+        }
+      });
+
+      /* ── Utility Functions ────────────────────────────────────── */
+      function collectUIUpdates() {
+        /* Collect from visible inputs */
+        document.querySelectorAll('.mode-name-input').forEach(function(inp) {
+          var mode = inp.getAttribute('data-mode');
+          if (!currentConfig.modes.custom[mode]) currentConfig.modes.custom[mode] = {};
+          currentConfig.modes.custom[mode].name = inp.value;
+        });
+
+        document.querySelectorAll('.mode-icon-input').forEach(function(inp) {
+          var mode = inp.getAttribute('data-mode');
+          if (!currentConfig.modes.custom[mode]) currentConfig.modes.custom[mode] = {};
+          currentConfig.modes.custom[mode].icon = inp.value;
+        });
+
+        document.querySelectorAll('.mode-desc-input').forEach(function(inp) {
+          var mode = inp.getAttribute('data-mode');
+          if (!currentConfig.modes.custom[mode]) currentConfig.modes.custom[mode] = {};
+          currentConfig.modes.custom[mode].desc = inp.value;
+        });
+
+        /* Spoon Plan */
+        currentConfig.spoonPlan.baseBudget = parseFloat(document.getElementById('spoon-base-budget').value) || 20;
+        currentConfig.spoonPlan.formula.painScale = parseFloat(document.getElementById('spoon-pain-scale').value) || 1;
+        currentConfig.spoonPlan.formula.fatigueScale = parseFloat(document.getElementById('spoon-fatigue-scale').value) || 1;
+        currentConfig.spoonPlan.formula.sleepLowThreshold = parseFloat(document.getElementById('spoon-sleep-low-threshold').value) || 7;
+        currentConfig.spoonPlan.formula.sleepLowPenalty = parseFloat(document.getElementById('spoon-sleep-low-penalty').value) || 2;
+        currentConfig.spoonPlan.formula.sleepHighThreshold = parseFloat(document.getElementById('spoon-sleep-high-threshold').value) || 9;
+        currentConfig.spoonPlan.formula.sleepHighBonus = parseFloat(document.getElementById('spoon-sleep-high-bonus').value) || 1;
+
+        /* Collect spoon tasks */
+        var tasks = [];
+        document.querySelectorAll('.spoon-task-row').forEach(function(row) {
+          var code = row.querySelector('.task-code').value || 'X';
+          var desc = row.querySelector('.task-desc').value || 'Task';
+          var cost = parseFloat(row.querySelector('.task-cost').value) || 1;
+          var fixed = row.querySelector('.task-fixed').checked;
+          tasks.push({ code: code, emoji: '📌', desc: desc, cost: cost, fixed: fixed, time: '' });
+        });
+        currentConfig.spoonPlan.tasks = tasks;
+
+        /* Meals */
+        currentConfig.meals.breakfast = collectMealItems('breakfast');
+        currentConfig.meals.lunch = collectMealItems('lunch');
+        currentConfig.meals.dinner = collectMealItems('dinner');
+        currentConfig.meals.liquids = collectMealItems('liquids');
+        currentConfig.meals.dietaryNote = document.getElementById('meals-dietary-note').value || null;
+
+        /* Comfort */
+        currentConfig.comfort.scriptures = [];
+        document.querySelectorAll('[data-type="scripture"]').forEach(function(row) {
+          currentConfig.comfort.scriptures.push({
+            text: row.querySelector('.scripture-text').value,
+            reference: row.querySelector('.scripture-ref').value
+          });
+        });
+
+        currentConfig.comfort.messages = [];
+        document.querySelectorAll('[data-type="message"]').forEach(function(row) {
+          currentConfig.comfort.messages.push(row.querySelector('.message-text').value);
+        });
+
+        currentConfig.comfort.breathingIn = parseInt(document.getElementById('breathing-in').value) || 4;
+        currentConfig.comfort.breathingOut = parseInt(document.getElementById('breathing-out').value) || 4;
+
+        /* Alerts */
+        currentConfig.alerts.debtDaysCritical = parseInt(document.getElementById('alerts-debt-critical').value) || 5;
+        currentConfig.alerts.debtDaysWarning = parseInt(document.getElementById('alerts-debt-warning').value) || 2;
+        currentConfig.alerts.lowSpoonPercent = (parseFloat(document.getElementById('alerts-low-spoon').value) || 25) / 100;
+      }
+
+      function collectMealItems(type) {
+        var items = [];
+        document.querySelectorAll('[data-type="' + type + '"] .meal-input').forEach(function(inp) {
+          if (inp.value.trim()) items.push(inp.value.trim());
+        });
+        return items;
+      }
+
+      function populateQuizzes() {
+        var container = document.getElementById('quizzes-container');
+        var quizzes = currentConfig.quizzes || [];
+        var html = '';
+        quizzes.forEach(function(quiz, idx) {
+          html += '<div class="quiz-item-row" data-idx="' + idx + '">';
+          html += '<div class="form-group"><label>Quiz Title</label><input type="text" class="quiz-title" value="' + (quiz.title || '') + '"></div>';
+          html += '<div class="form-group"><label>Type</label>';
+          html += '<select class="quiz-type"><option value="fill-blank" ' + (quiz.type === 'fill-blank' ? 'selected' : '') + '>Fill in Blank</option>';
+          html += '<option value="match" ' + (quiz.type === 'match' ? 'selected' : '') + '>Match</option>';
+          html += '<option value="flashcards" ' + (quiz.type === 'flashcards' ? 'selected' : '') + '>Flashcards</option>';
+          html += '</select></div>';
+          html += '<div style="margin-top: 12px;"><strong>Terms:</strong></div>';
+          html += '<div class="quiz-terms" data-idx="' + idx + '">';
+          if (quiz.terms && quiz.terms.length) {
+            quiz.terms.forEach(function(term, tidx) {
+              html += '<div class="quiz-term-row" data-tidx="' + tidx + '">';
+              html += '<input type="text" class="term-key" value="' + (term.term || '') + '" placeholder="Term">';
+              html += '<input type="text" class="term-val" value="' + (term.answer || '') + '" placeholder="Answer">';
+              html += '<button type="button" class="btn btn-danger btn-small quiz-term-remove">✕</button>';
+              html += '</div>';
+            });
+          }
+          html += '</div>';
+          html += '<button type="button" class="btn btn-secondary btn-small quiz-add-term" data-idx="' + idx + '" style="margin-top: 8px;">+ Add Term</button>';
+          html += '<button type="button" class="btn btn-danger btn-small quiz-remove" data-idx="' + idx + '" style="margin-top: 8px;">✕ Remove Quiz</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+      }
+
+      function showStatus(msg, type) {
+        var el = document.getElementById('status-message');
+        el.textContent = msg;
+        el.className = 'status-msg show ' + type;
+        clearTimeout(statusTimeout);
+        statusTimeout = setTimeout(function() {
+          el.classList.remove('show');
+        }, 5000);
+      }
+
+      function generateAIPrompt(studentNotes) {
+        return 'I need help configuring a student support app called "Academic Allies" for a student with specific needs.\n\nStudent Background:\n' + studentNotes + '\n\nCurrent Configuration:\n' + JSON.stringify(currentConfig, null, 2) + '\n\nPlease review this student\'s needs and the current configuration. Provide a modified configuration as valid JSON that:\n1. Customizes the spoon plan tasks and budget to match their disabilities and daily routine\n2. Updates meal suggestions based on any dietary restrictions or gastroparesis concerns\n3. Customizes comfort scriptures and messages for their faith background\n4. Adjusts alert thresholds if appropriate\n5. Adds any custom quizzes or study tools relevant to their schooling\n\nReturn ONLY valid JSON in the exact structure of the config object above, with no explanations.';
+      }
+
+      /* ── Start ────────────────────────────────────────────────── */
+      init();
+    })();
+  </script>
+
+  <!-- ── Shared Header ── -->
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260318a')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+</body>
+</html>
