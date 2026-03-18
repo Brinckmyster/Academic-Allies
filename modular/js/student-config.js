@@ -100,6 +100,12 @@
       custom: []
     },
 
+    /* Claude: 2026-03-18 — hiddenTools: array of tool IDs to hide from study tools.
+       Valid IDs: floral-countdown, floral-match, floral-fill-blank, floral-genus,
+       floral-flower-id, floral-study-sheet, floral-flashcards, floral-speed-round,
+       floral-missed-tracker. Network leads set these to hide irrelevant tools. */
+    hiddenTools: [],
+
     configuredBy: null,
     configuredAt: null,
     aiSource: null,

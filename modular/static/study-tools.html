@@ -238,13 +238,16 @@ var TRIMESTERS = [
     start: "2026-01-05",
     end: "2026-04-11",
     tools: [
+      /* Claude: 2026-03-18 — id fields added so network leads can hide tools via config */
       {
         type: "countdown",
+        id: "floral-countdown",
         examDate: "2026-03-24",
         label: "days until Floral ID Final (March 24)"
       },
       {
         type: "card",
+        id: "floral-match",
         icon: "🎯",
         title: "Floral ID Match Game",
         desc: "Match common flower names to their genus (botanical) names. Now with reverse mode! Tap or drag to pair them up. Tracks your score and accuracy.",
@@ -255,6 +258,7 @@ var TRIMESTERS = [
       /* Claude: 2026-03-17 — Fill-in-the-blank quiz (strict spelling for exam prep) */
       {
         type: "card",
+        id: "floral-fill-blank",
         icon: "✏️",
         title: "Fill in the Blank",
         desc: "Type the genus from the common name (or vice versa). Spelling counts! Strict matching to prep for the real test. Covers all 5 quiz categories.",
@@ -265,6 +269,7 @@ var TRIMESTERS = [
       /* Claude: 2026-03-17 — Updated links: quizzes moved from recovery-mode to standalone pages */
       {
         type: "card",
+        id: "floral-genus",
         icon: "🌿",
         title: "Genus Practice Quiz",
         desc: "See a flower photo, pick the genus or common name. Tests both directions. 10 questions per round with score tracking.",
@@ -274,6 +279,7 @@ var TRIMESTERS = [
       },
       {
         type: "card",
+        id: "floral-flower-id",
         icon: "🌺",
         title: "Flower ID Practice",
         desc: "Identify flowers from photos — all varieties get equal time. Includes hint system, progress tracking, and miss tracking.",
@@ -283,6 +289,7 @@ var TRIMESTERS = [
       },
       {
         type: "card",
+        id: "floral-study-sheet",
         icon: "📋",
         title: "Floral ID Study Sheet",
         desc: "Quick-reference sheet with all 50 flowers organized by quiz category. Search, hide genus or common names for self-testing, collapse sections, and print-friendly.",
@@ -293,6 +300,7 @@ var TRIMESTERS = [
       /* Claude: 2026-03-17 — Flashcards, Speed Round, Missed Tracker */
       {
         type: "card",
+        id: "floral-flashcards",
         icon: "🃏",
         title: "Floral Flashcards",
         desc: "Flip-style flashcards — tap to reveal the answer, swipe to navigate. Mark each card as 'Got it' or 'Missed' to track your weak spots across sessions.",
@@ -302,6 +310,7 @@ var TRIMESTERS = [
       },
       {
         type: "card",
+        id: "floral-speed-round",
         icon: "⚡",
         title: "Speed Round",
         desc: "Timed multiple choice — 4 options, beat the clock! Tracks your speed (flowers per minute), streaks, and personal bests. Keyboard shortcuts: 1-4 to pick.",
@@ -311,6 +320,7 @@ var TRIMESTERS = [
       },
       {
         type: "card",
+        id: "floral-missed-tracker",
         icon: "📊",
         title: "Missed Flowers Tracker",
         desc: "See which flowers you miss most across all study sessions. Ranked by difficulty with a visual bar. Practice your weakest 10 directly from here.",
@@ -418,6 +428,10 @@ function toggleSemester(id) {
   }
 }
 
+/* Claude: 2026-03-18 — hiddenTools from student config. Network leads can hide built-in tools. */
+var _hiddenTools = [];
+var _configLoaded = false;
+
 function buildPage() {
   var currentId = getCurrentSemesterId();
   var html = '';
@@ -447,6 +461,8 @@ function buildPage() {
             (startCollapsed ? ' style="max-height:0;"' : '') + '>';
 
     sem.tools.forEach(function(tool) {
+      /* Claude: 2026-03-18 — skip tools hidden by network lead config */
+      if (tool.id && _hiddenTools.indexOf(tool.id) !== -1) return;
       if (tool.type === "countdown") {
         html += buildCountdown(tool);
       } else if (tool.type === "card") {
@@ -471,9 +487,16 @@ function buildPage() {
     }
   });
 
-  /* Claude: 2026-03-18 — Load and render custom quizzes from student config */
-  if (window.AA && window.AA.auth && window.AA.auth.currentUser) {
+  /* Claude: 2026-03-18 — Load hiddenTools + custom quizzes from student config */
+  if (!_configLoaded && window.AA && window.AA.auth && window.AA.auth.currentUser) {
+    _configLoaded = true;
     window.AA_CONFIG.load(window.AA.auth.currentUser.uid).then(function(config) {
+      /* Check for hidden tools — rebuild page if any are hidden */
+      var hidden = window.AA_CONFIG.get('hiddenTools', []);
+      if (hidden && hidden.length > 0) {
+        _hiddenTools = hidden;
+        buildPage(); // rebuild with hidden tools filtered out — _configLoaded prevents re-entry
+      }
       var customQuizzes = window.AA_CONFIG.get('quizzes', []);
       if (customQuizzes && customQuizzes.length > 0) {
         var customHtml = '<div style="margin-top: 24px;"><h2 style="color: #6CA0A3; font-size: 16pt; margin-bottom: 12px;">Custom Quizzes</h2>';
