@@ -238,6 +238,7 @@ const ch  = id => { const d=def(id),p=placed[id]; return p?.rotated?d.w:d.l; };
 //   3. Baseboard zone: stay 12" from right wall in y=98–152.5
 //   4. Window: only flag if furniture is TALLER than the sill height
 //   5. No furniture-on-furniture overlap
+//   6. TV zone: don't put furniture under TV wall-mount (x:56–85) or block sightline
 function getCollisions(id, x, y) {
   const msgs=[], w=cw(id), h=ch(id), d=def(id);
   if(x<0)        msgs.push('Past left wall');
@@ -278,6 +279,18 @@ function getCollisions(id, x, y) {
       if((sy>0&&ny<hy)||(sy<0&&ny>hy)) inQ=false;
     }
     if(inQ) msgs.push(`In ${door.label} swing arc`);
+  }
+  /* Claude: 2026-03-17 — TV wall-mount collision: furniture against TV wall in TV zone.
+     TV spans x:56–85 on bottom wall (y=ROOM.h). Two checks:
+     1. Tall furniture (>52") anywhere in room blocks TV sightline if in the x-zone
+     2. ANY furniture flush against TV wall in the TV x-zone blocks access/viewing */
+  if(ROOM.tv){
+    var tv=ROOM.tv;
+    var tvOverlap = x < tv.pos+tv.size && x+w > tv.pos;
+    if(tvOverlap && y+h > ROOM.h-2)
+      msgs.push('Blocks TV — furniture under the wall mount');
+    if(tvOverlap && d.height > tv.height && y+h > ROOM.h-36)
+      msgs.push('Blocks TV — ' + d.height + '" tall > ' + tv.height + '" mount');
   }
   // Furniture overlap (master room only)
   for(const [oid,op] of Object.entries(placed)){
