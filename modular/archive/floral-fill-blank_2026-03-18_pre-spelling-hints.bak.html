@@ -362,57 +362,6 @@
       font-size: 0.9rem;
     }
 
-    /* Claude: 2026-03-18 — "You KNEW it" spelling feedback */
-    .feedback.spelling {
-      color: #e65100;
-      border-left: 4px solid #ff9800;
-      padding-left: 12px;
-      text-align: left;
-    }
-    html.aa-dark .feedback.spelling { color: #ffb74d; border-color: #b86e00; }
-    .knew-it {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: #e65100;
-      margin-bottom: 6px;
-    }
-    html.aa-dark .knew-it { color: #ffb74d; }
-    .you-wrote { font-size: 0.85rem; color: #888; margin-top: 4px; }
-    .hint-box {
-      background: #fff8e1;
-      border: 1px solid #ffe082;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-top: 10px;
-      text-align: left;
-    }
-    html.aa-dark .hint-box { background: #3e2f00; border-color: #5a4400; }
-    .hint-title {
-      font-weight: 700;
-      font-size: 0.85rem;
-      color: #e65100;
-      margin-bottom: 6px;
-    }
-    html.aa-dark .hint-title { color: #ffb74d; }
-    .hint-item {
-      font-size: 0.85rem;
-      color: #555;
-      padding: 3px 0;
-      padding-left: 14px;
-      position: relative;
-    }
-    .hint-item::before { content: '\2192'; position: absolute; left: 0; }
-    html.aa-dark .hint-item { color: #ccc; }
-
-    /* Retry button styles */
-    .retry-btn { margin: 4px; }
-    #retrySpellingBtn { border-color: #e65100; color: #e65100; }
-    #retrySpellingBtn:hover { background: #e65100; color: #fff; }
-    #retryWrongBtn { border-color: #c62828; color: #c62828; }
-    #retryWrongBtn:hover { background: #c62828; color: #fff; }
-    html.aa-dark #retrySpellingBtn { border-color: #ffb74d; color: #ffb74d; }
-    html.aa-dark #retryWrongBtn { border-color: #ef5350; color: #ef5350; }
-
     /* Score display */
     .score-display {
       text-align: center;
@@ -665,16 +614,13 @@
     <button class="next-btn" id="nextBtn" style="display: none;">Next</button>
   </div>
 
-  <!-- Claude: 2026-03-18 — End screen with spelling vs knowledge breakdown -->
+  <!-- End screen (hidden) -->
   <div class="end-screen" id="endScreen" style="display: none;">
     <h2>Quiz Complete!</h2>
     <div class="final-score" id="finalScore">0%</div>
     <p id="finalMessage">Great job!</p>
-    <div id="missBreakdown" style="display:none;margin:12px 0;font-size:0.95rem;line-height:1.8;"></div>
     <div class="button-group">
-      <button class="retry-btn" id="retrySpellingBtn" style="display:none;">Retry Spelling Misses</button>
-      <button class="retry-btn" id="retryWrongBtn" style="display:none;">Retry Wrong Answers</button>
-      <button class="retry-btn" id="retryMissedBtn" style="display:none;">Retry All Missed</button>
+      <button class="retry-btn" id="retryMissedBtn" style="display: none;">Retry Missed</button>
       <button class="home-btn" id="homeBtn">Back to Home</button>
     </div>
   </div>
@@ -687,119 +633,67 @@
 <script>
   /* Claude: 2026-03-17 — Fill-in-the-blank quiz with all 5 categories */
 
-  /* Claude: 2026-03-18 — Flower data with spelling hints for each genus.
-     hints = 3 visual/pattern tricks for readers who struggle with spelling.
-     Focus: word-within-word, letter patterns, chunking, visual tricks. NO pronunciation guides. */
+  /* Flower data with quiz categories */
   var flowerData = [
     // Quiz 1: Mass Flowers
-    { quiz: 1, common: 'Carnation', genus: 'Dianthus', aliases: [],
-      hints: ['Ends with THUS — "and THUS, the carnation bloomed"', 'DI like Princess Diana + AN + THUS', 'Diana THUS gave us carnations'] },
-    { quiz: 1, common: 'Daisy Pom', genus: 'Chrysanthemum', aliases: ['Cushion Pom'],
-      hints: ['It ends with MUM! Chrysanthe-MUM for your mum', 'CHRYS like Christmas without the "tmas" + ANTHEMUM', 'The MUM at the end is your free anchor — build backward from there'] },
-    { quiz: 1, common: 'Rose', genus: 'Rosa', aliases: [],
-      hints: ['It is literally just the name Rosa', 'ROSE → swap the E for A → ROSA', 'Only 4 letters. You got this.'] },
-    { quiz: 1, common: 'Alstro', genus: 'Alstroemeria', aliases: [],
-      hints: ['AL goes to the cafeTERIA → AL-stroe-MERIA', 'That sneaky OE in the middle is the trap: alstr-OE-meria', 'A guy named AL + STROE + goes to the cafe-MERIA'] },
-    { quiz: 1, common: 'Lisianthus', genus: 'Eustoma', aliases: [],
-      hints: ['Shorter than the common name! Only 7 letters', 'EU like EUrope + STOMA (a mouth) — tiny flower mouths', 'A European mouth: EU-STOMA'] },
-    { quiz: 1, common: 'Hydrangea', genus: 'Hydrangea', aliases: [],
-      hints: ['Same as the common name — freebie!', 'A HYDRA on the RANGE: hyd-RANGE-a', 'If you can spell it as a flower, you can spell it as a genus'] },
-    { quiz: 1, common: 'Peony', genus: 'Paeonia', aliases: [],
-      hints: ['Sneaky swap: starts P-A-E not P-E-O!', 'PAE like "pay" + ONIA like "on ya"', 'Pay-onia: "I will PAE for these ONIAce flowers"'] },
-    { quiz: 1, common: 'Ranunculus', genus: 'Ranunculus', aliases: [],
-      hints: ['Same as the common name — another freebie!', 'A NUN is hiding inside: ra-NUN-culus', 'The NUN ran to her RANUNCULUS garden'] },
-    { quiz: 1, common: 'Safari Sunset', genus: 'Leucadendron', aliases: [],
-      hints: ['DENDRON is at the end — same ending as rhododendron', 'Luke (LEUCA) went on DENDRON safari', 'Two chunks: LEUCA + DENDRON. Luke + dendron.'] },
-    { quiz: 1, common: 'China Aster', genus: 'Callistephus', aliases: ['Crown Aster', 'Matsomoto Aster'],
-      hints: ['You CALL a STEP class — CALLI-STEP-hus', 'Double L: caLListephus. Two Ls walk into a bar...', 'The aster who does calligraphy: CALLI + STEP + HUS'] },
+    { quiz: 1, common: 'Carnation', genus: 'Dianthus', aliases: [] },
+    { quiz: 1, common: 'Daisy Pom', genus: 'Chrysanthemum', aliases: ['Cushion Pom'] },
+    { quiz: 1, common: 'Rose', genus: 'Rosa', aliases: [] },
+    { quiz: 1, common: 'Alstro', genus: 'Alstroemeria', aliases: [] },
+    { quiz: 1, common: 'Lisianthus', genus: 'Eustoma', aliases: [] },
+    { quiz: 1, common: 'Hydrangea', genus: 'Hydrangea', aliases: [] },
+    { quiz: 1, common: 'Peony', genus: 'Paeonia', aliases: [] },
+    { quiz: 1, common: 'Ranunculus', genus: 'Ranunculus', aliases: [] },
+    { quiz: 1, common: 'Safari Sunset', genus: 'Leucadendron', aliases: [] },
+    { quiz: 1, common: 'China Aster', genus: 'Callistephus', aliases: ['Crown Aster', 'Matsomoto Aster'] },
 
     // Quiz 2: Line Flowers
-    { quiz: 2, common: 'Snapdragon', genus: 'Antirrhinum', aliases: [],
-      hints: ['The double R is the trap! anti-RR-hinum', 'ANTI + RRHINUM. The snapdragon is ANTI-everything', 'Ends in NUM like a phone NUMber: antirrhi-NUM'] },
-    { quiz: 2, common: 'Larkspur', genus: 'Consolida', aliases: [],
-      hints: ['A girl named IDA likes to CONSOLE people: CONSOL-IDA', 'SOLID hides inside: con-SOLID-a', 'CON + SOLID + A. A solid con artist named Ida.'] },
-    { quiz: 2, common: 'Delphinium', genus: 'Delphinium', aliases: [],
-      hints: ['Same as the common name — freebie!', 'A DOLPHIN hiding: DELPHIN-ium', 'The dolphinium swam through the garden'] },
-    { quiz: 2, common: 'Liatris', genus: 'Liatris', aliases: [],
-      hints: ['Same as the common name — freebie!', 'Only 7 letters. LIA plays TETRIS: LIA-TRIS', 'Her name is Lia. She plays Tris.'] },
-    { quiz: 2, common: 'Gladiola', genus: 'Gladiolus', aliases: [],
-      hints: ['It is GLAD you know it! GLAD-iolus', 'Trap: ends in -OLUS not -OLA!', '"I am GLAD I OL\' US learned this" = GLADIOLUS'] },
-    { quiz: 2, common: 'Stock', genus: 'Matthiola', aliases: [],
-      hints: ['MATT said HI to OLA: MATT-HI-OLA', 'Double T like your friend Matt texting: MATT', 'Matt waves: "Hi, Ola!" = Matthiola'] },
-    { quiz: 2, common: 'Bells of Ireland', genus: 'Moluccella', aliases: [],
-      hints: ['A CELL is trapped inside: molu-CELL-a', 'Double C AND double L — the double-double!', 'Ella was locked in a CELL on the Molucca islands: MOLUCC-ELLA'] },
-    { quiz: 2, common: 'Baby Blue Eucalyptus', genus: 'Eucalyptus', aliases: [],
-      hints: ['Your LIP hides inside: euca-LYP-tus', 'EU like EUrope + CAL like CALendar + YPTUS', 'A European calendar stuck to your lip'] },
-    { quiz: 2, common: 'Curly Willow', genus: 'Salix', aliases: [],
-      hints: ['Only 5 letters! One of the easiest!', 'FELIX the cat lost his FE: SALIX', 'SAL licks something: SAL-IX'] },
-    { quiz: 2, common: 'Dendrobium Orchid', genus: 'Dendrobium', aliases: [],
-      hints: ['Someone ROBbed the DEN: DEN-DROB-ium', 'ROB is hiding in the middle!', 'The orchid ROBber lives in a DEN'] },
+    { quiz: 2, common: 'Snapdragon', genus: 'Antirrhinum', aliases: [] },
+    { quiz: 2, common: 'Larkspur', genus: 'Consolida', aliases: [] },
+    { quiz: 2, common: 'Delphinium', genus: 'Delphinium', aliases: [] },
+    { quiz: 2, common: 'Liatris', genus: 'Liatris', aliases: [] },
+    { quiz: 2, common: 'Gladiola', genus: 'Gladiolus', aliases: [] },
+    { quiz: 2, common: 'Stock', genus: 'Matthiola', aliases: [] },
+    { quiz: 2, common: 'Bells of Ireland', genus: 'Moluccella', aliases: [] },
+    { quiz: 2, common: 'Baby Blue Eucalyptus', genus: 'Eucalyptus', aliases: [] },
+    { quiz: 2, common: 'Curly Willow', genus: 'Salix', aliases: [] },
+    { quiz: 2, common: 'Dendrobium Orchid', genus: 'Dendrobium', aliases: [] },
 
     // Quiz 3: Filler Flowers
-    { quiz: 3, common: 'Solidago', genus: 'Solidago', aliases: [],
-      hints: ['Same as the common name — freebie!', 'SOLID + AGO: "A SOLID choice from AGO"', 'This flower has been SOLID for AGES AGO'] },
-    { quiz: 3, common: 'Misty Blue', genus: 'Limonium', aliases: [],
-      hints: ['A LEMON with an I: L-I-MON-ium. The misty lemon!', 'Swap one letter: LEMON → LIMON + ium', 'When life gives you LEMONs, spell LIMONIUM'] },
-    { quiz: 3, common: 'Statice', genus: 'Limonium', aliases: [],
-      hints: ['Same genus as Misty Blue! Two-for-one deal', 'The misty lemon again: LIMONIUM', 'Learn it once, use it twice. LIMON + IUM'] },
-    { quiz: 3, common: 'Queen Anne\'s Lace', genus: 'Ammi', aliases: [],
-      hints: ['Only 4 letters! The shortest genus!', '"Am I spelling this right?" AM-MI. Yes!', 'Double M is the whole trick: A-M-M-I'] },
-    { quiz: 3, common: 'Babies Breath', genus: 'Gypsophila', aliases: [],
-      hints: ['A GYPSY named PHIL-A: GYPSO-PHIL-A', 'Phil the gypsy loves babies breath', 'PHIL is hiding inside loving flowers: gypso-PHIL-a'] },
-    { quiz: 3, common: 'Waxflower', genus: 'Chamelaucium', aliases: [],
-      hints: ['A CHAMELEON in the garden: CHAME-laucium', 'LAURA hides in the middle: chame-LAU-cium', 'The chameleon waxed Laura: CHAME + LAU + CIUM'] },
-    { quiz: 3, common: 'Pixie Carnation', genus: 'Dianthus', aliases: [],
-      hints: ['Same as regular Carnation — double freebie!', '"And THUS, the pixie bloomed" = dian-THUS', 'Princess Diana + THUS = DIANTHUS'] },
-    { quiz: 3, common: 'Aster', genus: 'Aster', aliases: [],
-      hints: ['Same as the common name — easiest one!', 'Like the * on your keyboard: ASTERISK = ASTER', 'It means STAR. You are an aster student.'] },
-    { quiz: 3, common: 'Hypericum Berries', genus: 'Hypericum', aliases: [],
-      hints: ['The berry is HYPER! HYPER-icum!', 'Same HYPER as hyperactive + ICUM', 'This berry had too much sugar: HYPER-ICUM'] },
-    { quiz: 3, common: 'Sea Holly', genus: 'Eryngium', aliases: [],
-      hints: ['ERIN hides at the start! (spelled ERYN here)', 'Erin went to the GYM by the sea: ERYN-GIUM', 'The Y instead of I is the sneaky part: E-R-Y-N'] },
+    { quiz: 3, common: 'Solidago', genus: 'Solidago', aliases: [] },
+    { quiz: 3, common: 'Misty Blue', genus: 'Limonium', aliases: [] },
+    { quiz: 3, common: 'Statice', genus: 'Limonium', aliases: [] },
+    { quiz: 3, common: 'Queen Anne\'s Lace', genus: 'Ammi', aliases: [] },
+    { quiz: 3, common: 'Babies Breath', genus: 'Gypsophila', aliases: [] },
+    { quiz: 3, common: 'Waxflower', genus: 'Chamelaucium', aliases: [] },
+    { quiz: 3, common: 'Pixie Carnation', genus: 'Dianthus', aliases: [] },
+    { quiz: 3, common: 'Aster', genus: 'Aster', aliases: [] },
+    { quiz: 3, common: 'Hypericum Berries', genus: 'Hypericum', aliases: [] },
+    { quiz: 3, common: 'Sea Holly', genus: 'Eryngium', aliases: [] },
 
     // Quiz 4: Form/Focal Flowers
-    { quiz: 4, common: 'Sunflower', genus: 'Helianthus', aliases: [],
-      hints: ['Same ending as Dianthus: helian-THUS! The "thus" family', 'A HELIcopter landed on an ANT: HELI-ANT-hus', 'ANT hides in the middle: heli-ANT-hus'] },
-    { quiz: 4, common: 'Calla Lily', genus: 'Zantedeschia', aliases: [],
-      hints: ['Starts with Z — the ONLY genus that does!', 'DES hides in the middle: zante-DES-chia', 'Zante is a Greek island. ZANTE + DES + CHI + A'] },
-    { quiz: 4, common: 'Tulip', genus: 'Tulipa', aliases: [],
-      hints: ['Just TULIP + A at the end. That is it!', 'The tulip said "ah!" = TULIP-A', 'If you can spell tulip, just add the A'] },
-    { quiz: 4, common: 'Bird of Paradise', genus: 'Strelitzia', aliases: [],
-      hints: ['The bird is LIT: stre-LIT-zia!', 'Ends like piZZA but only one Z: -ZIA', 'A STREet that is LIT with piZZA: STRE-LIT-ZIA'] },
-    { quiz: 4, common: 'Disbud Mum', genus: 'Chrysanthemum', aliases: [],
-      hints: ['Same as Daisy Pom — two-for-one MUM!', 'Ends with MUM. Your mum would be so proud.', 'Learn it for Daisy Pom, get Disbud Mum free'] },
-    { quiz: 4, common: 'Lily', genus: 'Lilium', aliases: [],
-      hints: ['LILY but swap Y for UM: LIL-I-UM', 'Only 6 letters! Lily + um... LILIUM!', '"Um, Lily?" "LILIUM!" she corrected'] },
-    { quiz: 4, common: 'Billy Balls', genus: 'Craspedia', aliases: [],
-      hints: ['A RASPBERRY encyclopedia: c-RASP-EDIA', 'RASP hides inside! Like a raspberry', 'Billy looked up RASPberries in the ency-CRAS-PEDIA'] },
-    { quiz: 4, common: 'Anthurium', genus: 'Anthurium', aliases: [],
-      hints: ['Same as the common name — freebie!', 'THURSDAY hides inside: an-THUR-ium', 'Every Thursday is Anthurium day'] },
-    { quiz: 4, common: 'Iris', genus: 'Iris', aliases: [],
-      hints: ['Same as the common name — the easiest!', 'Only 4 letters. Like the eye iris.', 'You have been staring at the answer this whole time'] },
-    { quiz: 4, common: 'Gerber Daisy', genus: 'Gerbera', aliases: [],
-      hints: ['GERBER baby food + A = GERBERA', 'The baby grew up and became a flower. Just add A.', 'Only change: GERBER → GERBERA'] },
+    { quiz: 4, common: 'Sunflower', genus: 'Helianthus', aliases: [] },
+    { quiz: 4, common: 'Calla Lily', genus: 'Zantedeschia', aliases: [] },
+    { quiz: 4, common: 'Tulip', genus: 'Tulipa', aliases: [] },
+    { quiz: 4, common: 'Bird of Paradise', genus: 'Strelitzia', aliases: [] },
+    { quiz: 4, common: 'Disbud Mum', genus: 'Chrysanthemum', aliases: [] },
+    { quiz: 4, common: 'Lily', genus: 'Lilium', aliases: [] },
+    { quiz: 4, common: 'Billy Balls', genus: 'Craspedia', aliases: [] },
+    { quiz: 4, common: 'Anthurium', genus: 'Anthurium', aliases: [] },
+    { quiz: 4, common: 'Iris', genus: 'Iris', aliases: [] },
+    { quiz: 4, common: 'Gerber Daisy', genus: 'Gerbera', aliases: [] },
 
     // Quiz 5: Foliage
-    { quiz: 5, common: 'Leather Leaf', genus: 'Rumohra', aliases: [],
-      hints: ['A RUMOR about the leather leaf: RUMOR + HA → RUMOHRA', 'Only 7 letters. The H after O is the trap: rum-OH-ra', '"I heard a RUMOR-a about the leather leaf"'] },
-    { quiz: 5, common: 'Bear Grass', genus: 'Xerophyllum', aliases: [],
-      hints: ['Starts with X — XERO like a Xerox copy!', 'Double L near the end: xerophy-LL-um', 'The bear made a XERO-copy of the PHYLL-UM (leaf book)'] },
-    { quiz: 5, common: 'Lily Grass', genus: 'Liriope', aliases: [],
-      hints: ['Ends like Penel-OPE: liri-OPE', 'Only 7 letters — shorter than it looks', 'Penelope\'s sister is named LIRIOPE'] },
-    { quiz: 5, common: 'Seeded Eucalyptus', genus: 'Eucalyptus', aliases: [],
-      hints: ['Same as Baby Blue — two-for-one deal!', 'Your LIP is stuck: euca-LYP-tus', 'A European with a calendar on their lip (same trick as before)'] },
-    { quiz: 5, common: 'Israeli Ruscus', genus: 'Ruscus', aliases: [],
-      hints: ['Only 6 letters! RUS + CUS.', 'The Russian CUSSED: RUS-CUS', 'Both halves match: rUs-cUs — mirror image!'] },
-    { quiz: 5, common: 'Italian Ruscus', genus: 'Ruscus', aliases: [],
-      hints: ['Same as Israeli — another two-for-one!', 'The Italian AND the Israeli both say RUS-CUS', 'Only 6 letters. You already know this one.'] },
-    { quiz: 5, common: 'Salal', genus: 'Gaultheria', aliases: ['Lemon Leaf'],
-      hints: ['THE is hiding in the middle: gaul-THE-ria', 'Ancient GAUL had THE best plants: GAUL-THE-RIA', 'A French soldier (GAUL) said "THE bacteria (THERIA) got me"'] },
-    { quiz: 5, common: 'Grevillea', genus: 'Grevillea', aliases: [],
-      hints: ['Same as the common name — freebie!', 'EVIL hides inside: gr-EVIL-lea. An evil plant!', 'The EVIL is in the grevillea. Double L too: grevi-LL-ea'] },
-    { quiz: 5, common: 'Pitt', genus: 'Pittosporum', aliases: [],
-      hints: ['Brad PITT grows SPORES: PITT-O-SPOR-UM', 'SPORE hides inside: pitto-SPOR-um', 'Double T at the start like the actor: PI-TT-osporum'] },
-    { quiz: 5, common: 'Myrtle', genus: 'Myrtus', aliases: [],
-      hints: ['MYRTLE swapped her LE for US: MYRT-US', 'Only 6 letters. Same start, different end.', '"Myrtle, it is just US now" = MYRT-US'] }
+    { quiz: 5, common: 'Leather Leaf', genus: 'Rumohra', aliases: [] },
+    { quiz: 5, common: 'Bear Grass', genus: 'Xerophyllum', aliases: [] },
+    { quiz: 5, common: 'Lily Grass', genus: 'Liriope', aliases: [] },
+    { quiz: 5, common: 'Seeded Eucalyptus', genus: 'Eucalyptus', aliases: [] },
+    { quiz: 5, common: 'Israeli Ruscus', genus: 'Ruscus', aliases: [] },
+    { quiz: 5, common: 'Italian Ruscus', genus: 'Ruscus', aliases: [] },
+    { quiz: 5, common: 'Salal', genus: 'Gaultheria', aliases: ['Lemon Leaf'] },
+    { quiz: 5, common: 'Grevillea', genus: 'Grevillea', aliases: [] },
+    { quiz: 5, common: 'Pitt', genus: 'Pittosporum', aliases: [] },
+    { quiz: 5, common: 'Myrtle', genus: 'Myrtus', aliases: [] }
   ];
 
   /* Quiz state */
@@ -810,11 +704,8 @@
     currentIndex: 0,
     correct: 0,
     total: 0,
-    missed: [],           // legacy — all misses combined
-    missedSpelling: [],   // knew it but misspelled
-    missedWrong: [],      // didn't know the answer
-    retryingMissed: false,
-    retryMode: ''         // '' | 'spelling' | 'wrong' | 'all'
+    missed: [],
+    retryingMissed: false
   };
 
   /* DOM elements */
@@ -833,9 +724,6 @@
   var finalScore = document.getElementById('finalScore');
   var finalMessage = document.getElementById('finalMessage');
   var retryMissedBtn = document.getElementById('retryMissedBtn');
-  var retrySpellingBtn = document.getElementById('retrySpellingBtn');
-  var retryWrongBtn = document.getElementById('retryWrongBtn');
-  var missBreakdown = document.getElementById('missBreakdown');
   var homeBtn = document.getElementById('homeBtn');
 
   /* Fisher-Yates shuffle */
@@ -861,29 +749,17 @@
     quizState.correct = 0;
     quizState.total = quizState.currentDeck.length;
     quizState.missed = [];
-    quizState.missedSpelling = [];
-    quizState.missedWrong = [];
-    quizState.retryingMissed = false;
-    quizState.retryMode = '';
     updateDisplay();
   }
 
   /* Build deck from missed items */
-  /* Claude: 2026-03-18 — retry supports spelling-only, wrong-only, or all */
-  function buildMissedDeck(retryType) {
-    var deck = [];
-    if (retryType === 'spelling') deck = quizState.missedSpelling;
-    else if (retryType === 'wrong') deck = quizState.missedWrong;
-    else deck = quizState.missedSpelling.concat(quizState.missedWrong);
-    quizState.currentDeck = shuffle(deck);
+  function buildMissedDeck() {
+    quizState.currentDeck = shuffle(quizState.missed);
     quizState.currentIndex = 0;
     quizState.correct = 0;
     quizState.total = quizState.currentDeck.length;
     quizState.missed = [];
-    quizState.missedSpelling = [];
-    quizState.missedWrong = [];
     quizState.retryingMissed = true;
-    quizState.retryMode = retryType || 'all';
     updateDisplay();
   }
 
@@ -953,80 +829,46 @@
     return dp[m][n];
   }
 
-  /* Claude: 2026-03-18 — Three-way answer check:
-     1. Exact match (case-insensitive) = CORRECT
-     2. Close spelling (edit distance ≤ 3) = KNEW IT but misspelled — shows hints
-     3. Totally wrong = WRONG — different flower or blank
-     Tracks spelling misses vs knowledge misses separately for retry. */
+  /* Check answer — STRICT spelling, case-insensitive only */
   function checkAnswer() {
     var flower = quizState.currentDeck[quizState.currentIndex];
     var userAnswer = answerInput.value.trim();
-    var correctText = quizState.mode === 'genus' ? flower.genus : flower.common;
-    var isExact = false;
-    var isClose = false;
+    var isCorrect = false;
 
-    // Check exact match
     if (quizState.mode === 'genus') {
-      isExact = userAnswer.toLowerCase() === flower.genus.toLowerCase();
+      isCorrect = userAnswer.toLowerCase() === flower.genus.toLowerCase();
     } else {
-      isExact = userAnswer.toLowerCase() === flower.common.toLowerCase();
-      if (!isExact) {
+      // Type common name mode
+      isCorrect = userAnswer.toLowerCase() === flower.common.toLowerCase();
+      if (!isCorrect) {
+        // Check aliases
         for (var i = 0; i < flower.aliases.length; i++) {
-          if (userAnswer.toLowerCase() === flower.aliases[i].toLowerCase()) { isExact = true; break; }
+          if (userAnswer.toLowerCase() === flower.aliases[i].toLowerCase()) {
+            isCorrect = true;
+            break;
+          }
         }
       }
     }
 
-    // If not exact, check if it is close (right answer, wrong spelling)
-    if (!isExact && userAnswer.length > 0) {
-      var dist = editDistance(userAnswer.toLowerCase(), correctText.toLowerCase());
-      // Also check aliases for closeness in common-name mode
-      var minDist = dist;
-      if (quizState.mode === 'common') {
-        for (var j = 0; j < flower.aliases.length; j++) {
-          var aDist = editDistance(userAnswer.toLowerCase(), flower.aliases[j].toLowerCase());
-          if (aDist < minDist) minDist = aDist;
-        }
-      }
-      // Close = within 3 edits AND at least 40% of the letters match
-      var maxLen = Math.max(userAnswer.length, correctText.length);
-      if (minDist <= 3 && minDist < maxLen * 0.6) {
-        isClose = true;
-      }
-    }
-
-    if (isExact) {
-      // ── CORRECT ──
+    if (isCorrect) {
       quizState.correct++;
       card.classList.add('correct-flash');
       feedback.classList.add('show', 'correct');
       feedback.innerHTML = '✓ Correct!';
       updateMissedCounter(false);
-    } else if (isClose) {
-      // ── KNEW IT — spelling was off ──
-      card.classList.add('incorrect-flash');
-      feedback.classList.add('show', 'spelling');
-      var hintsHtml = '';
-      if (flower.hints && flower.hints.length > 0) {
-        hintsHtml = '<div class="hint-box"><div class="hint-title">Spelling helpers:</div>';
-        for (var h = 0; h < flower.hints.length; h++) {
-          hintsHtml += '<div class="hint-item">' + flower.hints[h] + '</div>';
-        }
-        hintsHtml += '</div>';
-      }
-      feedback.innerHTML = '<div class="knew-it">You KNEW it! But the spelling was off.</div>' +
-        '<div class="correct-answer">Correct spelling: <strong>' + correctText + '</strong></div>' +
-        '<div class="you-wrote">You wrote: <span style="text-decoration:line-through;">' + userAnswer + '</span></div>' +
-        hintsHtml +
-        '<div style="font-size:0.8rem;color:#888;margin-top:8px;">Still counts as a miss — the test won\'t be this nice!</div>';
-      quizState.missedSpelling.push(flower);
-      updateMissedCounter(true);
     } else {
-      // ── WRONG — didn't know the answer ──
       card.classList.add('incorrect-flash');
       feedback.classList.add('show', 'incorrect');
-      feedback.innerHTML = '✗ Incorrect.<div class="correct-answer">Answer: <strong>' + correctText + '</strong></div>';
-      quizState.missedWrong.push(flower);
+      var correctText = quizState.mode === 'genus' ? flower.genus : flower.common;
+      /* Show "close!" encouragement if within 2 edits — helps Mary learn without just punishing */
+      var dist = editDistance(userAnswer.toLowerCase(), correctText.toLowerCase());
+      var closeMsg = '';
+      if (userAnswer.length > 0 && dist <= 2) {
+        closeMsg = '<div style="color:#e65100;font-size:0.85rem;margin-top:4px;">So close! Check your spelling carefully.</div>';
+      }
+      feedback.innerHTML = '✗ Incorrect.' + closeMsg + '<div class="correct-answer">Answer: <strong>' + correctText + '</strong></div>';
+      quizState.missed.push(flower);
       updateMissedCounter(true);
     }
 
@@ -1058,60 +900,28 @@
     nextBtn.style.display = 'none';
   }
 
-  /* Claude: 2026-03-18 — End screen with spelling vs knowledge breakdown */
+  /* Show end screen */
   function showEndScreen() {
     card.style.display = 'none';
     endScreen.style.display = 'block';
     var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
     finalScore.textContent = pct + '%';
-    var nSpell = quizState.missedSpelling.length;
-    var nWrong = quizState.missedWrong.length;
-    var nTotal = nSpell + nWrong;
-
-    // Hide all retry buttons by default
-    retryMissedBtn.style.display = 'none';
-    retrySpellingBtn.style.display = 'none';
-    retryWrongBtn.style.display = 'none';
-    missBreakdown.style.display = 'none';
 
     if (quizState.retryingMissed) {
       finalMessage.textContent = 'Nice work on the retry!';
-      // Show breakdown even on retry
-      if (nTotal > 0) {
-        missBreakdown.style.display = 'block';
-        missBreakdown.innerHTML = buildBreakdownHtml(nSpell, nWrong);
-        if (nSpell > 0) retrySpellingBtn.style.display = 'inline-block';
-        if (nWrong > 0) retryWrongBtn.style.display = 'inline-block';
-        if (nSpell > 0 && nWrong > 0) retryMissedBtn.style.display = 'inline-block';
-      }
-    } else if (pct === 100) {
-      finalMessage.textContent = 'Perfect score! You\'re ready for the exam!';
-    } else if (nTotal > 0) {
-      finalMessage.textContent = 'You missed ' + nTotal + ' — here\'s the breakdown:';
-      missBreakdown.style.display = 'block';
-      missBreakdown.innerHTML = buildBreakdownHtml(nSpell, nWrong);
-      if (nSpell > 0) retrySpellingBtn.style.display = 'inline-block';
-      if (nWrong > 0) retryWrongBtn.style.display = 'inline-block';
-      if (nSpell > 0 && nWrong > 0) retryMissedBtn.style.display = 'inline-block';
+      retryMissedBtn.style.display = 'none';
     } else {
-      finalMessage.textContent = 'Great job!';
+      if (pct === 100) {
+        finalMessage.textContent = 'Perfect score! You\'re ready for the exam!';
+        retryMissedBtn.style.display = 'none';
+      } else if (quizState.missed.length > 0) {
+        finalMessage.textContent = 'You missed ' + quizState.missed.length + ' — want to try again?';
+        retryMissedBtn.style.display = 'inline-block';
+      } else {
+        finalMessage.textContent = 'Great job!';
+        retryMissedBtn.style.display = 'none';
+      }
     }
-  }
-
-  function buildBreakdownHtml(nSpell, nWrong) {
-    var html = '';
-    if (nSpell > 0) {
-      html += '<div style="color:#e65100;"><strong>Spelling misses:</strong> ' + nSpell +
-        ' — you knew ' + (nSpell === 1 ? 'this one' : 'these') + ', just need the spelling!</div>';
-    }
-    if (nWrong > 0) {
-      html += '<div style="color:#c62828;"><strong>Wrong answers:</strong> ' + nWrong +
-        ' — ' + (nWrong === 1 ? 'this one needs' : 'these need') + ' more study</div>';
-    }
-    if (nSpell > 0 && nWrong === 0) {
-      html += '<div style="color:#2e7d32;margin-top:6px;">You knew every answer! Just polish the spelling and you\'re golden.</div>';
-    }
-    return html;
   }
 
   /* Event listeners */
@@ -1154,17 +964,7 @@
   });
 
   retryMissedBtn.addEventListener('click', function() {
-    buildMissedDeck('all');
-    card.style.display = 'block';
-    endScreen.style.display = 'none';
-  });
-  retrySpellingBtn.addEventListener('click', function() {
-    buildMissedDeck('spelling');
-    card.style.display = 'block';
-    endScreen.style.display = 'none';
-  });
-  retryWrongBtn.addEventListener('click', function() {
-    buildMissedDeck('wrong');
+    buildMissedDeck();
     card.style.display = 'block';
     endScreen.style.display = 'none';
   });
