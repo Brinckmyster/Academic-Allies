@@ -23,43 +23,7 @@
   var DEFAULT_CONFIG = {
     modes: {
       available: ['normal', 'recovery', 'bad-brain', 'semi-nope', 'nope', 'migraine'],
-      custom: {},  /* overrides per mode: { 'bad-brain': { name: '...', icon: '...', desc: '...' } } */
-      /* Claude: 2026-03-19 — card-level config per mode page.
-         Each mode can define which cards appear and in what order.
-         Cards not listed are hidden. Order follows array order.
-         If no cards config exists for a mode, all defaults show. */
-      cards: {
-        'recovery': [
-          { id: 'emergency',  label: 'Emergency Support',    enabled: true },
-          { id: 'energy',     label: 'Energy Check-In',      enabled: true },
-          { id: 'tasks',      label: 'Today\'s Tasks',       enabled: true },
-          { id: 'breathing',  label: 'Breathe With Me',      enabled: true },
-          { id: 'meals',      label: 'Easy Meal Ideas',      enabled: true },
-          { id: 'flower',     label: 'Flower Practice Link', enabled: true },
-          { id: 'selfcare',   label: 'Tiny Self-Care Wins',  enabled: true },
-          { id: 'scripture',  label: 'A Word of Comfort',    enabled: true },
-          { id: 'youmatter',  label: 'You Matter',           enabled: true },
-          { id: 'bedroom',    label: 'Bedroom Planner',      enabled: true },
-          { id: 'journal',    label: 'A Gentle Moment',      enabled: true }
-        ],
-        'bad-brain': [
-          { id: 'messages',    label: 'Messages',             enabled: true },
-          { id: 'emergency',   label: 'Emergency Contacts',   enabled: true },
-          { id: 'energy',      label: 'Basic Check-In',       enabled: true },
-          { id: 'history',     label: 'Recent History',        enabled: true },
-          { id: 'a11y',        label: 'Accessibility Settings', enabled: true },
-          { id: 'backlink',    label: 'Back to Recovery',       enabled: true }
-        ],
-        'semi-nope': [
-          { id: 'emergency',  label: 'Emergency Link',       enabled: true },
-          { id: 'checklist',  label: 'Feature Checklist',    enabled: true },
-          { id: 'comfort',    label: 'Inline Comfort',       enabled: true }
-        ],
-        'nope': [
-          { id: 'team',       label: 'Team Notification',    enabled: true },
-          { id: 'controls',   label: 'Cancel / Semi-Nope',   enabled: true }
-        ]
-      }
+      custom: {}  /* overrides per mode: { 'bad-brain': { name: '...', icon: '...', desc: '...' } } */
     },
 
     spoonPlan: {
