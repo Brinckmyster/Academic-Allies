@@ -411,7 +411,7 @@
     </div>
 
     <!-- ① Messages / Support Chat ─────────────────────────── -->
-    <div class="card">
+    <div class="card" data-card-id="messages">
         <div class="card-title">💬 Messages</div>
 
         <a href="/Academic-Allies/modular/components/message-system/message-system.html"
@@ -424,7 +424,7 @@
     </div>
 
     <!-- ② Emergency Contacts ──────────────────────────────── -->
-    <div class="card">
+    <div class="card" data-card-id="emergency">
         <div class="card-title">🆘 Emergency Contacts</div>
 
         <a href="/Academic-Allies/modular/emergency.html"
@@ -441,7 +441,7 @@
     </div>
 
     <!-- ③ Basic Check-In (optional / skippable) ───────────── -->
-    <div class="card" id="checkin-card">
+    <div class="card" id="checkin-card" data-card-id="energy">
         <div class="card-title">💡 Check-In <span style="font-size:13pt;color:#bbb;font-weight:400;">(optional)</span></div>
 
         <div class="skip-notice" aria-hidden="true">No pressure — skip if it's too much.</div>
@@ -520,7 +520,8 @@
     </div>
 
     <!-- ④ Logs / History (read-only) ─────────────────────── -->
-    <div class="card">
+    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <div class="card" data-card-id="history">
         <div class="card-title">📋 Recent History <span style="font-size:13pt;color:#bbb;font-weight:400;">(read only)</span></div>
 
         <div id="log-list">
@@ -530,7 +531,8 @@
     </div>
 
     <!-- ⑤ Settings ────────────────────────────────────────── -->
-    <div class="card">
+    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <div class="card" data-card-id="a11y">
         <div class="card-title">⚙️ Accessibility</div>
 
         <!-- Font size -->
@@ -581,7 +583,8 @@
 
     <!-- Back to Recovery -->
     <!-- Updated: 2026-02-25 by Claude — corrected label: Bad Brain Day exits to Recovery, not Brain Fog -->
-    <div class="back-section">
+    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <div class="back-section" data-card-id="backlink">
         <a href="/Academic-Allies/modular/components/recovery-mode.html"
            class="back-btn"
            role="button"
@@ -914,6 +917,66 @@ document.addEventListener('DOMContentLoaded', function() {
           ).catch(function (err) { console.warn('[AA] bbd notification failed:', err.message); });
         })();
       }
+    })();
+    </script>
+
+    <!-- Claude: 2026-03-19 — student-config.js + card-level layout engine.
+         Loads per-student card config from Firestore and applies hide/reorder
+         to this page's cards based on modes.cards['bad-brain'] settings.
+         Archive: bad-brain-day_2026-03-19_mode-cards.bak.html -->
+    <script src="/Academic-Allies/modular/js/student-config.js"></script>
+    <script>
+    /* Claude: 2026-03-19 — card-level layout for Bad Brain Day page */
+    (function _bbdCardLayout() {
+      'use strict';
+
+      function _applyCardLayout(cardsCfg) {
+        var container = document.querySelector('.container');
+        if (!container) return;
+
+        /* Build enabled map */
+        var enabledMap = {};
+        cardsCfg.forEach(function(c) { enabledMap[c.id] = c.enabled !== false; });
+
+        /* Hide disabled cards */
+        var allCards = container.querySelectorAll('[data-card-id]');
+        allCards.forEach(function(el) {
+          var id = el.getAttribute('data-card-id');
+          if (enabledMap[id] === false) {
+            el.style.display = 'none';
+          }
+        });
+
+        /* Reorder enabled cards per config array order */
+        var enabledCards = [];
+        cardsCfg.forEach(function(c) {
+          if (c.enabled === false) return;
+          var el = container.querySelector('[data-card-id="' + c.id + '"]');
+          if (el) enabledCards.push(el);
+        });
+        enabledCards.forEach(function(el) { container.appendChild(el); });
+      }
+
+      /* Wait for AA + auth, load config, apply */
+      function _waitBoot(cb, tries) {
+        tries = tries || 0;
+        if (window.AA && window.AA.auth && window.AA.db && window.AA_CONFIG) { cb(); return; }
+        if (tries > 40) return; /* give up after ~8s */
+        setTimeout(function() { _waitBoot(cb, tries + 1); }, 200);
+      }
+
+      _waitBoot(function() {
+        AA.auth.onAuthStateChanged(function(user) {
+          if (!user) return;
+          var uid = window.AA_MIRROR_UID || user.uid;
+          window.AA_CONFIG.load(uid).then(function() {
+            var cardsCfg = window.AA_CONFIG.get('modes.cards.bad-brain', null);
+            if (cardsCfg && Array.isArray(cardsCfg)) {
+              _applyCardLayout(cardsCfg);
+            }
+          });
+        });
+      });
     })();
     </script>
 </body>

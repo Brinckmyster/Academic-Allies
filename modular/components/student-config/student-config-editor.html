@@ -248,6 +248,29 @@
       .tabs-nav button { padding: 8px 10px; font-size: 0.8rem; }
     }
 
+    /* ── Claude: 2026-03-19 — Card Management UI ── */
+    .mode-cards-section { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+    .mode-cards-section h4 { font-size: 0.9rem; color: var(--teal-dk); margin-bottom: 8px; }
+    .card-list { list-style: none; padding: 0; margin: 0; }
+    .card-list-item {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      margin-bottom: 6px; font-size: 0.9rem;
+    }
+    .card-list-item .card-toggle { flex: 0 0 auto; cursor: pointer; width: 18px; height: 18px; accent-color: var(--teal); }
+    .card-list-item .card-label { flex: 1; }
+    .card-list-item .card-label.disabled { color: var(--muted); text-decoration: line-through; }
+    .card-reorder-btns { display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
+    .card-reorder-btns button {
+      background: var(--card); border: 1px solid var(--border); border-radius: 4px;
+      cursor: pointer; font-size: 0.75rem; line-height: 1; padding: 2px 6px; color: var(--muted);
+      min-height: 20px; min-width: 24px;
+    }
+    .card-reorder-btns button:hover { background: var(--teal); color: white; border-color: var(--teal); }
+    html.aa-dark .card-list-item { background: #2a2a2a; border-color: #444; }
+    html.aa-dark .card-reorder-btns button { background: #333; border-color: #555; }
+    html.aa-dark .card-reorder-btns button:hover { background: var(--teal); color: white; }
+
     /* ── Claude: 2026-03-19 — Loading Spinner & Preview Modal Styles ── */
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -727,9 +750,38 @@
           modesHtml += '<div class="form-group"><label>Name</label><input type="text" class="mode-name-input" data-mode="' + modeCode + '" value="' + name + '"></div>';
           modesHtml += '<div class="form-group"><label>Icon (emoji)</label><input type="text" class="mode-icon-input" data-mode="' + modeCode + '" value="' + icon + '" maxlength="2"></div>';
           modesHtml += '<div class="form-group" style="grid-column: 1 / -1;"><label>Description</label><textarea class="mode-desc-input" data-mode="' + modeCode + '" style="min-height: 60px;">' + (customMode && customMode.desc ? customMode.desc : '') + '</textarea></div>';
-          modesHtml += '</div></div>';
+          modesHtml += '</div>';
+
+          /* Claude: 2026-03-19 — Card-level toggles + reorder per mode */
+          var cardsKey = modeCode;
+          var cardsCfg = (currentConfig.modes.cards || {})[cardsKey];
+          if (cardsCfg && Array.isArray(cardsCfg) && cardsCfg.length > 0) {
+            modesHtml += '<div class="mode-cards-section">';
+            modesHtml += '<h4>Cards on this page</h4>';
+            modesHtml += '<p style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">Toggle cards on/off and reorder them. Order here = order on the page.</p>';
+            modesHtml += '<ul class="card-list" data-mode-cards="' + modeCode + '">';
+            cardsCfg.forEach(function(card, idx) {
+              var checked = card.enabled !== false ? 'checked' : '';
+              var disabledClass = card.enabled === false ? ' disabled' : '';
+              modesHtml += '<li class="card-list-item" data-card-id="' + card.id + '">';
+              modesHtml += '<input type="checkbox" class="card-toggle" ' + checked + ' title="Toggle this card">';
+              modesHtml += '<span class="card-label' + disabledClass + '">' + card.label + '</span>';
+              modesHtml += '<div class="card-reorder-btns">';
+              modesHtml += '<button type="button" class="card-move-up" title="Move up" ' + (idx === 0 ? 'disabled' : '') + '>▲</button>';
+              modesHtml += '<button type="button" class="card-move-down" title="Move down" ' + (idx === cardsCfg.length - 1 ? 'disabled' : '') + '>▼</button>';
+              modesHtml += '</div>';
+              modesHtml += '</li>';
+            });
+            modesHtml += '</ul>';
+            modesHtml += '</div>';
+          }
+
+          modesHtml += '</div>';
         });
         document.getElementById('modes-container').innerHTML = modesHtml;
+
+        /* Wire up card toggle + reorder events via delegation */
+        _wireCardListEvents();
 
         /* Spoon Plan */
         document.getElementById('spoon-base-budget').value = currentConfig.spoonPlan.baseBudget || 20;
@@ -771,6 +823,57 @@
         document.getElementById('alerts-debt-critical').value = alerts.debtDaysCritical || 5;
         document.getElementById('alerts-debt-warning').value = alerts.debtDaysWarning || 2;
         document.getElementById('alerts-low-spoon').value = (alerts.lowSpoonPercent * 100) || 25;
+      }
+
+      /* Claude: 2026-03-19 — Wire card toggle + reorder events (delegation) */
+      function _wireCardListEvents() {
+        document.querySelectorAll('.card-list').forEach(function(ul) {
+          ul.addEventListener('click', function(e) {
+            var target = e.target;
+
+            /* Toggle checkbox → strikethrough label */
+            if (target.classList.contains('card-toggle')) {
+              var label = target.parentElement.querySelector('.card-label');
+              if (target.checked) {
+                label.classList.remove('disabled');
+              } else {
+                label.classList.add('disabled');
+              }
+              return;
+            }
+
+            /* Move up */
+            if (target.classList.contains('card-move-up')) {
+              var li = target.closest('.card-list-item');
+              var prev = li.previousElementSibling;
+              if (prev) {
+                li.parentElement.insertBefore(li, prev);
+                _updateReorderBtns(ul);
+              }
+              return;
+            }
+
+            /* Move down */
+            if (target.classList.contains('card-move-down')) {
+              var li = target.closest('.card-list-item');
+              var next = li.nextElementSibling;
+              if (next) {
+                li.parentElement.insertBefore(next, li);
+                _updateReorderBtns(ul);
+              }
+              return;
+            }
+          });
+        });
+      }
+
+      /* Update disabled state on up/down buttons after reorder */
+      function _updateReorderBtns(ul) {
+        var items = ul.querySelectorAll('.card-list-item');
+        items.forEach(function(li, idx) {
+          li.querySelector('.card-move-up').disabled = (idx === 0);
+          li.querySelector('.card-move-down').disabled = (idx === items.length - 1);
+        });
       }
 
       function populateSpoonTasks() {
@@ -1030,7 +1133,7 @@
 
         'meals': 'I need to set up custom meal suggestions for my student. Here\'s their dietary situation:\n\n[DESCRIBE: dietary restrictions, conditions affecting eating (gastroparesis, sensory issues, etc.), foods they like, cooking ability, budget]\n\nGenerate a JSON meals object with:\n- breakfast: array of 5-10 easy meal options\n- lunch: array of 5-10 options\n- dinner: array of 5-10 options\n- liquids: array of 5-8 drink options\n- dietaryNote: brief note about their diet (shown as context in the app)\n\nRespond with ONLY valid JSON like: { "meals": { "breakfast": [...], "lunch": [...], "dinner": [...], "liquids": [...], "dietaryNote": "..." } }',
 
-        'modes': 'I need to rename or customize the app modes for my student. The default modes are:\n- normal, recovery, bad-brain, semi-nope, nope, migraine\n\nMy student\'s situation:\n[DESCRIBE: what conditions they have, what each mode should represent for them]\n\nGenerate a JSON modes object. Only include modes you want to customize — unchanged ones keep their defaults.\n\nExample: { "modes": { "custom": { "bad-brain": { "name": "Concussion Day", "icon": "🧠", "desc": "Low stimulation, cognitive rest" } } } }\n\nRespond with ONLY valid JSON.',
+        'modes': 'I need to customize the app modes for my student. The default modes are:\n- normal, recovery, bad-brain, semi-nope, nope, migraine\n\nMy student\'s situation:\n[DESCRIBE: what conditions they have, what each mode should represent for them, which cards they need on each mode page]\n\nGenerate a JSON modes object. You can customize:\n1. Mode names/icons/descriptions via "custom"\n2. Which cards appear on each mode page (and in what order) via "cards"\n\nAvailable card IDs per mode:\n- recovery: emergency, energy, tasks, breathing, meals, flower, selfcare, scripture, youmatter, bedroom, journal\n- bad-brain: messages, emergency, energy, history, a11y, backlink\n- semi-nope: emergency, checklist, comfort\n- nope: team, controls\n\nExample:\n{ "modes": {\n  "custom": { "bad-brain": { "name": "Concussion Day", "icon": "🧠", "desc": "Low stimulation, cognitive rest" } },\n  "cards": { "recovery": [\n    { "id": "emergency", "label": "Emergency Support", "enabled": true },\n    { "id": "scripture", "label": "A Word of Comfort", "enabled": true },\n    { "id": "energy", "label": "Energy Check-In", "enabled": false }\n  ] }\n} }\n\nRespond with ONLY valid JSON.',
 
         'comfort': 'I need to customize the comfort content (shown in recovery mode) for my student.\n\nAbout my student:\n[DESCRIBE: their faith/spiritual background, what comforts them, what kind of messages help on bad days]\n\nGenerate a JSON comfort object with:\n- scriptures: array of { "text": "verse text", "reference": "Book Chapter:Verse" } (5-8 verses)\n- messages: array of encouraging strings (8-12 messages)\n- breathingIn: seconds for inhale (default 4)\n- breathingOut: seconds for exhale (default 4)\n\nRespond with ONLY valid JSON like: { "comfort": { "scriptures": [...], "messages": [...], "breathingIn": 4, "breathingOut": 6 } }',
 
@@ -1104,6 +1207,21 @@
           var mode = inp.getAttribute('data-mode');
           if (!currentConfig.modes.custom[mode]) currentConfig.modes.custom[mode] = {};
           currentConfig.modes.custom[mode].desc = inp.value;
+        });
+
+        /* Claude: 2026-03-19 — Collect card toggle + reorder state per mode */
+        if (!currentConfig.modes.cards) currentConfig.modes.cards = {};
+        document.querySelectorAll('.card-list').forEach(function(ul) {
+          var modeCode = ul.getAttribute('data-mode-cards');
+          if (!modeCode) return;
+          var cards = [];
+          ul.querySelectorAll('.card-list-item').forEach(function(li) {
+            var id = li.getAttribute('data-card-id');
+            var label = li.querySelector('.card-label').textContent;
+            var enabled = li.querySelector('.card-toggle').checked;
+            cards.push({ id: id, label: label, enabled: enabled });
+          });
+          currentConfig.modes.cards[modeCode] = cards;
         });
 
         /* Spoon Plan */
