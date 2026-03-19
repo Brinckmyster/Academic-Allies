@@ -1235,10 +1235,6 @@ function applyGPSSocialHint() {
 
 <!-- Shared header loader — Updated 2026-02-28 by Claude: re-executes scripts so Firebase auth initialises -->
 <script>
-/* Claude: 2026-03-19 — FIXED race condition: mirror guard now runs AFTER
-   shared-header (and aa-mirror.js) loads, not before. Previously the IIFE
-   ran immediately while the fetch was still in-flight, so AA_MIRROR_UID was
-   always null and the guard never fired. */
 fetch('/Academic-Allies/modular/shared-header.html?v=20260319a')
   .then(function(r){ return r.text(); })
   .then(function(html){
@@ -1250,16 +1246,14 @@ fetch('/Academic-Allies/modular/shared-header.html?v=20260319a')
       s.textContent = old.textContent;
       old.replaceWith(s);
     });
-
-    // ── Mirror mode guard — runs AFTER aa-mirror.js has set AA_MIRROR_UID ──
-    checkMirrorBlock();
   })
   .catch(function(){ /* header optional */ });
 
-// ── Mirror mode guard — Updated 2026-03-19 by Claude ──────────────────
+// ── Mirror mode guard — Updated 2026-02-28 by Claude ──────────────────
 // If a support network member lands on this page, block the form and
 // show a read-only notice. Check-in is for the student, not the viewer.
-function checkMirrorBlock() {
+(function checkMirrorOnLoad() {
+  // AA_MIRROR_UID is set synchronously by aa-mirror.js if viewer is support role
   if (!window.AA_MIRROR_UID) return; // student or admin — form is fine
 
   // Hide the form, show a notice
@@ -1273,7 +1267,7 @@ function checkMirrorBlock() {
       'You can see their status in <a href="/Academic-Allies/modular/components/user-tiers/user-tiers.html" ' +
       'style="color:#4338ca;">the support network page</a>.</p>' +
     '</div>';
-}
+})();
 
 // Claude: Apply GPS social hint after page fully loads
 // Schedule this to run after the DOM is fully settled and any existing check-in data is restored
