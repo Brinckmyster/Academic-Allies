@@ -248,20 +248,6 @@
     #my-students-section .section-label {
       font-weight: 700; font-size: 0.95rem; color: #4a7f82; margin-bottom: 10px;
     }
-
-    /* Claude: 2026-03-19 — config status indicator for network leads */
-    #configStatus {
-      background: #f0f7f8; border: 1px solid #d0e8eb; color: #555;
-      line-height: 1.5;
-    }
-    #configStatus.has-config { background: #e8f2f3; border-color: #c5dfe3; }
-    #configStatus.default-only { background: #f5f5f5; border-color: #e0e0e0; }
-
-    html.aa-dark #configStatus {
-      background: #1a2e30; border-color: #2a4447; color: #c9d9db;
-    }
-    html.aa-dark #configStatus.has-config { background: #1e3a3e; border-color: #2d4d52; }
-    html.aa-dark #configStatus.default-only { background: #262626; border-color: #3a3a3a; }
   </style>
 </head>
 <body>
@@ -380,10 +366,6 @@
             ⚙️ Configure App Experience
           </a>
           <p style="font-size:0.82rem;color:#aaa;margin:10px 0 0;">Customize modes, spoon plan, meals, quizzes, and alerts for this student.</p>
-          <!-- Claude: 2026-03-19 — Config status indicator showing customization level -->
-          <div id="configStatus" style="display:none; margin-top:8px; padding:10px 14px; background:#f0f7f8; border-radius:8px; font-size:11pt; color:#555;">
-            <span id="configStatusText">Loading config...</span>
-          </div>
         </div>
       </div>
 
@@ -417,9 +399,6 @@
       .catch(function() { /* Claude: 2026-03-14 — silent catch for header fetch failure */ })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
   </script>
-
-  <!-- Claude: 2026-03-19 — student config loader for status indicator -->
-  <script src="/Academic-Allies/modular/js/student-config.js?v=20260319"></script>
 
   <script>
     /* ── State ─────────────────────────────────────────── */
@@ -584,8 +563,6 @@
         /* Claude: 2026-03-18 — show Customize Student card for network-leads */
         var customizeSection = document.getElementById('sec-customize-student');
         if (customizeSection) customizeSection.style.display = 'block';
-        /* Claude: 2026-03-19 — load and display config status for network-lead */
-        loadConfigStatus(uid);
       } else {
         /* Hide customize section if not a network-lead with write access */
         var customizeSection = document.getElementById('sec-customize-student');
@@ -749,42 +726,6 @@
             (timeStr ? '<span class="meal-time">🕐 ' + timeStr + '</span>' : '') +
           '</div>';
         }).join('');
-      });
-    }
-
-    /* Claude: 2026-03-19 — load and display student config status for network-lead */
-    function loadConfigStatus(uid) {
-      if (!window.AA_CONFIG) return;
-      window.AA_CONFIG.load(uid).then(function(config) {
-        var parts = [];
-        var quizCount = (config.quizzes || []).length;
-        if (quizCount > 0) parts.push(quizCount + ' custom quiz' + (quizCount > 1 ? 'zes' : ''));
-        var taskCount = config.spoonPlan && config.spoonPlan.tasks ? config.spoonPlan.tasks.length : 0;
-        if (taskCount > 0 && taskCount !== 17) parts.push(taskCount + ' spoon task' + (taskCount > 1 ? 's' : ''));
-        if (config.meals && config.meals.dietaryNote) parts.push('Dietary: ' + config.meals.dietaryNote);
-        var hiddenCount = (config.hiddenTools || []).length;
-        if (hiddenCount > 0) parts.push(hiddenCount + ' hidden tool' + (hiddenCount > 1 ? 's' : ''));
-        var modeCustom = config.modes && config.modes.custom ? Object.keys(config.modes.custom).length : 0;
-        if (modeCustom > 0) parts.push(modeCustom + ' custom mode' + (modeCustom > 1 ? 's' : ''));
-        var statusEl = document.getElementById('configStatusText');
-        var statusWrap = document.getElementById('configStatus');
-        if (statusEl && statusWrap) {
-          if (parts.length > 0) {
-            statusEl.textContent = 'Custom config: ' + parts.join(' · ');
-            statusWrap.className = 'has-config';
-          } else {
-            statusEl.textContent = 'Using default configuration';
-            statusWrap.className = 'default-only';
-          }
-          statusWrap.style.display = 'block';
-        }
-      }).catch(function(err) {
-        var statusEl = document.getElementById('configStatusText');
-        var statusWrap = document.getElementById('configStatus');
-        if (statusEl && statusWrap) {
-          statusEl.textContent = 'Unable to load config status';
-          statusWrap.style.display = 'block';
-        }
       });
     }
 
