@@ -507,7 +507,6 @@
     var el = document.getElementById('status-circle');
     if (!el) return;
     renderBanner();  /* always update banner alongside circle */
-    renderTooltip(); /* Claude: 2026-03-19 — keep segment legend in sync */
 
     el.style.border     = '';
     el.style.borderTop  = '';
@@ -593,94 +592,6 @@
       try { localStorage.setItem(VIEW_KEY, _view); } catch (e) {}
       render();          /* render() calls renderBanner() internally */
     });
-  }
-
-  /* ── Segment legend tooltip — Claude 2026-03-19 ─────────── */
-  /* Shows color-coded breakdown on hover (desktop) or tap (mobile)
-     so supporters AND students can tell which slice is which.       */
-  var SEG_ICON = {
-    'Academic':         '📚',
-    'Spiritual':        '🙏',
-    'Mental/Emotional': '🧠',
-    'Physical':         '💪',
-    'Social':           '👥'
-  };
-
-  function renderTooltip() {
-    var tip = document.getElementById('sc-tooltip');
-    if (!tip) return;
-
-    if (_nope) {
-      tip.innerHTML = '<div class="sc-tip-row"><span class="sc-tip-dot" style="background:#dc3545"></span>' +
-                      '<span class="sc-tip-label">NOPE mode</span>' +
-                      '<span class="sc-tip-status">urgent</span></div>';
-      return;
-    }
-
-    var daySegs = DAY_SEGS[(new Date()).getDay()];
-    var html = '';
-    daySegs.forEach(function (name) {
-      var color  = _segData[name];
-      var status = color ? (STATUS_LABEL[color] || '') : 'no data';
-      var icon   = SEG_ICON[name] || '';
-      var dotBg  = color || '#ccc';
-      html += '<div class="sc-tip-row">' +
-              '<span class="sc-tip-dot" style="background:' + dotBg + '"></span>' +
-              '<span class="sc-tip-label">' + icon + ' ' + name + '</span>' +
-              '<span class="sc-tip-status">' + status + '</span>' +
-              '</div>';
-    });
-    if (!html) {
-      html = '<div class="sc-tip-none">No check-in data yet</div>';
-    }
-    tip.innerHTML = html;
-  }
-
-  function setupTooltip() {
-    var el  = document.getElementById('status-circle');
-    var tip = document.getElementById('sc-tooltip');
-    if (!el || !tip || el._scTooltipReady) return;
-    el._scTooltipReady = true;
-
-    var hideTimer = null;
-
-    function showTip() {
-      renderTooltip();
-      tip.classList.add('sc-tooltip-show');
-    }
-    function hideTip() {
-      tip.classList.remove('sc-tooltip-show');
-    }
-    function delayedHide() {
-      hideTimer = setTimeout(hideTip, 200);
-    }
-    function cancelHide() {
-      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    }
-
-    /* Desktop: hover */
-    el.addEventListener('mouseenter', function () { cancelHide(); showTip(); });
-    el.addEventListener('mouseleave', delayedHide);
-
-    /* Mobile: tap-toggle (long press not needed — simple tap shows it) */
-    el.addEventListener('touchstart', function (e) {
-      if (tip.classList.contains('sc-tooltip-show')) {
-        hideTip();
-      } else {
-        showTip();
-        /* auto-hide after 4s on mobile */
-        clearTimeout(hideTimer);
-        hideTimer = setTimeout(hideTip, 4000);
-      }
-    }, { passive: true });
-
-    /* Hide when tapping elsewhere */
-    document.addEventListener('touchstart', function (e) {
-      if (e.target !== el && !el.contains(e.target) &&
-          e.target !== tip && !tip.contains(e.target)) {
-        hideTip();
-      }
-    }, { passive: true });
   }
 
   /* ── Firebase / Firestore listeners ─────────────────────── */
@@ -926,7 +837,6 @@
     } catch (e) {}
 
     setupToggle();
-    setupTooltip();  /* Claude: 2026-03-19 — segment legend on hover/tap */
     boot();
   }
 
