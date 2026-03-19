@@ -502,50 +502,6 @@
       '</div>';
   }
 
-  /* Claude: 2026-03-19 — Sanitize quiz data to handle invalid/missing items gracefully */
-  function sanitizeQuizData(data) {
-    if (!Array.isArray(data)) {
-      console.warn('[Custom Quiz] Data is not an array, returning empty');
-      return [];
-    }
-
-    var cleaned = [];
-    var invalidCount = 0;
-
-    data.forEach(function(item, idx) {
-      if (!item || typeof item !== 'object') {
-        invalidCount++;
-        return;
-      }
-
-      var term = String(item.term || '').trim();
-      var answer = String(item.answer || '').trim();
-
-      if (!term || !answer) {
-        console.warn('[Custom Quiz] Item ' + idx + ' missing term or answer, skipping');
-        invalidCount++;
-        return;
-      }
-
-      var hints = item.hints;
-      if (!Array.isArray(hints)) {
-        hints = [];
-      }
-
-      cleaned.push({
-        term: term,
-        answer: answer,
-        hints: hints
-      });
-    });
-
-    if (invalidCount > 0) {
-      console.warn('[Custom Quiz] Filtered out ' + invalidCount + ' invalid items');
-    }
-
-    return cleaned;
-  }
-
   function loadQuiz() {
     var quizIndex = parseInt(getUrlParam('quiz')) || 0;
 
@@ -585,14 +541,6 @@
 
       if (!quizData.data || quizData.data.length === 0) {
         showError('Empty Quiz', 'This quiz has no items.');
-        return;
-      }
-
-      /* Claude: 2026-03-19 — Sanitize quiz data before rendering */
-      quizData.data = sanitizeQuizData(quizData.data);
-
-      if (quizData.data.length === 0) {
-        showError('No Valid Items', 'All quiz items were invalid or missing required fields.');
         return;
       }
 
@@ -761,12 +709,6 @@
 
   /* ── MATCH QUIZ ──────────────────────────────────────────────────── */
   function renderMatchQuiz() {
-    /* Claude: 2026-03-19 — Validate minimum items for match game */
-    if (quizData.data.length < 2) {
-      showError('Not Enough Items', 'Match quizzes need at least 2 item pairs. This quiz only has ' + quizData.data.length + '.');
-      return;
-    }
-
     matchPairs = {};
     matchScore = 0;
 

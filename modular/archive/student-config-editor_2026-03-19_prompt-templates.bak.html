@@ -202,20 +202,6 @@
     .ai-clipboard-btn:hover { background: #c99d2d; }
     .ai-clipboard-btn.copied { background: #28a745; color: white; }
 
-    /* Claude: 2026-03-19 — Prompt template buttons */
-    .prompt-templates-section { margin-bottom: 16px; }
-    .prompt-templates-label { font-weight: 700; color: var(--teal-dk); margin-bottom: 8px; font-size: 0.95rem; }
-    .prompt-templates-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-    .prompt-template {
-      padding: 8px 12px; background: transparent; border: 2px solid var(--teal);
-      color: var(--teal); border-radius: 20px; cursor: pointer; font-weight: 600;
-      font-size: 0.85rem; transition: all 0.2s; font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
-    }
-    .prompt-template:hover { background: var(--teal); color: #fff; box-shadow: 0 2px 8px rgba(108, 160, 163, 0.2); }
-    .prompt-template:active { transform: scale(0.98); }
-    html.aa-dark .prompt-template { border-color: #8ec5c8; color: #8ec5c8; }
-    html.aa-dark .prompt-template:hover { background: #8ec5c8; color: #121212; }
-
     /* ── Status Messages ───────────────────────────────────── */
     .status-msg { padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; display: none; }
     .status-msg.show { display: block; }
@@ -560,19 +546,6 @@
           <div class="ai-assistant-desc">
             Paste your student's specific needs here. The AI assistant will generate a config prompt that you can
             paste into Claude, Perplexity, or your preferred AI. The AI will respond with a custom configuration JSON.
-          </div>
-
-          <!-- Claude: 2026-03-19 — Quick prompt templates -->
-          <div class="prompt-templates-section">
-            <div class="prompt-templates-label">Quick prompts (click to load):</div>
-            <div class="prompt-templates-grid">
-              <button class="prompt-template" data-prompt="spoon-plan">🥄 Build a spoon plan</button>
-              <button class="prompt-template" data-prompt="custom-quiz">📚 Create a study quiz</button>
-              <button class="prompt-template" data-prompt="meals">🍽️ Set up meals</button>
-              <button class="prompt-template" data-prompt="modes">🎛️ Customize modes</button>
-              <button class="prompt-template" data-prompt="comfort">💜 Personalize comfort content</button>
-              <button class="prompt-template" data-prompt="full-setup">✨ Full student setup</button>
-            </div>
           </div>
 
           <div class="ai-prompt-section">
@@ -1019,35 +992,6 @@
             btn.classList.remove('copied');
             btn.textContent = '📋 Copy to Clipboard';
           }, 2000);
-        });
-      });
-
-      /* Claude: 2026-03-19 — Preconfigured prompt templates */
-      var promptTemplates = {
-        'spoon-plan': 'I need to create a custom spoon plan for my student. Here\'s what I know about them:\n\n[DESCRIBE YOUR STUDENT: their condition, daily routine, energy patterns, what activities matter to them]\n\nGenerate a JSON spoonPlan object with:\n- baseBudget: their daily spoon count (typical range 12-25)\n- tasks: array of daily activities with code (single letter), emoji, description, spoon cost (1-5), whether it\'s fixed or flexible, and typical time\n\nExample task: { "code": "A", "emoji": "💊", "desc": "Morning Medications", "cost": 2, "fixed": true, "time": "9:00 AM" }\n\nRespond with ONLY valid JSON like: { "spoonPlan": { "baseBudget": 18, "tasks": [...] } }',
-
-        'custom-quiz': 'I need to create a study quiz for my student. Here\'s what they\'re studying:\n\n[DESCRIBE: subject, specific topics, what they need to memorize, test format]\n\nGenerate a JSON quizzes array with:\n- type: "fill-blank" (type the answer), "match" (pair terms), or "flashcards" (flip cards)\n- title: quiz name\n- description: what it covers\n- data: array of { "term": "...", "answer": "...", "hints": ["hint1", "hint2", "hint3"] }\n\nHints should be memorable tricks for spelling/remembering (word-in-word, silly stories, visual patterns).\n\nRespond with ONLY valid JSON like: { "quizzes": [{ "type": "fill-blank", "title": "...", "data": [...] }] }',
-
-        'meals': 'I need to set up custom meal suggestions for my student. Here\'s their dietary situation:\n\n[DESCRIBE: dietary restrictions, conditions affecting eating (gastroparesis, sensory issues, etc.), foods they like, cooking ability, budget]\n\nGenerate a JSON meals object with:\n- breakfast: array of 5-10 easy meal options\n- lunch: array of 5-10 options\n- dinner: array of 5-10 options\n- liquids: array of 5-8 drink options\n- dietaryNote: brief note about their diet (shown as context in the app)\n\nRespond with ONLY valid JSON like: { "meals": { "breakfast": [...], "lunch": [...], "dinner": [...], "liquids": [...], "dietaryNote": "..." } }',
-
-        'modes': 'I need to rename or customize the app modes for my student. The default modes are:\n- normal, recovery, bad-brain, semi-nope, nope, migraine\n\nMy student\'s situation:\n[DESCRIBE: what conditions they have, what each mode should represent for them]\n\nGenerate a JSON modes object. Only include modes you want to customize — unchanged ones keep their defaults.\n\nExample: { "modes": { "custom": { "bad-brain": { "name": "Concussion Day", "icon": "🧠", "desc": "Low stimulation, cognitive rest" } } } }\n\nRespond with ONLY valid JSON.',
-
-        'comfort': 'I need to customize the comfort content (shown in recovery mode) for my student.\n\nAbout my student:\n[DESCRIBE: their faith/spiritual background, what comforts them, what kind of messages help on bad days]\n\nGenerate a JSON comfort object with:\n- scriptures: array of { "text": "verse text", "reference": "Book Chapter:Verse" } (5-8 verses)\n- messages: array of encouraging strings (8-12 messages)\n- breathingIn: seconds for inhale (default 4)\n- breathingOut: seconds for exhale (default 4)\n\nRespond with ONLY valid JSON like: { "comfort": { "scriptures": [...], "messages": [...], "breathingIn": 4, "breathingOut": 6 } }',
-
-        'full-setup': 'I need to do a complete setup for a new student on Academic Allies. Here\'s everything about them:\n\nStudent name: [NAME]\nCondition(s): [CONDITIONS]\nDaily routine: [TYPICAL DAY]\nDietary needs: [DIET INFO]\nClasses/studying: [WHAT THEY\'RE LEARNING]\nWhat comforts them: [COMFORT PREFERENCES]\nEnergy level: [TYPICAL SPOON BUDGET 12-25]\n\nGenerate a COMPLETE student configuration JSON with ALL of these sections:\n- modes (custom names if needed)\n- spoonPlan (baseBudget + daily tasks)\n- meals (breakfast, lunch, dinner, liquids)\n- quizzes (if they have classes to study for)\n- comfort (scriptures/messages based on their preferences)\n- alerts (appropriate thresholds)\n- hiddenTools (hide irrelevant built-in tools)\n\nRespond with ONLY valid JSON. Include all sections.'
-      };
-
-      /* Handle prompt template clicks */
-      document.querySelectorAll('.prompt-template').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-          e.preventDefault();
-          var templateKey = this.getAttribute('data-prompt');
-          var promptText = promptTemplates[templateKey];
-          if (promptText) {
-            document.getElementById('ai-student-notes').value = promptText;
-            document.getElementById('ai-student-notes').scrollIntoView({ behavior: 'smooth', block: 'center' });
-            document.getElementById('ai-student-notes').focus();
-          }
         });
       });
 
