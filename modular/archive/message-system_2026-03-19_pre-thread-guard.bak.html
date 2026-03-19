@@ -512,11 +512,6 @@
     }
 
     /* ── Open a message thread ───────────────────────────── */
-    /* Claude: 2026-03-19 — guard against non-existent thread docs.
-       Firestore rules require uid in participants, so reading a thread
-       that doesn't exist yet throws "insufficient permissions". We now
-       check existence first and only attach listeners if the doc exists.
-       Archive: message-system_2026-03-19_pre-thread-guard.bak.html */
     function openThread(uid, name, tier, icon, el) {
       /* Clear previous listeners */
       if (unsubMessages) { unsubMessages(); unsubMessages = null; }
@@ -524,7 +519,7 @@
 
       activeContact  = { uid: uid, name: name, tier: tier };
       activeThreadId = threadId(currentUser.uid, uid);
-
+      markRead(activeThreadId);
       /* Clear badge from the contact item immediately */
       var badge = el && el.querySelector('.contact-unread');
       if (badge) badge.remove();
@@ -543,38 +538,9 @@
       document.getElementById('thread-name').textContent = name;
       document.getElementById('thread-tier').textContent = TIER_LABELS[tier] || tier;
 
-      /* Check if thread doc exists before attaching listeners.
-         If it doesn't exist yet (no messages sent), show empty state
-         and skip the listeners that would throw permission errors. */
-      AA.db.collection('messages').doc(activeThreadId).get()
-        .then(function(doc) {
-          /* Thread ID may have changed if user clicked another contact while loading */
-          if (activeThreadId !== threadId(currentUser.uid, uid)) return;
-
-          if (doc.exists) {
-            /* Thread exists — safe to listen */
-            markRead(activeThreadId);
-            _attachThreadListeners(activeThreadId, uid);
-          } else {
-            /* No thread yet — show empty messages, skip listeners */
-            renderMessages([]);
-          }
-        })
-        .catch(function(err) {
-          /* Thread doesn't exist — Firestore throws permission error.
-             This is expected for new conversations. Show empty state. */
-          if (activeThreadId === threadId(currentUser.uid, uid)) {
-            renderMessages([]);
-          }
-        });
-    }
-
-    /* Claude: 2026-03-19 — extracted listener attachment into helper
-       so openThread can call it only when the thread doc exists */
-    function _attachThreadListeners(tid, otherUid) {
-      /* Real-time message listener */
+      /* Real-time listener */
       unsubMessages = AA.db
-        .collection('messages').doc(tid)
+        .collection('messages').doc(activeThreadId)
         .collection('msgs')
         .orderBy('timestamp', 'asc')
         .onSnapshot(function(snap) {
@@ -583,8 +549,8 @@
           console.error('[AA messages]', err);
         });
 
-      /* Read receipts watcher */
-      watchReadReceipts(tid, otherUid);
+      /* Claude: 2026-03-13 — start watching for read receipts from the other person */
+      watchReadReceipts(activeThreadId, uid);
     }
 
     /* ── Render messages ─────────────────────────────────── */
@@ -663,13 +629,6 @@
         btn.disabled = false;
         textarea.focus();
 
-        /* Claude: 2026-03-19 — attach listeners after first message creates the thread.
-           openThread skips listeners when thread doesn't exist yet to avoid
-           Firestore permission errors. Now that the thread is created, start them. */
-        if (!unsubMessages && activeThreadId && activeContact) {
-          _attachThreadListeners(activeThreadId, activeContact.uid);
-        }
-
         // ── If sender is a student, record reachedOutAt in today's check-in ──
         // Added 2026-02-28 by Claude — support network status panel reads this
         // to show "📨 Student reached out at [time]" in real time.
@@ -725,17 +684,11 @@
       /* Claude: 2026-03-16 — mirror guard: supporters should not mark student's messages as read */
       if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       try { localStorage.setItem('aa-msg-read-' + tid, Date.now().toString()); } catch(e) {}
-      /* Claude: 2026-03-19 — only write Firestore readAt if the thread doc exists.
-         set({merge:true}) on a non-existent doc tries to create it, but the create
-         rule requires participants — so it throws "insufficient permissions".
-         Use update() instead which is a no-op on missing docs (fails silently).
-         Archive: message-system_2026-03-19_pre-thread-guard.bak.html */
+      /* Write Firestore readAt for the other person to see */
       if (currentUser && tid) {
         var update = {};
         update['readAt.' + currentUser.uid] = AA.FieldValue.serverTimestamp();
-        AA.db.collection('messages').doc(tid).update(update).catch(function(e) {
-          /* NOT FOUND is expected for brand-new threads — suppress it */
-          if (e.code === 'not-found') return;
+        AA.db.collection('messages').doc(tid).set(update, { merge: true }).catch(function(e) {
           console.warn('[AA] readAt write:', e);
         });
       }
