@@ -201,12 +201,13 @@ function hingeInches(door) {
 // Claude 2026-03-17 — rotated 90° per Bruise: now 55 wide × 91 deep
 // ═══════════════════════════════════════════════════════
 /* Claude: 2026-03-18 — closet door: entry at BOTTOM (y=91), hinged RIGHT, swings LEFT.
-   Door is on the RIGHT side of the entry wall, swings left to rest against clothing wall.
-   Arc covers left side near entry. Clothing zone: LEFT wall (x:0-24).
-   Door is NOT inside the clothing zone — it's on the opposite wall. */
+   Door swings left to rest against clothing wall.
+   Clothing rod: standard 12" from left wall. Shelf above at 43.5" (overhead, not floor).
+   Floor space under shelf is usable for SHORT furniture (under shelf height).
+   Dresses occasionally need floor space — clothing zone is a WARNING not a hard block. */
 const CLOSET = { w: 55, h: 91,
   door: { wall:'bottom', pos:25, size:30, hinge:'end' },  // hinge at right side (x:55,y:91), swings left
-  clothingZone: 24  // clothing hangs on LEFT wall, 24" deep
+  clothingZone: 12  // standard rod depth from LEFT wall — floor usable for short items
 };
 // ═══════════════════════════════════════════════════════
 // FURNITURE  — height used only for window-blocking check
@@ -320,9 +321,9 @@ function getClosetCollisions(id, x, y) {
   if(y<0) msgs.push('Past top wall');
   if(x+w>CLOSET.w) msgs.push('Past right wall');
   if(y+h>CLOSET.h) msgs.push('Past bottom wall');
-  /* Claude: 2026-03-18 — clothing zone: furniture shouldn't be in x:0-24 (LEFT side) */
+  /* Claude: 2026-03-18 — clothing rod zone: 12" from left wall. Warning only — dresses may need floor space */
   if(CLOSET.clothingZone && x < CLOSET.clothingZone)
-    msgs.push('In clothing zone — clothes hang here');
+    msgs.push('Under clothing rod — check for long dresses');
   /* Claude: 2026-03-18 — closet door arc: hinge at RIGHT side of entry (55,91), swings LEFT.
      Arc covers x:25-55, y:61-91. Door sweeps LEFT + UP from hinge. */
   if(CLOSET.door){
@@ -742,7 +743,7 @@ const SUGGESTED = [
   { id:'hamper',      x:177.5, y:44,    rotated:false, room:'master' },  // 12×20 → ends (189.5,64)
   // ── Desk flush against bunk top ──
   { id:'desk',        x:128,   y:46.5,  rotated:true,  room:'master' },  // 45×20 → ends (173,66.5)
-  // ── Bunk flush TV wall ──
+  // ── Bunk flush TV wall — drawers face RIGHT (toward W wall). Briefly enter baseboard zone = OK ──
   { id:'bunk',        x:128,   y:66.5,  rotated:false, room:'master' },  // 49×86 → ends (177,152.5)
   // ── Heritage Bed flush TV wall ──
   { id:'hbed',        x:37,    y:109.5, rotated:true,  room:'master' },  // 84×43 → ends (121,152.5)
@@ -750,13 +751,11 @@ const SUGGESTED = [
   /* Claude: 2026-03-18 — v16: dresser out of clothing zone, bookcase out of door arc.
      Door: hinge (0,91), 30" arc swings right → covers x:0-30, y:61-91.
      Clothing zone: x:0-24 (LEFT side). Furniture goes x:24+ only. */
-  /* Claude: 2026-03-18 — bookcase flush top-right (no drawers needed), dresser below.
-     Door arc (hinge 55,91 radius 30) covers bottom-right, so furniture at top is safe.
-     Dresser drawers need clearance below — nothing below it but open floor to the arc. */
-  /* Claude: 2026-03-18 — 8" gap between bookcase and dresser for shelf access.
-     Dresser bottom at y:60, clears door arc by 1" (31" from hinge vs 30" radius). */
+  /* Claude: 2026-03-18 — clothing rod 12" from left wall. 43" usable floor width.
+     Door: hinge at (55,91), swings LEFT. Arc covers bottom-left quadrant.
+     Bookcase flush right + top. Dresser right of clothing rod with drawer access gap. */
   { id:'bookcase1',   x:40,    y:0,     rotated:false, room:'closet' },  // 15×33 → ends (55,33) flush right + flush top
-  { id:'smdresser',   x:24,    y:41,    rotated:true,  room:'closet' },  // ROT 30×19 → ends (54,60) 8" below bookcase
+  { id:'smdresser',   x:12,    y:0,     rotated:false, room:'closet' },  // 19×30 → ends (31,30) right of clothing rod, flush top
 ];
 document.getElementById('btnSuggest').addEventListener('click',()=>{
   placed = {};
