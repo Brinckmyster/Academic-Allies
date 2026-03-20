@@ -529,8 +529,8 @@
   var SUGGESTION_KEEP = ['meal-planner', 'spoon-planner'];
 
   /* Words that identify action buttons to lock down */
-  /* Claude: 2026-03-20 — added 'reset' to catch "Reset to Defaults" buttons */
-  var ACTION_WORDS = /\b(save|submit|record|delete|remove|reset)\b/i;
+  /* Claude: 2026-03-20 — added 'reset', 'start over' to catch all action buttons */
+  var ACTION_WORDS = /\b(save|submit|record|delete|remove|reset|start\s+over)\b/i;
 
   /* IDs / classes to never touch */
   var SKIP_IDS = ['aa-mirror-minimize', 'aa-switcher-btn', 'aa-switcher-menu'];
