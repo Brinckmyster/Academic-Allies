@@ -365,20 +365,16 @@
     var el = document.getElementById('sc-banner');
     if (!el) return;
 
-    /* Claude: 2026-03-20 — same suppression logic as render(): active on study
-       tools = no caution. Banner must agree with circle shape. */
-    var bannerCaution = _isCaution && !_studyActive;
-
     var viewLabel = (_view === 'ring') ? 'All 5 segments' : 'Overall status';
     if (_nope) viewLabel = 'NOPE mode';
     /* Claude: 2026-03-12 — override view label when caution + solid view */
-    if (bannerCaution && _view === 'solid') viewLabel = '\u26A0\uFE0F Caution';
+    if (_isCaution && _view === 'solid') viewLabel = '\u26A0\uFE0F Caution';
 
     var timeLabel;
     /* Claude: 2026-03-12 — banner text distinguishes scenario 2 vs 3.
        Scenario 3 (caution): "5+ days without check-in"
        Scenario 2 (rolling): "Avg of last 7 days" */
-    if (bannerCaution) {
+    if (_isCaution) {
       timeLabel = CAUTION_DAYS + '+ days without check-in';
     } else if (_isRollingAvg) {
       timeLabel = 'Avg of last ' + ROLLING_DAYS + ' days';
@@ -488,30 +484,18 @@
     '<circle cx="20" cy="20" r="18" fill="#e0e0e0" opacity="0.4"/>' +
     '</svg>';
 
-  /* Claude: 2026-03-20 — uniform 5-slot pie. Each segment has a fixed 72° slot
-     regardless of how many segments have data. Empty slots are simply not drawn,
-     so segments stay in consistent positions and never change size. */
-  var SEG_ORDER = ['Academic','Spiritual','Mental/Emotional','Physical','Social'];
-  var SLOT_DEG  = 72;  /* 360 / 5 */
-  var SLOT_GAP  = 3;   /* degrees of gap between adjacent filled wedges */
-
   function makeSVG(sd) {
-    var filled = [];
-    SEG_ORDER.forEach(function (name, i) {
-      if (sd[name]) filled.push(i);
-    });
-    if (filled.length === 0) return EMPTY_SVG;
+    var segs = Object.keys(sd);
+    var n = segs.length;
+    if (n === 0) return EMPTY_SVG;
 
-    var paths = '';
-    filled.forEach(function (slotIdx) {
-      var name = SEG_ORDER[slotIdx];
-      var a0 = slotIdx * SLOT_DEG + SLOT_GAP / 2;
-      var a1 = a0 + SLOT_DEG - SLOT_GAP;
-      /* If only one segment, fill nearly the whole circle */
-      if (filled.length === 1) {
-        a0 = 0;
-        a1 = 359.9;
-      }
+    var gap      = n > 1 ? 3 : 0;
+    var arcSize  = n === 1 ? 359.9 : (360 / n - gap);
+    var paths    = '';
+
+    segs.forEach(function (name, i) {
+      var a0 = i * (360 / n) + gap / 2;
+      var a1 = a0 + arcSize;
       paths += segPath(sd[name], a0, a1, name);
     });
 
@@ -557,12 +541,6 @@
     /* Claude: 2026-03-20 — merge study tool activity into Academic segment */
     _mergeStudyActivity(_segData);
 
-    /* Claude: 2026-03-20 — suppress caution diamond when student is actively
-       using the app (study tools). If she's on the site doing things, she
-       doesn't need a "hey are you okay?" diamond. Messages alone don't count
-       (messages don't trigger _studyActive — only study tool sessions do). */
-    var effectiveCaution = _isCaution && !_studyActive;
-
     if (_view === 'ring') {
       el.innerHTML = makeSVG(_segData);
       var keys = Object.keys(_segData);
@@ -577,7 +555,7 @@
       /* Claude: 2026-03-12 — when no check-in within CAUTION_DAYS, solid view
          shows a caution diamond instead of a plain average color. This makes it
          visually obvious that check-in data is stale. */
-      if (effectiveCaution) {
+      if (_isCaution) {
         el.style.borderRadius = '0';
         el.style.transform    = 'rotate(45deg)';
         el.style.background   = '#f5c518';

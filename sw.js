@@ -28,6 +28,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/js/mode-enforcer.js',
   '/Academic-Allies/modular/js/status-circle.js',
   '/Academic-Allies/modular/js/aa-mirror.js',
+  '/Academic-Allies/modular/js/study-activity.js',
   '/Academic-Allies/sw.js'
 ];
 
