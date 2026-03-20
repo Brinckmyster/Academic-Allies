@@ -479,10 +479,7 @@
   STATUS_LABEL[C.red]    = 'urgent';
 
   /* Claude: 2026-03-20 — solid pie wedge: arc from outer edge back to center point.
-     Old donut used two arcs (outer + inner ring). Pie uses one arc + line to center.
-     Claude: 2026-03-20 — stroke divider instead of degree gaps. Each wedge fills
-     its full 72° slot; a thin stroke line creates the visual separator like the
-     reference image (white lines between slices). */
+     Old donut used two arcs (outer + inner ring). Pie uses one arc + line to center. */
   function segPath(color, a0, a1, name) {
     var large = (a1 - a0 > 180) ? 1 : 0;
     var d = 'M' + CX + ',' + CY +
@@ -490,8 +487,7 @@
             ' A' + OR + ',' + OR + ',0,' + large + ',1,' + ptAt(OR, a1) +
             ' Z';
     var tip = name + ': ' + (STATUS_LABEL[color] || '');
-    var strokeColor = document.documentElement.classList.contains('aa-dark') ? '#1e1e1e' : 'white';
-    return '<path d="' + d + '" fill="' + color + '" stroke="' + strokeColor + '" stroke-width="0.8"><title>' + tip + '</title></path>';
+    return '<path d="' + d + '" fill="' + color + '"><title>' + tip + '</title></path>';
   }
 
   var EMPTY_SVG =
@@ -504,6 +500,7 @@
      so segments stay in consistent positions and never change size. */
   var SEG_ORDER = ['Academic','Spiritual','Mental/Emotional','Physical','Social'];
   var SLOT_DEG  = 72;  /* 360 / 5 */
+  var SLOT_GAP  = 3;   /* degrees of gap between adjacent filled wedges */
 
   function makeSVG(sd) {
     var filled = [];
@@ -515,8 +512,8 @@
     var paths = '';
     filled.forEach(function (slotIdx) {
       var name = SEG_ORDER[slotIdx];
-      var a0 = slotIdx * SLOT_DEG;
-      var a1 = a0 + SLOT_DEG;
+      var a0 = slotIdx * SLOT_DEG + SLOT_GAP / 2;
+      var a1 = a0 + SLOT_DEG - SLOT_GAP;
       /* If only one segment, fill nearly the whole circle */
       if (filled.length === 1) {
         a0 = 0;
