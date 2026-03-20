@@ -529,7 +529,8 @@
   var SUGGESTION_KEEP = ['meal-planner', 'spoon-planner'];
 
   /* Words that identify action buttons to lock down */
-  var ACTION_WORDS = /\b(save|submit|record|delete|remove)\b/i;
+  /* Claude: 2026-03-20 — added 'reset' to catch "Reset to Defaults" buttons */
+  var ACTION_WORDS = /\b(save|submit|record|delete|remove|reset)\b/i;
 
   /* IDs / classes to never touch */
   var SKIP_IDS = ['aa-mirror-minimize', 'aa-switcher-btn', 'aa-switcher-menu'];
@@ -595,7 +596,10 @@
       /* Skip if already locked */
       if (el._aaLocked) continue;
       el._aaLocked = true;
-      if (el.tagName === 'SELECT') {
+      /* Claude: 2026-03-20 — checkboxes & radios ignore readOnly;
+         must use disabled. Selects also need disabled. */
+      var typ = (el.type || '').toLowerCase();
+      if (el.tagName === 'SELECT' || typ === 'checkbox' || typ === 'radio') {
         el.disabled = true;
         el.style.opacity = '0.7';
       } else {
