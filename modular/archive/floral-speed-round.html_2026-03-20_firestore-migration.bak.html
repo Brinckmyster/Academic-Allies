@@ -189,12 +189,9 @@
 </style>
 </head>
 <body>
-<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
-<script>var AA_MODE_GATE = 'flowerQuiz';</script>
-<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
 <div id="site-header"></div>
 <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260320')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260319a')
       .then(function(response) { return response.text(); })
       .then(function(html) {
         var container = document.getElementById('site-header');
@@ -209,8 +206,6 @@
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 </script>
-
-<script src="/Academic-Allies/modular/js/study-activity.js?v=20260320"></script>
 
 <div class="sr-container">
   <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">&larr; Back to Study Tools</a>
@@ -359,17 +354,11 @@ function shuffle(arr) {
 }
 
 function saveMissed(common) {
-  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
-  if (window.AA && window.AA.study && typeof window.AA.study.addMiss === 'function') {
-    window.AA.study.addMiss(common);
-  } else {
-    /* Graceful fallback to localStorage if Firestore unavailable */
-    try {
-      var map = JSON.parse(localStorage.getItem(MISSED_KEY)) || {};
-      map[common] = (map[common] || 0) + 1;
-      localStorage.setItem(MISSED_KEY, JSON.stringify(map));
-    } catch(e) {}
-  }
+  try {
+    var map = JSON.parse(localStorage.getItem(MISSED_KEY)) || {};
+    map[common] = (map[common] || 0) + 1;
+    localStorage.setItem(MISSED_KEY, JSON.stringify(map));
+  } catch(e) {}
 }
 
 function toggleDir() {
@@ -501,7 +490,6 @@ function pickAnswer(btn, picked, correctAnswer, flower) {
 }
 
 function endRound() {
-  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
 
   document.getElementById('srGameArea').style.display = 'none';
@@ -531,42 +519,22 @@ function endRound() {
     'Best streak: ' + bestStreak + ' 🔥';
 
   /* Best score */
-  var quizSuffix = document.getElementById('srQuizPicker').value;
-  var suffix = 'speed_' + quizSuffix + (askGenus ? '' : '_rev');
-  var scoreData = { pct: pct, time: timerSeconds, fpm: parseFloat(fpm) };
-  var isNew = false;
-
-  if (window.AA && window.AA.study && typeof window.AA.study.getBest === 'function') {
-    /* Use Firestore via AA.study */
-    var best = window.AA.study.getBest(suffix);
+  var bestKey = 'AA_SPEED_BEST_' + document.getElementById('srQuizPicker').value + (askGenus ? '' : '_REV');
+  try {
+    var best = JSON.parse(localStorage.getItem(bestKey));
+    var isNew = false;
     if (!best || pct > best.pct || (pct === best.pct && timerSeconds < best.time)) {
-      window.AA.study.saveBest(suffix, scoreData);
+      localStorage.setItem(bestKey, JSON.stringify({ pct: pct, time: timerSeconds, fpm: parseFloat(fpm) }));
       isNew = true;
     }
-  } else {
-    /* Graceful fallback to localStorage */
-    try {
-      var bestKey = 'AA_SPEED_BEST_' + quizSuffix + (askGenus ? '' : '_REV');
-      var best = JSON.parse(localStorage.getItem(bestKey));
-      if (!best || pct > best.pct || (pct === best.pct && timerSeconds < best.time)) {
-        localStorage.setItem(bestKey, JSON.stringify(scoreData));
-        isNew = true;
-      }
-    } catch(e) {}
-  }
-
-  var bestMsg = document.getElementById('srBestMsg');
-  if (isNew) {
-    bestMsg.textContent = '⭐ New personal best!';
-    bestMsg.style.display = '';
-  } else {
-    bestMsg.style.display = 'none';
-  }
-
-  /* Log session to Firestore */
-  if (window.AA && window.AA.study && typeof window.AA.study.logSession === 'function') {
-    window.AA.study.logSession('speed-round');
-  }
+    var bestMsg = document.getElementById('srBestMsg');
+    if (isNew) {
+      bestMsg.textContent = '⭐ New personal best!';
+      bestMsg.style.display = '';
+    } else {
+      bestMsg.style.display = 'none';
+    }
+  } catch(e) {}
 }
 
 /* Keyboard shortcuts: 1-4 to pick choices */

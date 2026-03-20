@@ -140,12 +140,9 @@
 </style>
 </head>
 <body>
-<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
-<script>var AA_MODE_GATE = 'flowerQuiz';</script>
-<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
 <div id="site-header"></div>
 <script>
-  fetch('/Academic-Allies/modular/shared-header.html?v=20260320')
+  fetch('/Academic-Allies/modular/shared-header.html?v=20260319a')
     .then(function(response) { return response.text(); })
     .then(function(html) {
       var container = document.getElementById('site-header');
@@ -160,8 +157,6 @@
     })
     .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 </script>
-
-<script src="/Academic-Allies/modular/js/study-activity.js?v=20260320"></script>
 
 <div class="page-wrap">
   <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">← Back to Study Tools</a>
@@ -202,28 +197,11 @@
 var flowers = [];
 var flowerDeck = [];
 var currentFlower = null;
-var flowerCount = 0; /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+var flowerCount = parseInt(localStorage.getItem('flowerCount') || '0');
 var reportedFlowers = JSON.parse(localStorage.getItem('reportedFlowers') || '[]');
 
 document.getElementById('flower-count').textContent = flowerCount;
 document.getElementById('report-count').textContent = reportedFlowers.length;
-
-/* Claude: 2026-03-20 — Load flowerCount from Firestore on auth ready */
-(function() {
-  function _checkAuth() {
-    if (window.AA && window.AA.auth && window.AA.auth.currentUser && window.AA.study) {
-      window.AA.study.wasActiveToday().then(function(activity) {
-        if (activity.tools.indexOf('flower-id') !== -1) {
-          flowerCount = activity.sessions || 0;
-          document.getElementById('flower-count').textContent = flowerCount;
-        }
-      });
-    } else {
-      setTimeout(_checkAuth, 100);
-    }
-  }
-  _checkAuth();
-})();
 
 function shuffleDeck(arr) {
   var a = arr.slice();
@@ -327,16 +305,26 @@ function checkAnswer(selected, button, correctAnswer) {
   if (selected === correctAnswer) {
     button.classList.add('correct');
     flowerCount++;
+    localStorage.setItem('flowerCount', flowerCount);
     document.getElementById('flower-count').textContent = flowerCount;
-    /* Claude: 2026-03-20 — Firestore: decrement miss count and log session */
-    if (window.AA && window.AA.study) {
-      window.AA.study.removeMiss(currentFlower.name).catch(function(err) {
-        console.warn('[FlowerQuiz] removeMiss failed:', err.message);
-      });
-      window.AA.study.logSession('flower-id').catch(function(err) {
-        console.warn('[FlowerQuiz] logSession failed:', err.message);
-      });
-    }
+    /* Claude: 2026-03-17 — Also track in AA_FLORAL_MISSED (decrement) for cross-tool tracking */
+    try {
+      var missed = JSON.parse(localStorage.getItem('AA_FLORAL_MISSED') || '{}');
+      if (missed[currentFlower.name] && missed[currentFlower.name] > 0) {
+        missed[currentFlower.name] = Math.max(0, missed[currentFlower.name] - 1);
+        localStorage.setItem('AA_FLORAL_MISSED', JSON.stringify(missed));
+      }
+    } catch(e) {}
+    // Firebase sync — debounced
+    clearTimeout(window._fcTimer);
+    window._fcTimer = setTimeout(function() {
+      if (window.AA && AA.auth && AA.auth.currentUser) {
+        if (!window.AA_MIRROR_UID || window.AA_MIRROR_CAN_WRITE) {
+          var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+          AA.patchFlowerQuiz(writeUid, { flowerCount: flowerCount });
+        }
+      }
+    }, 3000);
     document.getElementById('quiz-progress').style.width = Math.min(flowerCount * 5, 100) + '%';
     var result = document.getElementById('quiz-result');
     result.textContent = correctMessages[Math.floor(Math.random() * correctMessages.length)];
@@ -344,12 +332,12 @@ function checkAnswer(selected, button, correctAnswer) {
     button.classList.add('incorrect');
     var correctBtn = Array.from(allButtons).find(function(btn) { return btn.textContent === correctAnswer; });
     if (correctBtn) correctBtn.classList.add('correct');
-    /* Claude: 2026-03-20 — Firestore: increment miss count */
-    if (window.AA && window.AA.study) {
-      window.AA.study.addMiss(currentFlower.name).catch(function(err) {
-        console.warn('[FlowerQuiz] addMiss failed:', err.message);
-      });
-    }
+    /* Claude: 2026-03-17 — Track miss in AA_FLORAL_MISSED for cross-tool tracking */
+    try {
+      var missed = JSON.parse(localStorage.getItem('AA_FLORAL_MISSED') || '{}');
+      missed[currentFlower.name] = (missed[currentFlower.name] || 0) + 1;
+      localStorage.setItem('AA_FLORAL_MISSED', JSON.stringify(missed));
+    } catch(e) {}
     var result = document.getElementById('quiz-result');
     result.textContent = incorrectMessages[Math.floor(Math.random() * incorrectMessages.length)];
   }
@@ -364,7 +352,12 @@ function reportWrongCategory() {
     reportedFlowers.push(currentFlower.name);
     localStorage.setItem('reportedFlowers', JSON.stringify(reportedFlowers));
     document.getElementById('report-count').textContent = reportedFlowers.length;
-    /* Claude: 2026-03-20 — reportedFlowers stays local (error reports, not tracked in Firestore) */
+    if (window.AA && AA.auth && AA.auth.currentUser) {
+      if (!window.AA_MIRROR_UID || window.AA_MIRROR_CAN_WRITE) {
+        var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+        AA.patchFlowerQuiz(writeUid, { reportedFlowers: reportedFlowers });
+      }
+    }
     alert('✅ Reported: ' + currentFlower.name + ' - Quiz ' + currentFlower.quiz + '\n\nTotal reports: ' + reportedFlowers.length);
   } else {
     alert('Already reported: ' + currentFlower.name);

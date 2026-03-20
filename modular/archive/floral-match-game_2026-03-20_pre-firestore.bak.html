@@ -337,12 +337,9 @@
 </style>
 </head>
 <body>
-<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
-<script>var AA_MODE_GATE = 'flowerQuiz';</script>
-<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
 <div id="site-header"></div>
 <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260320')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260319a')
       .then(function(response) { return response.text(); })
       .then(function(html) {
         var container = document.getElementById('site-header');
@@ -357,8 +354,6 @@
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 </script>
-
-<script src="/Academic-Allies/modular/js/study-activity.js?v=20260320"></script>
 
 <div class="game-container">
   <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">&larr; Back to Study Tools</a>
@@ -569,12 +564,9 @@ function getBestKey() {
 }
 
 function loadBestScore() {
-  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
-  var quizId = document.getElementById('quizPicker').value;
-  var modeKey = quizId + (reverseMode ? '_REV' : '');
-  var firestoreKey = 'match_' + modeKey;
-
-  AA.study.getBest(firestoreKey).then(function(best) {
+  try {
+    var key = getBestKey();
+    var best = JSON.parse(localStorage.getItem(key));
     if (best) {
       var parts = [];
       parts.push(best.accuracy + '% accuracy');
@@ -583,26 +575,22 @@ function loadBestScore() {
     } else {
       document.getElementById('bestScoreDisplay').textContent = '';
     }
-  }).catch(function(err) {
-    /* Graceful fallback if Firestore unavailable */
-    console.warn('[AA] Failed to load best score:', err);
+  } catch(e) {
     document.getElementById('bestScoreDisplay').textContent = '';
-  });
+  }
 }
 
 function saveBestScore(accuracy, time) {
-  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
-  var quizId = document.getElementById('quizPicker').value;
-  var modeKey = quizId + (reverseMode ? '_REV' : '');
-  var firestoreKey = 'match_' + modeKey;
-
-  AA.study.saveBest(firestoreKey, { accuracy: accuracy, time: time || null }).then(function(isNew) {
+  try {
+    var key = getBestKey();
+    var best = JSON.parse(localStorage.getItem(key));
+    var isNew = false;
+    if (!best || accuracy > best.accuracy || (accuracy === best.accuracy && time && best.time && time < best.time)) {
+      localStorage.setItem(key, JSON.stringify({ accuracy: accuracy, time: time || null }));
+      isNew = true;
+    }
     return isNew;
-  }).catch(function(err) {
-    /* Graceful fallback if Firestore unavailable */
-    console.warn('[AA] Failed to save best score:', err);
-    return false;
-  });
+  } catch(e) { return false; }
 }
 
 /* Study Sheet */
@@ -869,16 +857,14 @@ function showComplete() {
   }
 
   /* Best score check */
-  /* Claude: 2026-03-20 — saveBestScore now returns a Promise */
+  var isNewBest = saveBestScore(pct, timerEnabled ? timerSeconds : null);
   var bestEl = document.getElementById("completeBest");
-  saveBestScore(pct, timerEnabled ? timerSeconds : null).then(function(isNewBest) {
-    if (isNewBest) {
-      bestEl.textContent = "New personal best!";
-      bestEl.style.display = "";
-    } else {
-      bestEl.style.display = "none";
-    }
-  });
+  if (isNewBest) {
+    bestEl.textContent = "New personal best!";
+    bestEl.style.display = "";
+  } else {
+    bestEl.style.display = "none";
+  }
 
   /* Fun title based on score */
   var title = document.getElementById("completeTitle");
@@ -888,11 +874,6 @@ function showComplete() {
     title.textContent = "Almost there!";
   } else {
     title.textContent = "Keep practicing!";
-  }
-
-  /* Claude: 2026-03-20 — log study session to Firestore */
-  if (AA && AA.study && AA.study.logSession) {
-    AA.study.logSession('match-game');
   }
 
   document.getElementById("completeBanner").style.display = "block";

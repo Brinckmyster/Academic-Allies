@@ -184,12 +184,9 @@
 </style>
 </head>
 <body>
-<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
-<script>var AA_MODE_GATE = 'flowerQuiz';</script>
-<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
 <div id="site-header"></div>
 <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260320')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260319a')
       .then(function(response) { return response.text(); })
       .then(function(html) {
         var container = document.getElementById('site-header');
@@ -204,9 +201,6 @@
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 </script>
-
-<!-- Claude: 2026-03-20 — migrated from localStorage to Firestore -->
-<script src="/Academic-Allies/modular/js/study-activity.js?v=20260320"></script>
 
 <div class="mt-container">
   <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">&larr; Back to Study Tools</a>
@@ -310,28 +304,12 @@ function getAllFlowers() {
   return pool;
 }
 
-/* Claude: 2026-03-20 — migrated from localStorage to Firestore */
 function getMissedMap() {
-  /* Fallback for localStorage if Firestore not available */
   try { return JSON.parse(localStorage.getItem(MISSED_KEY)) || {}; } catch(e) { return {}; }
 }
 
 function buildTracker() {
-  /* Load missed flowers from Firestore if available */
-  if (window.AA && window.AA.study) {
-    window.AA.study.getMissed().then(function(missedMap) {
-      buildTrackerWithData(missedMap);
-    }).catch(function(err) {
-      console.warn('[AA Study] getMissed failed, using localStorage fallback:', err);
-      buildTrackerWithData(getMissedMap());
-    });
-  } else {
-    /* Fallback to localStorage if AA.study not loaded */
-    buildTrackerWithData(getMissedMap());
-  }
-}
-
-function buildTrackerWithData(missedMap) {
+  var missedMap = getMissedMap();
   var all = getAllFlowers();
   var maxMiss = 0;
 
@@ -397,32 +375,16 @@ function buildTrackerWithData(missedMap) {
 
   content.innerHTML = html;
 }
-/* End buildTrackerWithData */
 
 function practiceWeakest() {
   /* Navigate to flashcards with missed filter */
   window.location.href = '/Academic-Allies/modular/static/floral-flashcards.html?filter=missed';
 }
 
-/* Claude: 2026-03-20 — migrated from localStorage to Firestore */
 function clearData() {
   if (!confirm('Reset all missed flower tracking data? This cannot be undone.')) return;
-
-  /* Try Firestore first */
-  if (window.AA && window.AA.study) {
-    window.AA.study.resetMissed().then(function() {
-      buildTracker();
-    }).catch(function(err) {
-      console.warn('[AA Study] resetMissed failed:', err);
-      /* Fallback to localStorage */
-      try { localStorage.removeItem(MISSED_KEY); } catch(e) {}
-      buildTracker();
-    });
-  } else {
-    /* Fallback to localStorage if AA.study not loaded */
-    try { localStorage.removeItem(MISSED_KEY); } catch(e) {}
-    buildTracker();
-  }
+  try { localStorage.removeItem(MISSED_KEY); } catch(e) {}
+  buildTracker();
 }
 
 buildTracker();

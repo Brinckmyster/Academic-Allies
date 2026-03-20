@@ -61,10 +61,6 @@
   var _isCaution    = false;
   /* UID guard — skip re-init on Firebase ~45-min token refresh. Claude, 2026-03-07. */
   var _scUid        = null;
-  /* Claude: 2026-03-20 — study tool activity for Academic segment injection */
-  var _studyActive  = false;   /* true if study tools were used today */
-  var _studyTools   = [];      /* which tools were used */
-  var _studySessions = 0;      /* how many sessions today */
 
   /* ── Day-of-week → eligible segments (0=Sun … 6=Sat) ───── */
   var DAY_SEGS = [
@@ -450,10 +446,8 @@
     return out;
   }
 
-  /* ── SVG filled-pie builder ───────────────────────────── */
-  /* Claude: 2026-03-20 — changed from donut ring (IR=11) to solid filled pie.
-     Wedges now go all the way to the center like slices of an actual pie. */
-  var CX = 20, CY = 20, OR = 18;
+  /* ── SVG donut ring builder ────────────────────────────── */
+  var CX = 20, CY = 20, OR = 18, IR = 11;
 
   function ptAt(r, deg) {
     var rad = (deg - 90) * Math.PI / 180;
@@ -467,13 +461,12 @@
   STATUS_LABEL[C.orange] = 'needs attention';
   STATUS_LABEL[C.red]    = 'urgent';
 
-  /* Claude: 2026-03-20 — solid pie wedge: arc from outer edge back to center point.
-     Old donut used two arcs (outer + inner ring). Pie uses one arc + line to center. */
   function segPath(color, a0, a1, name) {
     var large = (a1 - a0 > 180) ? 1 : 0;
-    var d = 'M' + CX + ',' + CY +
-            ' L' + ptAt(OR, a0) +
+    var d = 'M' + ptAt(OR, a0) +
             ' A' + OR + ',' + OR + ',0,' + large + ',1,' + ptAt(OR, a1) +
+            ' L' + ptAt(IR, a1) +
+            ' A' + IR + ',' + IR + ',0,' + large + ',0,' + ptAt(IR, a0) +
             ' Z';
     var tip = name + ': ' + (STATUS_LABEL[color] || '');
     return '<path d="' + d + '" fill="' + color + '"><title>' + tip + '</title></path>';
@@ -481,7 +474,7 @@
 
   var EMPTY_SVG =
     '<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">' +
-    '<circle cx="20" cy="20" r="18" fill="#e0e0e0" opacity="0.4"/>' +
+    '<circle cx="20" cy="20" r="14.5" fill="none" stroke="#e0e0e0" stroke-width="7"/>' +
     '</svg>';
 
   function makeSVG(sd) {
@@ -537,9 +530,6 @@
       el.title = 'Urgent — NOPE mode active (double-click to reset position)';
       return;
     }
-
-    /* Claude: 2026-03-20 — merge study tool activity into Academic segment */
-    _mergeStudyActivity(_segData);
 
     if (_view === 'ring') {
       el.innerHTML = makeSVG(_segData);
@@ -605,36 +595,6 @@
     });
   }
 
-  /* ── Study tool activity → Academic segment — Claude 2026-03-20 ── */
-  /* If study tools were used today but no check-in data exists for the
-     Academic segment, inject a green Academic wedge. Check-in data always
-     takes priority — this only fills in the gap when no check-in happened. */
-  function _mergeStudyActivity(sd) {
-    if (!_studyActive) return sd;
-    var segs = eligibleSegs();
-    if (segs.indexOf('Academic') === -1) return sd; /* weekday only */
-    if (!sd['Academic']) {
-      sd['Academic'] = C.green; /* active on study tools = green academic */
-    }
-    return sd;
-  }
-
-  /* Fetch study activity for a UID and store in module state.
-     Called after auth is ready. Returns a Promise. */
-  function _fetchStudyActivity(uid) {
-    if (!window.AA || !window.AA.study || !window.AA.study.wasActiveToday) {
-      _studyActive = false;
-      return Promise.resolve();
-    }
-    return window.AA.study.wasActiveToday(uid).then(function (result) {
-      _studyActive = result.active;
-      _studyTools = result.tools || [];
-      _studySessions = result.sessions || 0;
-    }).catch(function () {
-      _studyActive = false;
-    });
-  }
-
   /* ── Segment legend tooltip — Claude 2026-03-19 ─────────── */
   /* Shows color-coded breakdown on hover (desktop) or tap (mobile)
      so supporters AND students can tell which slice is which.       */
@@ -664,23 +624,12 @@
       var status = color ? (STATUS_LABEL[color] || '') : 'no data';
       var icon   = SEG_ICON[name] || '';
       var dotBg  = color || '#ccc';
-      /* Claude: 2026-03-20 — add study tools note to Academic segment */
-      var extra = '';
-      if (name === 'Academic' && _studyActive) {
-        extra = '<span class="sc-tip-study">📖 Active on Study Tools</span>';
-      }
       html += '<div class="sc-tip-row">' +
               '<span class="sc-tip-dot" style="background:' + dotBg + '"></span>' +
               '<span class="sc-tip-label">' + icon + ' ' + name + '</span>' +
-              '<span class="sc-tip-status">' + status + extra + '</span>' +
+              '<span class="sc-tip-status">' + status + '</span>' +
               '</div>';
     });
-    /* Claude: 2026-03-20 — show study tool summary if active */
-    if (_studyActive && _studySessions > 0) {
-      html += '<div class="sc-tip-study-summary">📖 ' +
-              _studySessions + ' study session' + (_studySessions > 1 ? 's' : '') +
-              ' today</div>';
-    }
     if (!html) {
       html = '<div class="sc-tip-none">No check-in data yet</div>';
     }
@@ -829,13 +778,6 @@
     if (!forceRestart && uid === _watchingDataUid) return;
     _watchingDataUid = uid;
     var dateKey = _localDateKey();
-
-    /* Claude: 2026-03-20 — fetch study tool activity for this user.
-       Runs in parallel with check-in listener setup. When it completes,
-       re-renders to inject Academic segment if tools were used today. */
-    _fetchStudyActivity(uid).then(function () {
-      render(); /* re-render with study data merged in */
-    });
 
     /* Claude: hide sc-banner for student role — support/admin see it, student doesn't — 2026-02-28 */
     /* Claude: 2026-03-12 — also load alertThreshold for configurable caution days */

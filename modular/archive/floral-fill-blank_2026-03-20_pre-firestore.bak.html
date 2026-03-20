@@ -14,11 +14,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 
-  <!-- Claude: 2026-03-20 — Firebase study activity tracking -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
   <style>
     * {
       margin: 0;
@@ -633,14 +628,11 @@
   </style>
 </head>
 <body>
-<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
-<script>var AA_MODE_GATE = 'flowerQuiz';</script>
-<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
 
 <!-- Shared header -->
 <div id="site-header"></div>
 <script>
-  fetch('/Academic-Allies/modular/shared-header.html?v=20260320')
+  fetch('/Academic-Allies/modular/shared-header.html?v=20260319a')
     .then(function(response) { return response.text(); })
     .then(function(html) {
       var container = document.getElementById('site-header');
@@ -655,9 +647,6 @@
     })
     .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 </script>
-
-<!-- Claude: 2026-03-20 — migrated from localStorage to Firestore -->
-<script src="/Academic-Allies/modular/js/study-activity.js?v=20260320"></script>
 
 <div class="container">
   <h1>Fill in the Blank</h1>
@@ -1120,52 +1109,15 @@
     reportConfirm.style.display = 'none';
   }
 
-  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
-  /* Update Firestore missed counter per flower */
+  /* Update localStorage missed counter */
   function updateMissedCounter(isMiss) {
-    var flower = quizState.currentDeck[quizState.currentIndex];
-    if (!flower) return;
-
-    var flowerName = flower.common;
-    if (window.AA && window.AA.study) {
-      if (isMiss) {
-        window.AA.study.addMiss(flowerName).catch(function (err) {
-          console.warn('[AA Study] addMiss failed:', err);
-          /* Fallback to localStorage */
-          try {
-            var missedMap = JSON.parse(localStorage.getItem('AA_FLORAL_MISSED') || '{}');
-            missedMap[flowerName] = (missedMap[flowerName] || 0) + 1;
-            localStorage.setItem('AA_FLORAL_MISSED', JSON.stringify(missedMap));
-          } catch (e) {}
-        });
-      } else {
-        window.AA.study.removeMiss(flowerName).catch(function (err) {
-          console.warn('[AA Study] removeMiss failed:', err);
-          /* Fallback to localStorage */
-          try {
-            var missedMap = JSON.parse(localStorage.getItem('AA_FLORAL_MISSED') || '{}');
-            if (missedMap[flowerName]) {
-              missedMap[flowerName]--;
-              if (missedMap[flowerName] <= 0) delete missedMap[flowerName];
-            }
-            localStorage.setItem('AA_FLORAL_MISSED', JSON.stringify(missedMap));
-          } catch (e) {}
-        });
-      }
+    var missed = parseInt(localStorage.getItem('AA_FLORAL_MISSED') || '0', 10);
+    if (isMiss) {
+      localStorage.setItem('AA_FLORAL_MISSED', String(missed + 1));
     } else {
-      /* Fallback if AA.study not loaded yet */
-      try {
-        var missedMap = JSON.parse(localStorage.getItem('AA_FLORAL_MISSED') || '{}');
-        if (isMiss) {
-          missedMap[flowerName] = (missedMap[flowerName] || 0) + 1;
-        } else {
-          if (missedMap[flowerName]) {
-            missedMap[flowerName]--;
-            if (missedMap[flowerName] <= 0) delete missedMap[flowerName];
-          }
-        }
-        localStorage.setItem('AA_FLORAL_MISSED', JSON.stringify(missedMap));
-      } catch (e) {}
+      if (missed > 0) {
+        localStorage.setItem('AA_FLORAL_MISSED', String(missed - 1));
+      }
     }
   }
 
@@ -1183,13 +1135,6 @@
 
   /* Claude: 2026-03-18 — End screen with spelling vs knowledge breakdown */
   function showEndScreen() {
-    /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
-    if (window.AA && window.AA.study) {
-      window.AA.study.logSession('fill-blank').catch(function (err) {
-        console.warn('[AA Study] logSession failed:', err);
-      });
-    }
-
     card.style.display = 'none';
     endScreen.style.display = 'block';
     var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;

@@ -273,12 +273,9 @@
 </style>
 </head>
 <body>
-<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
-<script>var AA_MODE_GATE = 'flowerQuiz';</script>
-<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
 <div id="site-header"></div>
 <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260320')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260319a')
       .then(function(response) { return response.text(); })
       .then(function(html) {
         var container = document.getElementById('site-header');
@@ -293,7 +290,6 @@
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 </script>
-<script src="/Academic-Allies/modular/js/study-activity.js?v=20260320"></script>
 
 <div class="fc-container">
   <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">&larr; Back to Study Tools</a>
@@ -438,46 +434,36 @@ var showGenus = true; /* true = front shows common, back shows genus */
 var known = [];
 var missed = [];
 
-/* Claude: 2026-03-20 — migrated from localStorage to Firestore */
-/* Missed flowers tracker — persisted in Firestore via AA.study module */
+/* Missed flowers tracker — persisted in localStorage */
+var MISSED_KEY = 'AA_FLORAL_MISSED';
+
+function getMissedMap() {
+  try { return JSON.parse(localStorage.getItem(MISSED_KEY)) || {}; } catch(e) { return {}; }
+}
 
 function saveMissed(common) {
-  /* Guard for mirror mode — supporters cannot record their own study */
-  if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
-  if (AA && AA.study && AA.study.addMiss) {
-    AA.study.addMiss(common);
-  }
+  var map = getMissedMap();
+  map[common] = (map[common] || 0) + 1;
+  try { localStorage.setItem(MISSED_KEY, JSON.stringify(map)); } catch(e) {}
 }
 
 function saveKnown(common) {
-  /* Guard for mirror mode — supporters cannot record their own study */
-  if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
-  if (AA && AA.study && AA.study.removeMiss) {
-    AA.study.removeMiss(common);
+  var map = getMissedMap();
+  if (map[common]) {
+    map[common] = Math.max(0, map[common] - 1);
+    if (map[common] === 0) delete map[common];
+    try { localStorage.setItem(MISSED_KEY, JSON.stringify(map)); } catch(e) {}
   }
 }
 
 function getMissedFlowers() {
-  /* Claude: 2026-03-20 — now async; returns Promise */
-  return new Promise(function(resolve) {
-    if (AA && AA.study && AA.study.getMissed) {
-      AA.study.getMissed()
-        .then(function(missedNames) {
-          var all = getAllFlowers();
-          var result = [];
-          all.forEach(function(f) {
-            if (missedNames.indexOf(f.common) !== -1) result.push(f);
-          });
-          resolve(result);
-        })
-        .catch(function(err) {
-          console.warn('[AA] getMissed failed, returning empty:', err);
-          resolve([]);
-        });
-    } else {
-      resolve([]);
-    }
+  var map = getMissedMap();
+  var all = getAllFlowers();
+  var result = [];
+  all.forEach(function(f) {
+    if (map[f.common]) result.push(f);
   });
+  return result;
 }
 
 function getAllFlowers() {
@@ -513,30 +499,13 @@ function startDeck() {
   var pick = document.getElementById('fcQuizPicker').value;
   var pool = [];
 
-  /* Claude: 2026-03-20 — getMissedFlowers now returns a Promise */
   if (pick === 'missed') {
-    getMissedFlowers()
-      .then(function(missedFlowers) {
-        if (missedFlowers.length === 0) {
-          missedFlowers = getAllFlowers();
-          alert('No missed flowers recorded yet! Showing all flowers instead.');
-        }
-        deck = shuffle(missedFlowers);
-        deckIdx = 0;
-        known = [];
-        missed = [];
-
-        document.getElementById('fcResults').style.display = 'none';
-        document.getElementById('fcCardWrap').style.display = '';
-        document.getElementById('fcVerdictRow').style.display = '';
-        document.getElementById('fcProgress').parentElement.style.display = '';
-
-        showCard();
-      });
-    return;
-  }
-
-  if (pick === 'all') {
+    pool = getMissedFlowers();
+    if (pool.length === 0) {
+      pool = getAllFlowers();
+      alert('No missed flowers recorded yet! Showing all flowers instead.');
+    }
+  } else if (pick === 'all') {
     pool = getAllFlowers();
   } else {
     FLOWERS[pick].forEach(function(f) {
@@ -651,11 +620,6 @@ function showResults() {
     document.getElementById('fcResultMissed').style.display = '';
   } else {
     document.getElementById('fcResultMissed').style.display = 'none';
-  }
-
-  /* Claude: 2026-03-20 — log study session to Firestore */
-  if (AA && AA.study && AA.study.logSession) {
-    AA.study.logSession('flashcards');
   }
 }
 
