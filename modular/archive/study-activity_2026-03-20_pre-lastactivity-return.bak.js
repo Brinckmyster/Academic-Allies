@@ -234,35 +234,23 @@
   };
 
   /* ── wasActiveToday(uid) — for status circle to call ─────── */
-  /* Claude: 2026-03-20 — now also returns lastActivity timestamp so the
-     status circle can check "was she on study tools within X days?" even
-     if it wasn't today. This fixes the edge case where lastSeen shows
-     Messages (3 days ago) but study tools were used 4 days ago. */
-  /* Returns { active: bool, tools: [...], sessions: number, lastActivity: Date|null } */
+  /* Returns { active: bool, tools: [...], sessions: number }    */
   study.wasActiveToday = function (targetUid) {
     var uid = targetUid || _uid();
-    if (!uid) return Promise.resolve({ active: false, tools: [], sessions: 0, lastActivity: null });
+    if (!uid) return Promise.resolve({ active: false, tools: [], sessions: 0 });
 
     return _docRef(uid).get().then(function (snap) {
-      if (!snap.exists) return { active: false, tools: [], sessions: 0, lastActivity: null };
+      if (!snap.exists) return { active: false, tools: [], sessions: 0 };
       var data = snap.data();
       var today = _todayKey();
-      /* Extract lastActivity timestamp regardless of whether today is active */
-      var la = data.lastActivity || null;
-      if (la && typeof la.toDate === 'function') la = la.toDate();
-      else if (la) la = new Date(la);
-
-      if (data.todayDate !== today) {
-        return { active: false, tools: [], sessions: 0, lastActivity: la };
-      }
+      if (data.todayDate !== today) return { active: false, tools: [], sessions: 0 };
       return {
         active: true,
         tools: data.todayTools || [],
-        sessions: data.todaySessions || 0,
-        lastActivity: la
+        sessions: data.todaySessions || 0
       };
     }).catch(function () {
-      return { active: false, tools: [], sessions: 0, lastActivity: null };
+      return { active: false, tools: [], sessions: 0 };
     });
   };
 

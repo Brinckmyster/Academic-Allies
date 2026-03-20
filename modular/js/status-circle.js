@@ -69,7 +69,8 @@
      Used to suppress caution diamond when student is actively using the app
      (unless the only activity is Messages — that could mean reaching out for help). */
   var _recentAppActivity = false;  /* true if lastSeen within CAUTION_DAYS */
-  var _lastSeenPage      = '';     /* page path from lastSeen, e.g. '/Academic-Allies/modular/messages.html' */
+  var _lastSeenPage      = '';     /* page path from lastSeen */
+  var _recentStudyActivity = false; /* true if studyActivity.lastActivity within CAUTION_DAYS */
 
   /* ── Day-of-week → eligible segments (0=Sun … 6=Sat) ───── */
   var DAY_SEGS = [
@@ -370,10 +371,10 @@
     var el = document.getElementById('sc-banner');
     if (!el) return;
 
-    /* Claude: 2026-03-20 — same suppression logic as render(): recent app
-       activity = no caution, unless only page was Messages. */
-    var _bMessagesOnly = _recentAppActivity && /messages/i.test(_lastSeenPage) && !_studyActive;
-    var bannerCaution = _isCaution && !(_recentAppActivity && !_bMessagesOnly);
+    /* Claude: 2026-03-20 — same suppression logic as render(). */
+    var _bNonMsg = _studyActive || _recentStudyActivity ||
+      (_recentAppActivity && !/messages/i.test(_lastSeenPage));
+    var bannerCaution = _isCaution && !_bNonMsg;
 
     var viewLabel = (_view === 'ring') ? 'All 5 segments' : 'Overall status';
     if (_nope) viewLabel = 'NOPE mode';
@@ -566,9 +567,12 @@
     /* Claude: 2026-03-20 — suppress caution diamond when student is actively
        using the app. If she's on the site doing things, she doesn't need a
        "hey are you okay?" diamond. Exception: if her ONLY recent activity is
-       Messages, keep the diamond — that could mean she's reaching out for help. */
-    var _isMessagesOnly = _recentAppActivity && /messages/i.test(_lastSeenPage) && !_studyActive;
-    var effectiveCaution = _isCaution && !(_recentAppActivity && !_isMessagesOnly);
+       Messages, keep the diamond — that could mean she's reaching out for help.
+       _recentStudyActivity covers "study tools 4 days ago" even if lastSeen
+       shows Messages from 3 days ago — she was still productively using the app. */
+    var _hasNonMsgActivity = _studyActive || _recentStudyActivity ||
+      (_recentAppActivity && !/messages/i.test(_lastSeenPage));
+    var effectiveCaution = _isCaution && !_hasNonMsgActivity;
 
     if (_view === 'ring') {
       el.innerHTML = makeSVG(_segData);
@@ -653,14 +657,25 @@
   function _fetchStudyActivity(uid) {
     if (!window.AA || !window.AA.study || !window.AA.study.wasActiveToday) {
       _studyActive = false;
+      _recentStudyActivity = false;
       return Promise.resolve();
     }
     return window.AA.study.wasActiveToday(uid).then(function (result) {
       _studyActive = result.active;
       _studyTools = result.tools || [];
       _studySessions = result.sessions || 0;
+      /* Claude: 2026-03-20 — check if study tools were used within CAUTION_DAYS,
+         even if not today. Fixes: Messages 3 days ago + study tools 4 days ago
+         should NOT show caution diamond. */
+      if (result.lastActivity) {
+        var daysAgo = (Date.now() - result.lastActivity.getTime()) / 86400000;
+        _recentStudyActivity = daysAgo <= CAUTION_DAYS;
+      } else {
+        _recentStudyActivity = false;
+      }
     }).catch(function () {
       _studyActive = false;
+      _recentStudyActivity = false;
     });
   }
 
