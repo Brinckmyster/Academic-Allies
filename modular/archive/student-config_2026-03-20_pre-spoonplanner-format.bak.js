@@ -62,18 +62,19 @@
       }
     },
 
-    /* Claude: 2026-03-20 — SpoonPlanner format (name/spoons/time/priority/completed).
-       Generic student defaults. Personal tasks belong in saved config, not here. */
+    /* Claude: 2026-03-20 — replaced personal SpoonPal tasks with generic
+       student defaults. Personal tasks belong in the student's saved config,
+       not in the fallback defaults. These are just starter examples. */
     spoonPlan: {
       baseBudget: 20,
       tasks: [
-        { name: 'Morning Routine', spoons: 2, time: '8:00 AM', priority: 'High', completed: false },
-        { name: 'Breakfast', spoons: 1, time: '8:30 AM', priority: 'High', completed: false },
-        { name: 'Class / Study', spoons: 3, time: '10:00 AM', priority: 'High', completed: false },
-        { name: 'Lunch', spoons: 1, time: '12:00 PM', priority: 'Medium', completed: false },
-        { name: 'Afternoon Activity', spoons: 2, time: '2:00 PM', priority: 'Medium', completed: false },
-        { name: 'Dinner', spoons: 1, time: '6:00 PM', priority: 'Medium', completed: false },
-        { name: 'Evening Wind-Down', spoons: 1, time: '8:00 PM', priority: 'Low', completed: false }
+        { code: 'AM', emoji: '☀️', desc: 'Morning Routine', cost: 2, fixed: true, time: '8:00 AM' },
+        { code: 'BF', emoji: '🥣', desc: 'Breakfast', cost: 1, fixed: true, time: '8:30 AM' },
+        { code: 'CL', emoji: '📚', desc: 'Class / Study', cost: 3, fixed: false, time: '10:00 AM' },
+        { code: 'LN', emoji: '🍽️', desc: 'Lunch', cost: 1, fixed: true, time: '12:00 PM' },
+        { code: 'AC', emoji: '📝', desc: 'Afternoon Activity', cost: 2, fixed: false, time: '2:00 PM' },
+        { code: 'DN', emoji: '🍽️', desc: 'Dinner', cost: 1, fixed: true, time: '6:00 PM' },
+        { code: 'EV', emoji: '🌙', desc: 'Evening Wind-Down', cost: 1, fixed: false, time: '8:00 PM' }
       ],
       formula: {
         base: 20,

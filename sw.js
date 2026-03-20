@@ -15,8 +15,8 @@
    fetched fresh from the network. This eliminates the #1 source of stale-code
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
-/* Claude: 2026-03-20 — bumped for true mirror mode (checkin.html changed) */
-var CACHE   = 'aa-shell-20260320';
+/* Claude: 2026-03-20 — bumped for SpoonPlanner format in student-config */
+var CACHE   = 'aa-shell-20260320b';
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.

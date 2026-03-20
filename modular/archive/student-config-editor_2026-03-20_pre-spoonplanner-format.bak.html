@@ -139,9 +139,10 @@
       background: var(--bg); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;
       flex-wrap: wrap;
     }
-    /* Claude: 2026-03-20 — SpoonPlanner format: name, spoons, time, priority */
-    .spoon-task-form { flex: 1; min-width: 200px; display: grid; grid-template-columns: 2fr 60px 100px 90px; gap: 8px; align-items: center; }
-    .spoon-task-form input, .spoon-task-form select { padding: 6px; }
+    .spoon-task-emoji { font-size: 1.5rem; line-height: 1; min-width: 30px; text-align: center; }
+    .spoon-task-form { flex: 1; min-width: 200px; display: grid; grid-template-columns: 1fr 1fr 1fr 80px; gap: 8px; align-items: center; }
+    .spoon-task-form input { padding: 6px; }
+    .spoon-task-checkbox { display: flex; align-items: center; gap: 6px; }
     .spoon-task-remove { flex: 0 0 auto; }
 
     /* ── Meals Lists ───────────────────────────────────────── */
@@ -648,8 +649,7 @@
   </div>
 
   <!-- ── Scripts ── -->
-  <!-- Claude: 2026-03-20 — cache-bust for SpoonPlanner format update -->
-  <script src="/Academic-Allies/modular/js/student-config.js?v=20260320"></script>
+  <script src="/Academic-Allies/modular/js/student-config.js"></script>
 
   <script>
     /* Claude: 2026-03-18 — Student Config Editor */
@@ -876,22 +876,18 @@
         });
       }
 
-      /* Claude: 2026-03-20 — SpoonPlanner format: name/spoons/time/priority/completed */
       function populateSpoonTasks() {
         var container = document.getElementById('spoon-tasks-container');
         var tasks = currentConfig.spoonPlan.tasks || [];
         var html = '';
         tasks.forEach(function(task, idx) {
           html += '<div class="spoon-task-row" data-idx="' + idx + '">';
+          html += '<div class="spoon-task-emoji">' + task.emoji + '</div>';
           html += '<div class="spoon-task-form">';
-          html += '<input type="text" class="task-name" value="' + (task.name || '') + '" placeholder="Task Name">';
-          html += '<input type="number" class="task-spoons" value="' + (task.spoons || 1) + '" min="0" max="10" placeholder="Spoons">';
-          html += '<input type="text" class="task-time" value="' + (task.time || '') + '" placeholder="Time">';
-          html += '<select class="task-priority">';
-          html += '<option value="High"' + (task.priority === 'High' ? ' selected' : '') + '>High</option>';
-          html += '<option value="Medium"' + (task.priority === 'Medium' ? ' selected' : '') + '>Medium</option>';
-          html += '<option value="Low"' + (task.priority === 'Low' ? ' selected' : '') + '>Low</option>';
-          html += '</select>';
+          html += '<input type="text" class="task-code" value="' + task.code + '" placeholder="Code" style="max-width: 60px;">';
+          html += '<input type="text" class="task-desc" value="' + task.desc + '" placeholder="Description">';
+          html += '<input type="number" class="task-cost" value="' + task.cost + '" min="0" max="10" style="max-width: 60px;">';
+          html += '<label class="spoon-task-checkbox"><input type="checkbox" class="task-fixed" ' + (task.fixed ? 'checked' : '') + '> Fixed</label>';
           html += '</div>';
           html += '<button type="button" class="btn btn-danger btn-small spoon-task-remove" data-idx="' + idx + '">✕</button>';
           html += '</div>';
@@ -988,8 +984,7 @@
 
       /* ── Add Item Buttons ──────────────────────────────────────── */
       document.getElementById('btn-add-task').addEventListener('click', function() {
-        /* Claude: 2026-03-20 — SpoonPlanner format */
-        currentConfig.spoonPlan.tasks.push({ name: 'New Task', spoons: 1, time: '', priority: 'Medium', completed: false });
+        currentConfig.spoonPlan.tasks.push({ code: '', emoji: '📌', desc: 'New Task', cost: 1, fixed: false, time: '' });
         populateSpoonTasks();
       });
 
@@ -1238,14 +1233,14 @@
         currentConfig.spoonPlan.formula.sleepHighThreshold = parseFloat(document.getElementById('spoon-sleep-high-threshold').value) || 9;
         currentConfig.spoonPlan.formula.sleepHighBonus = parseFloat(document.getElementById('spoon-sleep-high-bonus').value) || 1;
 
-        /* Claude: 2026-03-20 — Collect spoon tasks in SpoonPlanner format */
+        /* Collect spoon tasks */
         var tasks = [];
         document.querySelectorAll('.spoon-task-row').forEach(function(row) {
-          var name = row.querySelector('.task-name').value || 'Task';
-          var spoons = parseFloat(row.querySelector('.task-spoons').value) || 1;
-          var time = row.querySelector('.task-time').value || '';
-          var priority = row.querySelector('.task-priority').value || 'Medium';
-          tasks.push({ name: name, spoons: spoons, time: time, priority: priority, completed: false });
+          var code = row.querySelector('.task-code').value || 'X';
+          var desc = row.querySelector('.task-desc').value || 'Task';
+          var cost = parseFloat(row.querySelector('.task-cost').value) || 1;
+          var fixed = row.querySelector('.task-fixed').checked;
+          tasks.push({ code: code, emoji: '📌', desc: desc, cost: cost, fixed: fixed, time: '' });
         });
         currentConfig.spoonPlan.tasks = tasks;
 
