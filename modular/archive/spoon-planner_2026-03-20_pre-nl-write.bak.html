@@ -607,9 +607,7 @@
                         var role = (doc.exists && doc.data().role) ? doc.data().role : 'pending';
                         var supporterRoles = ['family', 'support', 'nearby-help'];
                         _isSupporterRole = (supporterRoles.indexOf(role) !== -1);
-                        /* Claude: 2026-03-20 — also updateMirrorUI for NLs in mirror mode
-                           so they see Confirm (not Suggest) with full write access */
-                        if (_isSupporterRole || window.AA_MIRROR_UID) {
+                        if (_isSupporterRole) {
                             updateMirrorUI();
                         }
                     }).catch(function(err) { console.warn('[SpoonPlanner] Role fetch failed:', err.message); });
@@ -641,9 +639,8 @@
         // Updated 2026-03-08 by Claude: block ALL mirror saves. Student is sudo —
         // supporters must use "Suggest Plan" instead. No direct writes to student data.
         /* Claude: 2026-03-09 — block saves for supporters AND mirror mode */
-        /* Claude: 2026-03-20 — network-leads (AA_MIRROR_CAN_WRITE) can save directly */
         function saveTasks() {
-            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && window.AA && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
             if (isMirror || _isSupporterRole) return; // Supporters use "Suggest Plan" — no direct saves.
             localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
             if (window.AA && AA.auth && AA.auth.currentUser) {
@@ -810,9 +807,8 @@
         }
 
         // Updated 2026-03-08 by Claude: use AA_uid() for mirror mode
-        /* Claude: 2026-03-20 — NLs (AA_MIRROR_CAN_WRITE) can use localStorage too */
         function duplicateDay() {
-            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            var isMirror = !!(window.AA_MIRROR_UID && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
             var yesterday = isMirror ? null : localStorage.getItem('yesterdayTasks');
             if (yesterday) {
                 tasks = JSON.parse(yesterday);
@@ -879,8 +875,7 @@
             originalTasks = JSON.parse(JSON.stringify(tasks));
 
             /* Claude: 2026-03-09 — block confirm for supporters AND mirror mode */
-            /* Claude: 2026-03-20 — network-leads (AA_MIRROR_CAN_WRITE) can confirm directly */
-            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && window.AA && AA.auth && AA.auth.currentUser
+            var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
                 && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
             if (isMirror || _isSupporterRole) {
                 // Shouldn't reach here (button is hidden), but belt-and-suspenders
@@ -936,9 +931,8 @@
            Archive: spoon-planner_2026-03-09_pre-mirror-addtask-fix.html */
         /* Claude: 2026-03-09 — also check _isSupporterRole so family/support/nearby-help
            always see Suggest instead of Confirm, even when not in mirror mode */
-        /* Claude: 2026-03-20 — network-leads see Confirm (not Suggest) because they can write */
         function updateMirrorUI() {
-            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && window.AA && AA.auth && AA.auth.currentUser
+            var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
                 && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
             var suggestOnly = isMirror || _isSupporterRole;
             var confirmBtn = document.getElementById('btn-confirm-plan');

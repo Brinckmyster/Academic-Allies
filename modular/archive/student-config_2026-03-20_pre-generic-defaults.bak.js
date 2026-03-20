@@ -62,19 +62,26 @@
       }
     },
 
-    /* Claude: 2026-03-20 — replaced personal SpoonPal tasks with generic
-       student defaults. Personal tasks belong in the student's saved config,
-       not in the fallback defaults. These are just starter examples. */
     spoonPlan: {
       baseBudget: 20,
       tasks: [
-        { code: 'AM', emoji: '☀️', desc: 'Morning Routine', cost: 2, fixed: true, time: '8:00 AM' },
-        { code: 'BF', emoji: '🥣', desc: 'Breakfast', cost: 1, fixed: true, time: '8:30 AM' },
-        { code: 'CL', emoji: '📚', desc: 'Class / Study', cost: 3, fixed: false, time: '10:00 AM' },
-        { code: 'LN', emoji: '🍽️', desc: 'Lunch', cost: 1, fixed: true, time: '12:00 PM' },
-        { code: 'AC', emoji: '📝', desc: 'Afternoon Activity', cost: 2, fixed: false, time: '2:00 PM' },
-        { code: 'DN', emoji: '🍽️', desc: 'Dinner', cost: 1, fixed: true, time: '6:00 PM' },
-        { code: 'EV', emoji: '🌙', desc: 'Evening Wind-Down', cost: 1, fixed: false, time: '8:00 PM' }
+        { code: 'A', emoji: '💊', desc: 'Morning Medications', cost: 2, fixed: true, time: '9:00 AM' },
+        { code: 'V', emoji: '🧘', desc: 'Devotional / Meditation', cost: 1, fixed: true, time: '9:15 AM' },
+        { code: 'B', emoji: '📖', desc: 'Family Scriptures / Breakfast', cost: 2, fixed: true, time: '9:30 AM' },
+        { code: 'C', emoji: '🧩', desc: 'Word Connect Streak', cost: 1, fixed: false, time: '10:00 AM' },
+        { code: 'D', emoji: '🦉', desc: 'Duolingo Streak', cost: 1, fixed: false, time: '10:15 AM' },
+        { code: 'S', emoji: '📚', desc: 'School / Homework', cost: 3, fixed: false, time: '10:30 AM' },
+        { code: 'L', emoji: '🍽️', desc: 'Lunch', cost: 2, fixed: true, time: '12:00 PM' },
+        { code: 'I', emoji: '🧹', desc: 'Inside Chores', cost: 2, fixed: false, time: '1:00 PM' },
+        { code: 'G', emoji: '🌿', desc: 'Outside / Garden', cost: 2, fixed: false, time: '2:00 PM' },
+        { code: 'N', emoji: '🍽️', desc: 'Dinner', cost: 2, fixed: true, time: '5:30 PM' },
+        { code: 'ME', emoji: '🛁', desc: 'Self-Care / Me Time', cost: 1, fixed: false, time: '7:00 PM' },
+        { code: 'H', emoji: '🏠', desc: 'Evening Routine / House', cost: 1, fixed: false, time: '8:00 PM' },
+        { code: 'CC', emoji: '📱', desc: 'Check-in Call', cost: 1, fixed: false, time: '8:30 PM' },
+        { code: 'DD', emoji: '🌙', desc: 'Wind Down / Night Meds', cost: 1, fixed: true, time: '9:30 PM' },
+        { code: 'EE', emoji: '📿', desc: 'Evening Prayer / Journal', cost: 1, fixed: false, time: '10:00 PM' },
+        { code: 'FF', emoji: '😴', desc: 'Lights Out', cost: 0, fixed: true, time: '10:30 PM' },
+        { code: 'ZZ', emoji: '📵', desc: 'Device Off / Crash', cost: 0, fixed: true, time: '10:30 PM' }
       ],
       formula: {
         base: 20,
