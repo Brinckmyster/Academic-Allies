@@ -1091,42 +1091,20 @@
         return Promise.all([
           AA.db.collection('nope').doc(s.uid).get(),
           _fetchStudentStatus(s.uid),
-          AA.db.collection('users').doc(s.uid).get(),
-          AA.db.collection('studyActivity').doc(s.uid).get()
+          AA.db.collection('users').doc(s.uid).get()
         ]).then(function (res) {
           var nopeData = res[0].exists ? res[0].data() : null;
           var isNope   = nopeData && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope');
           var hits     = res[1];
           var userDoc  = res[2].exists ? res[2].data() : {};
-          var studyDoc = res[3].exists ? res[3].data() : {};
           var cautionDays = userDoc.alertThreshold || CAUTION_DAYS_DEFAULT;
-
-          /* Claude: 2026-03-20 — check lastSeen + studyActivity to suppress caution.
-             Same logic as status-circle.js: if the student was active on the app
-             within cautionDays (and not ONLY on Messages), skip the diamond. */
-          var hasNonMsgActivity = false;
-          var ls = userDoc.lastSeen || null;
-          if (ls && ls.timestamp) {
-            var lsDate = (typeof ls.timestamp.toDate === 'function')
-              ? ls.timestamp.toDate() : new Date(ls.timestamp);
-            var lsDaysAgo = (Date.now() - lsDate.getTime()) / 86400000;
-            if (lsDaysAgo <= cautionDays && !/messages/i.test(ls.page || '')) {
-              hasNonMsgActivity = true;
-            }
-          }
-          var la = studyDoc.lastActivity || null;
-          if (la) {
-            var laDate = (typeof la.toDate === 'function') ? la.toDate() : new Date(la);
-            var laDaysAgo = (Date.now() - laDate.getTime()) / 86400000;
-            if (laDaysAgo <= cautionDays) hasNonMsgActivity = true;
-          }
 
           var dot = 'unknown';
           if (isNope) {
             dot = 'nope';
           } else if (hits.length > 0) {
             var newestDaysAgo = hits[0].daysAgo;
-            if (newestDaysAgo > cautionDays && !hasNonMsgActivity) {
+            if (newestDaysAgo > cautionDays) {
               dot = 'caution';
             } else {
               /* Weighted average of up to ROLLING_COUNT most recent entries */
