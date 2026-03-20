@@ -65,12 +65,10 @@
   var _studyActive  = false;   /* true if study tools were used today */
   var _studyTools   = [];      /* which tools were used */
   var _studySessions = 0;      /* how many sessions today */
-  /* Claude: 2026-03-20 — broader app activity from lastSeen heartbeat.
-     Used to suppress caution diamond when student is actively using the app
-     (unless the only activity is Messages — that could mean reaching out for help). */
-  var _recentAppActivity = false;  /* true if lastSeen within CAUTION_DAYS */
-  var _lastSeenPage      = '';     /* page path from lastSeen */
-  var _recentStudyActivity = false; /* true if studyActivity.lastActivity within CAUTION_DAYS */
+  /* Claude: 2026-03-20 — caution suppression flag. Set by AA.shouldSuppressCaution()
+     which is the single source of truth (in aa-firebase.js). All three consumers
+     (status-circle, support dashboard, home page) call the same function. */
+  var _suppressCaution = false;
 
   /* ── Day-of-week → eligible segments (0=Sun … 6=Sat) ───── */
   var DAY_SEGS = [
@@ -371,10 +369,8 @@
     var el = document.getElementById('sc-banner');
     if (!el) return;
 
-    /* Claude: 2026-03-20 — same suppression logic as render(). */
-    var _bNonMsg = _studyActive || _recentStudyActivity ||
-      (_recentAppActivity && !/messages/i.test(_lastSeenPage));
-    var bannerCaution = _isCaution && !_bNonMsg;
+    /* Claude: 2026-03-20 — uses same _suppressCaution flag as render(). */
+    var bannerCaution = _isCaution && !_suppressCaution;
 
     var viewLabel = (_view === 'ring') ? 'All 5 segments' : 'Overall status';
     if (_nope) viewLabel = 'NOPE mode';
@@ -567,15 +563,9 @@
     /* Claude: 2026-03-20 — merge study tool activity into Academic segment */
     _mergeStudyActivity(_segData);
 
-    /* Claude: 2026-03-20 — suppress caution diamond when student is actively
-       using the app. If she's on the site doing things, she doesn't need a
-       "hey are you okay?" diamond. Exception: if her ONLY recent activity is
-       Messages, keep the diamond — that could mean she's reaching out for help.
-       _recentStudyActivity covers "study tools 4 days ago" even if lastSeen
-       shows Messages from 3 days ago — she was still productively using the app. */
-    var _hasNonMsgActivity = _studyActive || _recentStudyActivity ||
-      (_recentAppActivity && !/messages/i.test(_lastSeenPage));
-    var effectiveCaution = _isCaution && !_hasNonMsgActivity;
+    /* Claude: 2026-03-20 — caution suppression uses AA.shouldSuppressCaution()
+       (single source of truth in aa-firebase.js). */
+    var effectiveCaution = _isCaution && !_suppressCaution;
 
     if (_view === 'ring') {
       el.innerHTML = makeSVG(_segData);
@@ -660,25 +650,14 @@
   function _fetchStudyActivity(uid) {
     if (!window.AA || !window.AA.study || !window.AA.study.wasActiveToday) {
       _studyActive = false;
-      _recentStudyActivity = false;
       return Promise.resolve();
     }
     return window.AA.study.wasActiveToday(uid).then(function (result) {
       _studyActive = result.active;
       _studyTools = result.tools || [];
       _studySessions = result.sessions || 0;
-      /* Claude: 2026-03-20 — check if study tools were used within CAUTION_DAYS,
-         even if not today. Fixes: Messages 3 days ago + study tools 4 days ago
-         should NOT show caution diamond. */
-      if (result.lastActivity) {
-        var daysAgo = (Date.now() - result.lastActivity.getTime()) / 86400000;
-        _recentStudyActivity = daysAgo <= CAUTION_DAYS;
-      } else {
-        _recentStudyActivity = false;
-      }
     }).catch(function () {
       _studyActive = false;
-      _recentStudyActivity = false;
     });
   }
 
@@ -891,20 +870,6 @@
       if (doc.exists && doc.data().alertThreshold) {
         CAUTION_DAYS = doc.data().alertThreshold;
       }
-      /* Claude: 2026-03-20 — read lastSeen to detect recent app activity.
-         If student was on the app within CAUTION_DAYS, suppress caution diamond
-         (unless the only page was Messages — that could mean reaching out for help). */
-      var ls = (doc.exists && doc.data().lastSeen) || null;
-      if (ls && ls.timestamp) {
-        var lsDate = (typeof ls.timestamp.toDate === 'function')
-          ? ls.timestamp.toDate() : new Date(ls.timestamp);
-        var daysAgo = (Date.now() - lsDate.getTime()) / 86400000;
-        _recentAppActivity = daysAgo <= CAUTION_DAYS;
-        _lastSeenPage = ls.page || ls.pageName || '';
-      } else {
-        _recentAppActivity = false;
-        _lastSeenPage = '';
-      }
       /* Claude: 2026-03-12 — skip caution diamond for non-student roles
          (backstage-manager, support, family etc. don't do check-ins) */
       var targetRole = (doc.exists && doc.data().role) || 'student';
@@ -915,11 +880,16 @@
       var role     = (doc.exists && doc.data().role) || 'student';
       var bannerEl = document.getElementById('sc-banner');
       if (bannerEl) bannerEl.style.display = (role === 'student') ? 'none' : '';
-      /* Claude: 2026-03-20 — re-render now that lastSeen + role data is loaded.
-         If _isCaution was set by the check-in listener but _recentAppActivity
-         just resolved, this render picks up the suppression. */
-      render();
     }).catch(function() {});
+
+    /* Claude: 2026-03-20 — call centralized caution suppression (aa-firebase.js).
+       Single source of truth — same logic used by dashboard + home page dots. */
+    if (window.AA && window.AA.shouldSuppressCaution) {
+      window.AA.shouldSuppressCaution(uid, CAUTION_DAYS).then(function (result) {
+        _suppressCaution = result.suppress;
+        render();
+      });
+    }
 
     // Claude: 2026-03-08 — audit log with mirror context
     if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid) {

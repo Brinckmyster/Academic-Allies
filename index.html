@@ -1100,8 +1100,7 @@
               return Promise.all([
                 window.AA.db.collection('nope').doc(s.uid).get(),
                 _fetchStudentStatus(s.uid),
-                window.AA.db.collection('users').doc(s.uid).get(),
-                window.AA.db.collection('studyActivity').doc(s.uid).get()
+                window.AA.shouldSuppressCaution(s.uid)
               ]).then(function (res) {
                 var nopeData = res[0].exists ? res[0].data() : null;
                 var isNope   = nopeData && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope');
@@ -1111,29 +1110,10 @@
                 }
 
                 var hits = res[1];
-                var userDoc = res[2].exists ? res[2].data() : {};
-                var studyDoc = res[3].exists ? res[3].data() : {};
-                var cautionDays = (userDoc.alertThreshold && userDoc.alertThreshold.cautionDays) || CAUTION_DAYS_DEFAULT;
-
-                /* Claude: 2026-03-20 — check lastSeen + studyActivity to suppress caution.
-                   Same logic as status-circle.js: if the student was active on the app
-                   within cautionDays (and not ONLY on Messages), skip the diamond. */
-                var hasNonMsgActivity = false;
-                var ls = userDoc.lastSeen || null;
-                if (ls && ls.timestamp) {
-                  var lsDate = (typeof ls.timestamp.toDate === 'function')
-                    ? ls.timestamp.toDate() : new Date(ls.timestamp);
-                  var lsDaysAgo = (Date.now() - lsDate.getTime()) / 86400000;
-                  if (lsDaysAgo <= cautionDays && !/messages/i.test(ls.page || '')) {
-                    hasNonMsgActivity = true;
-                  }
-                }
-                var la = studyDoc.lastActivity || null;
-                if (la) {
-                  var laDate = (typeof la.toDate === 'function') ? la.toDate() : new Date(la);
-                  var laDaysAgo = (Date.now() - laDate.getTime()) / 86400000;
-                  if (laDaysAgo <= cautionDays) hasNonMsgActivity = true;
-                }
+                /* Claude: 2026-03-20 — uses AA.shouldSuppressCaution() from aa-firebase.js
+                   (single source of truth shared with status-circle + dashboard) */
+                var suppressResult = res[2];
+                var cautionDays = suppressResult.cautionDays || CAUTION_DAYS_DEFAULT;
 
                 if (hits.length === 0) {
                   return { uid: s.uid, name: s.name, dot: 'unknown', urgency: URGENCY.unknown };
@@ -1141,7 +1121,7 @@
 
                 /* Check if most recent check-in is stale */
                 var newestDaysAgo = hits[0].daysAgo;
-                if (newestDaysAgo >= cautionDays && !hasNonMsgActivity) {
+                if (newestDaysAgo >= cautionDays && !suppressResult.suppress) {
                   return { uid: s.uid, name: s.name, dot: 'caution', urgency: URGENCY.caution };
                 }
 
