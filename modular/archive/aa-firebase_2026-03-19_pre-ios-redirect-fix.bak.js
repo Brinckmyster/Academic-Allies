@@ -214,10 +214,6 @@
         // Claude: popup blocked — fall back to redirect (works everywhere)
         if (_isPopupBlocked(err)) {
           console.warn('[AA] Popup blocked — falling back to signInWithRedirect');
-          /* Claude: 2026-03-19 — Flag redirect so shared-header knows to wait
-             for getRedirectResult() before showing sign-in UI. Critical for iOS
-             Safari where onAuthStateChanged(null) fires before redirect resolves. */
-          try { sessionStorage.setItem('AA_REDIRECT_PENDING', String(Date.now())); } catch(e) {}
           return auth.signInWithRedirect(googleProvider);
         }
         if (err.code !== 'auth/account-exists-with-different-credential') throw err;
@@ -245,8 +241,6 @@
                 // Claude: popup blocked on the link step too — redirect
                 if (_isPopupBlocked(linkErr)) {
                   console.warn('[AA] Link popup blocked — falling back to redirect');
-                  /* Claude: 2026-03-19 — same redirect flag for link step */
-                  try { sessionStorage.setItem('AA_REDIRECT_PENDING', String(Date.now())); } catch(e) {}
                   return auth.signInWithRedirect(existingProvider);
                 }
                 throw linkErr;
