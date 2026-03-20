@@ -1024,6 +1024,8 @@
 
     /* Color score mapping — matches status-circle.js weighted average */
     var C_SCORE = { '#dc3545': 4, '#fd7e14': 3, '#ffc107': 2, '#28a745': 1 };
+    /* Claude: 2026-03-20 — hex → score map for AA.avgEntryColor() results */
+    var _SCORE_MAP = { '#dc3545': 4, '#fd7e14': 3, '#ffc107': 2, '#28a745': 1 };
 
     function _flagToScore(flag) {
       if (flag === 'red') return 4;
@@ -1046,12 +1048,13 @@
         String(d.getDate()).padStart(2, '0');
     }
 
-    /* Fetch up to ROLLING_COUNT recent check-ins for a student, looking back MAX_LOOKBACK days */
+    /* Claude: 2026-03-20 — returns full entries (not just flag) so we can
+       use AA.avgEntryColor() for detailed per-segment color computation. */
     function _fetchStudentStatus(uid) {
       var now = new Date();
-      var hits = []; /* { flag, daysAgo } */
+      var hits = []; /* { entry, daysAgo } */
       var promises = [];
-      for (var i = 0; i < MAX_LOOKBACK && hits.length < ROLLING_COUNT; i++) {
+      for (var i = 0; i < MAX_LOOKBACK; i++) {
         (function(daysAgo) {
           var d = new Date(now); d.setDate(d.getDate() - daysAgo);
           var key = _makeDateKey(d);
@@ -1061,7 +1064,7 @@
                 if (doc.exists) {
                   var entries = doc.data().entries || [];
                   entries.forEach(function(e) {
-                    hits.push({ flag: e.flag || 'green', daysAgo: daysAgo });
+                    hits.push({ entry: e, flag: e.flag || 'green', daysAgo: daysAgo });
                   });
                 }
               }).catch(function() {})
@@ -1109,12 +1112,17 @@
             if (newestDaysAgo > cautionDays && !suppressResult.suppress) {
               dot = 'caution';
             } else {
-              /* Weighted average of up to ROLLING_COUNT most recent entries */
+              /* Claude: 2026-03-20 — uses AA.avgEntryColor() for per-segment
+                 detail (same algorithm as status-circle.js), averaged across
+                 the most recent check-ins. Single source of truth. */
               var recent = hits.slice(0, ROLLING_COUNT);
               var total = 0;
-              recent.forEach(function(h) { total += _flagToScore(h.flag); });
+              recent.forEach(function(h) {
+                var hex = AA.avgEntryColor ? AA.avgEntryColor(h.entry) : null;
+                total += (hex ? (_SCORE_MAP[hex] || 1) : _flagToScore(h.flag));
+              });
               var avg = total / recent.length;
-              dot = _scoreToClass(avg);
+              dot = AA.scoreToClass ? AA.scoreToClass(avg) : _scoreToClass(avg);
             }
           }
 

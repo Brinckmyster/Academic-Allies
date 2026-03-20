@@ -94,9 +94,10 @@
   }
 
   /* ── Segment color from one check-in entry ─────────────── */
-  /* Returns a color hex string, or null if segment has no data.
-     Priority: new categories object → legacy string fields (backward compat) */
+  /* Claude: 2026-03-20 — delegates to AA.colorOfSegment() in aa-firebase.js
+     (single source of truth). Falls back to local logic if AA not loaded yet. */
   function colorOf(seg, e) {
+    if (window.AA && window.AA.colorOfSegment) return window.AA.colorOfSegment(seg, e);
     if (!e) return null;
 
     /* Emergency — new saves boolean, legacy saved string 'yes' */

@@ -1890,5 +1890,232 @@
     });
   };
 
+  /* ── Status color computation — single source of truth ─────────────────
+     Claude: 2026-03-20 — moved from status-circle.js so that the support
+     dashboard dots, home page dots, AND status circle all use identical
+     color logic. Previously the dots used entry.flag (coarse) while the
+     circle used per-segment colorOf() (detailed). Now both use this.
+
+     AA.colorOfSegment(segName, entry)
+       → hex color or null — per-segment color for one check-in entry
+     AA.avgEntryColor(entry)
+       → hex color or null — overall weighted average across all segments
+       Also factors in entry.flag as a tiebreaker when segments have no data.
+     AA.scoreToClass(avg)
+       → 'green'|'yellow'|'orange'|'red' from numeric score
+     ─────────────────────────────────────────────────────────────────────── */
+  var _C = {
+    green:  '#28a745',
+    yellow: '#ffc107',
+    orange: '#fd7e14',
+    red:    '#dc3545'
+  };
+  var _SCORE = {};
+  _SCORE[_C.green]  = 1;
+  _SCORE[_C.yellow] = 2;
+  _SCORE[_C.orange] = 3;
+  _SCORE[_C.red]    = 4;
+
+  var _ALL_SEGS = ['Academic','Spiritual','Mental/Emotional','Physical','Social'];
+
+  /* Mary's 10-point emoji scale → color */
+  function _emojiColor(v) {
+    if (!v || typeof v !== 'number') return null;
+    if (v >= 8) return _C.red;
+    if (v >= 6) return _C.orange;
+    if (v >= 5) return _C.yellow;
+    return _C.green;
+  }
+
+  /* Thumping bump helper */
+  function _bump(col, thumping) {
+    if (!thumping) return col;
+    if (col === _C.green || col === null) return _C.yellow;
+    return col;
+  }
+
+  /**
+   * Compute the color for one segment from one check-in entry.
+   * Returns hex color string or null if segment has no data.
+   */
+  window.AA.colorOfSegment = function (seg, e) {
+    if (!e) return null;
+
+    var emg = (e.emergency === true || e.emergency === 'yes');
+    if (emg) return _C.red;
+
+    var thumping = (e.thumping === true);
+    var cats = (e.categories && typeof e.categories === 'object') ? e.categories : null;
+
+    if (seg === 'Academic') {
+      if (cats && cats.school) {
+        var sc = cats.school;
+        if (!sc.gateway || sc.gateway === 'skip') return null;
+        var ec = _emojiColor(sc.emojiV);
+        if (ec) return ec;
+        if (sc.gateway === 'yes') return _C.green;
+        if (sc.gateway === 'no') {
+          var sch = sc.checked || [];
+          if (sch.indexOf('deadline') !== -1 ||
+              sch.indexOf('overwhelmed') !== -1 ||
+              sch.indexOf('executive') !== -1) return _C.orange;
+          return _C.yellow;
+        }
+        return null;
+      }
+      if (e.planner === true  || e.planner === 'yes') return _C.green;
+      if (e.planner === false || e.planner === 'no')  return _C.yellow;
+      return null;
+    }
+
+    if (seg === 'Social') {
+      if (cats && cats.social) {
+        var so = cats.social;
+        if (!so.gateway || so.gateway === 'skip') return null;
+        var sec = _emojiColor(so.emojiV);
+        if (sec) return sec;
+        if (so.gateway === 'yes') return _C.green;
+        if (so.gateway === 'no') {
+          var soh = so.checked || [];
+          if (soh.indexOf('isolated') !== -1 ||
+              soh.indexOf('withdrawal') !== -1) return _C.orange;
+          return _C.yellow;
+        }
+        return null;
+      }
+      if (e.support === true  || e.support === 'yes') return _C.green;
+      if (e.support === false || e.support === 'no')  return _C.yellow;
+      return null;
+    }
+
+    if (seg === 'Physical') {
+      if (cats && cats.physical) {
+        var ph = cats.physical;
+        if (!ph.gateway || ph.gateway === 'skip') return null;
+        var pec = _emojiColor(ph.emojiV);
+        if (pec) return _bump(pec, thumping);
+        if (ph.gateway === 'yes') return _bump(_C.green, thumping);
+        if (ph.gateway === 'no') {
+          var phh = ph.checked || [];
+          if (phh.indexOf('exhausted') !== -1 ||
+              phh.indexOf('pain_high') !== -1) return _bump(_C.orange, thumping);
+          return _bump(_C.yellow, thumping);
+        }
+        return null;
+      }
+      var hasSymp  = (e.symptoms === true || e.symptoms === 'yes' ||
+                      e.symptoms === false || e.symptoms === 'no');
+      var hasSleep = (e.sleep === 'yes' || e.sleep === 'no');
+      if (!hasSymp && !hasSleep) return thumping ? _C.yellow : null;
+      var sympBad = (e.symptoms === true || e.symptoms === 'yes');
+      var sleepNo = (e.sleep === 'no');
+      var cnt = Array.isArray(e.symptomList) ? e.symptomList.length : 0;
+      if (sympBad && cnt >= 3)  return _C.red;
+      if (sympBad && sleepNo)   return _bump(_C.orange, thumping);
+      if (sympBad || sleepNo)   return _bump(_C.yellow, thumping);
+      return _bump(_C.green, thumping);
+    }
+
+    if (seg === 'Mental/Emotional') {
+      if (cats && cats.mental) {
+        var mn = cats.mental;
+        if (!mn.gateway || mn.gateway === 'skip') return null;
+        var mec = _emojiColor(mn.emojiV);
+        if (mec) return _bump(mec, thumping);
+        if (mn.gateway === 'yes') return _bump(_C.green, thumping);
+        if (mn.gateway === 'no')  return _bump(_C.yellow, thumping);
+        return null;
+      }
+      var fog = (e.symptoms === true &&
+                 Array.isArray(e.symptomList) &&
+                 e.symptomList.some(function (s) {
+                   return /brain.fog|trouble.think/i.test(s);
+                 }));
+      var lvl = typeof e.energyLevel === 'number' ? e.energyLevel : 0;
+      if (lvl > 0) {
+        if (lvl >= 8)           return _bump(_C.red, thumping);
+        if (lvl >= 6)           return _bump(_C.orange, thumping);
+        if (lvl >= 5 || fog)    return _bump(_C.yellow, thumping);
+        return _bump(_C.green, thumping);
+      }
+      var m = e.mood || '';
+      if (m === 'Struggling')                   return _bump(_C.red, thumping);
+      if (m === 'Anxious')                      return _bump(_C.orange, thumping);
+      if (m === 'Okay' || m === 'Tired' || fog) return _bump(_C.yellow, thumping);
+      if (m === 'Great' || m === 'Good')        return _bump(_C.green, thumping);
+      return thumping ? _C.yellow : null;
+    }
+
+    if (seg === 'Spiritual') {
+      if (cats && cats.spiritual) {
+        var sp = cats.spiritual;
+        if (!sp.gateway || sp.gateway === 'skip') return null;
+        var spec = _emojiColor(sp.emojiV);
+        if (spec) return spec;
+        if (sp.gateway === 'yes') return _C.green;
+        if (sp.gateway === 'no')  return _C.yellow;
+      }
+      return null;
+    }
+
+    return null;
+  };
+
+  /**
+   * Compute an overall color for one check-in entry by averaging all
+   * segments. Falls back to entry.flag if no segment data is available.
+   * Returns hex color string or null.
+   */
+  window.AA.avgEntryColor = function (entry) {
+    if (!entry) return null;
+
+    var colors = [];
+    _ALL_SEGS.forEach(function (seg) {
+      var c = window.AA.colorOfSegment(seg, entry);
+      if (c !== null) colors.push(c);
+    });
+
+    /* If segments produced colors, average them */
+    if (colors.length > 0) {
+      var total = 0;
+      colors.forEach(function (c) { total += (_SCORE[c] || 1); });
+      var avg = total / colors.length;
+
+      /* Also factor in entry.flag if present — average it in as one more "vote" */
+      var flagHex = null;
+      if (entry.flag === 'red')    flagHex = _C.red;
+      if (entry.flag === 'orange') flagHex = _C.orange;
+      if (entry.flag === 'yellow') flagHex = _C.yellow;
+      if (entry.flag === 'green')  flagHex = _C.green;
+      if (flagHex) {
+        total += (_SCORE[flagHex] || 1);
+        avg = total / (colors.length + 1);
+      }
+
+      if (avg >= 3.3) return _C.red;
+      if (avg >= 2.5) return _C.orange;
+      if (avg >= 1.8) return _C.yellow;
+      return _C.green;
+    }
+
+    /* No segment data — fall back to flag only */
+    if (entry.flag === 'red')    return _C.red;
+    if (entry.flag === 'orange') return _C.orange;
+    if (entry.flag === 'yellow') return _C.yellow;
+    if (entry.flag === 'green')  return _C.green;
+    return null;
+  };
+
+  /**
+   * Convert numeric score (1-4) to CSS class name.
+   * Used by dashboard/home page dots.
+   */
+  window.AA.scoreToClass = function (avg) {
+    if (avg >= 3.3) return 'red';
+    if (avg >= 2.5) return 'orange';
+    if (avg >= 1.8) return 'yellow';
+    return 'green';
+  };
+
   console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);
 })();

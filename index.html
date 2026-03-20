@@ -970,6 +970,9 @@
       String(d.getMonth() + 1).padStart(2, '0') + '-' +
       String(d.getDate()).padStart(2, '0');
   }
+  /* Claude: 2026-03-20 — returns full entries so AA.avgEntryColor() can
+     compute detailed per-segment colors (same as status-circle.js). */
+  var _SCORE_MAP = { '#dc3545': 4, '#fd7e14': 3, '#ffc107': 2, '#28a745': 1 };
   function _fetchStudentStatus(uid) {
     var now = new Date();
     var hits = [];
@@ -984,7 +987,7 @@
               if (doc.exists) {
                 var entries = doc.data().entries || [];
                 entries.forEach(function(e) {
-                  hits.push({ flag: e.flag || 'green', daysAgo: daysAgo });
+                  hits.push({ entry: e, flag: e.flag || 'green', daysAgo: daysAgo });
                 });
               }
             }).catch(function() {})
@@ -1125,12 +1128,16 @@
                   return { uid: s.uid, name: s.name, dot: 'caution', urgency: URGENCY.caution };
                 }
 
-                /* Rolling average of up to ROLLING_COUNT most-recent entries */
+                /* Claude: 2026-03-20 — uses AA.avgEntryColor() for per-segment
+                   detail (same algorithm as status-circle.js). Single source of truth. */
                 var recent = hits.slice(0, ROLLING_COUNT);
                 var total = 0;
-                recent.forEach(function (h) { total += _flagToScore(h.flag); });
+                recent.forEach(function (h) {
+                  var hex = window.AA.avgEntryColor ? window.AA.avgEntryColor(h.entry) : null;
+                  total += (hex ? (_SCORE_MAP[hex] || 1) : _flagToScore(h.flag));
+                });
                 var avg = total / recent.length;
-                var dot = _scoreToClass(avg);
+                var dot = window.AA.scoreToClass ? window.AA.scoreToClass(avg) : _scoreToClass(avg);
 
                 return { uid: s.uid, name: s.name, dot: dot, urgency: URGENCY[dot] };
               }).catch(function () {
