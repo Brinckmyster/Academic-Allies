@@ -490,36 +490,6 @@
   var cardsLearned = 0;
   var cardsMissed = 0;
 
-  /* Claude: 2026-03-20 — Flip mode: swap terms and answers for reverse study */
-  var flipMode = false;
-
-  function getPrompt(item) { return flipMode ? item.answer : item.term; }
-  function getAnswer(item) { return flipMode ? item.term : item.answer; }
-
-  function toggleFlipMode() {
-    flipMode = !flipMode;
-    var btn = document.getElementById('flipToggle');
-    if (btn) {
-      btn.textContent = flipMode ? '🔄 Flip Mode: ON' : '🔄 Flip Mode: OFF';
-      btn.style.background = flipMode ? '#4a7f82' : '#e8f2f3';
-      btn.style.color = flipMode ? '#fff' : '#4a7f82';
-    }
-    /* Re-render current quiz with new orientation */
-    if (quizType === 'fill-blank') { renderFillBlankQuiz(); }
-    else if (quizType === 'match') { renderMatchQuiz(); }
-    else if (quizType === 'flashcards') { renderFlashcardQuiz(); }
-  }
-
-  function renderFlipToggle() {
-    return '<button id="flipToggle" onclick="toggleFlipMode()" ' +
-      'style="padding:8px 16px;font-size:12pt;border:2px solid #ddd;border-radius:8px;cursor:pointer;' +
-      'margin-bottom:16px;font-family:inherit;font-weight:600;' +
-      'background:' + (flipMode ? '#4a7f82' : '#e8f2f3') + ';' +
-      'color:' + (flipMode ? '#fff' : '#4a7f82') + ';">' +
-      (flipMode ? '🔄 Flip Mode: ON' : '🔄 Flip Mode: OFF') +
-      '</button>';
-  }
-
   function getUrlParam(name) {
     var url = new URL(window.location);
     return url.searchParams.get(name);
@@ -665,11 +635,10 @@
 
     var item = quizData.data[currentQuestion];
     var progress = ((currentQuestion) / quizData.data.length) * 100;
-    var html = renderFlipToggle() +
-      '<div class="quiz-section">' +
+    var html = '<div class="quiz-section">' +
       '<div class="progress-bar"><div class="progress-fill" style="width:' + progress + '%"></div></div>' +
       '<div class="question-num">Question ' + (currentQuestion + 1) + ' of ' + quizData.data.length + '</div>' +
-      '<div class="question">' + getPrompt(item) + '</div>' +
+      '<div class="question">' + item.term + '</div>' +
       '<input type="text" id="answerInput" class="answer-input" placeholder="Type your answer..." autocomplete="off" />' +
       '<div class="hint-box" id="hintBox"></div>' +
       '<div class="feedback" id="feedback"></div>' +
@@ -693,7 +662,7 @@
   function checkAnswer() {
     var userAnswer = document.getElementById('answerInput').value.trim();
     var item = quizData.data[currentQuestion];
-    var correctAnswer = getAnswer(item).trim();
+    var correctAnswer = item.answer.trim();
 
     if (!userAnswer) {
       document.getElementById('feedback').textContent = 'Please enter an answer.';
@@ -722,11 +691,11 @@
       feedback.textContent = 'Not quite. Correct answer: ' + correctAnswer;
       feedback.classList.add('error');
       feedback.style.display = 'block';
-      missed.push({ term: getPrompt(item), correct: correctAnswer });
+      missed.push({ term: item.term, correct: correctAnswer });
       showHints(item);
     }
 
-    answered.push({ term: getPrompt(item), answer: getAnswer(item), userAnswer: userAnswer, correct: isCorrect || isClose });
+    answered.push({ term: item.term, answer: item.answer, userAnswer: userAnswer, correct: isCorrect || isClose });
 
     document.getElementById('answerInput').disabled = true;
     document.querySelector('.btn-primary').disabled = true;
@@ -748,8 +717,8 @@
 
   function skipQuestion() {
     var item = quizData.data[currentQuestion];
-    missed.push({ term: getPrompt(item), correct: getAnswer(item) });
-    answered.push({ term: getPrompt(item), answer: getAnswer(item), userAnswer: '', correct: false });
+    missed.push({ term: item.term, correct: item.answer });
+    answered.push({ term: item.term, answer: item.answer, userAnswer: '', correct: false });
     currentQuestion++;
     showFillBlankQuestion();
   }
@@ -807,18 +776,17 @@
     matchScore = 0;
 
     var terms = quizData.data.map(function(item, idx) {
-      return { text: getPrompt(item), id: idx, type: 'term' };
+      return { text: item.term, id: idx, type: 'term' };
     });
 
     var answers = quizData.data.map(function(item, idx) {
-      return { text: getAnswer(item), correctId: idx, type: 'answer' };
+      return { text: item.answer, correctId: idx, type: 'answer' };
     });
 
     /* Shuffle answers */
     answers = answers.sort(function() { return Math.random() - 0.5; });
 
-    var html = renderFlipToggle() +
-      '<div class="quiz-section">' +
+    var html = '<div class="quiz-section">' +
       '<div class="score-section">' +
       '<div class="score-number" id="matchScore">0</div>' +
       '<div class="score-label">Pairs Matched</div>' +
@@ -934,18 +902,17 @@
     var state = flashcardState[currentQuestion];
     var progress = (currentQuestion / quizData.data.length) * 100;
 
-    var html = renderFlipToggle() +
-      '<div class="quiz-section">' +
+    var html = '<div class="quiz-section">' +
       '<div class="progress-bar"><div class="progress-fill" style="width:' + progress + '%"></div></div>' +
       '<div class="question-num">Card ' + (currentQuestion + 1) + ' of ' + quizData.data.length + '</div>' +
       '<div class="flashcard" id="flashcard" onclick="flipCard()">' +
       '<div class="flashcard-inner">' +
       '<div class="flashcard-face flashcard-front">' +
-      '<div class="flashcard-text">' + getPrompt(item) + '</div>' +
+      '<div class="flashcard-text">' + item.term + '</div>' +
       '<div class="flashcard-label">Tap to reveal answer</div>' +
       '</div>' +
       '<div class="flashcard-face flashcard-back">' +
-      '<div class="flashcard-text">' + getAnswer(item) + '</div>' +
+      '<div class="flashcard-text">' + item.answer + '</div>' +
       '<div class="flashcard-label">Tap to continue</div>' +
       '</div>' +
       '</div>' +
@@ -1054,7 +1021,6 @@
   window.nextFlashcard = nextFlashcard;
   window.retryMissed = retryMissed;
   window.retryFlashcards = retryFlashcards;
-  window.toggleFlipMode = toggleFlipMode;
 
   /* Initialize on auth state change */
   if (window.AA && window.AA.auth) {
