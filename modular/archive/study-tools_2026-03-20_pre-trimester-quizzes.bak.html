@@ -509,114 +509,63 @@ var _cfgPoll = setInterval(function() {
       _hiddenTools = hidden;
       buildPage();
     }
-    /* Claude: 2026-03-20 — Render custom quizzes INSIDE their trimester sections.
-       Quizzes with a trimester field go into the matching semester body.
-       Quizzes without a trimester go into a fallback "Custom Quizzes" section.
-       Within each location, quizzes are grouped by class (text before the colon). */
+    /* Claude: 2026-03-20 — Group custom quizzes by class with collapsible sections */
     var customQuizzes = window.AA_CONFIG.get('quizzes', []);
     if (customQuizzes && customQuizzes.length > 0) {
-
-      /* Sort quizzes by trimester, then group by class within each */
-      var byTrimester = {};  /* trimesterId → [{quiz, idx, shortTitle}] */
-      var orphans = [];       /* quizzes without a trimester field */
-
+      /* Group quizzes by class prefix (text before the first colon) */
+      var groups = {};
+      var groupOrder = [];
       customQuizzes.forEach(function(quiz, idx) {
         var title = quiz.title || 'Custom Quiz';
         var colonIdx = title.indexOf(':');
+        var groupName = colonIdx > -1 ? title.substring(0, colonIdx).trim() : 'Other';
+        /* Strip the class prefix from the display title */
         var shortTitle = colonIdx > -1 ? title.substring(colonIdx + 1).trim() : title;
-        var entry = { quiz: quiz, idx: idx, shortTitle: shortTitle };
-
-        if (quiz.trimester) {
-          if (!byTrimester[quiz.trimester]) byTrimester[quiz.trimester] = [];
-          byTrimester[quiz.trimester].push(entry);
-        } else {
-          orphans.push(entry);
+        if (!groups[groupName]) {
+          groups[groupName] = [];
+          groupOrder.push(groupName);
         }
+        groups[groupName].push({ quiz: quiz, idx: idx, shortTitle: shortTitle });
       });
 
-      /* Helper: build quiz cards grouped by class prefix */
-      function buildQuizGroup(entries) {
-        var groups = {};
-        var groupOrder = [];
-        entries.forEach(function(entry) {
-          var title = entry.quiz.title || '';
-          var colonIdx = title.indexOf(':');
-          var groupName = colonIdx > -1 ? title.substring(0, colonIdx).trim() : 'Other';
-          if (!groups[groupName]) { groups[groupName] = []; groupOrder.push(groupName); }
-          groups[groupName].push(entry);
+      var customHtml = '<div style="margin-top: 24px;">';
+      customHtml += '<h2 style="color: #6CA0A3; font-size: 16pt; margin-bottom: 12px;">Custom Quizzes</h2>';
+
+      groupOrder.forEach(function(groupName) {
+        var groupId = 'quiz-group-' + groupName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+        var quizCount = groups[groupName].length;
+
+        /* Collapsible group heading — reuses semester-heading styles */
+        customHtml += '<div class="semester-heading" onclick="var b=document.getElementById(\'' + groupId + '\');var a=this.querySelector(\'.toggle-arrow\');if(b.classList.contains(\'collapsed\')){b.classList.remove(\'collapsed\');b.style.maxHeight=b.scrollHeight+\'px\';a.classList.remove(\'collapsed\');}else{b.classList.add(\'collapsed\');b.style.maxHeight=\'0\';a.classList.add(\'collapsed\');}">';
+        customHtml += '<h2>' + groupName + '</h2>';
+        customHtml += '<div class="sem-meta">';
+        customHtml += '<span class="sem-badge">' + quizCount + ' quiz' + (quizCount !== 1 ? 'zes' : '') + '</span>';
+        customHtml += '<span class="toggle-arrow collapsed">▼</span>';
+        customHtml += '</div></div>';
+
+        /* Group body — starts collapsed */
+        customHtml += '<div class="semester-body collapsed" id="' + groupId + '" style="max-height: 0;">';
+        groups[groupName].forEach(function(entry) {
+          var quiz = entry.quiz;
+          var typeIcon = quiz.type === 'fill-blank' ? '✏️ ' : quiz.type === 'match' ? '🎯 ' : '🃏 ';
+          var typeLabel = quiz.type === 'fill-blank' ? 'Fill-in-the-Blank' : quiz.type === 'match' ? 'Match Game' : 'Flashcards';
+          var itemCount = quiz.data ? quiz.data.length : 0;
+
+          customHtml += '<div class="tool-card">';
+          customHtml += '<h3>' + typeIcon + entry.shortTitle + '</h3>';
+          customHtml += '<p>' + (quiz.description || '') + '</p>';
+          customHtml += '<div class="tags">';
+          customHtml += '<span class="tag">' + typeLabel + '</span>';
+          if (itemCount > 0) customHtml += '<span class="tag">' + itemCount + ' items</span>';
+          customHtml += '</div>';
+          customHtml += '<a href="/Academic-Allies/modular/static/custom-quiz.html?quiz=' + entry.idx + '" class="play-btn">Start Quiz</a>';
+          customHtml += '</div>';
         });
+        customHtml += '</div>';
+      });
 
-        var html = '';
-        groupOrder.forEach(function(groupName) {
-          var groupId = 'quiz-group-' + groupName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() + '-' + Date.now();
-          var quizCount = groups[groupName].length;
-
-          html += '<div style="margin: 16px 0 8px; padding: 8px 12px; background: rgba(108,160,163,0.1); border-radius: 8px;">';
-          html += '<div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="var b=document.getElementById(\'' + groupId + '\');if(b.style.display===\'none\'){b.style.display=\'block\';}else{b.style.display=\'none\';}">';
-          html += '<strong style="color: #4a7f82;">' + groupName + '</strong>';
-          html += '<span style="color:#888; font-size:0.85rem;">' + quizCount + ' quiz' + (quizCount !== 1 ? 'zes' : '') + ' ▼</span>';
-          html += '</div>';
-          html += '<div id="' + groupId + '">';
-
-          groups[groupName].forEach(function(entry) {
-            var quiz = entry.quiz;
-            var typeIcon = quiz.type === 'fill-blank' ? '✏️ ' : quiz.type === 'match' ? '🎯 ' : '🃏 ';
-            var typeLabel = quiz.type === 'fill-blank' ? 'Fill-in-the-Blank' : quiz.type === 'match' ? 'Match Game' : 'Flashcards';
-            var itemCount = quiz.data ? quiz.data.length : 0;
-
-            html += '<div class="tool-card">';
-            html += '<h3>' + typeIcon + entry.shortTitle + '</h3>';
-            html += '<p>' + (quiz.description || '') + '</p>';
-            html += '<div class="tags">';
-            html += '<span class="tag">' + typeLabel + '</span>';
-            if (itemCount > 0) html += '<span class="tag">' + itemCount + ' items</span>';
-            html += '</div>';
-            html += '<a href="/Academic-Allies/modular/static/custom-quiz.html?quiz=' + entry.idx + '" class="play-btn">Start Quiz</a>';
-            html += '</div>';
-          });
-
-          html += '</div></div>';
-        });
-        return html;
-      }
-
-      /* Inject quizzes into their trimester sections */
-      for (var trimId in byTrimester) {
-        var semBody = document.getElementById('sem-body-' + trimId);
-        if (semBody) {
-          var quizHtml = '<div style="margin-top: 16px; border-top: 2px solid #e8f2f3; padding-top: 12px;">';
-          quizHtml += '<h3 style="color: #6CA0A3; font-size: 13pt; margin-bottom: 4px;">Custom Quizzes</h3>';
-          quizHtml += buildQuizGroup(byTrimester[trimId]);
-          quizHtml += '</div>';
-          semBody.innerHTML += quizHtml;
-
-          /* Recalculate max-height if section is expanded */
-          if (!semBody.classList.contains('collapsed')) {
-            semBody.style.maxHeight = semBody.scrollHeight + 'px';
-          }
-        } else {
-          /* Trimester ID doesn't match any section — treat as orphans */
-          orphans = orphans.concat(byTrimester[trimId]);
-        }
-      }
-
-      /* Fallback section for quizzes without a trimester */
-      if (orphans.length > 0) {
-        var fallbackHtml = '<div style="margin-top: 24px;">';
-        fallbackHtml += '<div class="semester-heading" onclick="toggleSemester(\'orphan-quizzes\')">';
-        fallbackHtml += '<h2>Custom Quizzes</h2>';
-        fallbackHtml += '<div class="sem-meta">';
-        fallbackHtml += '<span class="sem-badge">' + orphans.length + ' quiz' + (orphans.length !== 1 ? 'zes' : '') + '</span>';
-        fallbackHtml += '<span class="toggle-arrow" id="sem-arrow-orphan-quizzes">▼</span>';
-        fallbackHtml += '</div></div>';
-        fallbackHtml += '<div class="semester-body" id="sem-body-orphan-quizzes">';
-        fallbackHtml += buildQuizGroup(orphans);
-        fallbackHtml += '</div></div>';
-        document.getElementById('semesterContent').innerHTML += fallbackHtml;
-        /* Set max-height for orphan section */
-        var orphanBody = document.getElementById('sem-body-orphan-quizzes');
-        if (orphanBody) orphanBody.style.maxHeight = orphanBody.scrollHeight + 'px';
-      }
+      customHtml += '</div>';
+      document.getElementById('semesterContent').innerHTML += customHtml;
     }
   }).catch(function(err) {
     console.warn('[Study Tools] Custom quiz load failed:', err);
