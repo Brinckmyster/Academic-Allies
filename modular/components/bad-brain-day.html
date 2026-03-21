@@ -754,11 +754,12 @@ function _loadBBDChoices(uid) {
 
 /* ── Toggle a section ────────────────────────────────────────── */
 function toggleSection(key, checked) {
-  /* Mirror guard */
-  if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+  /* Claude: 2026-03-21 — Mirror mode: allow local toggling for navigation
+     but skip saving to the student's data. Student is sudo. */
+  var isMirrorReadOnly = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE);
 
   bbdVisible[key] = checked;
-  _saveBBDChoices();
+  if (!isMirrorReadOnly) { _saveBBDChoices(); }
 
   var item = document.getElementById('item-' + key);
   if (item) item.classList.toggle('active', checked);
