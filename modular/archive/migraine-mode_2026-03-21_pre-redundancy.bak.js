@@ -79,81 +79,21 @@
   }
 
   /* ── Save to Firestore so network sees banner ── */
-  /* Claude: 2026-03-21 — Triple redundancy (Mary-proof):
-     Layer 1: localStorage (synchronous, guaranteed)
-     Layer 2: Firestore primary cloud write
-     Layer 3: Retry queue if Firestore fails */
   function saveToFirestore(active) {
     function _save() {
       if (!window.AA || !window.AA.auth || !window.AA.db) return;
       var user = window.AA.auth.currentUser;
       if (!user) return;
-
-      /* Layer 1: localStorage backup FIRST (synchronous, survives connection loss) */
-      try {
-        localStorage.setItem('AA_MIGRAINE_BACKUP_' + user.uid, JSON.stringify({ migraineMode: active, savedAt: new Date().toISOString() }));
-        console.log('[MigraineMode] Layer 1 — localStorage backup saved');
-      } catch(lsErr) {
-        try { sessionStorage.setItem('AA_MIGRAINE_BACKUP_' + user.uid, JSON.stringify({ migraineMode: active })); } catch(ssErr) {}
-      }
-
-      /* Layer 2: Firestore write with timeout */
-      var saveTimeout = setTimeout(function() {
-        console.warn('[MigraineMode] Firestore save timed out after 8s — queuing retry');
-        /* Layer 3: Queue for retry */
-        try {
-          var queue = JSON.parse(localStorage.getItem('AA_MIGRAINE_RETRY_QUEUE') || '[]');
-          queue.push({ uid: user.uid, active: active, queuedAt: new Date().toISOString() });
-          if (queue.length > 10) queue = queue.slice(-10);
-          localStorage.setItem('AA_MIGRAINE_RETRY_QUEUE', JSON.stringify(queue));
-        } catch(e) {}
-      }, 8000);
-
       window.AA.db.collection('users').doc(user.uid)
         .update({ migraineMode: active })
-        .then(function() {
-          clearTimeout(saveTimeout);
-          /* Clean up localStorage backup on success */
-          try { localStorage.removeItem('AA_MIGRAINE_BACKUP_' + user.uid); } catch(e) {}
-          console.log('[MigraineMode] Layer 2 — Firestore saved');
-        })
-        .catch(function (err) {
-          clearTimeout(saveTimeout);
-          console.warn('[MigraineMode] Firestore save failed:', err);
-          /* Layer 3: Queue for retry */
-          try {
-            var queue = JSON.parse(localStorage.getItem('AA_MIGRAINE_RETRY_QUEUE') || '[]');
-            queue.push({ uid: user.uid, active: active, queuedAt: new Date().toISOString() });
-            if (queue.length > 10) queue = queue.slice(-10);
-            localStorage.setItem('AA_MIGRAINE_RETRY_QUEUE', JSON.stringify(queue));
-          } catch(e2) {}
-        });
+        .catch(function (err) { console.warn('[MigraineMode] Firestore save failed:', err); });
     }
-
-    /* Process any pending retries from previous failures */
-    function _processRetryQueue() {
-      try {
-        var queue = JSON.parse(localStorage.getItem('AA_MIGRAINE_RETRY_QUEUE') || '[]');
-        if (queue.length === 0) return;
-        console.log('[MigraineMode] Processing', queue.length, 'queued retries');
-        localStorage.removeItem('AA_MIGRAINE_RETRY_QUEUE');
-        queue.forEach(function(item) {
-          if (window.AA && window.AA.db) {
-            window.AA.db.collection('users').doc(item.uid)
-              .update({ migraineMode: item.active })
-              .then(function() { console.log('[MigraineMode] Retry succeeded for', item.uid); })
-              .catch(function() { /* give up silently — user will toggle again */ });
-          }
-        });
-      } catch(e) {}
-    }
-
     // Wait for AA to be ready
-    if (window.AA && window.AA.auth && window.AA.db) { _processRetryQueue(); _save(); return; }
+    if (window.AA && window.AA.auth && window.AA.db) { _save(); return; }
     var tries = 0;
     var poll = setInterval(function () {
       tries++;
-      if (window.AA && window.AA.auth && window.AA.db) { clearInterval(poll); _processRetryQueue(); _save(); }
+      if (window.AA && window.AA.auth && window.AA.db) { clearInterval(poll); _save(); }
       if (tries > 30) clearInterval(poll);
     }, 200);
   }

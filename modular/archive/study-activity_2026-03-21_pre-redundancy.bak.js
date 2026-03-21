@@ -67,57 +67,6 @@
   var _cacheTime = 0;
   var CACHE_TTL = 30000; /* 30 seconds */
 
-  /* Claude: 2026-03-21 — Triple redundancy helpers (Mary-proof):
-     Layer 1: localStorage backup (synchronous, guaranteed)
-     Layer 2: Firestore primary cloud write
-     Layer 3: Retry queue if Firestore fails */
-  function _backupLocal(uid, key, data) {
-    try {
-      var lsKey = 'AA_STUDY_BACKUP_' + uid;
-      var all = JSON.parse(localStorage.getItem(lsKey) || '{}');
-      all[key] = { data: data, savedAt: new Date().toISOString() };
-      localStorage.setItem(lsKey, JSON.stringify(all));
-    } catch(e) {
-      try {
-        var ssKey = 'AA_STUDY_BACKUP_' + uid;
-        var all2 = JSON.parse(sessionStorage.getItem(ssKey) || '{}');
-        all2[key] = { data: data, savedAt: new Date().toISOString() };
-        sessionStorage.setItem(ssKey, JSON.stringify(all2));
-      } catch(e2) {}
-    }
-  }
-
-  function _queueStudyRetry(uid, action, payload) {
-    try {
-      var queue = JSON.parse(localStorage.getItem('AA_STUDY_RETRY_QUEUE') || '[]');
-      queue.push({ uid: uid, action: action, payload: payload, queuedAt: new Date().toISOString() });
-      if (queue.length > 20) queue = queue.slice(-20);
-      localStorage.setItem('AA_STUDY_RETRY_QUEUE', JSON.stringify(queue));
-      console.log('[AA Study] Queued retry:', action);
-    } catch(e) {}
-  }
-
-  function _processStudyRetryQueue() {
-    try {
-      var queue = JSON.parse(localStorage.getItem('AA_STUDY_RETRY_QUEUE') || '[]');
-      if (queue.length === 0) return;
-      console.log('[AA Study] Processing', queue.length, 'queued retries');
-      localStorage.removeItem('AA_STUDY_RETRY_QUEUE');
-      queue.forEach(function(item) {
-        if (!window.AA || !window.AA.db) return;
-        var ref = window.AA.db.collection('studyActivity').doc(item.uid);
-        if (item.action === 'logSession' || item.action === 'saveBest' || item.action === 'addMiss' || item.action === 'removeMiss') {
-          ref.set(item.payload, { merge: true })
-            .then(function() { console.log('[AA Study] Retry succeeded:', item.action); })
-            .catch(function() { /* give up silently */ });
-        } else if (item.action === 'resetMissed') {
-          ref.update({ missed: firebase.firestore.FieldValue.delete() })
-            .catch(function() {});
-        }
-      });
-    } catch(e) {}
-  }
-
   function _getDoc(uid) {
     var now = Date.now();
     if (_cache && _cacheUid === uid && (now - _cacheTime) < CACHE_TTL) {
@@ -157,7 +106,6 @@
   var study = {};
 
   /* ── logSession(toolId) — call when student finishes a round ─ */
-  /* Claude: 2026-03-21 — triple redundancy wrapper */
   study.logSession = function (toolId) {
     if (_isReadOnly()) return Promise.resolve();
     var uid = _uid();
@@ -182,22 +130,9 @@
         lastActivity: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      /* Layer 1: localStorage backup */
-      _backupLocal(uid, 'logSession', update);
-
-      return (snap.exists ? _docRef(uid).update(update) : _docRef(uid).set(update))
-        .then(function() {
-          console.log('[AA Study] logSession saved to Firestore');
-        })
-        .catch(function(err) {
-          console.warn('[AA Study] logSession Firestore failed:', err.message);
-          /* Layer 3: queue for retry */
-          _queueStudyRetry(uid, 'logSession', update);
-        });
-    }).catch(function(err) {
-      console.warn('[AA Study] logSession read failed:', err.message);
-      /* Layer 3: queue a basic session log for retry */
-      _queueStudyRetry(uid, 'logSession', { todayDate: today, lastActivity: new Date().toISOString() });
+      return snap.exists
+        ? _docRef(uid).update(update)
+        : _docRef(uid).set(update);
     });
   };
 
@@ -213,7 +148,6 @@
   };
 
   /* ── saveBest(key, scoreObj) — only saves if better ──────── */
-  /* Claude: 2026-03-21 — triple redundancy wrapper */
   study.saveBest = function (key, scoreObj) {
     if (_isReadOnly()) return Promise.resolve();
     var uid = _uid();
@@ -225,32 +159,14 @@
     update[field] = scoreObj;
     update.lastActivity = firebase.firestore.FieldValue.serverTimestamp();
 
-    /* Layer 1: localStorage backup */
-    _backupLocal(uid, 'best_' + key, scoreObj);
-
     return _docRef(uid).get().then(function (snap) {
-      var writePromise;
       if (!snap.exists) {
         var full = { bests: {} };
         full.bests[key] = scoreObj;
         full.lastActivity = firebase.firestore.FieldValue.serverTimestamp();
-        writePromise = _docRef(uid).set(full, { merge: true });
-      } else {
-        writePromise = _docRef(uid).update(update);
+        return _docRef(uid).set(full, { merge: true });
       }
-      return writePromise
-        .then(function() { console.log('[AA Study] saveBest saved to Firestore'); })
-        .catch(function(err) {
-          console.warn('[AA Study] saveBest Firestore failed:', err.message);
-          var payload = { bests: {} };
-          payload.bests[key] = scoreObj;
-          _queueStudyRetry(uid, 'saveBest', payload);
-        });
-    }).catch(function(err) {
-      console.warn('[AA Study] saveBest read failed:', err.message);
-      var payload = { bests: {} };
-      payload.bests[key] = scoreObj;
-      _queueStudyRetry(uid, 'saveBest', payload);
+      return _docRef(uid).update(update);
     });
   };
 
@@ -265,7 +181,6 @@
   };
 
   /* ── addMiss(flower) — increment miss count ──────────────── */
-  /* Claude: 2026-03-21 — triple redundancy wrapper */
   study.addMiss = function (flower) {
     if (_isReadOnly()) return Promise.resolve();
     var uid = _uid();
@@ -276,28 +191,15 @@
       var data = snap.exists ? snap.data() : {};
       var missed = data.missed || {};
       missed[flower] = (missed[flower] || 0) + 1;
-
-      /* Layer 1: localStorage backup */
-      _backupLocal(uid, 'missed', missed);
-
-      var writePromise = snap.exists
-        ? _docRef(uid).update({ missed: missed })
-        : _docRef(uid).set({ missed: missed }, { merge: true });
-
-      return writePromise
-        .then(function() { console.log('[AA Study] addMiss saved to Firestore'); })
-        .catch(function(err) {
-          console.warn('[AA Study] addMiss Firestore failed:', err.message);
-          _queueStudyRetry(uid, 'addMiss', { missed: missed });
-        });
-    }).catch(function(err) {
-      console.warn('[AA Study] addMiss read failed:', err.message);
-      _queueStudyRetry(uid, 'addMiss', { missed: {} });
+      if (snap.exists) {
+        return _docRef(uid).update({ missed: missed });
+      } else {
+        return _docRef(uid).set({ missed: missed }, { merge: true });
+      }
     });
   };
 
   /* ── removeMiss(flower) — decrement miss count ───────────── */
-  /* Claude: 2026-03-21 — triple redundancy wrapper */
   study.removeMiss = function (flower) {
     if (_isReadOnly()) return Promise.resolve();
     var uid = _uid();
@@ -311,50 +213,24 @@
         missed[flower] = missed[flower] - 1;
         if (missed[flower] <= 0) delete missed[flower];
       }
-
-      /* Layer 1: localStorage backup */
-      _backupLocal(uid, 'missed', missed);
-
-      var writePromise = snap.exists
-        ? _docRef(uid).update({ missed: missed })
-        : _docRef(uid).set({ missed: missed }, { merge: true });
-
-      return writePromise
-        .then(function() { console.log('[AA Study] removeMiss saved to Firestore'); })
-        .catch(function(err) {
-          console.warn('[AA Study] removeMiss Firestore failed:', err.message);
-          _queueStudyRetry(uid, 'removeMiss', { missed: missed });
-        });
-    }).catch(function(err) {
-      console.warn('[AA Study] removeMiss read failed:', err.message);
+      if (snap.exists) {
+        return _docRef(uid).update({ missed: missed });
+      } else {
+        return _docRef(uid).set({ missed: missed }, { merge: true });
+      }
     });
   };
 
   /* ── resetMissed() — clear all missed data ───────────────── */
-  /* Claude: 2026-03-21 — triple redundancy wrapper */
   study.resetMissed = function () {
     if (_isReadOnly()) return Promise.resolve();
     var uid = _uid();
     if (!uid) return Promise.resolve();
 
     _invalidateCache();
-
-    /* Layer 1: clear localStorage backup */
-    try {
-      var lsKey = 'AA_STUDY_BACKUP_' + uid;
-      var all = JSON.parse(localStorage.getItem(lsKey) || '{}');
-      delete all.missed;
-      localStorage.setItem(lsKey, JSON.stringify(all));
-    } catch(e) {}
-
     return _docRef(uid).update({
       missed: firebase.firestore.FieldValue.delete()
-    }).then(function() {
-      console.log('[AA Study] resetMissed saved to Firestore');
-    }).catch(function (err) {
-      console.warn('[AA Study] resetMissed Firestore failed:', err.message);
-      _queueStudyRetry(uid, 'resetMissed', {});
-    });
+    }).catch(function () { /* doc may not exist yet */ });
   };
 
   /* ── wasActiveToday(uid) — for status circle to call ─────── */
@@ -493,10 +369,9 @@
   }
   _attach();
 
-  /* Auto-migrate on auth + process retry queue */
+  /* Auto-migrate on auth */
   _waitForAuth(function () {
     _attach();
-    _processStudyRetryQueue();
     study.migrate();
   });
 })();

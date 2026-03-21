@@ -564,56 +564,169 @@
       '</div>';
   }
 
-  /* Claude: 2026-03-21 — Save quiz progress to Firestore */
+  /* Claude: 2026-03-21 — Save quiz progress with TRIPLE REDUNDANCY:
+     Layer 1: Firestore (primary cloud store)
+     Layer 2: localStorage (survives connection loss + app crashes)
+     Layer 3: Retry queue (retries failed Firestore writes on next quiz load)
+     Mary breaks electronics — every save path needs 3+ fallback layers. */
+
+  function _buildProgressEntry(scoreVal, total, missedItems) {
+    var key = 'quiz_' + quizIndex;
+    /* Read existing best from localStorage in case Firestore read fails */
+    var localAll = {};
+    try { localAll = JSON.parse(localStorage.getItem('AA_QUIZ_PROGRESS_' + _quizUid) || '{}'); } catch(e) {}
+    var prev = localAll[key] || {};
+    var pct = Math.round((scoreVal / total) * 100);
+    var bestPct = prev.bestPct || 0;
+
+    return {
+      title: quizData.title || '',
+      lastScore: scoreVal,
+      lastTotal: total,
+      lastPct: pct,
+      bestPct: Math.max(pct, bestPct),
+      lastAttempt: new Date().toISOString(),
+      missedItems: (missedItems || []).slice(0, 50)
+    };
+  }
+
+  /* Layer 2: Always save to localStorage (synchronous, never fails on mobile) */
+  function _saveProgressLocal(key, entry) {
+    try {
+      var lsKey = 'AA_QUIZ_PROGRESS_' + _quizUid;
+      var all = JSON.parse(localStorage.getItem(lsKey) || '{}');
+      all[key] = entry;
+      localStorage.setItem(lsKey, JSON.stringify(all));
+      console.log('[Quiz] Layer 2 — localStorage saved for ' + key);
+    } catch(e) {
+      /* Layer 2b: sessionStorage fallback if localStorage is full */
+      try {
+        var ssKey = 'AA_QUIZ_PROGRESS_' + _quizUid;
+        var all2 = JSON.parse(sessionStorage.getItem(ssKey) || '{}');
+        all2[key] = entry;
+        sessionStorage.setItem(ssKey, JSON.stringify(all2));
+        console.log('[Quiz] Layer 2b — sessionStorage fallback saved for ' + key);
+      } catch(e2) { console.warn('[Quiz] Both local + session storage failed:', e2); }
+    }
+  }
+
+  /* Layer 3: Queue failed Firestore writes for retry */
+  function _queueRetry(uid, key, entry) {
+    try {
+      var queue = JSON.parse(localStorage.getItem('AA_QUIZ_RETRY_QUEUE') || '[]');
+      queue.push({ uid: uid, key: key, entry: entry, queuedAt: new Date().toISOString() });
+      /* Cap queue at 20 to avoid localStorage bloat */
+      if (queue.length > 20) queue = queue.slice(-20);
+      localStorage.setItem('AA_QUIZ_RETRY_QUEUE', JSON.stringify(queue));
+      console.log('[Quiz] Layer 3 — queued for retry: ' + key);
+    } catch(e) { console.warn('[Quiz] Retry queue save failed:', e); }
+  }
+
+  /* Process any pending retries from previous sessions */
+  function _processRetryQueue() {
+    try {
+      var queue = JSON.parse(localStorage.getItem('AA_QUIZ_RETRY_QUEUE') || '[]');
+      if (queue.length === 0) return;
+      var db = firebase.firestore();
+      var remaining = [];
+      var processed = 0;
+
+      queue.forEach(function(item) {
+        var update = {};
+        update[item.key] = item.entry;
+        db.collection('quizProgress').doc(item.uid).set(update, { merge: true })
+          .then(function() {
+            processed++;
+            console.log('[Quiz] Retry succeeded: ' + item.key);
+          })
+          .catch(function() {
+            remaining.push(item); /* still failed, keep in queue */
+          })
+          .finally(function() {
+            if (processed + remaining.length === queue.length) {
+              localStorage.setItem('AA_QUIZ_RETRY_QUEUE', JSON.stringify(remaining));
+            }
+          });
+      });
+    } catch(e) { /* ignore */ }
+  }
+
   function saveQuizProgress(scoreVal, total, missedItems) {
     if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return; /* mirror guard */
-    var db = firebase.firestore();
     var uid = _quizUid;
     if (!uid || quizIndex === undefined) return;
 
+    var key = 'quiz_' + quizIndex;
+    var entry = _buildProgressEntry(scoreVal, total, missedItems);
+
+    /* Layer 2: localStorage FIRST (synchronous, guaranteed) */
+    _saveProgressLocal(key, entry);
+
+    /* Layer 1: Firestore (async, may fail on flaky connection) */
+    var db = firebase.firestore();
     var progressRef = db.collection('quizProgress').doc(uid);
-    progressRef.get().then(function(doc) {
-      var data = doc.exists ? doc.data() : {};
-      var key = 'quiz_' + quizIndex;
-      var prev = data[key] || {};
-      var pct = Math.round((scoreVal / total) * 100);
-      var bestPct = prev.bestPct || 0;
+    var update = {};
+    update[key] = entry;
 
-      var update = {};
-      update[key] = {
-        title: quizData.title || '',
-        lastScore: scoreVal,
-        lastTotal: total,
-        lastPct: pct,
-        bestPct: Math.max(pct, bestPct),
-        lastAttempt: new Date().toISOString(),
-        missedItems: (missedItems || []).slice(0, 50) /* cap at 50 to stay within Firestore limits */
-      };
+    var saveTimeout = setTimeout(function() {
+      console.warn('[Quiz] Firestore save timed out after 10s — data safe in localStorage');
+      _queueRetry(uid, key, entry); /* Layer 3 */
+    }, 10000);
 
-      return progressRef.set(update, { merge: true });
-    }).then(function() {
-      console.log('[Quiz] Progress saved for quiz ' + quizIndex);
+    progressRef.set(update, { merge: true }).then(function() {
+      clearTimeout(saveTimeout);
+      console.log('[Quiz] Layer 1 — Firestore saved for ' + key);
     }).catch(function(e) {
-      console.warn('[Quiz] Failed to save progress:', e);
+      clearTimeout(saveTimeout);
+      console.warn('[Quiz] Firestore save failed:', e);
+      _queueRetry(uid, key, entry); /* Layer 3 */
     });
   }
 
-  /* Claude: 2026-03-21 — Load saved missed items for "Study Missed" mode */
+  /* Claude: 2026-03-21 — Load saved missed items with triple fallback:
+     Try Firestore first, fall back to localStorage, then sessionStorage */
   function loadSavedMissed() {
-    var db = firebase.firestore();
     var uid = _quizUid;
     if (!uid) return;
+    var key = 'quiz_' + quizIndex;
 
+    /* Try localStorage first (faster, always available) */
+    var localEntry = null;
+    try {
+      var localAll = JSON.parse(localStorage.getItem('AA_QUIZ_PROGRESS_' + uid) || '{}');
+      localEntry = localAll[key] || null;
+    } catch(e) {}
+
+    /* Also try Firestore for freshest data */
+    var db = firebase.firestore();
     var progressRef = db.collection('quizProgress').doc(uid);
+
+    var loadTimeout = setTimeout(function() {
+      console.warn('[Quiz] Firestore load timed out — using localStorage');
+      _useMissedData(localEntry);
+    }, 8000);
+
     progressRef.get().then(function(doc) {
-      if (!doc.exists) { alert('No previous attempts found for this quiz.'); return; }
-      var data = doc.data();
-      var key = 'quiz_' + quizIndex;
-      var prev = data[key];
-      if (!prev || !prev.missedItems || prev.missedItems.length === 0) {
-        alert('No missed items from your last attempt — you got them all!');
-        return;
+      clearTimeout(loadTimeout);
+      var prev = null;
+      if (doc.exists) {
+        var data = doc.data();
+        prev = data[key] || null;
       }
+      /* Use Firestore data if available, else localStorage */
+      _useMissedData(prev || localEntry);
+    }).catch(function(e) {
+      clearTimeout(loadTimeout);
+      console.warn('[Quiz] Firestore load failed, using localStorage:', e);
+      _useMissedData(localEntry);
+    });
+  }
+
+  function _useMissedData(prev) {
+    if (!prev || !prev.missedItems || prev.missedItems.length === 0) {
+      alert('No missed items from your last attempt — you got them all!');
+      return;
+    }
 
       /* Build quiz data from saved missed items */
       var missedTerms = {};
@@ -1201,6 +1314,7 @@
   if (window.AA && window.AA.auth) {
     window.AA.auth.onAuthStateChanged(function(user) {
       if (user) {
+        _processRetryQueue(); /* Layer 3: flush any queued saves from previous sessions */
         loadQuiz();
       } else {
         showError('Not Signed In', 'Please sign in to access this quiz.');

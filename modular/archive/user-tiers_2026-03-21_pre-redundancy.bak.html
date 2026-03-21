@@ -966,52 +966,24 @@
 
       if (statusEl) { statusEl.style.color = '#888'; statusEl.textContent = 'Saving…'; }
 
-      /* Claude: 2026-03-21 — Triple redundancy (Mary-proof):
-         Layer 1: localStorage backup (synchronous, guaranteed)
-         Layer 2: Firestore primary cloud write
-         Layer 3: Auto-retry up to 3 times with exponential backoff */
-
-      /* Layer 1: localStorage backup FIRST */
-      try {
-        localStorage.setItem('AA_PERMS_BACKUP_' + currentStudentUid + '_' + memberUid, JSON.stringify(overrides));
-        console.log('[UserTiers] Layer 1 — localStorage backup saved for', memberUid);
-      } catch(lsErr) {
-        try { sessionStorage.setItem('AA_PERMS_BACKUP_' + currentStudentUid + '_' + memberUid, JSON.stringify(overrides)); } catch(ssErr) {}
-      }
-
       /* Write to Firestore: users/{studentUid}.networkPermissions.{memberUid} */
       var update = {};
       update['networkPermissions.' + memberUid] = overrides;
-
-      var _permRetries = 0;
-      function _attemptPermSave() {
-        AA.db.collection('users').doc(currentStudentUid).update(update)
-          .then(function() {
-            _loadedNetworkPerms[memberUid] = overrides;
-            if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Permissions saved!'; }
-            setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 3000);
-            /* Claude: 2026-03-16 — restore button state on success */
-            if (btn) { btn.disabled = false; btn.textContent = origText; }
-            /* Claude: 2026-03-09 — audit log */
-            if (AA.logAccess) AA.logAccess('write', currentStudentUid, 'networkPermissions');
-            /* Clean up localStorage backup on success */
-            try { localStorage.removeItem('AA_PERMS_BACKUP_' + currentStudentUid + '_' + memberUid); } catch(e) {}
-          })
-          .catch(function(err) {
-            _permRetries++;
-            if (_permRetries < 3) {
-              /* Layer 3: Auto-retry with backoff */
-              console.warn('[UserTiers] Retry', _permRetries, 'for perm save:', err.message);
-              if (statusEl) { statusEl.style.color = '#888'; statusEl.textContent = 'Retrying… (' + _permRetries + '/3)'; }
-              setTimeout(_attemptPermSave, 2000 * _permRetries);
-            } else {
-              if (statusEl) { statusEl.style.color = '#c0392b'; statusEl.textContent = '❌ Saved locally — will sync when connection improves'; }
-              /* Claude: 2026-03-16 — restore button state on error */
-              if (btn) { btn.disabled = false; btn.textContent = origText; }
-            }
-          });
-      }
-      _attemptPermSave();
+      AA.db.collection('users').doc(currentStudentUid).update(update)
+        .then(function() {
+          _loadedNetworkPerms[memberUid] = overrides;
+          if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Permissions saved!'; }
+          setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 3000);
+          /* Claude: 2026-03-16 — restore button state on success */
+          if (btn) { btn.disabled = false; btn.textContent = origText; }
+          /* Claude: 2026-03-09 — audit log */
+          if (AA.logAccess) AA.logAccess('write', currentStudentUid, 'networkPermissions');
+        })
+        .catch(function(err) {
+          if (statusEl) { statusEl.style.color = '#c0392b'; statusEl.textContent = '❌ ' + err.message; }
+          /* Claude: 2026-03-16 — restore button state on error */
+          if (btn) { btn.disabled = false; btn.textContent = origText; }
+        });
     }
 
     /* Reset a person's permissions back to their tier defaults */
@@ -1023,48 +995,29 @@
       }
       if (!confirm('Reset all permissions for this person to the ' + (TIERS[tier] ? TIERS[tier].label : tier) + ' tier defaults?')) return;
 
-      /* Claude: 2026-03-21 — Triple redundancy for reset:
-         Layer 1: Clear localStorage backup
-         Layer 2: Firestore delete
-         Layer 3: Auto-retry up to 3 times */
-
-      /* Layer 1: Clear localStorage backup for this member */
-      try { localStorage.removeItem('AA_PERMS_BACKUP_' + currentStudentUid + '_' + memberUid); } catch(e) {}
-
       /* Clear overrides in Firestore */
       var update = {};
       update['networkPermissions.' + memberUid] = firebase.firestore.FieldValue.delete();
-
-      var _resetRetries = 0;
-      function _attemptResetPerms() {
-        AA.db.collection('users').doc(currentStudentUid).update(update)
-          .then(function() {
-            delete _loadedNetworkPerms[memberUid];
-            /* Re-render the toggles with tier defaults */
-            var wrap = document.getElementById('perms-wrap-' + memberUid);
-            if (wrap) {
-              var parent = wrap.parentElement;
-              var newHtml = buildPermsToggleHtml(memberUid, tier);
-              wrap.outerHTML = newHtml;
-              /* Re-open the panel */
-              var newWrap = document.getElementById('perms-wrap-' + memberUid);
-              if (newWrap) newWrap.classList.add('open');
-            }
-            var statusEl = document.getElementById('perm-status-' + memberUid);
-            if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Reset to defaults!'; }
-            setTimeout(function() { var s = document.getElementById('perm-status-' + memberUid); if (s) s.textContent = ''; }, 3000);
-          })
-          .catch(function(err) {
-            _resetRetries++;
-            if (_resetRetries < 3) {
-              console.warn('[UserTiers] Retry', _resetRetries, 'for perm reset:', err.message);
-              setTimeout(_attemptResetPerms, 2000 * _resetRetries);
-            } else {
-              alert('Reset failed after 3 attempts: ' + err.message);
-            }
-          });
-      }
-      _attemptResetPerms();
+      AA.db.collection('users').doc(currentStudentUid).update(update)
+        .then(function() {
+          delete _loadedNetworkPerms[memberUid];
+          /* Re-render the toggles with tier defaults */
+          var wrap = document.getElementById('perms-wrap-' + memberUid);
+          if (wrap) {
+            var parent = wrap.parentElement;
+            var newHtml = buildPermsToggleHtml(memberUid, tier);
+            wrap.outerHTML = newHtml;
+            /* Re-open the panel */
+            var newWrap = document.getElementById('perms-wrap-' + memberUid);
+            if (newWrap) newWrap.classList.add('open');
+          }
+          var statusEl = document.getElementById('perm-status-' + memberUid);
+          if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Reset to defaults!'; }
+          setTimeout(function() { var s = document.getElementById('perm-status-' + memberUid); if (s) s.textContent = ''; }, 3000);
+        })
+        .catch(function(err) {
+          alert('Reset failed: ' + err.message);
+        });
     }
 
     /* Helper: look up a member's current tier from their card's dropdown */

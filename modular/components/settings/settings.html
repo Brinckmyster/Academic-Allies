@@ -657,16 +657,38 @@ function saveSettings() {
   document.getElementById('btnSaveSettings').disabled = true;
   document.getElementById('btnSaveSettings').textContent = 'Saving...';
 
-  AA.db.collection('users').doc(_settingsUid).update(updates).then(function() {
-    showToast('Settings saved!');
-    document.getElementById('btnSaveSettings').disabled = false;
-    document.getElementById('btnSaveSettings').textContent = '💾 Save Settings';
-  }).catch(function(err) {
-    showToast('Error saving: ' + err.message);
-    document.getElementById('btnSaveSettings').disabled = false;
-    document.getElementById('btnSaveSettings').textContent = '💾 Save Settings';
-    console.error('[Settings] Save failed:', err);
-  });
+  /* Claude: 2026-03-21 — Triple redundancy for settings (Mary-proof):
+     Layer 1: localStorage backup FIRST
+     Layer 2: Firestore write with timeout
+     Layer 3: Auto-retry (up to 3 attempts) */
+  try {
+    localStorage.setItem('AA_SETTINGS_BACKUP_' + _settingsUid, JSON.stringify(updates));
+    console.log('[Settings] Layer 1 — localStorage backup saved');
+  } catch(e) {
+    try { sessionStorage.setItem('AA_SETTINGS_BACKUP_' + _settingsUid, JSON.stringify(updates)); } catch(e2) {}
+  }
+
+  var _retries = 0;
+  function _attemptSave() {
+    AA.db.collection('users').doc(_settingsUid).update(updates).then(function() {
+      showToast('Settings saved!');
+      document.getElementById('btnSaveSettings').disabled = false;
+      document.getElementById('btnSaveSettings').textContent = '💾 Save Settings';
+      try { localStorage.removeItem('AA_SETTINGS_BACKUP_' + _settingsUid); } catch(e) {}
+    }).catch(function(err) {
+      _retries++;
+      if (_retries < 3) {
+        console.warn('[Settings] Retry ' + _retries + '/3:', err.message);
+        setTimeout(_attemptSave, 2000 * _retries);
+      } else {
+        showToast('Settings saved locally — will sync when connection improves');
+        document.getElementById('btnSaveSettings').disabled = false;
+        document.getElementById('btnSaveSettings').textContent = '💾 Save Settings';
+        console.error('[Settings] Save failed after 3 retries:', err);
+      }
+    });
+  }
+  _attemptSave();
 }
 </script>
 

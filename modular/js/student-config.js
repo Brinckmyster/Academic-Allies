@@ -240,25 +240,54 @@
       data.configuredBy = window.AA.auth.currentUser ? window.AA.auth.currentUser.uid : null;
       data.version = (data.version || 0) + 1;
 
-      return window.AA.db.collection('studentConfig').doc(uid).set(data, { merge: true })
-        .then(function() {
-          _configCache = deepMerge(DEFAULT_CONFIG, data);
-          _cacheUid = uid;
-          window.AA_STUDENT_CONFIG = _configCache;
-          console.log('[AA_CONFIG] Config saved for', uid);
+      /* Claude: 2026-03-21 — Triple redundancy for config saves (Mary-proof):
+         Layer 1: localStorage backup FIRST (synchronous, survives connection loss)
+         Layer 2: Firestore primary cloud write
+         Layer 3: Retry queue if Firestore fails */
+      try {
+        localStorage.setItem('AA_CONFIG_BACKUP_' + uid, JSON.stringify(data));
+        console.log('[AA_CONFIG] Layer 1 — localStorage backup saved');
+      } catch(lsErr) {
+        try { sessionStorage.setItem('AA_CONFIG_BACKUP_' + uid, JSON.stringify(data)); } catch(ssErr) {}
+      }
 
-          /* Audit log entry */
-          return window.AA.db.collection('auditLog').doc(uid).collection('entries').add({
-            action: 'config_updated',
-            targetUid: uid,
-            actorUid: window.AA.auth.currentUser ? window.AA.auth.currentUser.uid : null,
-            timestamp: timestamp,
-            details: {
-              configVersion: data.version,
-              changes: {}
-            }
-          });
-        });
+      var saveTimeout;
+      var savePromise = new Promise(function(resolve, reject) {
+        saveTimeout = setTimeout(function() {
+          console.warn('[AA_CONFIG] Firestore save timed out after 10s — data safe in localStorage');
+          try {
+            var queue = JSON.parse(localStorage.getItem('AA_CONFIG_RETRY_QUEUE') || '[]');
+            queue.push({ uid: uid, data: data, queuedAt: new Date().toISOString() });
+            if (queue.length > 10) queue = queue.slice(-10);
+            localStorage.setItem('AA_CONFIG_RETRY_QUEUE', JSON.stringify(queue));
+          } catch(e) {}
+          reject(new Error('Firestore timeout — saved to localStorage'));
+        }, 10000);
+      });
+
+      return Promise.race([
+        window.AA.db.collection('studentConfig').doc(uid).set(data, { merge: true })
+          .then(function() {
+            clearTimeout(saveTimeout);
+            _configCache = deepMerge(DEFAULT_CONFIG, data);
+            _cacheUid = uid;
+            window.AA_STUDENT_CONFIG = _configCache;
+            console.log('[AA_CONFIG] Layer 2 — Firestore saved for', uid);
+
+            /* Audit log entry */
+            return window.AA.db.collection('auditLog').doc(uid).collection('entries').add({
+              action: 'config_updated',
+              targetUid: uid,
+              actorUid: window.AA.auth.currentUser ? window.AA.auth.currentUser.uid : null,
+              timestamp: timestamp,
+              details: {
+                configVersion: data.version,
+                changes: {}
+              }
+            });
+          }),
+        savePromise
+      ]);
     });
   };
 
