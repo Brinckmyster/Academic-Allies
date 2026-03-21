@@ -592,8 +592,7 @@
     for (var i = 0; i < inputs.length; i++) {
       var el = inputs[i];
       /* Skip mirror UI elements */
-      /* Claude: 2026-03-21 — also skip dashboard student picker so supporters can switch students */
-      if (el.closest && (el.closest('#aa-student-switcher') || el.closest('#aa-mirror-banner') || el.closest('#student-picker-wrap'))) continue;
+      if (el.closest && (el.closest('#aa-student-switcher') || el.closest('#aa-mirror-banner'))) continue;
       /* Skip if already locked */
       if (el._aaLocked) continue;
       el._aaLocked = true;
