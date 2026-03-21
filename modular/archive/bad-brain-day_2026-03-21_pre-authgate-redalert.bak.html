@@ -449,22 +449,6 @@
         html.aa-dark #happy-envelope .env-label { color: #c4a882; }
         html.aa-dark #happy-envelope .env-count { border-color: #2a2520; }
 
-        /* ── Auth Gate ─────────────────────────────────────
-           Claude: 2026-03-21 — no shared-header, so page needs its own auth gate.
-           Same pattern as Semi-Nope. */
-        #bbd-auth-gate {
-            display: flex;
-            position: fixed; inset: 0;
-            background: #F5F0E8;
-            z-index: 900;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        html.aa-dark #bbd-auth-gate { background: #2a2520; }
-        html.aa-dark #bbd-auth-gate h1 { color: #c4a882; }
-        html.aa-dark #bbd-auth-gate p { color: #9a8e80; }
-
         /* ── Mobile responsive ──────────────────────────── */
         @media (max-width: 480px) {
             body { padding: 16px 12px 80px; }
@@ -488,24 +472,7 @@
 <script src="/Academic-Allies/modular/aa-firebase.js?v=20260321a"></script>
 <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260321a"></script>
 
-<!-- Claude: 2026-03-21 — Auth Gate: sign-in screen until authenticated.
-     No shared-header = no auth flow, so we handle it here like Semi-Nope. -->
-<div id="bbd-auth-gate">
-    <div style="text-align:center;max-width:320px;">
-        <div style="font-size:36pt;margin-bottom:12px;">🧠</div>
-        <h1 style="font-size:20pt;color:#8a7050;margin-bottom:10px;font-family:inherit;">Bad Brain Day</h1>
-        <p style="color:#9a8e80;font-size:13pt;margin-bottom:28px;line-height:1.5;">
-            Sign in to continue. It's okay — take your time.
-        </p>
-        <button onclick="AA.signInWithGoogle()"
-                style="background:#FFFDF8;color:#4a3f35;border:1px solid #E8E0D4;border-radius:12px;padding:14px 24px;font-size:13pt;cursor:pointer;display:flex;align-items:center;gap:10px;margin:0 auto;font-family:inherit;font-weight:600;box-shadow:0 2px 8px rgba(120,100,70,0.1);">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20" alt="Google">
-            Sign in with Google
-        </button>
-    </div>
-</div>
-
-<div class="container" id="bbd-content" style="display:none;">
+<div class="container">
 
     <!-- Page Header -->
     <div class="page-header">
@@ -964,16 +931,6 @@ function applyDyslexicFont(on) {
     if (mq.addEventListener) mq.addEventListener('change', update);
 })();
 
-/* ── Auth gate ─────────────────────────────────────────────── */
-/* Claude: 2026-03-21 — show auth gate until signed in, then reveal content.
-   Same pattern as Semi-Nope. */
-function showAuthGate(visible) {
-  var gate = document.getElementById('bbd-auth-gate');
-  if (gate) gate.style.display = visible ? 'flex' : 'none';
-  var content = document.getElementById('bbd-content');
-  if (content) content.style.display = visible ? 'none' : 'block';
-}
-
 /* ── Firebase sync ─────────────────────────────────────────── */
 function _bbdDateKey() {
     var d = new Date();
@@ -1030,12 +987,8 @@ function bbdSaveEnergy(value, label) {
 var _bbdUid = null;
 document.addEventListener('DOMContentLoaded', function() {
     if (!window.AA || !AA.auth) return;
-    /* Claude: 2026-03-21 — wait for persistence to prevent auth-gate flash */
-    var _pReady = (window.AA && window.AA._persistenceReady) ? window.AA._persistenceReady : Promise.resolve();
-    _pReady.then(function() {
     AA.auth.onAuthStateChanged(function(user) {
-        if (!user) { showAuthGate(true); return; }
-        showAuthGate(false);
+        if (!user) return;
         if (user.uid === _bbdUid) return;
         _bbdUid = user.uid;
         currentUid = window.AA_MIRROR_UID || user.uid;
@@ -1097,14 +1050,10 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         } catch(e) {}
     });
-    }); /* close _pReady.then */
 });
 </script>
 
-    <!-- Claude: 2026-03-21 — Set app mode + auto RED ALERT to Family and NL.
-         Changed from mode_bad_brain (informational) to red_flag (urgent alert).
-         Bad Brain Day entering = automatic red flag so supporters know immediately.
-         Archive: modular/archive/bad-brain-day_2026-03-21_pre-authgate-redalert.bak.html -->
+    <!-- Claude: 2026-03-12 — Set app mode to 'bad-brain-day' when this page loads -->
     <script>
     (function () {
       var currentMode = localStorage.getItem('appMode');
@@ -1112,21 +1061,17 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('appMode', 'bad-brain-day');
         window.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: 'bad-brain-day' } }));
         console.log('[AA] Mode set to bad-brain-day');
-        /* Claude: 2026-03-21 — Auto red alert: sends red_flag notification
-           so Family and Network Lead see it as an urgent alert, not just informational.
-           Only fires for the student (not in mirror mode). */
         (function _notifyBBD() {
           if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.addNotification) {
             if (window._notifyRetries === undefined) window._notifyRetries = 0;
             if (window._notifyRetries++ < 15) { setTimeout(_notifyBBD, 400); }
             return;
           }
-          /* Don't fire alert when a supporter is viewing in mirror mode */
-          if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== AA.auth.currentUser.uid) return;
           var uid = window.AA_MIRROR_UID || AA.auth.currentUser.uid;
-          AA.addNotification(uid, 'red_flag',
-            '🔴 Bad Brain Day activated at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' — automatic red alert to Family & Network Lead'
-          ).catch(function (err) { console.warn('[AA] bbd red alert failed:', err.message); });
+          if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== AA.auth.currentUser.uid) return;
+          AA.addNotification(uid, 'mode_bad_brain',
+            '🧠 Bad Brain Day activated at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          ).catch(function (err) { console.warn('[AA] bbd notification failed:', err.message); });
         })();
       }
     })();
