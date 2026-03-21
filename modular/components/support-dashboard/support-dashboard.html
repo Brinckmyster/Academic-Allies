@@ -529,22 +529,82 @@
         }
 
         clearTimeout(_loadingTimerMain);
-        showDashboard(studentsInNetwork[0].uid, studentsInNetwork[0].name);
-        loadStudentGrid(); /* Claude: 2026-03-14 — render compact status grid at top */
+
+        /* Claude: 2026-03-21 — Auto-select the student with the most urgent status.
+           Checks each student's active mode in Firestore (nope > migraine > bad-brain
+           > semi > recovery > normal). Falls back to first student if no modes found.
+           Archive: modular/archive/support-dashboard_2026-03-21_pre-mode-upgrade.bak.html */
+        _autoSelectMostUrgent(function(bestStudent) {
+          showDashboard(bestStudent.uid, bestStudent.name);
+          /* Update the dropdown picker if it exists */
+          var sel = document.getElementById('student-picker');
+          if (sel) sel.value = bestStudent.uid;
+          loadStudentGrid();
+        });
       }).catch(function(err) {
         document.getElementById('loading-msg').textContent = 'Error: ' + err.message;
       });
     }
 
+    /* Claude: 2026-03-21 — Auto-select the most urgent student.
+       Checks each student's active mode in Firestore.
+       Priority: nope(0) > migraine(1) > bad-brain(2) > semi(3) > recovery(5) > normal(10) */
+    var _MODE_PRIORITY = {
+      'nope': 0, 'migraine': 1, 'bad-brain': 2, 'semi': 3, 'recovery': 5
+    };
+    function _autoSelectMostUrgent(callback) {
+      if (studentsInNetwork.length <= 1) {
+        callback(studentsInNetwork[0]);
+        return;
+      }
+      Promise.all(studentsInNetwork.map(function(s) {
+        return AA.db.collection('nope').doc(s.uid).get().then(function(doc) {
+          var mode = doc.exists ? doc.data().mode : null;
+          var priority = (mode && _MODE_PRIORITY[mode] !== undefined) ? _MODE_PRIORITY[mode] : 10;
+          return { uid: s.uid, name: s.name, priority: priority, mode: mode };
+        }).catch(function() {
+          return { uid: s.uid, name: s.name, priority: 10, mode: null };
+        });
+      })).then(function(results) {
+        results.sort(function(a, b) { return a.priority - b.priority; });
+        callback(results[0]);
+      }).catch(function() {
+        callback(studentsInNetwork[0]);
+      });
+    }
+
     /* ── Build student picker dropdown (multiple students) */
+    /* Claude: 2026-03-21 — student picker now shows mode status next to name */
     function buildStudentPicker() {
       var sel = document.getElementById('student-picker');
       sel.innerHTML = '';
-      studentsInNetwork.forEach(function(s) {
-        var opt = document.createElement('option');
-        opt.value       = s.uid;
-        opt.textContent = s.name;
-        sel.appendChild(opt);
+      var _pickerPromises = studentsInNetwork.map(function(s) {
+        return AA.db.collection('nope').doc(s.uid).get().then(function(doc) {
+          var mode = doc.exists ? doc.data().mode : null;
+          return { uid: s.uid, name: s.name, mode: mode };
+        }).catch(function() {
+          return { uid: s.uid, name: s.name, mode: null };
+        });
+      });
+      Promise.all(_pickerPromises).then(function(results) {
+        var MODE_EMOJI = {
+          'nope': '🔴 ', 'semi': '🟠 ', 'bad-brain': '🧠 ',
+          'migraine': '🔴 ', 'recovery': '🌿 '
+        };
+        results.forEach(function(s) {
+          var opt = document.createElement('option');
+          opt.value       = s.uid;
+          opt.textContent = (MODE_EMOJI[s.mode] || '🟢 ') + s.name;
+          sel.appendChild(opt);
+        });
+      }).catch(function() {
+        /* Fallback: no mode info */
+        studentsInNetwork.forEach(function(s) {
+          var opt = document.createElement('option');
+          opt.value       = s.uid;
+          opt.textContent = s.name;
+          sel.appendChild(opt);
+        });
       });
       document.getElementById('student-picker-wrap').style.display = 'block';
     }
@@ -1169,14 +1229,17 @@
           AA.shouldSuppressCaution(s.uid)
         ]).then(function (res) {
           var nopeData = res[0].exists ? res[0].data() : null;
-          var isNope   = nopeData && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope');
+          /* Claude: 2026-03-21 — recognize ALL active modes, not just nope/semi-nope */
+          var activeMode = nopeData ? nopeData.mode : null;
+          var isCrisis   = activeMode === 'nope' || activeMode === 'semi' || activeMode === 'semi-nope'
+                        || activeMode === 'bad-brain' || activeMode === 'migraine';
           var hits     = res[1];
           var suppressResult = res[2]; /* { suppress: bool, cautionDays: number, reason: string } */
           var cautionDays = suppressResult.cautionDays || CAUTION_DAYS_DEFAULT;
 
           var dot = 'unknown';
-          if (isNope) {
-            dot = 'nope';
+          if (isCrisis) {
+            dot = (activeMode === 'nope' || activeMode === 'migraine') ? 'nope' : 'orange';
           } else if (hits.length > 0) {
             var newestDaysAgo = hits[0].daysAgo;
             /* Claude: 2026-03-20 — uses AA.shouldSuppressCaution() from aa-firebase.js
