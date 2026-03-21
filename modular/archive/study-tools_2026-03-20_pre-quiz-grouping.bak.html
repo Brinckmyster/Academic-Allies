@@ -509,61 +509,33 @@ var _cfgPoll = setInterval(function() {
       _hiddenTools = hidden;
       buildPage();
     }
-    /* Claude: 2026-03-20 — Group custom quizzes by class with collapsible sections */
     var customQuizzes = window.AA_CONFIG.get('quizzes', []);
     if (customQuizzes && customQuizzes.length > 0) {
-      /* Group quizzes by class prefix (text before the first colon) */
-      var groups = {};
-      var groupOrder = [];
+      var customHtml = '<div style="margin-top: 24px;"><h2 style="color: #6CA0A3; font-size: 16pt; margin-bottom: 12px;">Custom Quizzes</h2>';
       customQuizzes.forEach(function(quiz, idx) {
-        var title = quiz.title || 'Custom Quiz';
-        var colonIdx = title.indexOf(':');
-        var groupName = colonIdx > -1 ? title.substring(0, colonIdx).trim() : 'Other';
-        /* Strip the class prefix from the display title */
-        var shortTitle = colonIdx > -1 ? title.substring(colonIdx + 1).trim() : title;
-        if (!groups[groupName]) {
-          groups[groupName] = [];
-          groupOrder.push(groupName);
+        customHtml += '<div class="tool-card">';
+        customHtml += '<h3>';
+        if (quiz.type === 'fill-blank') {
+          customHtml += '✏️ ';
+        } else if (quiz.type === 'match') {
+          customHtml += '🎯 ';
+        } else if (quiz.type === 'flashcards') {
+          customHtml += '🃏 ';
         }
-        groups[groupName].push({ quiz: quiz, idx: idx, shortTitle: shortTitle });
-      });
-
-      var customHtml = '<div style="margin-top: 24px;">';
-      customHtml += '<h2 style="color: #6CA0A3; font-size: 16pt; margin-bottom: 12px;">Custom Quizzes</h2>';
-
-      groupOrder.forEach(function(groupName) {
-        var groupId = 'quiz-group-' + groupName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-        var quizCount = groups[groupName].length;
-
-        /* Collapsible group heading — reuses semester-heading styles */
-        customHtml += '<div class="semester-heading" onclick="var b=document.getElementById(\'' + groupId + '\');var a=this.querySelector(\'.toggle-arrow\');if(b.classList.contains(\'collapsed\')){b.classList.remove(\'collapsed\');b.style.maxHeight=b.scrollHeight+\'px\';a.classList.remove(\'collapsed\');}else{b.classList.add(\'collapsed\');b.style.maxHeight=\'0\';a.classList.add(\'collapsed\');}">';
-        customHtml += '<h2>' + groupName + '</h2>';
-        customHtml += '<div class="sem-meta">';
-        customHtml += '<span class="sem-badge">' + quizCount + ' quiz' + (quizCount !== 1 ? 'zes' : '') + '</span>';
-        customHtml += '<span class="toggle-arrow collapsed">▼</span>';
-        customHtml += '</div></div>';
-
-        /* Group body — starts collapsed */
-        customHtml += '<div class="semester-body collapsed" id="' + groupId + '" style="max-height: 0;">';
-        groups[groupName].forEach(function(entry) {
-          var quiz = entry.quiz;
-          var typeIcon = quiz.type === 'fill-blank' ? '✏️ ' : quiz.type === 'match' ? '🎯 ' : '🃏 ';
-          var typeLabel = quiz.type === 'fill-blank' ? 'Fill-in-the-Blank' : quiz.type === 'match' ? 'Match Game' : 'Flashcards';
-          var itemCount = quiz.data ? quiz.data.length : 0;
-
-          customHtml += '<div class="tool-card">';
-          customHtml += '<h3>' + typeIcon + entry.shortTitle + '</h3>';
-          customHtml += '<p>' + (quiz.description || '') + '</p>';
-          customHtml += '<div class="tags">';
-          customHtml += '<span class="tag">' + typeLabel + '</span>';
-          if (itemCount > 0) customHtml += '<span class="tag">' + itemCount + ' items</span>';
-          customHtml += '</div>';
-          customHtml += '<a href="/Academic-Allies/modular/static/custom-quiz.html?quiz=' + entry.idx + '" class="play-btn">Start Quiz</a>';
-          customHtml += '</div>';
-        });
+        customHtml += (quiz.title || 'Custom Quiz') + '</h3>';
+        customHtml += '<p>' + (quiz.description || 'A custom quiz configured by your network lead.') + '</p>';
+        var typeLabel = quiz.type === 'fill-blank' ? 'Fill-in-the-Blank' : quiz.type === 'match' ? 'Match Game' : 'Flashcards';
+        var itemCount = quiz.data ? quiz.data.length : 0;
+        customHtml += '<div class="tags">';
+        customHtml += '<span class="tag">Custom</span>';
+        customHtml += '<span class="tag">' + typeLabel + '</span>';
+        if (itemCount > 0) {
+          customHtml += '<span class="tag">' + itemCount + ' items</span>';
+        }
+        customHtml += '</div>';
+        customHtml += '<a href="/Academic-Allies/modular/static/custom-quiz.html?quiz=' + idx + '" class="play-btn">Start Quiz</a>';
         customHtml += '</div>';
       });
-
       customHtml += '</div>';
       document.getElementById('semesterContent').innerHTML += customHtml;
     }
