@@ -574,39 +574,33 @@
     }
 
     /* ── Build student picker dropdown (multiple students) */
-    /* Claude: 2026-03-21 — student picker now shows mode status next to name */
+    /* Claude: 2026-03-21 — populate names IMMEDIATELY (sync), then upgrade
+       with mode emojis async. Fixes empty dropdown from previous async-only version. */
+    var _PICKER_MODE_EMOJI = {
+      'nope': '🔴 ', 'semi': '🟠 ', 'bad-brain': '🧠 ',
+      'migraine': '🔴 ', 'recovery': '🌿 '
+    };
     function buildStudentPicker() {
       var sel = document.getElementById('student-picker');
       sel.innerHTML = '';
-      var _pickerPromises = studentsInNetwork.map(function(s) {
-        return AA.db.collection('nope').doc(s.uid).get().then(function(doc) {
-          var mode = doc.exists ? doc.data().mode : null;
-          return { uid: s.uid, name: s.name, mode: mode };
-        }).catch(function() {
-          return { uid: s.uid, name: s.name, mode: null };
-        });
-      });
-      Promise.all(_pickerPromises).then(function(results) {
-        var MODE_EMOJI = {
-          'nope': '🔴 ', 'semi': '🟠 ', 'bad-brain': '🧠 ',
-          'migraine': '🔴 ', 'recovery': '🌿 '
-        };
-        results.forEach(function(s) {
-          var opt = document.createElement('option');
-          opt.value       = s.uid;
-          opt.textContent = (MODE_EMOJI[s.mode] || '🟢 ') + s.name;
-          sel.appendChild(opt);
-        });
-      }).catch(function() {
-        /* Fallback: no mode info */
-        studentsInNetwork.forEach(function(s) {
-          var opt = document.createElement('option');
-          opt.value       = s.uid;
-          opt.textContent = s.name;
-          sel.appendChild(opt);
-        });
+      /* Step 1: populate immediately with plain names (always works) */
+      studentsInNetwork.forEach(function(s) {
+        var opt = document.createElement('option');
+        opt.value       = s.uid;
+        opt.textContent = s.name;
+        opt.id          = 'picker-opt-' + s.uid;
+        sel.appendChild(opt);
       });
       document.getElementById('student-picker-wrap').style.display = 'block';
+
+      /* Step 2: async upgrade — add mode emojis once Firestore responds */
+      Promise.all(studentsInNetwork.map(function(s) {
+        return AA.db.collection('nope').doc(s.uid).get().then(function(doc) {
+          var mode = doc.exists ? doc.data().mode : null;
+          var opt = document.getElementById('picker-opt-' + s.uid);
+          if (opt) opt.textContent = (_PICKER_MODE_EMOJI[mode] || '🟢 ') + s.name;
+        }).catch(function() {});
+      })).catch(function() {});
     }
 
     function switchStudent(uid) {
