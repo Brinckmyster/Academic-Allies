@@ -490,54 +490,59 @@ function buildPage() {
     }
   });
 
-  /* Claude: 2026-03-20 — Mirror-aware: load student's config in mirror mode */
-  if (!_configLoaded && window.AA && window.AA.auth && window.AA.auth.currentUser) {
-    _configLoaded = true;
-    var _cfgUid = window.AA_MIRROR_UID || window.AA.auth.currentUser.uid;
-    window.AA_CONFIG.load(_cfgUid).then(function(config) {
-      /* Check for hidden tools — rebuild page if any are hidden */
-      var hidden = window.AA_CONFIG.get('hiddenTools', []);
-      if (hidden && hidden.length > 0) {
-        _hiddenTools = hidden;
-        buildPage(); // rebuild with hidden tools filtered out — _configLoaded prevents re-entry
-      }
-      var customQuizzes = window.AA_CONFIG.get('quizzes', []);
-      if (customQuizzes && customQuizzes.length > 0) {
-        var customHtml = '<div style="margin-top: 24px;"><h2 style="color: #6CA0A3; font-size: 16pt; margin-bottom: 12px;">Custom Quizzes</h2>';
-        customQuizzes.forEach(function(quiz, idx) {
-          customHtml += '<div class="tool-card">';
-          customHtml += '<h3>';
-          if (quiz.type === 'fill-blank') {
-            customHtml += '✏️ ';
-          } else if (quiz.type === 'match') {
-            customHtml += '🎯 ';
-          } else if (quiz.type === 'flashcards') {
-            customHtml += '🃏 ';
-          }
-          customHtml += (quiz.title || 'Custom Quiz') + '</h3>';
-          customHtml += '<p>' + (quiz.description || 'A custom quiz configured by your network lead.') + '</p>';
-          var typeLabel = quiz.type === 'fill-blank' ? 'Fill-in-the-Blank' : quiz.type === 'match' ? 'Match Game' : 'Flashcards';
-          var itemCount = quiz.data ? quiz.data.length : 0;
-          customHtml += '<div class="tags">';
-          customHtml += '<span class="tag">Custom</span>';
-          customHtml += '<span class="tag">' + typeLabel + '</span>';
-          if (itemCount > 0) {
-            customHtml += '<span class="tag">' + itemCount + ' items</span>';
-          }
-          customHtml += '</div>';
-          customHtml += '<a href="/Academic-Allies/modular/static/custom-quiz.html?quiz=' + idx + '" class="play-btn">Start Quiz</a>';
-          customHtml += '</div>';
-        });
-        customHtml += '</div>';
-        document.getElementById('semesterContent').innerHTML += customHtml;
-      }
-    }).catch(function(err) {
-      console.warn('[Study Tools] Custom quiz load failed:', err);
-    });
-  }
 }
 
 buildPage();
+
+/* Claude: 2026-03-20 — Wait for Firebase auth, THEN load student config.
+   buildPage() runs before shared-header finishes loading Firebase,
+   so we poll until AA.auth is ready, then load config + custom quizzes. */
+var _cfgPoll = setInterval(function() {
+  if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
+  clearInterval(_cfgPoll);
+
+  var _cfgUid = window.AA_MIRROR_UID || window.AA.auth.currentUser.uid;
+  window.AA_CONFIG.load(_cfgUid).then(function(config) {
+    /* Check for hidden tools — rebuild page if any are hidden */
+    var hidden = window.AA_CONFIG.get('hiddenTools', []);
+    if (hidden && hidden.length > 0) {
+      _hiddenTools = hidden;
+      buildPage();
+    }
+    var customQuizzes = window.AA_CONFIG.get('quizzes', []);
+    if (customQuizzes && customQuizzes.length > 0) {
+      var customHtml = '<div style="margin-top: 24px;"><h2 style="color: #6CA0A3; font-size: 16pt; margin-bottom: 12px;">Custom Quizzes</h2>';
+      customQuizzes.forEach(function(quiz, idx) {
+        customHtml += '<div class="tool-card">';
+        customHtml += '<h3>';
+        if (quiz.type === 'fill-blank') {
+          customHtml += '✏️ ';
+        } else if (quiz.type === 'match') {
+          customHtml += '🎯 ';
+        } else if (quiz.type === 'flashcards') {
+          customHtml += '🃏 ';
+        }
+        customHtml += (quiz.title || 'Custom Quiz') + '</h3>';
+        customHtml += '<p>' + (quiz.description || 'A custom quiz configured by your network lead.') + '</p>';
+        var typeLabel = quiz.type === 'fill-blank' ? 'Fill-in-the-Blank' : quiz.type === 'match' ? 'Match Game' : 'Flashcards';
+        var itemCount = quiz.data ? quiz.data.length : 0;
+        customHtml += '<div class="tags">';
+        customHtml += '<span class="tag">Custom</span>';
+        customHtml += '<span class="tag">' + typeLabel + '</span>';
+        if (itemCount > 0) {
+          customHtml += '<span class="tag">' + itemCount + ' items</span>';
+        }
+        customHtml += '</div>';
+        customHtml += '<a href="/Academic-Allies/modular/static/custom-quiz.html?quiz=' + idx + '" class="play-btn">Start Quiz</a>';
+        customHtml += '</div>';
+      });
+      customHtml += '</div>';
+      document.getElementById('semesterContent').innerHTML += customHtml;
+    }
+  }).catch(function(err) {
+    console.warn('[Study Tools] Custom quiz load failed:', err);
+  });
+}, 250);
 </script>
 </body>
 </html>
