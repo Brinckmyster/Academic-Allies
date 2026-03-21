@@ -634,18 +634,6 @@
     }, { merge: true });
   };
 
-  /* Claude: 2026-03-21 — Generic mode setter. Writes to the same nope/{uid}
-     doc so watchNope picks it up on the support dashboard. Works for ALL modes:
-     'nope', 'semi', 'recovery', 'bad-brain', 'migraine', or null (normal).
-     Archive: modular/archive/aa-firebase_2026-03-21_pre-setActiveMode.bak.js */
-  window.AA.setActiveMode = function (uid, mode) {
-    return db.collection('nope').doc(uid).set({
-      mode:        mode || null,
-      activatedAt: mode ? firebase.firestore.FieldValue.serverTimestamp() : null,
-      updatedAt:   firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-  };
-
   /* Append to nope activity log (sub-collection) */
   window.AA.addNopeLog = function (uid, event) {
     return db.collection('nope').doc(uid).collection('logs').add({

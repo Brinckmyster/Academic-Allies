@@ -65,15 +65,6 @@
     .status-since { font-size: 0.8rem; color: #aaa; }
     .nope-details { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: 0.88rem; color: #7f1d1d; }
 
-    /* Claude: 2026-03-21 — Supporter guidance styling */
-    .supporter-guidance {
-      border-radius: 8px; padding: 12px 16px; margin-top: 10px;
-      font-size: 0.88rem; line-height: 1.5;
-    }
-    .guidance-red  { background: #fef2f2; border-left: 4px solid #dc3545; color: #7f1d1d; }
-    .guidance-warn { background: #fffbeb; border-left: 4px solid #f59e0b; color: #78350f; }
-    .guidance-green { background: #ecfdf5; border-left: 4px solid #20c997; color: #065f46; }
-
     /* Check-in log */
     .checkin-row {
       display: flex; align-items: flex-start; gap: 10px;
@@ -353,8 +344,6 @@
           </div>
           <div class="status-since" id="status-since"></div>
           <div id="nope-details" style="display:none;"></div>
-          <!-- Claude: 2026-03-21 — Supporter guidance: actionable tips per mode -->
-          <div id="supporter-guidance" class="supporter-guidance" style="display:none;"></div>
         </div>
       </div>
 
@@ -620,77 +609,39 @@
     var _currentMode = null;
     var _activeAlertCount = 0;
 
-    /* Claude: 2026-03-21 — expanded mode recognition: Bad Brain Day, Migraine,
-       Recovery now all show properly instead of gray "Normal".
-       Archive: modular/archive/support-dashboard_2026-03-21_pre-mode-upgrade.bak.html */
     var STATUS_COLORS = {
-      'nope':      '#dc3545',
-      'semi':      '#fd7e14',
-      'bad-brain': '#8b5cf6',
-      'migraine':  '#dc3545',
-      'recovery':  '#20c997',
-      null:        '#9E9E9E'
+      'nope':     '#dc3545',
+      'semi':     '#fd7e14',
+      'recovery': '#20c997',
+      null:       '#9E9E9E'
     };
     var MODE_LABELS = {
-      'nope':      '🔴 NOPE Mode — Full shutdown',
-      'semi':      '🟠 Semi-Nope — Coming back slowly',
-      'bad-brain': '🧠 Bad Brain Day — Struggling but choosing',
-      'migraine':  '🔴 Migraine Mode — Sensory shutdown',
-      'recovery':  '🌿 Recovery Mode — Rebuilding gently'
-    };
-    /* Supporter guidance — what to DO when you see each mode */
-    var MODE_GUIDANCE = {
-      'nope':      'Do NOT contact unless emergency. They have shut down completely. Send a gentle message they can read later — no pressure to reply.',
-      'semi':      'They are slowly coming back. Keep messages short and simple. Don\u2019t overwhelm. Let them set the pace.',
-      'bad-brain': 'They\u2019re having a rough day but are still trying. Check in gently. Offer help with meals or tasks. Don\u2019t push — just be present.',
-      'migraine':  'Sensory overload — lights, sound, and screens are painful. Do NOT call or video chat. Text only if urgent. Send a short "thinking of you" message.',
-      'recovery':  'They\u2019re rebuilding. Encourage small steps. Celebrate any progress. Don\u2019t rush them back to normal.'
+      'nope':     '🔴 Nope Mode active',
+      'semi':     '🟠 Semi-Nope (limited)',
+      'recovery': '🌿 Recovery Mode'
     };
 
-    /* Claude: 2026-03-21 — refreshStatusLabel now shows guidance tips for supporters */
     function refreshStatusLabel() {
-      var dotEl      = document.getElementById('status-dot');
-      var labelEl    = document.getElementById('status-label');
-      var detailsEl  = document.getElementById('nope-details');
-      var guidanceEl = document.getElementById('supporter-guidance');
+      var dotEl   = document.getElementById('status-dot');
+      var labelEl = document.getElementById('status-label');
       if (!dotEl || !labelEl) return;
 
       if (_currentMode) {
         /* Active mode takes priority */
         dotEl.style.background = STATUS_COLORS[_currentMode] || STATUS_COLORS[null];
-        var modeText = MODE_LABELS[_currentMode] || ('⚪ ' + _currentMode);
+        var modeText = MODE_LABELS[_currentMode] || '';
         if (_activeAlertCount > 0) {
           modeText += ' · ' + _activeAlertCount + ' alert' + (_activeAlertCount > 1 ? 's' : '');
         }
         labelEl.textContent = modeText;
-
-        /* Show supporter guidance */
-        if (guidanceEl && MODE_GUIDANCE[_currentMode]) {
-          guidanceEl.innerHTML = '<strong>How to support:</strong> ' + esc(MODE_GUIDANCE[_currentMode]);
-          guidanceEl.style.display = 'block';
-          /* Color the guidance box to match mode severity */
-          if (_currentMode === 'nope' || _currentMode === 'migraine') {
-            guidanceEl.className = 'supporter-guidance guidance-red';
-          } else if (_currentMode === 'bad-brain' || _currentMode === 'semi') {
-            guidanceEl.className = 'supporter-guidance guidance-warn';
-          } else {
-            guidanceEl.className = 'supporter-guidance guidance-green';
-          }
-        }
       } else if (_activeAlertCount > 0) {
         /* No mode but alerts exist */
         dotEl.style.background = '#ffc107';
         labelEl.textContent = '🔔 ' + _activeAlertCount + ' active alert' + (_activeAlertCount > 1 ? 's' : '');
-        if (guidanceEl) {
-          guidanceEl.innerHTML = '<strong>How to support:</strong> Check the alerts below for details. Consider sending a gentle message.';
-          guidanceEl.style.display = 'block';
-          guidanceEl.className = 'supporter-guidance guidance-warn';
-        }
       } else {
         /* All clear */
         dotEl.style.background = STATUS_COLORS[null];
-        labelEl.textContent = '🟢 Normal mode — no active concerns';
-        if (guidanceEl) guidanceEl.style.display = 'none';
+        labelEl.textContent = '🟢 Normal mode';
       }
     }
 
@@ -710,17 +661,10 @@
           sinceEl.textContent = '';
         }
 
-        /* Claude: 2026-03-21 — show context details for ALL modes, not just nope/semi */
-        if (_currentMode) {
-          var MODE_DETAIL = {
-            'nope':      '<strong>Full Nope</strong> — ' + studentName + ' has completely shut down. Respect the boundary.',
-            'semi':      '<strong>Semi-Nope</strong> — ' + studentName + ' is slowly coming back. Limited capacity.',
-            'bad-brain': '<strong>Bad Brain Day</strong> — ' + studentName + ' is struggling but still choosing what to engage with.',
-            'migraine':  '<strong>Migraine Mode</strong> — ' + studentName + ' is in sensory shutdown. Minimize all contact.',
-            'recovery':  '<strong>Recovery Mode</strong> — ' + studentName + ' is rebuilding. Gentle encouragement helps.'
-          };
+        if (_currentMode === 'nope' || _currentMode === 'semi') {
           detailsEl.style.display = 'block';
-          detailsEl.innerHTML = MODE_DETAIL[_currentMode] || ('<strong>' + _currentMode + '</strong> — ' + studentName + ' is in a special mode.');
+          detailsEl.innerHTML = '<strong>' + (_currentMode === 'nope' ? 'Full Nope' : 'Semi-Nope') + '</strong> — ' +
+            studentName + ' has limited capacity right now. Please check in gently.';
           detailsEl.className = 'nope-details';
         } else {
           detailsEl.style.display = 'none';
@@ -988,30 +932,14 @@
           }
           panel.style.display = 'block';
           list.innerHTML = '';
-          /* Claude: 2026-03-21 — add contextual explanations to each notification type */
-          var NOTIF_EXPLAIN = {
-            'red_flag':        'Urgent — check on your student as soon as possible.',
-            'yellow_flag':     'Moderate concern — check in when you can.',
-            'nope_activated':  'Student has shut down completely. Respect the boundary.',
-            'nope_canceled':   'Student is leaving Nope mode — good sign.',
-            'mode_recovery':   'Student entered Recovery Mode — rebuilding.',
-            'mode_bad_brain':  'Student is having a Bad Brain Day — be gentle.',
-            'missed_meal':     'No meals logged — consider checking in about food.',
-            'low_spoons':      'Running low on energy — keep demands minimal.',
-            'semi_nope_started': 'Student is slowly coming back from Nope.'
-          };
           unique.forEach(function (n) {
             var timeStr = '';
             if (n.createdAt && n.createdAt.toDate) {
               timeStr = n.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             }
-            var explain = NOTIF_EXPLAIN[n.type] || '';
             var div = document.createElement('div');
             div.className = 'notif-item type-' + (n.type || '');
-            div.innerHTML = '<div style="flex:1;min-width:0;">' +
-              '<span>' + esc(n.message || n.type) + '</span>' +
-              (explain ? '<div style="font-size:0.78rem;margin-top:3px;opacity:0.8;font-style:italic;">' + esc(explain) + '</div>' : '') +
-              '</div>' +
+            div.innerHTML = '<span>' + esc(n.message || n.type) + '</span>' +
               '<span class="notif-time">' + timeStr + '</span>';
             list.appendChild(div);
           });
