@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-21 — bumped for dashboard picker sync-first fix */
-var CACHE   = 'aa-shell-20260321j';
+var CACHE   = 'aa-shell-20260321k';
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -64,6 +64,7 @@ var SHELL = [
   '/Academic-Allies/modular/components/recovery-mode.html',
   '/Academic-Allies/modular/components/bad-brain-day.html',
   '/Academic-Allies/modular/components/message-system/message-system.html',
+  '/Academic-Allies/modular/components/streak-cat/streak-cat.html',
 
   /* App icon */
   '/Academic-Allies/modular/icons/branding.png',
