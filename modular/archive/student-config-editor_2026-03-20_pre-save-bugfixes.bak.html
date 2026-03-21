@@ -1027,10 +1027,8 @@
         btn.textContent = 'Saving...';
 
         /* Collect updates from UI */
-        /* Claude: 2026-03-20 — Show error instead of silent abort when validation fails */
         var result = collectUIUpdates();
         if (result === null) {
-          showStatus('Save aborted — fix the quiz validation errors above, then try again.', 'error');
           btn.disabled = false;
           btn.textContent = originalText;
           return;
@@ -1300,17 +1298,14 @@
             return; /* signal error via collectUIUpdates return */
           }
 
-          /* Claude: 2026-03-20 — Preserve hints from currentConfig instead of wiping them */
-          var existingData = (currentConfig.quizzes && currentConfig.quizzes[qi] && currentConfig.quizzes[qi].data) || [];
           var dataArray = [];
-          quizRow.querySelectorAll('.quiz-term-row').forEach(function(termRow, tidx) {
+          quizRow.querySelectorAll('.quiz-term-row').forEach(function(termRow) {
             var term = termRow.querySelector('.term-key').value || '';
             var answer = termRow.querySelector('.term-val').value || '';
-            var existingHints = (existingData[tidx] && existingData[tidx].hints) || [];
             dataArray.push({
               term: term,
               answer: answer,
-              hints: existingHints
+              hints: []
             });
           });
 
@@ -1465,12 +1460,10 @@
         });
       }
 
-      /* Claude: 2026-03-20 — scrollIntoView so user sees feedback even if scrolled down */
       function showStatus(msg, type) {
         var el = document.getElementById('status-message');
         el.textContent = msg;
         el.className = 'status-msg show ' + type;
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         clearTimeout(statusTimeout);
         statusTimeout = setTimeout(function() {
           el.classList.remove('show');
