@@ -1162,19 +1162,29 @@
         });
       });
 
-      /* Claude: 2026-03-20 — Separated try/catch: parse errors vs populate errors get different messages.
-         Also shows quiz count on success so NL sees clear confirmation. */
       document.getElementById('btn-import-ai').addEventListener('click', function() {
         var json = document.getElementById('ai-response-json').value;
-        if (!json || !json.trim()) {
-          showStatus('Paste JSON into the text box first, then click Import.', 'error');
-          return;
-        }
-
-        var parsed;
         try {
-          parsed = JSON.parse(json);
+          var parsed = JSON.parse(json);
+          var deepMerge = function(target, source) {
+            if (!source || typeof source !== 'object') return target;
+            var result = Object.assign({}, target);
+            for (var key in source) {
+              if (source.hasOwnProperty(key)) {
+                if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                  result[key] = deepMerge(result[key] || {}, source[key]);
+                } else {
+                  result[key] = source[key];
+                }
+              }
+            }
+            return result;
+          };
+          currentConfig = deepMerge(currentConfig, parsed);
+          populateUI();
+          showStatus('AI configuration imported!', 'success');
         } catch (e) {
+          /* Claude: 2026-03-19 — Improved error message with line number hint */
           var match = e.message.match(/position (\d+)/);
           var pos = match ? parseInt(match[1], 10) : null;
           var hint = '';
@@ -1183,54 +1193,10 @@
             hint = ' (near line ' + lines.length + ')';
           }
           showStatus('JSON parsing failed' + hint + '. Check for missing commas, brackets, or quotes. Tip: paste your JSON into jsonlint.com to find the exact error.', 'error');
-          return;
-        }
-
-        /* Deep merge imported data into current config */
-        var deepMerge = function(target, source) {
-          if (!source || typeof source !== 'object') return target;
-          var result = Object.assign({}, target);
-          for (var key in source) {
-            if (source.hasOwnProperty(key)) {
-              if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                result[key] = deepMerge(result[key] || {}, source[key]);
-              } else {
-                result[key] = source[key];
-              }
-            }
-          }
-          return result;
-        };
-
-        try {
-          currentConfig = deepMerge(currentConfig, parsed);
-          populateUI();
-
-          /* Build a summary of what was imported */
-          var parts = [];
-          if (parsed.quizzes) parts.push(parsed.quizzes.length + ' quiz' + (parsed.quizzes.length !== 1 ? 'zes' : ''));
-          if (parsed.spoonPlan) parts.push('spoon plan');
-          if (parsed.meals) parts.push('meal settings');
-          if (parsed.modes) parts.push('mode settings');
-          if (parsed.comfort) parts.push('comfort content');
-          if (parsed.hiddenTools) parts.push(parsed.hiddenTools.length + ' hidden tools');
-          var summary = parts.length > 0 ? ' (' + parts.join(', ') + ')' : '';
-
-          showStatus('Imported!' + summary + ' — click Save to write to Firestore.', 'success');
-        } catch (e) {
-          console.error('[Config Editor] Import populate error:', e);
-          showStatus('Import error: ' + e.message + '. The JSON was valid but something went wrong applying it.', 'error');
         }
       });
 
       /* ── Utility Functions ────────────────────────────────────── */
-
-      /* Claude: 2026-03-20 — Escape HTML special chars for safe insertion into attributes/tags */
-      function esc(str) {
-        if (!str) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      }
-
       function collectUIUpdates() {
         /* Collect from visible inputs */
         document.querySelectorAll('.mode-name-input').forEach(function(inp) {
@@ -1400,22 +1366,21 @@
         var html = '';
         quizzes.forEach(function(quiz, idx) {
           html += '<div class="quiz-item-row" data-idx="' + idx + '">';
-          /* Claude: 2026-03-20 — esc() prevents quotes/HTML in values from corrupting DOM */
-          html += '<div class="form-group"><label>Quiz Title</label><input type="text" class="quiz-title" value="' + esc(quiz.title) + '"></div>';
+          html += '<div class="form-group"><label>Quiz Title</label><input type="text" class="quiz-title" value="' + (quiz.title || '') + '"></div>';
           html += '<div class="form-group"><label>Type</label>';
           html += '<select class="quiz-type"><option value="fill-blank" ' + (quiz.type === 'fill-blank' ? 'selected' : '') + '>Fill in Blank</option>';
           html += '<option value="match" ' + (quiz.type === 'match' ? 'selected' : '') + '>Match</option>';
           html += '<option value="flashcards" ' + (quiz.type === 'flashcards' ? 'selected' : '') + '>Flashcards</option>';
           html += '</select></div>';
-          html += '<div class="form-group"><label>Description</label><textarea class="quiz-desc" style="min-height: 60px;">' + esc(quiz.description) + '</textarea></div>';
+          html += '<div class="form-group"><label>Description</label><textarea class="quiz-desc" style="min-height: 60px;">' + (quiz.description || '') + '</textarea></div>';
           html += '<div style="margin-top: 12px;"><strong>Terms:</strong></div>';
           html += '<div class="quiz-terms" data-idx="' + idx + '">';
           var dataArray = quiz.data || [];
           if (dataArray.length) {
             dataArray.forEach(function(item, tidx) {
               html += '<div class="quiz-term-row" data-tidx="' + tidx + '">';
-              html += '<input type="text" class="term-key" value="' + esc(item.term) + '" placeholder="Term">';
-              html += '<input type="text" class="term-val" value="' + esc(item.answer) + '" placeholder="Answer">';
+              html += '<input type="text" class="term-key" value="' + (item.term || '') + '" placeholder="Term">';
+              html += '<input type="text" class="term-val" value="' + (item.answer || '') + '" placeholder="Answer">';
               html += '<button type="button" class="btn btn-danger btn-small quiz-term-remove">✕</button>';
               html += '</div>';
             });
