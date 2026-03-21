@@ -1186,30 +1186,13 @@
           return;
         }
 
-        /* Claude: 2026-03-20 — Deep merge with special handling: quizzes APPEND instead of replace.
-           Deduplicates by title so re-importing the same quizzes won't create duplicates. */
+        /* Deep merge imported data into current config */
         var deepMerge = function(target, source) {
           if (!source || typeof source !== 'object') return target;
           var result = Object.assign({}, target);
           for (var key in source) {
             if (source.hasOwnProperty(key)) {
-              if (key === 'quizzes' && Array.isArray(source[key]) && Array.isArray(result[key])) {
-                /* Append new quizzes, skip duplicates by title */
-                var existingTitles = {};
-                result[key].forEach(function(q) { if (q.title) existingTitles[q.title] = true; });
-                var added = 0;
-                var skipped = 0;
-                source[key].forEach(function(q) {
-                  if (q.title && existingTitles[q.title]) {
-                    skipped++;
-                  } else {
-                    result[key].push(q);
-                    if (q.title) existingTitles[q.title] = true;
-                    added++;
-                  }
-                });
-                result._quizImportStats = { added: added, skipped: skipped };
-              } else if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+              if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
                 result[key] = deepMerge(result[key] || {}, source[key]);
               } else {
                 result[key] = source[key];
@@ -1221,17 +1204,11 @@
 
         try {
           currentConfig = deepMerge(currentConfig, parsed);
-          var quizStats = currentConfig._quizImportStats;
-          delete currentConfig._quizImportStats;
           populateUI();
 
           /* Build a summary of what was imported */
           var parts = [];
-          if (parsed.quizzes && quizStats) {
-            parts.push(quizStats.added + ' quiz' + (quizStats.added !== 1 ? 'zes' : '') + ' added' + (quizStats.skipped > 0 ? ', ' + quizStats.skipped + ' duplicate' + (quizStats.skipped !== 1 ? 's' : '') + ' skipped' : ''));
-          } else if (parsed.quizzes) {
-            parts.push(parsed.quizzes.length + ' quiz' + (parsed.quizzes.length !== 1 ? 'zes' : ''));
-          }
+          if (parsed.quizzes) parts.push(parsed.quizzes.length + ' quiz' + (parsed.quizzes.length !== 1 ? 'zes' : ''));
           if (parsed.spoonPlan) parts.push('spoon plan');
           if (parsed.meals) parts.push('meal settings');
           if (parsed.modes) parts.push('mode settings');
