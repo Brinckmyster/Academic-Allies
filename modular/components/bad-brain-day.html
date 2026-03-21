@@ -1,14 +1,16 @@
 <!DOCTYPE html>
+<!-- Claude: 2026-03-21 — FULL REWORK of Bad Brain Day page.
+     New warm neutral theme (between Normal and Semi-Nope).
+     Feature picker (Mary chooses what she needs today).
+     Archive: modular/archive/bad-brain-day_2026-03-21_pre-warm-rework.bak.html -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
   <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
-  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#2a2520!important;color:#e0d8d0!important}</style>')}}catch(e){}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bad Brain Day — Academic Allies</title>
     <link rel="icon" href="../icons/mode-bad-brain-day.jpg">
-    <!-- Updated: 2026-02-25 by Claude — Bad Brain Day Mode (5 critical functions, stripped-down crisis UI) -->
-    <!-- Claude: 2026-03-09 — Fixed icon href from ../../icons/ to ../icons/ (file is at modular/components/, icons are at modular/icons/) -->
     <style>
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
@@ -21,105 +23,174 @@
 
         body {
             font-family: var(--bbd-font, 'Atkinson Hyperlegible', Arial, sans-serif);
-            font-size: var(--bbd-size, 18pt);
-            line-height: 1.5;
-            letter-spacing: 0.035em;
-            background: #FAFAF9;
-            color: #333333;
+            font-size: var(--bbd-size, 16pt);
+            line-height: 1.6;
+            letter-spacing: 0.02em;
+            background: #F5F0E8;
+            color: #4a3f35;
             min-height: 100vh;
             padding: 20px 16px 80px;
         }
 
+        /* ── Dark mode overrides ─────────────────────────── */
+        html.aa-dark body {
+            background: #2a2520 !important;
+            color: #e0d8d0 !important;
+        }
+        html.aa-dark .card { background: #352f28; border-color: #4a4238; }
+        html.aa-dark .card-title { color: #c4a882; }
+        html.aa-dark .page-header h1 { color: #c4a882; }
+        html.aa-dark .page-header p { color: #9a8e80; }
+        html.aa-dark .checklist-card { background: #352f28; border-color: #4a4238; }
+        html.aa-dark .checklist-card h3 { color: #9a8e80; }
+        html.aa-dark .check-label { color: #c8c0b4; }
+        html.aa-dark .check-item.active .check-label { color: #fff; }
+        html.aa-dark .btn-emergency { background: #3d2020; color: #e88a8a; }
+        html.aa-dark .section-link { background: rgba(180,150,110,0.15) !important; color: #d4c4a8 !important; border-color: rgba(180,150,110,0.3) !important; }
+        html.aa-dark .energy-item:hover, html.aa-dark .energy-item:focus { background: #3d3630; border-color: #b4956a; }
+        html.aa-dark .energy-item.selected { background: #8a7050; color: #fff; border-color: #8a7050; }
+        html.aa-dark .skip-notice { background: #302a24; color: #9a8e80; }
+        html.aa-dark .checkin-logged { background: #3d3428; color: #c4a882; }
+        html.aa-dark .back-btn { background: #352f28; color: #9a8e80; }
+        html.aa-dark .back-btn:hover { background: #3d3630; }
+        html.aa-dark .setting-desc { color: #8a7e70; }
+        html.aa-dark .threshold-line { color: #6a5e50; }
+        html.aa-dark .threshold-line::before, html.aa-dark .threshold-line::after { background: #4a4238; }
+
         /* ── Layout ────────────────────────────────────── */
-        .container { max-width: 560px; margin: 0 auto; }
+        .container { max-width: 520px; margin: 0 auto; }
 
         .page-header {
             text-align: center;
-            padding: 20px 0 24px;
+            padding: 24px 0 20px;
         }
         .page-header img {
-            width: 72px; height: 72px;
-            border-radius: 18px;
-            margin-bottom: 12px;
+            width: 64px; height: 64px;
+            border-radius: 16px;
+            margin-bottom: 10px;
             display: block;
             margin-left: auto; margin-right: auto;
             object-fit: cover;
         }
         .page-header h1 {
-            font-size: 24pt;
-            color: #6CA0A3;
-            margin-bottom: 6px;
+            font-size: 22pt;
+            color: #8a7050;
+            margin-bottom: 4px;
         }
         .page-header p {
-            font-size: 16pt;
-            color: #777;
+            font-size: 13pt;
+            color: #9a8e80;
+            line-height: 1.5;
+            max-width: 340px;
+            margin: 0 auto;
         }
 
         /* ── Cards ─────────────────────────────────────── */
         .card {
-            background: white;
-            border-radius: 20px;
-            padding: 24px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            background: #FFFDF8;
+            border-radius: 18px;
+            padding: 20px 22px;
+            margin-bottom: 14px;
+            border: 1px solid #E8E0D4;
+            box-shadow: 0 2px 8px rgba(120,100,70,0.06);
         }
         .card-title {
-            font-size: 20pt;
-            color: #6CA0A3;
-            margin-bottom: 16px;
+            font-size: 16pt;
+            color: #8a7050;
+            margin-bottom: 14px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
-        /* ── Big Buttons (Emergency / Messages) ────────── */
-        .big-btn {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            width: 100%;
-            padding: 16px 20px;
-            margin-bottom: 10px;
-            border-radius: 16px;
-            border: none;
-            font-size: 18pt;
+        /* ── Emergency button (always visible) ───────── */
+        .btn-emergency {
+            display: block;
+            background: #fde8ea;
+            color: #a0282e;
+            border: 1px solid #f0c4c8;
+            border-radius: 14px;
+            padding: 14px 20px;
+            font-size: 14pt;
+            font-weight: 700;
             font-family: inherit;
-            letter-spacing: 0.035em;
+            text-decoration: none;
+            text-align: center;
+            width: 100%;
+            max-width: 480px;
             cursor: pointer;
             min-height: 19mm;
-            text-align: left;
+            transition: background 0.15s;
+            margin-bottom: 14px;
+        }
+        .btn-emergency:hover { background: #fad0d4; }
+        .btn-emergency:focus { outline: 3px solid #b4956a; outline-offset: 2px; }
+
+        /* ── Checklist Card (feature picker) ──────────── */
+        .checklist-card {
+            background: #FFFDF8;
+            border: 1px solid #E8E0D4;
+            border-radius: 18px;
+            padding: 20px 22px;
+            width: 100%;
+            max-width: 480px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(120,100,70,0.06);
+        }
+        .checklist-card h3 {
+            font-size: 11pt;
+            color: #9a8e80;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 14px;
+        }
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 0;
+            border-bottom: 1px solid rgba(180,160,130,0.15);
+            cursor: pointer;
+        }
+        .check-item:last-child { border-bottom: none; }
+        .check-item input[type="checkbox"] {
+            width: 22px; height: 22px;
+            accent-color: #8a7050;
+            flex-shrink: 0;
+            cursor: pointer;
+            min-width: 44px; min-height: 44px;
+        }
+        .check-label {
+            font-size: 14pt;
+            color: #6a5e50;
+            user-select: none;
+        }
+        .check-item.active .check-label { color: #4a3f35; font-weight: 600; }
+
+        /* ── Section links (appear when checked) ─────── */
+        .section-link {
+            display: block;
+            background: rgba(180,150,110,0.12);
+            color: #7a6a50;
+            border: 1px solid rgba(180,150,110,0.25);
+            border-radius: 14px;
+            padding: 14px 20px;
+            font-size: 14pt;
             text-decoration: none;
-            color: inherit;
+            text-align: center;
+            transition: background 0.15s;
+            min-height: 19mm;
         }
-        .big-btn:last-child { margin-bottom: 0; }
-        .big-btn:hover   { filter: brightness(0.95); }
-        .big-btn:focus   { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+        .section-link:hover { background: rgba(180,150,110,0.22); }
+        .section-link:focus { outline: 3px solid #b4956a; outline-offset: 2px; }
 
-        .btn-emergency   { background: #fde8ea; color: #a0282e; font-weight: 700; }
-        .btn-messages    { background: #e8f4f5; color: #3a7a7d; }
-        .btn-secondary   { background: #f0f0f0; color: #444; }
-
-        .btn-icon { font-size: 26pt; min-width: 38px; text-align: center; }
-
-        .unread-badge {
-            background: #f5576c;
-            color: white;
-            border-radius: 50%;
-            font-size: 12pt;
-            min-width: 26px; min-height: 26px;
-            display: inline-flex;
-            align-items: center; justify-content: center;
-            padding: 2px 6px;
-            margin-left: auto;
-        }
-
-        /* ── Check-In (optional) ────────────────────────── */
+        /* ── Check-In (inline, optional) ──────────────── */
         .skip-notice {
-            background: #f5f5f0;
+            background: #F0EBE0;
             border-radius: 10px;
             padding: 10px 14px;
-            font-size: 14pt;
-            color: #888;
+            font-size: 13pt;
+            color: #9a8e80;
             margin-bottom: 14px;
             text-align: center;
         }
@@ -128,100 +199,99 @@
         .energy-item {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
             padding: 10px 12px;
             border-radius: 12px;
             cursor: pointer;
             min-height: 19mm;
             border: 2px solid transparent;
             transition: background 0.12s, border-color 0.12s;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
         .energy-item:hover, .energy-item:focus {
-            background: #f0f7f8;
-            border-color: #6CA0A3;
+            background: #EDE6DA;
+            border-color: #b4956a;
             outline: none;
         }
         .energy-item.selected {
-            background: #6CA0A3;
+            background: #8a7050;
             color: white;
-            border-color: #6CA0A3;
+            border-color: #8a7050;
         }
-        .energy-item.selected .energy-def { color: rgba(255,255,255,0.8); }
-        .energy-emoji   { font-size: 26pt; min-width: 40px; text-align: center; }
-        .energy-label   { font-size: 16pt; font-weight: 600; }
-        .energy-def     { font-size: 12pt; color: #777; display: block; }
+        .energy-item.selected .energy-def { color: rgba(255,255,255,0.75); }
+        .energy-emoji   { font-size: 24pt; min-width: 38px; text-align: center; }
+        .energy-label   { font-size: 15pt; font-weight: 600; }
+        .energy-def     { font-size: 11pt; color: #9a8e80; display: block; }
 
         .threshold-line {
             text-align: center;
-            font-size: 11pt;
-            color: #bbb;
+            font-size: 10pt;
+            color: #c0b4a4;
             letter-spacing: 0.08em;
-            padding: 6px 0 8px;
+            padding: 5px 0 7px;
             display: flex; align-items: center; gap: 10px;
         }
         .threshold-line::before, .threshold-line::after {
-            content: ''; flex: 1; height: 1px; background: #e5e5e5;
+            content: ''; flex: 1; height: 1px; background: #E0D8CA;
         }
 
         .checkin-logged {
             display: none;
             text-align: center;
             padding: 10px;
-            background: #f0f7f8;
+            background: #EDE6DA;
             border-radius: 10px;
             margin-top: 10px;
-            font-size: 16pt;
-            color: #6CA0A3;
+            font-size: 15pt;
+            color: #8a7050;
         }
 
         .skip-btn {
             display: block;
             width: 100%;
-            margin-top: 14px;
+            margin-top: 12px;
             padding: 12px;
             background: none;
-            border: 2px dashed #ddd;
+            border: 2px dashed #D8CFC0;
             border-radius: 12px;
-            font-size: 15pt;
+            font-size: 14pt;
             font-family: inherit;
-            /* Claude: 2026-03-14 — #aaa→#777 for WCAG AA contrast on #FAFAF9 bg */
-            color: #777;
+            color: #9a8e80;
             cursor: pointer;
-            letter-spacing: 0.035em;
+            letter-spacing: 0.02em;
             min-height: 19mm;
         }
-        .skip-btn:hover { border-color: #bbb; color: #888; }
-        .skip-btn:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+        .skip-btn:hover { border-color: #b4a490; color: #7a6a50; }
+        .skip-btn:focus { outline: 3px solid #b4956a; outline-offset: 2px; }
 
-        /* ── Logs (read-only) ───────────────────────────── */
-        .log-entry {
-            padding: 10px 0;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 15pt;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
+        /* ── Comfort section (inline) ─────────────────── */
+        #section-comfort {
+            display: none;
+            background: #FFFDF8;
+            border: 1px solid #E8E0D4;
+            border-radius: 16px;
+            padding: 20px 24px;
+            max-width: 480px;
+            width: 100%;
+            font-size: 14pt;
+            color: #6a5e50;
+            font-style: italic;
+            line-height: 1.8;
+            box-shadow: 0 2px 8px rgba(120,100,70,0.06);
         }
-        .log-entry:last-child { border-bottom: none; }
-        /* Claude: 2026-03-14 — #aaa→#666 for WCAG AA contrast (12pt on #FAFAF9) */
-        .log-date { font-size: 12pt; color: #666; min-width: 72px; }
-        .log-note { flex: 1; }
-        /* Claude: 2026-03-14 — #bbb→#888 for WCAG AA contrast */
-        .log-empty { font-size: 15pt; color: #888; text-align: center; padding: 16px 0; }
 
         /* ── Settings ───────────────────────────────────── */
         .setting-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(180,160,130,0.15);
             min-height: 19mm;
         }
         .setting-row:last-child { border-bottom: none; }
-        .setting-label { font-size: 16pt; }
-        .setting-desc  { font-size: 13pt; color: #999; }
+        .setting-label { font-size: 14pt; }
+        .setting-desc  { font-size: 12pt; color: #a09484; }
 
         .toggle-row { gap: 10px; }
         .toggle-switch {
@@ -232,7 +302,8 @@
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
         .toggle-slider {
             position: absolute; inset: 0;
-            background: #ccc; border-radius: 30px;
+            background: #D0C8BC;
+            border-radius: 30px;
             cursor: pointer;
             transition: background 0.2s;
         }
@@ -245,20 +316,20 @@
             border-radius: 50%;
             transition: transform 0.2s;
         }
-        .toggle-switch input:checked + .toggle-slider { background: #6CA0A3; }
+        .toggle-switch input:checked + .toggle-slider { background: #8a7050; }
         .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
-        .toggle-switch input:focus + .toggle-slider { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+        .toggle-switch input:focus + .toggle-slider { outline: 3px solid #b4956a; outline-offset: 2px; }
 
         .font-size-controls {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
         .font-size-controls button {
-            background: #e8f4f5;
+            background: #EDE6DA;
             border: none;
-            color: #3a7a7d;
-            font-size: 18pt;
+            color: #7a6a50;
+            font-size: 16pt;
             font-weight: 700;
             width: 44px; height: 44px;
             min-width: 19mm; min-height: 19mm;
@@ -266,31 +337,55 @@
             cursor: pointer;
             font-family: inherit;
         }
-        .font-size-controls button:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
-        #font-size-label { font-size: 14pt; color: #666; min-width: 36px; text-align: center; }
+        .font-size-controls button:hover { background: #E0D8CA; }
+        .font-size-controls button:focus { outline: 3px solid #b4956a; outline-offset: 2px; }
+        #font-size-label { font-size: 13pt; color: #9a8e80; min-width: 32px; text-align: center; }
+
+        /* ── Logs (read-only) ───────────────────────────── */
+        .log-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(180,160,130,0.12);
+            font-size: 14pt;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-date { font-size: 11pt; color: #9a8e80; min-width: 68px; }
+        .log-note { flex: 1; }
+        .log-empty { font-size: 14pt; color: #b0a494; text-align: center; padding: 14px 0; }
 
         /* ── Back / Exit ────────────────────────────────── */
-        .back-section { margin-top: 8px; }
+        .back-section { margin-top: 10px; }
         .back-btn {
             display: block;
             width: 100%;
-            padding: 16px;
-            background: #f0f0f0;
-            color: #666;
+            padding: 14px;
+            background: #EDE6DA;
+            color: #8a7a66;
             border: none;
             border-radius: 14px;
-            font-size: 16pt;
+            font-size: 14pt;
             font-family: inherit;
-            letter-spacing: 0.035em;
+            letter-spacing: 0.02em;
             cursor: pointer;
             text-align: center;
             min-height: 19mm;
             text-decoration: none;
             transition: background 0.15s;
         }
-        .back-btn:hover { background: #e5e5e5; }
-        .back-btn:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
-        /* ── Claude: 2026-03-14 — Happy Envelope v2 (floating, replaces status circle) ── */
+        .back-btn:hover { background: #E0D8CA; }
+        .back-btn:focus { outline: 3px solid #b4956a; outline-offset: 2px; }
+
+        .back-note {
+            text-align: center;
+            font-size: 12pt;
+            color: #b0a494;
+            margin-top: 6px;
+            margin-bottom: 24px;
+        }
+
+        /* ── Happy Envelope ─────────────────────────────── */
         @keyframes env-float {
             0%, 100% { transform: translateY(0) rotate(-2deg); }
             50% { transform: translateY(-6px) rotate(2deg); }
@@ -303,21 +398,20 @@
             60% { transform: rotate(0deg); }
         }
         @keyframes env-glow-pulse {
-            0%, 100% { box-shadow: 0 4px 15px rgba(108,160,163,0.3), 0 0 0 0 rgba(108,160,163,0); }
-            50% { box-shadow: 0 4px 20px rgba(108,160,163,0.5), 0 0 0 8px rgba(108,160,163,0.08); }
+            0%, 100% { box-shadow: 0 4px 15px rgba(180,150,110,0.3), 0 0 0 0 rgba(180,150,110,0); }
+            50% { box-shadow: 0 4px 20px rgba(180,150,110,0.5), 0 0 0 8px rgba(180,150,110,0.08); }
         }
         #happy-envelope {
             position: fixed;
             top: 14px;
             right: 14px;
-            /* Claude: 2026-03-16 — lowered from 1001 to 999 so mirror banner (z:1001) stays on top */
             z-index: 999;
             display: none;
             width: 56px;
             height: 56px;
             border-radius: 16px;
-            background: linear-gradient(135deg, #e8f4f5 0%, #d4ecee 50%, #c0e4e6 100%);
-            border: 2px solid #6CA0A3;
+            background: linear-gradient(135deg, #F5F0E8 0%, #EDE6DA 50%, #E0D8CA 100%);
+            border: 2px solid #b4956a;
             cursor: pointer;
             text-decoration: none;
             animation: env-float 3s ease-in-out infinite, env-glow-pulse 3s ease-in-out infinite;
@@ -327,58 +421,42 @@
             transform: scale(1.1);
             animation: env-wiggle 0.8s ease-in-out;
         }
-        #happy-envelope:active {
-            transform: scale(0.95);
-        }
+        #happy-envelope:active { transform: scale(0.95); }
         #happy-envelope .env-face {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            line-height: 1;
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            font-size: 28px; line-height: 1;
         }
         #happy-envelope .env-label {
-            font-size: 7px;
-            font-weight: 700;
-            color: #3a7a7d;
-            letter-spacing: 0.05em;
-            margin-top: 1px;
+            font-size: 7px; font-weight: 700;
+            color: #7a6a50; letter-spacing: 0.05em; margin-top: 1px;
         }
         #happy-envelope .env-count {
-            position: absolute;
-            top: -6px;
-            right: -6px;
+            position: absolute; top: -6px; right: -6px;
             background: linear-gradient(135deg, #f5576c, #e8445a);
-            color: white;
-            font-size: 12px;
-            font-weight: 800;
-            min-width: 22px;
-            height: 22px;
-            border-radius: 11px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            color: white; font-size: 12px; font-weight: 800;
+            min-width: 22px; height: 22px; border-radius: 11px;
+            display: flex; align-items: center; justify-content: center;
             padding: 0 5px;
             box-shadow: 0 2px 6px rgba(245,87,108,0.4);
-            border: 2px solid #fff;
+            border: 2px solid #F5F0E8;
         }
-        /* Dark mode envelope */
         html.aa-dark #happy-envelope {
-            background: linear-gradient(135deg, #1a3a3c 0%, #1e2e30 50%, #223a3c 100%);
-            border-color: #4a8a8d;
+            background: linear-gradient(135deg, #352f28 0%, #3d3428 50%, #453c30 100%);
+            border-color: #8a7050;
         }
-        html.aa-dark #happy-envelope .env-label { color: #9dd0d3; }
-        html.aa-dark #happy-envelope .env-count { border-color: #1e1e1e; }
+        html.aa-dark #happy-envelope .env-label { color: #c4a882; }
+        html.aa-dark #happy-envelope .env-count { border-color: #2a2520; }
 
-        .back-note {
-            text-align: center;
-            font-size: 13pt;
-            color: #bbb;
-            margin-top: 8px;
-            margin-bottom: 30px;
+        /* ── Mobile responsive ──────────────────────────── */
+        @media (max-width: 480px) {
+            body { padding: 16px 12px 80px; }
+            .page-header h1 { font-size: 19pt; }
+            .page-header p { font-size: 12pt; max-width: 100%; }
+            .checklist-card { padding: 16px; }
+            .check-label { font-size: 13pt; }
+            .card { padding: 16px; }
         }
     </style>
 </head>
@@ -386,7 +464,7 @@
 
 <div id="site-header"></div>
 <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260320')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260321')
       .then(function(r){ return r.text(); })
       .then(function(html){
         var c = document.getElementById('site-header');
@@ -407,42 +485,66 @@
     <div class="page-header">
         <img src="../icons/mode-bad-brain-day.jpg" alt="Bad Brain Day mode icon">
         <h1>Bad Brain Day</h1>
-        <p>Just the essentials. No pressure.</p>
+        <p>It's okay. Pick what feels manageable today.</p>
     </div>
 
-    <!-- ① Messages / Support Chat ─────────────────────────── -->
-    <div class="card" data-card-id="messages">
-        <div class="card-title">💬 Messages</div>
+    <!-- Emergency (always visible) -->
+    <a href="/Academic-Allies/modular/emergency.html"
+       class="btn-emergency"
+       aria-label="Emergency Contacts — always available">
+        🆘 Emergency Contacts
+    </a>
 
-        <a href="/Academic-Allies/modular/components/message-system/message-system.html"
-           class="big-btn btn-messages"
-           aria-label="Open support messages">
-            <span class="btn-icon">💬</span>
-            <span>Support Messages</span>
-            <span class="unread-badge" id="msg-badge" style="display:none;" aria-label="unread messages">0</span>
-        </a>
+    <!-- Feature Picker — Mary chooses what she needs today -->
+    <div class="checklist-card" data-card-id="checklist">
+        <h3>What do you want today?</h3>
+
+        <label class="check-item" id="item-checkin">
+            <input type="checkbox" onchange="toggleSection('checkin', this.checked)"
+                   aria-label="Show Daily Check-In">
+            <span class="check-label">💡 Check-In</span>
+        </label>
+        <label class="check-item" id="item-messages">
+            <input type="checkbox" onchange="toggleSection('messages', this.checked)"
+                   aria-label="Show Messages">
+            <span class="check-label">💬 Messages</span>
+        </label>
+        <label class="check-item" id="item-meals">
+            <input type="checkbox" onchange="toggleSection('meals', this.checked)"
+                   aria-label="Show Meal Plan">
+            <span class="check-label">🍽️ My Meal Plan</span>
+        </label>
+        <label class="check-item" id="item-spoons">
+            <input type="checkbox" onchange="toggleSection('spoons', this.checked)"
+                   aria-label="Show Spoon Planner">
+            <span class="check-label">🥄 Spoon Planner</span>
+        </label>
+        <label class="check-item" id="item-calendar">
+            <input type="checkbox" onchange="toggleSection('calendar', this.checked)"
+                   aria-label="Show Calendar">
+            <span class="check-label">📅 My Calendar</span>
+        </label>
+        <label class="check-item" id="item-study">
+            <input type="checkbox" onchange="toggleSection('study', this.checked)"
+                   aria-label="Show Study Tools">
+            <span class="check-label">📚 Study Tools</span>
+        </label>
+        <label class="check-item" id="item-comfort">
+            <input type="checkbox" onchange="toggleSection('comfort', this.checked)"
+                   aria-label="Show A Word of Comfort">
+            <span class="check-label">📖 A Word of Comfort</span>
+        </label>
     </div>
 
-    <!-- ② Emergency Contacts ──────────────────────────────── -->
-    <div class="card" data-card-id="emergency">
-        <div class="card-title">🆘 Emergency Contacts</div>
+    <!-- Inline comfort section (appears when checked) -->
+    <div id="section-comfort" data-card-id="comfort" aria-live="polite"></div>
 
-        <a href="/Academic-Allies/modular/emergency.html"
-           class="big-btn btn-emergency"
-           aria-label="One-tap emergency contacts">
-            <span class="btn-icon">🆘</span>
-            <span>One-Tap Emergency Help</span>
-        </a>
+    <!-- Visible links for checked sections -->
+    <div id="bbd-links" style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:480px;margin-bottom:14px;"></div>
 
-        <a href="tel:988" class="big-btn btn-secondary" aria-label="Call 988 crisis line">
-            <span class="btn-icon">📞</span>
-            <span>Crisis Line — 988</span>
-        </a>
-    </div>
-
-    <!-- ③ Basic Check-In (optional / skippable) ───────────── -->
-    <div class="card" id="checkin-card" data-card-id="energy">
-        <div class="card-title">💡 Check-In <span style="font-size:13pt;color:#bbb;font-weight:400;">(optional)</span></div>
+    <!-- Inline Check-In (appears when checked) -->
+    <div class="card" id="checkin-card" data-card-id="energy" style="display:none;">
+        <div class="card-title">💡 Check-In <span style="font-size:12pt;color:#b0a494;font-weight:400;">(optional)</span></div>
 
         <div class="skip-notice" aria-hidden="true">No pressure — skip if it's too much.</div>
 
@@ -512,30 +614,24 @@
     <!-- Skipped confirmation (hidden by default) -->
     <div class="card" id="checkin-skipped-card" style="display:none; text-align:center;">
         <div class="card-title" style="justify-content:center;">✓ Check-In Skipped</div>
-        <!-- Claude: 2026-03-14 — #aaa→#777 for WCAG AA contrast -->
-        <p style="color:#777;font-size:15pt;">That's okay. You don't owe anyone a report.</p>
-        <button class="skip-btn" style="margin-top:14px;" onclick="undoSkip()" aria-label="Undo skip, show check-in again">
+        <p style="color:#9a8e80;font-size:14pt;">That's okay. You don't owe anyone a report.</p>
+        <button class="skip-btn" style="margin-top:12px;" onclick="undoSkip()" aria-label="Undo skip, show check-in again">
             Undo — show check-in
         </button>
     </div>
 
-    <!-- ④ Logs / History (read-only) ─────────────────────── -->
-    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <!-- Logs / History (read-only) -->
     <div class="card" data-card-id="history">
-        <div class="card-title">📋 Recent History <span style="font-size:13pt;color:#bbb;font-weight:400;">(read only)</span></div>
-
+        <div class="card-title">📋 Recent History <span style="font-size:12pt;color:#b0a494;font-weight:400;">(read only)</span></div>
         <div id="log-list">
-            <!-- Populated by JS from sessionStorage / future Firestore integration -->
             <div class="log-empty" id="log-empty">No entries yet this session.</div>
         </div>
     </div>
 
-    <!-- ⑤ Settings ────────────────────────────────────────── -->
-    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <!-- Settings / Accessibility -->
     <div class="card" data-card-id="a11y">
         <div class="card-title">⚙️ Accessibility</div>
 
-        <!-- Font size -->
         <div class="setting-row">
             <div>
                 <div class="setting-label">Text Size</div>
@@ -543,12 +639,11 @@
             </div>
             <div class="font-size-controls">
                 <button onclick="changeFontSize(-1)" aria-label="Decrease text size">−</button>
-                <span id="font-size-label">18</span>
+                <span id="font-size-label">16</span>
                 <button onclick="changeFontSize(1)" aria-label="Increase text size">+</button>
             </div>
         </div>
 
-        <!-- High contrast -->
         <div class="setting-row toggle-row">
             <div>
                 <div class="setting-label">High Contrast</div>
@@ -560,7 +655,6 @@
             </label>
         </div>
 
-        <!-- Reduced motion note -->
         <div class="setting-row">
             <div>
                 <div class="setting-label">Reduced Motion</div>
@@ -568,7 +662,6 @@
             </div>
         </div>
 
-        <!-- OpenDyslexic font -->
         <div class="setting-row toggle-row">
             <div>
                 <div class="setting-label">Dyslexia-Friendly Font</div>
@@ -582,8 +675,6 @@
     </div>
 
     <!-- Back to Recovery -->
-    <!-- Updated: 2026-02-25 by Claude — corrected label: Bad Brain Day exits to Recovery, not Brain Fog -->
-    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
     <div class="back-section" data-card-id="backlink">
         <a href="/Academic-Allies/modular/components/recovery-mode.html"
            class="back-btn"
@@ -591,14 +682,155 @@
            aria-label="Exit Bad Brain Day mode and return to Recovery Mode">
             ← Back to Recovery
         </a>
-        <p class="back-note">Not back to normal — just back to recovery mode. That's enough.</p>
+        <p class="back-note">Not back to normal — just back to recovery. That's enough.</p>
     </div>
 
 </div><!-- /container -->
 
 <script>
+/* Claude: 2026-03-21 — Bad Brain Day rework: warm neutral + feature picker.
+   Archive: modular/archive/bad-brain-day_2026-03-21_pre-warm-rework.bak.html */
+
+/* ── Section definitions ─────────────────────────────────────── */
+var SECTIONS = {
+  checkin:   { label: '💡 Check-In',           url: null, inline: true },
+  messages:  { label: '💬 Messages',            url: '/Academic-Allies/modular/components/message-system/message-system.html' },
+  meals:     { label: '🍽️ My Meal Plan',        url: '/Academic-Allies/modular/components/meal-planner/meal-planner.html' },
+  spoons:    { label: '🥄 Spoon Planner',       url: '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html' },
+  calendar:  { label: '📅 My Calendar',         url: '/Academic-Allies/modular/components/calendar/calendar.html' },
+  study:     { label: '📚 Study Tools',         url: '/Academic-Allies/modular/static/study-tools.html' },
+  emergency: { label: '🆘 Emergency Contacts',  url: '/Academic-Allies/modular/emergency.html' },
+  comfort:   { label: '📖 A Word of Comfort',   url: null, inline: true }
+};
+
+var comfortVerses = [
+  { text: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.", ref: "Matthew 11:28" },
+  { text: "Peace I leave with you, my peace I give unto you. Let not your heart be troubled, neither let it be afraid.", ref: "John 14:27" },
+  { text: "The Lord is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit.", ref: "Psalm 34:18" },
+  { text: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee.", ref: "Isaiah 41:10" },
+  { text: "Cast thy burden upon the Lord, and he shall sustain thee.", ref: "Psalm 55:22" },
+  { text: "Be still, and know that I am God.", ref: "Psalm 46:10" },
+  { text: "I can do all things through Christ which strengtheneth me.", ref: "Philippians 4:13" }
+];
+
+/* ── State ──────────────────────────────────────────────────── */
+var bbdVisible = {};
+var currentUid = null;
+var LS_KEY = 'AA_BBD_VISIBLE';
+
+/* ── Triple-redundancy save (Mary-proof) ────────────────────── */
+/* Layer 1: localStorage (instant, survives refresh)
+   Layer 2: Firestore via studentConfig
+   Layer 3: sessionStorage fallback */
+function _saveBBDChoices() {
+  /* Layer 1: localStorage */
+  try {
+    localStorage.setItem(LS_KEY + '_' + (currentUid || 'anon'), JSON.stringify(bbdVisible));
+  } catch(e) {
+    /* Layer 3: sessionStorage fallback */
+    try { sessionStorage.setItem(LS_KEY + '_' + (currentUid || 'anon'), JSON.stringify(bbdVisible)); } catch(e2) {}
+  }
+  /* Layer 2: Firestore (async, best-effort) */
+  if (currentUid && window.AA_CONFIG) {
+    window.AA_CONFIG.save(currentUid, { 'modes.bbdVisible': bbdVisible }).catch(function(err) {
+      console.warn('[AA BBD] Firestore save failed (Layer 2):', err.message);
+    });
+  }
+}
+
+function _loadBBDChoices(uid) {
+  /* Try localStorage first */
+  try {
+    var saved = localStorage.getItem(LS_KEY + '_' + uid);
+    if (saved) { bbdVisible = JSON.parse(saved); return; }
+  } catch(e) {}
+  /* Try sessionStorage */
+  try {
+    var saved2 = sessionStorage.getItem(LS_KEY + '_' + uid);
+    if (saved2) { bbdVisible = JSON.parse(saved2); return; }
+  } catch(e2) {}
+  bbdVisible = {};
+}
+
+/* ── Toggle a section ────────────────────────────────────────── */
+function toggleSection(key, checked) {
+  /* Mirror guard */
+  if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+
+  bbdVisible[key] = checked;
+  _saveBBDChoices();
+
+  var item = document.getElementById('item-' + key);
+  if (item) item.classList.toggle('active', checked);
+
+  /* Inline check-in: show/hide the card */
+  if (key === 'checkin') {
+    var card = document.getElementById('checkin-card');
+    if (card) card.style.display = checked ? 'block' : 'none';
+  }
+
+  /* Inline comfort: show a verse */
+  if (key === 'comfort') {
+    var el = document.getElementById('section-comfort');
+    if (el) {
+      if (checked) {
+        var v = comfortVerses[Math.floor(Math.random() * comfortVerses.length)];
+        el.innerHTML = '\u201c' + v.text + '\u201d<div style="margin-top:10px;font-style:normal;font-size:12pt;color:#b4956a;">\u2014 ' + v.ref + '</div>';
+        el.style.display = 'block';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+  }
+
+  renderLinks();
+}
+
+/* ── Restore checkboxes from saved state ─────────────────────── */
+function restoreCheckboxes() {
+  Object.keys(bbdVisible).forEach(function(key) {
+    var checkbox = document.querySelector('#item-' + key + ' input[type="checkbox"]');
+    if (checkbox) {
+      checkbox.checked = bbdVisible[key];
+      var item = document.getElementById('item-' + key);
+      if (item) item.classList.toggle('active', bbdVisible[key]);
+    }
+    /* Show inline check-in if previously selected */
+    if (key === 'checkin' && bbdVisible[key]) {
+      var card = document.getElementById('checkin-card');
+      if (card) card.style.display = 'block';
+    }
+    /* Show comfort verse if previously selected */
+    if (key === 'comfort' && bbdVisible[key]) {
+      var el = document.getElementById('section-comfort');
+      if (el) {
+        var v = comfortVerses[Math.floor(Math.random() * comfortVerses.length)];
+        el.innerHTML = '\u201c' + v.text + '\u201d<div style="margin-top:10px;font-style:normal;font-size:12pt;color:#b4956a;">\u2014 ' + v.ref + '</div>';
+        el.style.display = 'block';
+      }
+    }
+  });
+  renderLinks();
+}
+
+/* ── Render clickable links for checked sections ─────────────── */
+function renderLinks() {
+  var container = document.getElementById('bbd-links');
+  if (!container) return;
+  container.innerHTML = '';
+  Object.keys(SECTIONS).forEach(function(key) {
+    var sec = SECTIONS[key];
+    if (bbdVisible[key] && sec.url) {
+      var a = document.createElement('a');
+      a.href = sec.url;
+      a.textContent = sec.label;
+      a.className = 'section-link';
+      container.appendChild(a);
+    }
+  });
+}
+
 /* ── Check-In ──────────────────────────────────────────────── */
-/* Updated 2026-02-25 by Claude — Mary's confirmed 10-point energy scale */
 var LABELS = ['','Fully Charged','Energized','Pretty Good','Doing Okay','Neutral',
     'Starting to Tire','Pretty Tired','Very Exhausted','Almost Empty','Completely Depleted'];
 
@@ -618,10 +850,7 @@ function pickEnergy(el) {
     logged.style.display = 'block';
     logged.textContent   = 'Logged: ' + em + ' ' + lbl;
 
-    /* Add entry to session log */
     addLogEntry(em + ' ' + lbl);
-
-    /* Save to Firebase silently — Claude 2026-02-26 */
     bbdSaveEnergy(v, lbl);
 }
 
@@ -664,7 +893,7 @@ function renderLog() {
 }
 
 /* ── Settings ──────────────────────────────────────────────── */
-var fontSize = 18;
+var fontSize = 16;
 var MIN_FONT = 14, MAX_FONT = 28;
 
 function changeFontSize(delta) {
@@ -676,12 +905,11 @@ function changeFontSize(delta) {
 
 function applyHighContrast(on) {
     if (on) {
-        document.body.style.setProperty('--bbd-border', '#333');
-        document.querySelectorAll('.card').forEach(function(c){
-            c.style.border = '2px solid #333';
+        document.querySelectorAll('.card, .checklist-card').forEach(function(c){
+            c.style.border = '2px solid #6a5e50';
         });
     } else {
-        document.querySelectorAll('.card').forEach(function(c){
+        document.querySelectorAll('.card, .checklist-card').forEach(function(c){
             c.style.border = '';
         });
     }
@@ -709,10 +937,7 @@ function applyDyslexicFont(on) {
     if (mq.addEventListener) mq.addEventListener('change', update);
 })();
 
-/* ── Firebase sync — Claude 2026-02-26 ─────────────────────────────────────
-   Saves energy check-ins to Firestore so they persist across devices/browsers.
-   Works silently in the background — Bad Brain Day works fully without sign-in.
-─────────────────────────────────────────────────────────────────────────── */
+/* ── Firebase sync ─────────────────────────────────────────── */
 function _bbdDateKey() {
     var d = new Date();
     return d.getFullYear() + '-'
@@ -720,13 +945,8 @@ function _bbdDateKey() {
         + String(d.getDate()).padStart(2, '0');
 }
 
-/* Called from pickEnergy() — save the pick to Firebase if signed in */
-/* Claude: 2026-03-12 — Bad Brain Day check-in now includes flag + mood
-   so it shows on the Support Dashboard. Energy 8-9 (Almost Empty /
-   Completely Depleted) = red flag; everything else = yellow flag
-   (bad brain day is always at least yellow). */
+/* Claude: 2026-03-21 — Triple redundancy on energy save */
 function bbdSaveEnergy(value, label) {
-    /* Claude: 2026-03-13 — mirror guard: supporters cannot submit energy saves */
     if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
     if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
     var uid = AA.auth.currentUser.uid;
@@ -735,37 +955,78 @@ function bbdSaveEnergy(value, label) {
         badBrainDayEnergy: value,
         badBrainDayLabel:  label,
         flag:              flag,
-        mood:              'Bad Brain Day — ' + label,
+        mood:              'Bad Brain Day \u2014 ' + label,
         source:            'bad-brain-day',
         savedAt:           new Date().toISOString()
     };
-    AA.saveCheckin(uid, _bbdDateKey(), entry).catch(function(err) {
-        console.warn('[AA] Bad Brain Day energy save failed (non-critical):', err.message);
+
+    /* Layer 1: localStorage backup */
+    try {
+      localStorage.setItem('AA_BBD_ENERGY_BACKUP_' + uid, JSON.stringify(entry));
+    } catch(e) {
+      try { sessionStorage.setItem('AA_BBD_ENERGY_BACKUP_' + uid, JSON.stringify(entry)); } catch(e2) {}
+    }
+
+    /* Layer 2: Firestore */
+    AA.saveCheckin(uid, _bbdDateKey(), entry).then(function() {
+      try { localStorage.removeItem('AA_BBD_ENERGY_BACKUP_' + uid); } catch(e) {}
+    }).catch(function(err) {
+        console.warn('[AA] Bad Brain Day energy save failed:', err.message);
+        /* Layer 3: Queue retry */
+        try {
+          var queue = JSON.parse(localStorage.getItem('AA_BBD_RETRY_QUEUE') || '[]');
+          queue.push({ uid: uid, date: _bbdDateKey(), entry: entry, queuedAt: new Date().toISOString() });
+          if (queue.length > 10) queue = queue.slice(-10);
+          localStorage.setItem('AA_BBD_RETRY_QUEUE', JSON.stringify(queue));
+        } catch(e) {}
     });
-    /* Send flag notification to support team */
+    /* Flag notification */
     var flagLabel = flag === 'red' ? '🔴 Red Flag' : '🟡 Yellow Flag';
     AA.addNotification(uid, flag + '_flag',
-        flagLabel + ' — Bad Brain Day check-in: ' + label
+        flagLabel + ' \u2014 Bad Brain Day check-in: ' + label
     ).catch(function(err) {
         console.warn('[AA] bbd flag notification failed:', err.message);
     });
 }
 
-/* On load — restore today's energy pick from Firebase if not already selected */
-var _bbdUid = null; // UID guard — skips re-run on Firebase ~45-min token refresh. Claude, 2026-03-07.
+/* On load — restore energy + feature choices */
+var _bbdUid = null;
 document.addEventListener('DOMContentLoaded', function() {
     if (!window.AA || !AA.auth) return;
     AA.auth.onAuthStateChanged(function(user) {
         if (!user) return;
-        if (user.uid === _bbdUid) return; // token refresh — skip
+        if (user.uid === _bbdUid) return;
         _bbdUid = user.uid;
-        /* Only restore if the user hasn't already picked something this session */
+        currentUid = window.AA_MIRROR_UID || user.uid;
+
+        /* Route Mary to her meal planner */
+        AA.db.collection('users').doc(currentUid).get().then(function(uDoc) {
+          var studentEmail = uDoc.exists ? uDoc.data().email : '';
+          if (studentEmail === 'mbrinck90@gmail.com') {
+            SECTIONS.meals.url = '/Academic-Allies/modular/components/meal-planner-mary/index.html';
+          } else if (uDoc.exists && uDoc.data().mealPlannerUrl) {
+            SECTIONS.meals.url = uDoc.data().mealPlannerUrl;
+          }
+          renderLinks();
+        }).catch(function() { /* meal routing failed — use default */ });
+
+        /* Restore feature choices (Layer 1: localStorage → Layer 2: Firestore) */
+        _loadBBDChoices(currentUid);
+        if (Object.keys(bbdVisible).length > 0) {
+          restoreCheckboxes();
+        } else if (window.AA_CONFIG) {
+          window.AA_CONFIG.load(currentUid).then(function() {
+            var saved = window.AA_CONFIG.get('modes.bbdVisible', null);
+            if (saved && typeof saved === 'object') {
+              bbdVisible = saved;
+              restoreCheckboxes();
+            }
+          });
+        }
+
+        /* Restore energy check-in */
         if (document.querySelector('.energy-item.selected')) return;
         AA.getRecentCheckins(user.uid, 1).then(function(docs) {
-            // FUNCTIONAL FIX 2026-03-07 by Claude: getRecentCheckins returns a plain
-            // array of data objects, not a QuerySnapshot. docs.empty is always undefined
-            // (never triggers) and docs.docs[0].data() always throws a TypeError —
-            // so energy was silently never restored. Fixed to use array API.
             if (!docs || docs.length === 0) return;
             var data = docs[0];
             if (data.badBrainDayEnergy) {
@@ -781,17 +1042,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }).catch(function(err) {
-            console.warn('[AA] Bad Brain Day restore failed (non-critical):', err.message);
+            console.warn('[AA] Bad Brain Day restore failed:', err.message);
         });
+
+        /* Process retry queue */
+        try {
+          var queue = JSON.parse(localStorage.getItem('AA_BBD_RETRY_QUEUE') || '[]');
+          if (queue.length > 0) {
+            localStorage.removeItem('AA_BBD_RETRY_QUEUE');
+            queue.forEach(function(item) {
+              AA.saveCheckin(item.uid, item.date, item.entry).catch(function() {});
+            });
+          }
+        } catch(e) {}
     });
 });
 </script>
 
-    <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. Firebase was added 2026-02-26 for silent background sync for check-in persistence. -->
+    <!-- Claude: 2026-03-12 — Set app mode to 'bad-brain-day' when this page loads -->
+    <script>
+    (function () {
+      var currentMode = localStorage.getItem('appMode');
+      if (currentMode !== 'bad-brain-day') {
+        localStorage.setItem('appMode', 'bad-brain-day');
+        window.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: 'bad-brain-day' } }));
+        console.log('[AA] Mode set to bad-brain-day');
+        (function _notifyBBD() {
+          if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.addNotification) {
+            if (window._notifyRetries === undefined) window._notifyRetries = 0;
+            if (window._notifyRetries++ < 15) { setTimeout(_notifyBBD, 400); }
+            return;
+          }
+          var uid = window.AA_MIRROR_UID || AA.auth.currentUser.uid;
+          if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== AA.auth.currentUser.uid) return;
+          AA.addNotification(uid, 'mode_bad_brain',
+            '🧠 Bad Brain Day activated at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          ).catch(function (err) { console.warn('[AA] bbd notification failed:', err.message); });
+        })();
+      }
+    })();
+    </script>
 
-    <!-- Claude: 2026-03-14 — Happy Envelope v2: standalone floating element that
-         hides the status circle and shows a friendly, animated envelope with unread
-         count. On Bad Brain Day, "someone cares about you" > status color. -->
+    <!-- Happy Envelope -->
     <script>
     (function() {
       var _envUnsub = null;
@@ -810,23 +1102,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
       function showEnvelope(count) {
         var env = document.getElementById('happy-envelope');
-
-        /* Create the envelope element if it doesn't exist yet */
         if (!env) {
           env = document.createElement('a');
           env.id = 'happy-envelope';
           env.href = '/Academic-Allies/modular/components/message-system/message-system.html';
           document.body.appendChild(env);
         }
-
         env.setAttribute('aria-label', count + ' unread message' + (count !== 1 ? 's' : '') + ' — someone reached out!');
         env.title = count + ' unread message' + (count !== 1 ? 's' : '') + '!';
         env.innerHTML =
           '<span class="env-face">💌<span class="env-label">NEW</span></span>' +
           '<span class="env-count">' + (count > 99 ? '99+' : count) + '</span>';
         env.style.display = 'block';
-
-        /* Hide the status circle so envelope takes its place */
         var sc = document.getElementById('status-circle');
         if (sc) sc.style.display = 'none';
         var banner = document.getElementById('sc-banner');
@@ -836,23 +1123,10 @@ document.addEventListener('DOMContentLoaded', function() {
       function hideEnvelope() {
         var env = document.getElementById('happy-envelope');
         if (env) env.style.display = 'none';
-
-        /* Restore status circle */
         var sc = document.getElementById('status-circle');
         if (sc) sc.style.display = '';
         var banner = document.getElementById('sc-banner');
         if (banner) banner.style.display = '';
-      }
-
-      function updateMsgBadge(count) {
-        var badge = document.getElementById('msg-badge');
-        if (!badge) return;
-        if (count > 0) {
-          badge.textContent = count > 99 ? '99+' : count;
-          badge.style.display = 'inline-flex';
-        } else {
-          badge.style.display = 'none';
-        }
       }
 
       _envWaitForAA(function() {
@@ -877,77 +1151,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 var lastRead = getLastRead(doc.id);
                 if (lastAt > lastRead) unreadCount++;
               });
-
-              updateMsgBadge(unreadCount);
-
-              if (unreadCount > 0) {
-                showEnvelope(unreadCount);
-              } else {
-                hideEnvelope();
-              }
-            }, function() { /* permission error — leave alone */ });
+              if (unreadCount > 0) { showEnvelope(unreadCount); }
+              else { hideEnvelope(); }
+            }, function() { /* permission error */ });
         });
       });
     })();
     </script>
 
-    <!-- Claude: 2026-03-12 — Set app mode to 'bad-brain-day' when this page loads.
-         This integrates with mode-enforcer.js so the rest of the app adjusts
-         (hides spoon planner, meal plan, calendar; shows check-in, messages, emergency.)
-         Archive: bad-brain-day_2026-03-12_pre-mode-switch.bak.html -->
-    <script>
-    (function () {
-      var currentMode = localStorage.getItem('appMode');
-      if (currentMode !== 'bad-brain-day') {
-        localStorage.setItem('appMode', 'bad-brain-day');
-        window.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: 'bad-brain-day' } }));
-        console.log('[AA] Mode set to bad-brain-day');
-        /* Claude: 2026-03-12 — notify supporters when student switches to bad brain day.
-           Archive: bad-brain-day_2026-03-12_pre-mode-notif.bak.html */
-        (function _notifyBBD() {
-          if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.addNotification) {
-            if (window._notifyRetries === undefined) window._notifyRetries = 0;
-            if (window._notifyRetries++ < 15) { setTimeout(_notifyBBD, 400); }
-            return;
-          }
-          var uid = window.AA_MIRROR_UID || AA.auth.currentUser.uid;
-          if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== AA.auth.currentUser.uid) return;
-          AA.addNotification(uid, 'mode_bad_brain',
-            '🧠 Bad Brain Day activated at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          ).catch(function (err) { console.warn('[AA] bbd notification failed:', err.message); });
-        })();
-      }
-    })();
-    </script>
-
-    <!-- Claude: 2026-03-19 — student-config.js + card-level layout engine.
-         Loads per-student card config from Firestore and applies hide/reorder
-         to this page's cards based on modes.cards['bad-brain'] settings.
-         Archive: bad-brain-day_2026-03-19_mode-cards.bak.html -->
+    <!-- Card-level layout engine -->
     <script src="/Academic-Allies/modular/js/student-config.js"></script>
     <script>
-    /* Claude: 2026-03-19 — card-level layout for Bad Brain Day page */
     (function _bbdCardLayout() {
       'use strict';
-
       function _applyCardLayout(cardsCfg) {
         var container = document.querySelector('.container');
         if (!container) return;
-
-        /* Build enabled map */
         var enabledMap = {};
         cardsCfg.forEach(function(c) { enabledMap[c.id] = c.enabled !== false; });
-
-        /* Hide disabled cards */
         var allCards = container.querySelectorAll('[data-card-id]');
         allCards.forEach(function(el) {
           var id = el.getAttribute('data-card-id');
-          if (enabledMap[id] === false) {
-            el.style.display = 'none';
-          }
+          if (enabledMap[id] === false) { el.style.display = 'none'; }
         });
-
-        /* Reorder enabled cards per config array order */
         var enabledCards = [];
         cardsCfg.forEach(function(c) {
           if (c.enabled === false) return;
@@ -956,24 +1182,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         enabledCards.forEach(function(el) { container.appendChild(el); });
       }
-
-      /* Wait for AA + auth, load config, apply */
       function _waitBoot(cb, tries) {
         tries = tries || 0;
         if (window.AA && window.AA.auth && window.AA.db && window.AA_CONFIG) { cb(); return; }
-        if (tries > 40) return; /* give up after ~8s */
+        if (tries > 40) return;
         setTimeout(function() { _waitBoot(cb, tries + 1); }, 200);
       }
-
       _waitBoot(function() {
         AA.auth.onAuthStateChanged(function(user) {
           if (!user) return;
           var uid = window.AA_MIRROR_UID || user.uid;
           window.AA_CONFIG.load(uid).then(function() {
             var cardsCfg = window.AA_CONFIG.get('modes.cards.bad-brain', null);
-            if (cardsCfg && Array.isArray(cardsCfg)) {
-              _applyCardLayout(cardsCfg);
-            }
+            if (cardsCfg && Array.isArray(cardsCfg)) { _applyCardLayout(cardsCfg); }
           });
         });
       });

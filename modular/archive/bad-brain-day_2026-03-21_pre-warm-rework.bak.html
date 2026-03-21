@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bad Brain Day — Academic Allies</title>
+    <link rel="icon" href="../icons/mode-bad-brain-day.jpg">
+    <!-- Updated: 2026-02-25 by Claude — Bad Brain Day Mode (5 critical functions, stripped-down crisis UI) -->
+    <!-- Claude: 2026-03-09 — Fixed icon href from ../../icons/ to ../icons/ (file is at modular/components/, icons are at modular/icons/) -->
+    <style>
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--bbd-font, 'Atkinson Hyperlegible', Arial, sans-serif);
+            font-size: var(--bbd-size, 18pt);
+            line-height: 1.5;
+            letter-spacing: 0.035em;
+            background: #FAFAF9;
+            color: #333333;
+            min-height: 100vh;
+            padding: 20px 16px 80px;
+        }
+
+        /* ── Layout ────────────────────────────────────── */
+        .container { max-width: 560px; margin: 0 auto; }
+
+        .page-header {
+            text-align: center;
+            padding: 20px 0 24px;
+        }
+        .page-header img {
+            width: 72px; height: 72px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            display: block;
+            margin-left: auto; margin-right: auto;
+            object-fit: cover;
+        }
+        .page-header h1 {
+            font-size: 24pt;
+            color: #6CA0A3;
+            margin-bottom: 6px;
+        }
+        .page-header p {
+            font-size: 16pt;
+            color: #777;
+        }
+
+        /* ── Cards ─────────────────────────────────────── */
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+        .card-title {
+            font-size: 20pt;
+            color: #6CA0A3;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ── Big Buttons (Emergency / Messages) ────────── */
+        .big-btn {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            border-radius: 16px;
+            border: none;
+            font-size: 18pt;
+            font-family: inherit;
+            letter-spacing: 0.035em;
+            cursor: pointer;
+            min-height: 19mm;
+            text-align: left;
+            text-decoration: none;
+            color: inherit;
+        }
+        .big-btn:last-child { margin-bottom: 0; }
+        .big-btn:hover   { filter: brightness(0.95); }
+        .big-btn:focus   { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+
+        .btn-emergency   { background: #fde8ea; color: #a0282e; font-weight: 700; }
+        .btn-messages    { background: #e8f4f5; color: #3a7a7d; }
+        .btn-secondary   { background: #f0f0f0; color: #444; }
+
+        .btn-icon { font-size: 26pt; min-width: 38px; text-align: center; }
+
+        .unread-badge {
+            background: #f5576c;
+            color: white;
+            border-radius: 50%;
+            font-size: 12pt;
+            min-width: 26px; min-height: 26px;
+            display: inline-flex;
+            align-items: center; justify-content: center;
+            padding: 2px 6px;
+            margin-left: auto;
+        }
+
+        /* ── Check-In (optional) ────────────────────────── */
+        .skip-notice {
+            background: #f5f5f0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 14pt;
+            color: #888;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+
+        .energy-list { list-style: none; }
+        .energy-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            min-height: 19mm;
+            border: 2px solid transparent;
+            transition: background 0.12s, border-color 0.12s;
+            margin-bottom: 4px;
+        }
+        .energy-item:hover, .energy-item:focus {
+            background: #f0f7f8;
+            border-color: #6CA0A3;
+            outline: none;
+        }
+        .energy-item.selected {
+            background: #6CA0A3;
+            color: white;
+            border-color: #6CA0A3;
+        }
+        .energy-item.selected .energy-def { color: rgba(255,255,255,0.8); }
+        .energy-emoji   { font-size: 26pt; min-width: 40px; text-align: center; }
+        .energy-label   { font-size: 16pt; font-weight: 600; }
+        .energy-def     { font-size: 12pt; color: #777; display: block; }
+
+        .threshold-line {
+            text-align: center;
+            font-size: 11pt;
+            color: #bbb;
+            letter-spacing: 0.08em;
+            padding: 6px 0 8px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .threshold-line::before, .threshold-line::after {
+            content: ''; flex: 1; height: 1px; background: #e5e5e5;
+        }
+
+        .checkin-logged {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            background: #f0f7f8;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 16pt;
+            color: #6CA0A3;
+        }
+
+        .skip-btn {
+            display: block;
+            width: 100%;
+            margin-top: 14px;
+            padding: 12px;
+            background: none;
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            font-size: 15pt;
+            font-family: inherit;
+            /* Claude: 2026-03-14 — #aaa→#777 for WCAG AA contrast on #FAFAF9 bg */
+            color: #777;
+            cursor: pointer;
+            letter-spacing: 0.035em;
+            min-height: 19mm;
+        }
+        .skip-btn:hover { border-color: #bbb; color: #888; }
+        .skip-btn:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+
+        /* ── Logs (read-only) ───────────────────────────── */
+        .log-entry {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 15pt;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .log-entry:last-child { border-bottom: none; }
+        /* Claude: 2026-03-14 — #aaa→#666 for WCAG AA contrast (12pt on #FAFAF9) */
+        .log-date { font-size: 12pt; color: #666; min-width: 72px; }
+        .log-note { flex: 1; }
+        /* Claude: 2026-03-14 — #bbb→#888 for WCAG AA contrast */
+        .log-empty { font-size: 15pt; color: #888; text-align: center; padding: 16px 0; }
+
+        /* ── Settings ───────────────────────────────────── */
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            min-height: 19mm;
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-label { font-size: 16pt; }
+        .setting-desc  { font-size: 13pt; color: #999; }
+
+        .toggle-row { gap: 10px; }
+        .toggle-switch {
+            position: relative;
+            width: 52px; height: 30px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute; inset: 0;
+            background: #ccc; border-radius: 30px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 24px; height: 24px;
+            left: 3px; top: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-switch input:checked + .toggle-slider { background: #6CA0A3; }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+        .toggle-switch input:focus + .toggle-slider { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+
+        .font-size-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .font-size-controls button {
+            background: #e8f4f5;
+            border: none;
+            color: #3a7a7d;
+            font-size: 18pt;
+            font-weight: 700;
+            width: 44px; height: 44px;
+            min-width: 19mm; min-height: 19mm;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .font-size-controls button:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+        #font-size-label { font-size: 14pt; color: #666; min-width: 36px; text-align: center; }
+
+        /* ── Back / Exit ────────────────────────────────── */
+        .back-section { margin-top: 8px; }
+        .back-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: #f0f0f0;
+            color: #666;
+            border: none;
+            border-radius: 14px;
+            font-size: 16pt;
+            font-family: inherit;
+            letter-spacing: 0.035em;
+            cursor: pointer;
+            text-align: center;
+            min-height: 19mm;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .back-btn:hover { background: #e5e5e5; }
+        .back-btn:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+        /* ── Claude: 2026-03-14 — Happy Envelope v2 (floating, replaces status circle) ── */
+        @keyframes env-float {
+            0%, 100% { transform: translateY(0) rotate(-2deg); }
+            50% { transform: translateY(-6px) rotate(2deg); }
+        }
+        @keyframes env-wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            15% { transform: rotate(-8deg); }
+            30% { transform: rotate(6deg); }
+            45% { transform: rotate(-4deg); }
+            60% { transform: rotate(0deg); }
+        }
+        @keyframes env-glow-pulse {
+            0%, 100% { box-shadow: 0 4px 15px rgba(108,160,163,0.3), 0 0 0 0 rgba(108,160,163,0); }
+            50% { box-shadow: 0 4px 20px rgba(108,160,163,0.5), 0 0 0 8px rgba(108,160,163,0.08); }
+        }
+        #happy-envelope {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            /* Claude: 2026-03-16 — lowered from 1001 to 999 so mirror banner (z:1001) stays on top */
+            z-index: 999;
+            display: none;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #e8f4f5 0%, #d4ecee 50%, #c0e4e6 100%);
+            border: 2px solid #6CA0A3;
+            cursor: pointer;
+            text-decoration: none;
+            animation: env-float 3s ease-in-out infinite, env-glow-pulse 3s ease-in-out infinite;
+            transition: transform 0.2s;
+        }
+        #happy-envelope:hover {
+            transform: scale(1.1);
+            animation: env-wiggle 0.8s ease-in-out;
+        }
+        #happy-envelope:active {
+            transform: scale(0.95);
+        }
+        #happy-envelope .env-face {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            line-height: 1;
+        }
+        #happy-envelope .env-label {
+            font-size: 7px;
+            font-weight: 700;
+            color: #3a7a7d;
+            letter-spacing: 0.05em;
+            margin-top: 1px;
+        }
+        #happy-envelope .env-count {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: linear-gradient(135deg, #f5576c, #e8445a);
+            color: white;
+            font-size: 12px;
+            font-weight: 800;
+            min-width: 22px;
+            height: 22px;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+            box-shadow: 0 2px 6px rgba(245,87,108,0.4);
+            border: 2px solid #fff;
+        }
+        /* Dark mode envelope */
+        html.aa-dark #happy-envelope {
+            background: linear-gradient(135deg, #1a3a3c 0%, #1e2e30 50%, #223a3c 100%);
+            border-color: #4a8a8d;
+        }
+        html.aa-dark #happy-envelope .env-label { color: #9dd0d3; }
+        html.aa-dark #happy-envelope .env-count { border-color: #1e1e1e; }
+
+        .back-note {
+            text-align: center;
+            font-size: 13pt;
+            color: #bbb;
+            margin-top: 8px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260320')
+      .then(function(r){ return r.text(); })
+      .then(function(html){
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(s){
+            var n = document.createElement('script');
+            Array.from(s.attributes).forEach(function(a){ n.setAttribute(a.name, a.value); });
+            n.textContent = s.textContent;
+            s.replaceWith(n);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<div class="container">
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <img src="../icons/mode-bad-brain-day.jpg" alt="Bad Brain Day mode icon">
+        <h1>Bad Brain Day</h1>
+        <p>Just the essentials. No pressure.</p>
+    </div>
+
+    <!-- ① Messages / Support Chat ─────────────────────────── -->
+    <div class="card" data-card-id="messages">
+        <div class="card-title">💬 Messages</div>
+
+        <a href="/Academic-Allies/modular/components/message-system/message-system.html"
+           class="big-btn btn-messages"
+           aria-label="Open support messages">
+            <span class="btn-icon">💬</span>
+            <span>Support Messages</span>
+            <span class="unread-badge" id="msg-badge" style="display:none;" aria-label="unread messages">0</span>
+        </a>
+    </div>
+
+    <!-- ② Emergency Contacts ──────────────────────────────── -->
+    <div class="card" data-card-id="emergency">
+        <div class="card-title">🆘 Emergency Contacts</div>
+
+        <a href="/Academic-Allies/modular/emergency.html"
+           class="big-btn btn-emergency"
+           aria-label="One-tap emergency contacts">
+            <span class="btn-icon">🆘</span>
+            <span>One-Tap Emergency Help</span>
+        </a>
+
+        <a href="tel:988" class="big-btn btn-secondary" aria-label="Call 988 crisis line">
+            <span class="btn-icon">📞</span>
+            <span>Crisis Line — 988</span>
+        </a>
+    </div>
+
+    <!-- ③ Basic Check-In (optional / skippable) ───────────── -->
+    <div class="card" id="checkin-card" data-card-id="energy">
+        <div class="card-title">💡 Check-In <span style="font-size:13pt;color:#bbb;font-weight:400;">(optional)</span></div>
+
+        <div class="skip-notice" aria-hidden="true">No pressure — skip if it's too much.</div>
+
+        <ul class="energy-list" role="listbox" aria-label="How is your energy right now?">
+            <li class="energy-item" role="option" tabindex="0" data-v="1"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😁</span>
+                <span><span class="energy-label">Fully Charged</span><span class="energy-def">Peak energy</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="2"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😊</span>
+                <span><span class="energy-label">Energized</span><span class="energy-def">Feeling good</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="3"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">🙂</span>
+                <span><span class="energy-label">Pretty Good</span><span class="energy-def">Able to engage</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="4"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">🙂</span>
+                <span><span class="energy-label">Doing Okay</span><span class="energy-def">Getting through</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="5"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😐</span>
+                <span><span class="energy-label">Neutral</span><span class="energy-def">Baseline</span></span>
+            </li>
+
+            <li class="threshold-line" aria-hidden="true">Exhaustion Threshold</li>
+
+            <li class="energy-item" role="option" tabindex="0" data-v="6"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😕</span>
+                <span><span class="energy-label">Starting to Tire</span><span class="energy-def">Running low</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="7"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😟</span>
+                <span><span class="energy-label">Pretty Tired</span><span class="energy-def">Wanting a break</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="8"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😫</span>
+                <span><span class="energy-label">Very Exhausted</span><span class="energy-def">Hard to continue</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="9"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😩</span>
+                <span><span class="energy-label">Almost Empty</span><span class="energy-def">Nearly shutdown</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="10"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">☠️</span>
+                <span><span class="energy-label">Completely Depleted</span><span class="energy-def">Feeling shutdown</span></span>
+            </li>
+        </ul>
+
+        <div class="checkin-logged" id="checkin-logged" role="status" aria-live="polite"></div>
+
+        <button class="skip-btn" onclick="skipCheckin()" aria-label="Skip check-in for today">
+            Skip for now →
+        </button>
+    </div>
+
+    <!-- Skipped confirmation (hidden by default) -->
+    <div class="card" id="checkin-skipped-card" style="display:none; text-align:center;">
+        <div class="card-title" style="justify-content:center;">✓ Check-In Skipped</div>
+        <!-- Claude: 2026-03-14 — #aaa→#777 for WCAG AA contrast -->
+        <p style="color:#777;font-size:15pt;">That's okay. You don't owe anyone a report.</p>
+        <button class="skip-btn" style="margin-top:14px;" onclick="undoSkip()" aria-label="Undo skip, show check-in again">
+            Undo — show check-in
+        </button>
+    </div>
+
+    <!-- ④ Logs / History (read-only) ─────────────────────── -->
+    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <div class="card" data-card-id="history">
+        <div class="card-title">📋 Recent History <span style="font-size:13pt;color:#bbb;font-weight:400;">(read only)</span></div>
+
+        <div id="log-list">
+            <!-- Populated by JS from sessionStorage / future Firestore integration -->
+            <div class="log-empty" id="log-empty">No entries yet this session.</div>
+        </div>
+    </div>
+
+    <!-- ⑤ Settings ────────────────────────────────────────── -->
+    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <div class="card" data-card-id="a11y">
+        <div class="card-title">⚙️ Accessibility</div>
+
+        <!-- Font size -->
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Text Size</div>
+                <div class="setting-desc">Adjust how large text appears</div>
+            </div>
+            <div class="font-size-controls">
+                <button onclick="changeFontSize(-1)" aria-label="Decrease text size">−</button>
+                <span id="font-size-label">18</span>
+                <button onclick="changeFontSize(1)" aria-label="Increase text size">+</button>
+            </div>
+        </div>
+
+        <!-- High contrast -->
+        <div class="setting-row toggle-row">
+            <div>
+                <div class="setting-label">High Contrast</div>
+                <div class="setting-desc">Darker borders and text</div>
+            </div>
+            <label class="toggle-switch" aria-label="Toggle high contrast">
+                <input type="checkbox" id="high-contrast-toggle" onchange="applyHighContrast(this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <!-- Reduced motion note -->
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Reduced Motion</div>
+                <div class="setting-desc" id="motion-status">Checking system setting…</div>
+            </div>
+        </div>
+
+        <!-- OpenDyslexic font -->
+        <div class="setting-row toggle-row">
+            <div>
+                <div class="setting-label">Dyslexia-Friendly Font</div>
+                <div class="setting-desc">Switch to OpenDyslexic</div>
+            </div>
+            <label class="toggle-switch" aria-label="Toggle OpenDyslexic font">
+                <input type="checkbox" id="dyslexic-toggle" onchange="applyDyslexicFont(this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Back to Recovery -->
+    <!-- Updated: 2026-02-25 by Claude — corrected label: Bad Brain Day exits to Recovery, not Brain Fog -->
+    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <div class="back-section" data-card-id="backlink">
+        <a href="/Academic-Allies/modular/components/recovery-mode.html"
+           class="back-btn"
+           role="button"
+           aria-label="Exit Bad Brain Day mode and return to Recovery Mode">
+            ← Back to Recovery
+        </a>
+        <p class="back-note">Not back to normal — just back to recovery mode. That's enough.</p>
+    </div>
+
+</div><!-- /container -->
+
+<script>
+/* ── Check-In ──────────────────────────────────────────────── */
+/* Updated 2026-02-25 by Claude — Mary's confirmed 10-point energy scale */
+var LABELS = ['','Fully Charged','Energized','Pretty Good','Doing Okay','Neutral',
+    'Starting to Tire','Pretty Tired','Very Exhausted','Almost Empty','Completely Depleted'];
+
+function pickEnergy(el) {
+    document.querySelectorAll('.energy-item').forEach(function(i){
+        i.classList.remove('selected');
+        i.setAttribute('aria-selected','false');
+    });
+    el.classList.add('selected');
+    el.setAttribute('aria-selected','true');
+
+    var v   = parseInt(el.dataset.v);
+    var lbl = LABELS[v];
+    var em  = el.querySelector('.energy-emoji').textContent;
+
+    var logged = document.getElementById('checkin-logged');
+    logged.style.display = 'block';
+    logged.textContent   = 'Logged: ' + em + ' ' + lbl;
+
+    /* Add entry to session log */
+    addLogEntry(em + ' ' + lbl);
+
+    /* Save to Firebase silently — Claude 2026-02-26 */
+    bbdSaveEnergy(v, lbl);
+}
+
+function skipCheckin() {
+    document.getElementById('checkin-card').style.display   = 'none';
+    document.getElementById('checkin-skipped-card').style.display = 'block';
+}
+
+function undoSkip() {
+    document.getElementById('checkin-skipped-card').style.display = 'none';
+    document.getElementById('checkin-card').style.display   = 'block';
+}
+
+/* ── Session Log ───────────────────────────────────────────── */
+var sessionLog = [];
+
+function addLogEntry(note) {
+    var now    = new Date();
+    var time   = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    sessionLog.unshift({ time: time, note: note });
+    renderLog();
+}
+
+function renderLog() {
+    var list = document.getElementById('log-list');
+    var empty = document.getElementById('log-empty');
+    if (sessionLog.length === 0) {
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+    var html = '';
+    sessionLog.forEach(function(e){
+        html += '<div class="log-entry">'
+              + '<span class="log-date">' + e.time + '</span>'
+              + '<span class="log-note">' + e.note + '</span>'
+              + '</div>';
+    });
+    list.innerHTML = html;
+}
+
+/* ── Settings ──────────────────────────────────────────────── */
+var fontSize = 18;
+var MIN_FONT = 14, MAX_FONT = 28;
+
+function changeFontSize(delta) {
+    fontSize = Math.max(MIN_FONT, Math.min(MAX_FONT, fontSize + delta));
+    document.body.style.setProperty('--bbd-size', fontSize + 'pt');
+    document.getElementById('font-size-label').textContent = fontSize;
+    addLogEntry('Text size changed to ' + fontSize + 'pt');
+}
+
+function applyHighContrast(on) {
+    if (on) {
+        document.body.style.setProperty('--bbd-border', '#333');
+        document.querySelectorAll('.card').forEach(function(c){
+            c.style.border = '2px solid #333';
+        });
+    } else {
+        document.querySelectorAll('.card').forEach(function(c){
+            c.style.border = '';
+        });
+    }
+    addLogEntry('High contrast ' + (on ? 'on' : 'off'));
+}
+
+function applyDyslexicFont(on) {
+    document.body.style.setProperty('--bbd-font',
+        on ? 'OpenDyslexic, Arial, sans-serif'
+           : '\'Atkinson Hyperlegible\', Arial, sans-serif');
+    addLogEntry('Dyslexia-friendly font ' + (on ? 'on' : 'off'));
+}
+
+/* ── Reduced Motion detection ──────────────────────────────── */
+(function(){
+    var mq  = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var el  = document.getElementById('motion-status');
+    if (!el) return;
+    function update(m) {
+        el.textContent = m.matches
+            ? 'System: reduced motion ON (animations off)'
+            : 'System: standard motion (animations on)';
+    }
+    update(mq);
+    if (mq.addEventListener) mq.addEventListener('change', update);
+})();
+
+/* ── Firebase sync — Claude 2026-02-26 ─────────────────────────────────────
+   Saves energy check-ins to Firestore so they persist across devices/browsers.
+   Works silently in the background — Bad Brain Day works fully without sign-in.
+─────────────────────────────────────────────────────────────────────────── */
+function _bbdDateKey() {
+    var d = new Date();
+    return d.getFullYear() + '-'
+        + String(d.getMonth() + 1).padStart(2, '0') + '-'
+        + String(d.getDate()).padStart(2, '0');
+}
+
+/* Called from pickEnergy() — save the pick to Firebase if signed in */
+/* Claude: 2026-03-12 — Bad Brain Day check-in now includes flag + mood
+   so it shows on the Support Dashboard. Energy 8-9 (Almost Empty /
+   Completely Depleted) = red flag; everything else = yellow flag
+   (bad brain day is always at least yellow). */
+function bbdSaveEnergy(value, label) {
+    /* Claude: 2026-03-13 — mirror guard: supporters cannot submit energy saves */
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+    if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
+    var uid = AA.auth.currentUser.uid;
+    var flag = (value >= 8) ? 'red' : 'yellow';
+    var entry = {
+        badBrainDayEnergy: value,
+        badBrainDayLabel:  label,
+        flag:              flag,
+        mood:              'Bad Brain Day — ' + label,
+        source:            'bad-brain-day',
+        savedAt:           new Date().toISOString()
+    };
+    AA.saveCheckin(uid, _bbdDateKey(), entry).catch(function(err) {
+        console.warn('[AA] Bad Brain Day energy save failed (non-critical):', err.message);
+    });
+    /* Send flag notification to support team */
+    var flagLabel = flag === 'red' ? '🔴 Red Flag' : '🟡 Yellow Flag';
+    AA.addNotification(uid, flag + '_flag',
+        flagLabel + ' — Bad Brain Day check-in: ' + label
+    ).catch(function(err) {
+        console.warn('[AA] bbd flag notification failed:', err.message);
+    });
+}
+
+/* On load — restore today's energy pick from Firebase if not already selected */
+var _bbdUid = null; // UID guard — skips re-run on Firebase ~45-min token refresh. Claude, 2026-03-07.
+document.addEventListener('DOMContentLoaded', function() {
+    if (!window.AA || !AA.auth) return;
+    AA.auth.onAuthStateChanged(function(user) {
+        if (!user) return;
+        if (user.uid === _bbdUid) return; // token refresh — skip
+        _bbdUid = user.uid;
+        /* Only restore if the user hasn't already picked something this session */
+        if (document.querySelector('.energy-item.selected')) return;
+        AA.getRecentCheckins(user.uid, 1).then(function(docs) {
+            // FUNCTIONAL FIX 2026-03-07 by Claude: getRecentCheckins returns a plain
+            // array of data objects, not a QuerySnapshot. docs.empty is always undefined
+            // (never triggers) and docs.docs[0].data() always throws a TypeError —
+            // so energy was silently never restored. Fixed to use array API.
+            if (!docs || docs.length === 0) return;
+            var data = docs[0];
+            if (data.badBrainDayEnergy) {
+                var el = document.querySelector('.energy-item[data-v="' + data.badBrainDayEnergy + '"]');
+                if (el) {
+                    el.classList.add('selected');
+                    el.setAttribute('aria-selected', 'true');
+                    var logged = document.getElementById('checkin-logged');
+                    if (logged) {
+                        logged.style.display = 'block';
+                        logged.textContent = 'Restored: ' + el.querySelector('.energy-emoji').textContent + ' ' + data.badBrainDayLabel;
+                    }
+                }
+            }
+        }).catch(function(err) {
+            console.warn('[AA] Bad Brain Day restore failed (non-critical):', err.message);
+        });
+    });
+});
+</script>
+
+    <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. Firebase was added 2026-02-26 for silent background sync for check-in persistence. -->
+
+    <!-- Claude: 2026-03-14 — Happy Envelope v2: standalone floating element that
+         hides the status circle and shows a friendly, animated envelope with unread
+         count. On Bad Brain Day, "someone cares about you" > status color. -->
+    <script>
+    (function() {
+      var _envUnsub = null;
+      var _envUid   = null;
+
+      function _envWaitForAA(cb, n) {
+        n = n || 0;
+        if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+        if (n > 60) return;
+        setTimeout(function() { _envWaitForAA(cb, n + 1); }, 200);
+      }
+
+      function getLastRead(tid) {
+        try { return parseInt(localStorage.getItem('aa-msg-read-' + tid) || '0', 10); } catch(e) { return 0; }
+      }
+
+      function showEnvelope(count) {
+        var env = document.getElementById('happy-envelope');
+
+        /* Create the envelope element if it doesn't exist yet */
+        if (!env) {
+          env = document.createElement('a');
+          env.id = 'happy-envelope';
+          env.href = '/Academic-Allies/modular/components/message-system/message-system.html';
+          document.body.appendChild(env);
+        }
+
+        env.setAttribute('aria-label', count + ' unread message' + (count !== 1 ? 's' : '') + ' — someone reached out!');
+        env.title = count + ' unread message' + (count !== 1 ? 's' : '') + '!';
+        env.innerHTML =
+          '<span class="env-face">💌<span class="env-label">NEW</span></span>' +
+          '<span class="env-count">' + (count > 99 ? '99+' : count) + '</span>';
+        env.style.display = 'block';
+
+        /* Hide the status circle so envelope takes its place */
+        var sc = document.getElementById('status-circle');
+        if (sc) sc.style.display = 'none';
+        var banner = document.getElementById('sc-banner');
+        if (banner) banner.style.display = 'none';
+      }
+
+      function hideEnvelope() {
+        var env = document.getElementById('happy-envelope');
+        if (env) env.style.display = 'none';
+
+        /* Restore status circle */
+        var sc = document.getElementById('status-circle');
+        if (sc) sc.style.display = '';
+        var banner = document.getElementById('sc-banner');
+        if (banner) banner.style.display = '';
+      }
+
+      function updateMsgBadge(count) {
+        var badge = document.getElementById('msg-badge');
+        if (!badge) return;
+        if (count > 0) {
+          badge.textContent = count > 99 ? '99+' : count;
+          badge.style.display = 'inline-flex';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+
+      _envWaitForAA(function() {
+        AA.auth.onAuthStateChanged(function(user) {
+          if (!user) {
+            if (_envUnsub) { _envUnsub(); _envUnsub = null; }
+            hideEnvelope();
+            return;
+          }
+          if (user.uid === _envUid) return;
+          _envUid = user.uid;
+
+          if (_envUnsub) { _envUnsub(); _envUnsub = null; }
+
+          _envUnsub = AA.db.collection('messages')
+            .where('participants', 'array-contains', user.uid)
+            .onSnapshot(function(snap) {
+              var unreadCount = 0;
+              snap.docs.forEach(function(doc) {
+                var d = doc.data();
+                var lastAt   = d.lastAt ? d.lastAt.toMillis() : 0;
+                var lastRead = getLastRead(doc.id);
+                if (lastAt > lastRead) unreadCount++;
+              });
+
+              updateMsgBadge(unreadCount);
+
+              if (unreadCount > 0) {
+                showEnvelope(unreadCount);
+              } else {
+                hideEnvelope();
+              }
+            }, function() { /* permission error — leave alone */ });
+        });
+      });
+    })();
+    </script>
+
+    <!-- Claude: 2026-03-12 — Set app mode to 'bad-brain-day' when this page loads.
+         This integrates with mode-enforcer.js so the rest of the app adjusts
+         (hides spoon planner, meal plan, calendar; shows check-in, messages, emergency.)
+         Archive: bad-brain-day_2026-03-12_pre-mode-switch.bak.html -->
+    <script>
+    (function () {
+      var currentMode = localStorage.getItem('appMode');
+      if (currentMode !== 'bad-brain-day') {
+        localStorage.setItem('appMode', 'bad-brain-day');
+        window.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: 'bad-brain-day' } }));
+        console.log('[AA] Mode set to bad-brain-day');
+        /* Claude: 2026-03-12 — notify supporters when student switches to bad brain day.
+           Archive: bad-brain-day_2026-03-12_pre-mode-notif.bak.html */
+        (function _notifyBBD() {
+          if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.addNotification) {
+            if (window._notifyRetries === undefined) window._notifyRetries = 0;
+            if (window._notifyRetries++ < 15) { setTimeout(_notifyBBD, 400); }
+            return;
+          }
+          var uid = window.AA_MIRROR_UID || AA.auth.currentUser.uid;
+          if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== AA.auth.currentUser.uid) return;
+          AA.addNotification(uid, 'mode_bad_brain',
+            '🧠 Bad Brain Day activated at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          ).catch(function (err) { console.warn('[AA] bbd notification failed:', err.message); });
+        })();
+      }
+    })();
+    </script>
+
+    <!-- Claude: 2026-03-19 — student-config.js + card-level layout engine.
+         Loads per-student card config from Firestore and applies hide/reorder
+         to this page's cards based on modes.cards['bad-brain'] settings.
+         Archive: bad-brain-day_2026-03-19_mode-cards.bak.html -->
+    <script src="/Academic-Allies/modular/js/student-config.js"></script>
+    <script>
+    /* Claude: 2026-03-19 — card-level layout for Bad Brain Day page */
+    (function _bbdCardLayout() {
+      'use strict';
+
+      function _applyCardLayout(cardsCfg) {
+        var container = document.querySelector('.container');
+        if (!container) return;
+
+        /* Build enabled map */
+        var enabledMap = {};
+        cardsCfg.forEach(function(c) { enabledMap[c.id] = c.enabled !== false; });
+
+        /* Hide disabled cards */
+        var allCards = container.querySelectorAll('[data-card-id]');
+        allCards.forEach(function(el) {
+          var id = el.getAttribute('data-card-id');
+          if (enabledMap[id] === false) {
+            el.style.display = 'none';
+          }
+        });
+
+        /* Reorder enabled cards per config array order */
+        var enabledCards = [];
+        cardsCfg.forEach(function(c) {
+          if (c.enabled === false) return;
+          var el = container.querySelector('[data-card-id="' + c.id + '"]');
+          if (el) enabledCards.push(el);
+        });
+        enabledCards.forEach(function(el) { container.appendChild(el); });
+      }
+
+      /* Wait for AA + auth, load config, apply */
+      function _waitBoot(cb, tries) {
+        tries = tries || 0;
+        if (window.AA && window.AA.auth && window.AA.db && window.AA_CONFIG) { cb(); return; }
+        if (tries > 40) return; /* give up after ~8s */
+        setTimeout(function() { _waitBoot(cb, tries + 1); }, 200);
+      }
+
+      _waitBoot(function() {
+        AA.auth.onAuthStateChanged(function(user) {
+          if (!user) return;
+          var uid = window.AA_MIRROR_UID || user.uid;
+          window.AA_CONFIG.load(uid).then(function() {
+            var cardsCfg = window.AA_CONFIG.get('modes.cards.bad-brain', null);
+            if (cardsCfg && Array.isArray(cardsCfg)) {
+              _applyCardLayout(cardsCfg);
+            }
+          });
+        });
+      });
+    })();
+    </script>
+</body>
+</html>

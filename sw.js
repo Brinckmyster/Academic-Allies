@@ -15,8 +15,8 @@
    fetched fresh from the network. This eliminates the #1 source of stale-code
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
-/* Claude: 2026-03-21 — bumped for triple redundancy across all vulnerable features */
-var CACHE   = 'aa-shell-20260321b';
+/* Claude: 2026-03-21 — bumped for Bad Brain Day warm rework + feature picker */
+var CACHE   = 'aa-shell-20260321c';
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
