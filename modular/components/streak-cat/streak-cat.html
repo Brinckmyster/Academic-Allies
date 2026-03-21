@@ -216,9 +216,6 @@
 
   </div><!-- .page-wrap -->
 
-  <!-- Firebase + helpers -->
-  <script src="/Academic-Allies/modular/aa-firebase.js?v=20260321"></script>
-  <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260321"></script>
   <script>
     /* Claude: 2026-03-21 — Streak Cat dress-up game
        Firestore path: streakCat/{uid}
@@ -918,11 +915,34 @@
     /* ══════════════════════════════════════════════════════════
        INIT
        ══════════════════════════════════════════════════════════ */
+    /* Claude: 2026-03-21 — load shared-header and re-execute its scripts
+       so Firebase SDK + aa-firebase.js + aa-mirror.js all load properly */
     fetch('/Academic-Allies/modular/shared-header.html?v=20260321')
       .then(function(r) { return r.text(); })
-      .then(function(html) { document.getElementById('header-placeholder').innerHTML = html; })
+      .then(function(html) {
+        var c = document.getElementById('header-placeholder');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        });
+      })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 
+    /* Wait for AA (loaded by shared-header's SDK chain) before initializing */
+    function _waitForAA(cb) {
+      if (window.AA && window.AA.auth) { cb(); return; }
+      var attempts = 0;
+      var iv = setInterval(function() {
+        attempts++;
+        if (window.AA && window.AA.auth) { clearInterval(iv); cb(); }
+        else if (attempts > 100) { clearInterval(iv); console.error('[StreakCat] AA never loaded'); }
+      }, 100);
+    }
+
+    _waitForAA(function() {
     var _pReady = (window.AA && window.AA._persistenceReady) ? window.AA._persistenceReady : Promise.resolve();
     _pReady.then(function() {
       AA.auth.onAuthStateChanged(function(user) {
@@ -1010,6 +1030,7 @@
       updateSpeech();
       saveState();
     };
+    }); /* end _waitForAA */
 
     /* ══════════════════════════════════════════════════════════
        TESTING PANEL — Claude: 2026-03-21
