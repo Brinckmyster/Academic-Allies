@@ -492,149 +492,32 @@
 
   /* Claude: 2026-03-20 — Flip mode: swap terms and answers for reverse study */
   var flipMode = false;
-  /* Claude: 2026-03-21 — Shuffle mode: randomize question order */
-  var shuffleMode = false;
-  var originalData = null; /* preserves original order for unshuffle */
-  /* Claude: 2026-03-21 — Quiz index and UID for progress tracking */
-  var quizIndex = 0;
-  var _quizUid = null;
 
   function getPrompt(item) { return flipMode ? item.answer : item.term; }
   function getAnswer(item) { return flipMode ? item.term : item.answer; }
 
-  /* Claude: 2026-03-21 — Fisher-Yates shuffle */
-  function shuffleArray(arr) {
-    var a = arr.slice();
-    for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
-    }
-    return a;
-  }
-
   function toggleFlipMode() {
     flipMode = !flipMode;
-    updateToggleButtons();
+    var btn = document.getElementById('flipToggle');
+    if (btn) {
+      btn.textContent = flipMode ? '🔄 Flip Mode: ON' : '🔄 Flip Mode: OFF';
+      btn.style.background = flipMode ? '#4a7f82' : '#e8f2f3';
+      btn.style.color = flipMode ? '#fff' : '#4a7f82';
+    }
+    /* Re-render current quiz with new orientation */
     if (quizType === 'fill-blank') { renderFillBlankQuiz(); }
     else if (quizType === 'match') { renderMatchQuiz(); }
     else if (quizType === 'flashcards') { renderFlashcardQuiz(); }
   }
 
-  function toggleShuffleMode() {
-    shuffleMode = !shuffleMode;
-    if (shuffleMode) {
-      quizData.data = shuffleArray(originalData);
-    } else {
-      quizData.data = originalData.slice();
-    }
-    updateToggleButtons();
-    if (quizType === 'fill-blank') { renderFillBlankQuiz(); }
-    else if (quizType === 'match') { renderMatchQuiz(); }
-    else if (quizType === 'flashcards') { renderFlashcardQuiz(); }
-  }
-
-  function updateToggleButtons() {
-    var fb = document.getElementById('flipToggle');
-    if (fb) {
-      fb.textContent = flipMode ? '🔄 Flip: ON' : '🔄 Flip: OFF';
-      fb.style.background = flipMode ? '#4a7f82' : '#e8f2f3';
-      fb.style.color = flipMode ? '#fff' : '#4a7f82';
-    }
-    var sb = document.getElementById('shuffleToggle');
-    if (sb) {
-      sb.textContent = shuffleMode ? '🔀 Shuffle: ON' : '🔀 Shuffle: OFF';
-      sb.style.background = shuffleMode ? '#4a7f82' : '#e8f2f3';
-      sb.style.color = shuffleMode ? '#fff' : '#4a7f82';
-    }
-  }
-
-  function toggleBtnStyle(isOn) {
-    return 'padding:8px 16px;font-size:12pt;border:2px solid #ddd;border-radius:8px;cursor:pointer;' +
-      'margin-bottom:16px;margin-right:8px;font-family:inherit;font-weight:600;' +
-      'background:' + (isOn ? '#4a7f82' : '#e8f2f3') + ';' +
-      'color:' + (isOn ? '#fff' : '#4a7f82') + ';';
-  }
-
-  function renderToggleBar() {
-    return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">' +
-      '<button id="flipToggle" onclick="toggleFlipMode()" style="' + toggleBtnStyle(flipMode) + '">' +
-      (flipMode ? '🔄 Flip: ON' : '🔄 Flip: OFF') + '</button>' +
-      '<button id="shuffleToggle" onclick="toggleShuffleMode()" style="' + toggleBtnStyle(shuffleMode) + '">' +
-      (shuffleMode ? '🔀 Shuffle: ON' : '🔀 Shuffle: OFF') + '</button>' +
-      '</div>';
-  }
-
-  /* Claude: 2026-03-21 — Save quiz progress to Firestore */
-  function saveQuizProgress(scoreVal, total, missedItems) {
-    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return; /* mirror guard */
-    var db = firebase.firestore();
-    var uid = _quizUid;
-    if (!uid || quizIndex === undefined) return;
-
-    var progressRef = db.collection('quizProgress').doc(uid);
-    progressRef.get().then(function(doc) {
-      var data = doc.exists ? doc.data() : {};
-      var key = 'quiz_' + quizIndex;
-      var prev = data[key] || {};
-      var pct = Math.round((scoreVal / total) * 100);
-      var bestPct = prev.bestPct || 0;
-
-      var update = {};
-      update[key] = {
-        title: quizData.title || '',
-        lastScore: scoreVal,
-        lastTotal: total,
-        lastPct: pct,
-        bestPct: Math.max(pct, bestPct),
-        lastAttempt: new Date().toISOString(),
-        missedItems: (missedItems || []).slice(0, 50) /* cap at 50 to stay within Firestore limits */
-      };
-
-      return progressRef.set(update, { merge: true });
-    }).then(function() {
-      console.log('[Quiz] Progress saved for quiz ' + quizIndex);
-    }).catch(function(e) {
-      console.warn('[Quiz] Failed to save progress:', e);
-    });
-  }
-
-  /* Claude: 2026-03-21 — Load saved missed items for "Study Missed" mode */
-  function loadSavedMissed() {
-    var db = firebase.firestore();
-    var uid = _quizUid;
-    if (!uid) return;
-
-    var progressRef = db.collection('quizProgress').doc(uid);
-    progressRef.get().then(function(doc) {
-      if (!doc.exists) { alert('No previous attempts found for this quiz.'); return; }
-      var data = doc.data();
-      var key = 'quiz_' + quizIndex;
-      var prev = data[key];
-      if (!prev || !prev.missedItems || prev.missedItems.length === 0) {
-        alert('No missed items from your last attempt — you got them all!');
-        return;
-      }
-
-      /* Build quiz data from saved missed items */
-      var missedTerms = {};
-      prev.missedItems.forEach(function(m) { missedTerms[m.term] = true; });
-      var filteredData = originalData.filter(function(item) {
-        return missedTerms[item.term] || missedTerms[item.answer];
-      });
-
-      if (filteredData.length === 0) {
-        alert('Could not match saved missed items to current quiz data.');
-        return;
-      }
-
-      quizData.data = shuffleMode ? shuffleArray(filteredData) : filteredData;
-      if (quizType === 'fill-blank') { renderFillBlankQuiz(); }
-      else if (quizType === 'match') { renderMatchQuiz(); }
-      else if (quizType === 'flashcards') { renderFlashcardQuiz(); }
-    }).catch(function(e) {
-      console.warn('[Quiz] Failed to load missed items:', e);
-      alert('Could not load saved progress.');
-    });
+  function renderFlipToggle() {
+    return '<button id="flipToggle" onclick="toggleFlipMode()" ' +
+      'style="padding:8px 16px;font-size:12pt;border:2px solid #ddd;border-radius:8px;cursor:pointer;' +
+      'margin-bottom:16px;font-family:inherit;font-weight:600;' +
+      'background:' + (flipMode ? '#4a7f82' : '#e8f2f3') + ';' +
+      'color:' + (flipMode ? '#fff' : '#4a7f82') + ';">' +
+      (flipMode ? '🔄 Flip Mode: ON' : '🔄 Flip Mode: OFF') +
+      '</button>';
   }
 
   function getUrlParam(name) {
@@ -697,7 +580,7 @@
   }
 
   function loadQuiz() {
-    quizIndex = parseInt(getUrlParam('quiz')) || 0;
+    var quizIndex = parseInt(getUrlParam('quiz')) || 0;
 
     if (!window.AA || !window.AA.auth) {
       showError('Not Signed In', 'Please sign in to access this quiz.');
@@ -711,7 +594,7 @@
     }
 
     /* Claude: 2026-03-20 — Mirror-aware: load student's quizzes in mirror mode */
-    _quizUid = window.AA_MIRROR_UID || user.uid;
+    var _quizUid = window.AA_MIRROR_UID || user.uid;
     window.AA_CONFIG.load(_quizUid).then(function(config) {
       var quizzes = window.AA_CONFIG.get('quizzes', []);
 
@@ -748,12 +631,6 @@
         return;
       }
 
-      /* Claude: 2026-03-21 — Preserve original data for shuffle toggle */
-      originalData = quizData.data.slice();
-      if (shuffleMode) {
-        quizData.data = shuffleArray(originalData);
-      }
-
       if (quizType === 'fill-blank') {
         renderFillBlankQuiz();
       } else if (quizType === 'match') {
@@ -788,7 +665,7 @@
 
     var item = quizData.data[currentQuestion];
     var progress = ((currentQuestion) / quizData.data.length) * 100;
-    var html = renderToggleBar() +
+    var html = renderFlipToggle() +
       '<div class="quiz-section">' +
       '<div class="progress-bar"><div class="progress-fill" style="width:' + progress + '%"></div></div>' +
       '<div class="question-num">Question ' + (currentQuestion + 1) + ' of ' + quizData.data.length + '</div>' +
@@ -878,9 +755,6 @@
   }
 
   function showFillBlankResults() {
-    /* Claude: 2026-03-21 — Save progress + missed items to Firestore */
-    saveQuizProgress(score, quizData.data.length, missed);
-
     var html = '<div class="results-container">' +
       '<h2>Quiz Complete!</h2>' +
       '<div class="score">' + score + ' / ' + quizData.data.length + '</div>' +
@@ -898,7 +772,6 @@
     html += '<div class="btn-row" style="justify-content: center; margin-top: 16px;">' +
       '<button class="btn-primary" onclick="location.href=\'/Academic-Allies/modular/static/study-tools.html\'">Back to Study Tools</button>' +
       '<button class="btn-secondary" onclick="retryMissed()">Retry Missed (' + missed.length + ')</button>' +
-      '<button class="btn-secondary" onclick="loadSavedMissed()">Study Last Missed</button>' +
       '</div>' +
       '</div>';
 
@@ -944,7 +817,7 @@
     /* Shuffle answers */
     answers = answers.sort(function() { return Math.random() - 0.5; });
 
-    var html = renderToggleBar() +
+    var html = renderFlipToggle() +
       '<div class="quiz-section">' +
       '<div class="score-section">' +
       '<div class="score-number" id="matchScore">0</div>' +
@@ -1012,8 +885,6 @@
       document.getElementById('matchScore').textContent = matchScore;
 
       if (matchScore === quizData.data.length) {
-        /* Claude: 2026-03-21 — Save match game progress (always 100% if completed) */
-        saveQuizProgress(matchScore, quizData.data.length, []);
         setTimeout(function() {
           alert('Perfect! You matched all pairs correctly!');
         }, 300);
@@ -1063,7 +934,7 @@
     var state = flashcardState[currentQuestion];
     var progress = (currentQuestion / quizData.data.length) * 100;
 
-    var html = renderToggleBar() +
+    var html = renderFlipToggle() +
       '<div class="quiz-section">' +
       '<div class="progress-bar"><div class="progress-fill" style="width:' + progress + '%"></div></div>' +
       '<div class="question-num">Card ' + (currentQuestion + 1) + ' of ' + quizData.data.length + '</div>' +
@@ -1120,15 +991,6 @@
   }
 
   function showFlashcardResults() {
-    /* Claude: 2026-03-21 — Save flashcard progress to Firestore */
-    var fcMissed = [];
-    quizData.data.forEach(function(item, idx) {
-      if (flashcardState[idx] && flashcardState[idx].missed) {
-        fcMissed.push({ term: item.term, correct: item.answer });
-      }
-    });
-    saveQuizProgress(cardsLearned, quizData.data.length, fcMissed);
-
     var html = '<div class="results-container">' +
       '<h2>Review Complete!</h2>' +
       '<div class="score">' + cardsLearned + ' Learned</div>' +
@@ -1136,7 +998,6 @@
       '<div class="btn-row" style="justify-content: center; margin-top: 16px;">' +
       '<button class="btn-primary" onclick="location.href=\'/Academic-Allies/modular/static/study-tools.html\'">Back to Study Tools</button>' +
       '<button class="btn-secondary" onclick="retryFlashcards()">Review Again</button>' +
-      '<button class="btn-secondary" onclick="loadSavedMissed()">Study Last Missed</button>' +
       '</div>' +
       '</div>';
 
@@ -1194,8 +1055,6 @@
   window.retryMissed = retryMissed;
   window.retryFlashcards = retryFlashcards;
   window.toggleFlipMode = toggleFlipMode;
-  window.toggleShuffleMode = toggleShuffleMode;
-  window.loadSavedMissed = loadSavedMissed;
 
   /* Initialize on auth state change */
   if (window.AA && window.AA.auth) {

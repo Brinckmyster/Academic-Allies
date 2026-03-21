@@ -516,36 +516,6 @@ var _cfgPoll = setInterval(function() {
     var customQuizzes = window.AA_CONFIG.get('quizzes', []);
     if (customQuizzes && customQuizzes.length > 0) {
 
-      /* Claude: 2026-03-21 — Load quiz progress for score indicators */
-      var _progressData = {};
-      var _progressUid = window.AA_MIRROR_UID || window.AA.auth.currentUser.uid;
-      firebase.firestore().collection('quizProgress').doc(_progressUid).get().then(function(doc) {
-        if (doc.exists) _progressData = doc.data();
-        renderScoreIndicators(_progressData);
-      }).catch(function() { /* ignore — indicators just won't show */ });
-
-      function renderScoreIndicators(pdata) {
-        document.querySelectorAll('[data-quiz-idx]').forEach(function(card) {
-          var qi = card.getAttribute('data-quiz-idx');
-          var key = 'quiz_' + qi;
-          var p = pdata[key];
-          if (!p) return;
-          var dot = card.querySelector('.score-dot');
-          if (!dot) return;
-          var pct = p.bestPct || 0;
-          var color = pct >= 80 ? '#4caf50' : pct >= 50 ? '#ff9800' : '#f44336';
-          var label = pct >= 80 ? 'Mastered' : pct >= 50 ? 'Learning' : 'Needs Work';
-          dot.style.display = 'inline-block';
-          dot.style.background = color;
-          dot.title = label + ' — Best: ' + pct + '%';
-          var scoreText = card.querySelector('.score-text');
-          if (scoreText) {
-            scoreText.textContent = 'Best: ' + pct + '%';
-            scoreText.style.color = color;
-          }
-        });
-      }
-
       /* Sort quizzes by trimester, then group by class within each */
       var byTrimester = {};  /* trimesterId → [{quiz, idx, shortTitle}] */
       var orphans = [];       /* quizzes without a trimester field */
@@ -594,15 +564,12 @@ var _cfgPoll = setInterval(function() {
             var typeLabel = quiz.type === 'fill-blank' ? 'Fill-in-the-Blank' : quiz.type === 'match' ? 'Match Game' : 'Flashcards';
             var itemCount = quiz.data ? quiz.data.length : 0;
 
-            html += '<div class="tool-card" data-quiz-idx="' + entry.idx + '">';
-            html += '<h3>' + typeIcon + entry.shortTitle;
-            html += ' <span class="score-dot" style="display:none;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-left:6px;"></span>';
-            html += '</h3>';
+            html += '<div class="tool-card">';
+            html += '<h3>' + typeIcon + entry.shortTitle + '</h3>';
             html += '<p>' + (quiz.description || '') + '</p>';
             html += '<div class="tags">';
             html += '<span class="tag">' + typeLabel + '</span>';
             if (itemCount > 0) html += '<span class="tag">' + itemCount + ' items</span>';
-            html += '<span class="tag score-text" style="font-weight:600;"></span>';
             html += '</div>';
             html += '<a href="/Academic-Allies/modular/static/custom-quiz.html?quiz=' + entry.idx + '" class="play-btn">Start Quiz</a>';
             html += '</div>';
