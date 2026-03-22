@@ -810,6 +810,47 @@
       });
     }
 
+    /* Claude: 2026-03-21 — redundancy layer: localStorage crash-recovery backup.
+       If Firestore is down on page load, we can still show the last-known state.
+       Also cleans up stale IDs (like old 'bonus-cat') that no longer exist in ITEMS. */
+    var _LS_KEY = 'AA_STREAK_CAT_BACKUP';
+    var _VALID_IDS = {};
+    ITEMS.forEach(function(it) { _VALID_IDS[it.id] = true; });
+
+    function backupToLocal() {
+      try {
+        localStorage.setItem(_LS_KEY, JSON.stringify({
+          catName: state.catName,
+          streak: state.streak,
+          bestStreak: state.bestStreak,
+          lastRewardDate: state.lastRewardDate,
+          unlockedItems: state.unlockedItems,
+          equippedItems: state.equippedItems,
+          savedAt: new Date().toISOString()
+        }));
+      } catch (e) { /* localStorage full or blocked — silently skip */ }
+    }
+
+    function restoreFromLocal() {
+      try {
+        var raw = localStorage.getItem(_LS_KEY);
+        if (!raw) return false;
+        var d = JSON.parse(raw);
+        state.catName        = d.catName || '';
+        state.bestStreak     = d.bestStreak || 0;
+        state.lastRewardDate = d.lastRewardDate || '';
+        state.unlockedItems  = dedup(d.unlockedItems || []);
+        state.equippedItems  = dedup(d.equippedItems || []);
+        return true;
+      } catch (e) { return false; }
+    }
+
+    /* Remove any equipped/unlocked IDs that no longer exist in ITEMS (e.g. old 'bonus-cat') */
+    function cleanStaleIds() {
+      state.unlockedItems = state.unlockedItems.filter(function(id) { return !!_VALID_IDS[id]; });
+      state.equippedItems = state.equippedItems.filter(function(id) { return !!_VALID_IDS[id]; });
+    }
+
     /* ══════════════════════════════════════════════════════════
        UI RENDERING
        ══════════════════════════════════════════════════════════ */
@@ -840,8 +881,27 @@
       document.getElementById('milestone-fill').style.width = pct + '%';
     }
 
+    /* Claude: 2026-03-21 — redundancy: after rendering, attach onerror to any
+       SVG <image> so broken Duchess photos gracefully degrade to emoji fallback */
     function updateCatStage() {
-      document.getElementById('cat-stage').innerHTML = renderCat(state.equippedItems);
+      var stage = document.getElementById('cat-stage');
+      stage.innerHTML = renderCat(state.equippedItems);
+
+      /* Find SVG image elements and add error handling */
+      var imgs = stage.querySelectorAll('image');
+      imgs.forEach(function(img) {
+        /* Preload the image to detect load failure */
+        var testImg = new Image();
+        testImg.onerror = function() {
+          /* Photo failed to load — hide the broken image, fallback text is already behind it */
+          img.setAttribute('opacity', '0');
+          /* Make the fallback text visible */
+          var texts = stage.querySelectorAll('text');
+          texts.forEach(function(t) { t.setAttribute('opacity', '1'); });
+          console.warn('[StreakCat] Duchess photo failed to load:', img.getAttribute('href'));
+        };
+        testImg.src = img.getAttribute('href');
+      });
     }
 
     function updateSpeech(category) {
@@ -975,6 +1035,9 @@
       state.unlockedItems = dedup(state.unlockedItems);
       state.equippedItems = dedup(state.equippedItems);
 
+      /* Claude: 2026-03-21 — redundancy layer 2: mirror to localStorage */
+      backupToLocal();
+
       AA.db.collection('streakCat').doc(_uid).set({
         catName:         state.catName,
         streak:          state.streak,
@@ -1005,7 +1068,8 @@
       });
     }
 
-    /* Claude: 2026-03-21 — audit fix: retry load, dedup on load, offline fallback */
+    /* Claude: 2026-03-21 — audit fix: retry load, dedup on load, localStorage fallback,
+       stale ID cleanup (e.g. old 'bonus-cat' from prior testing) */
     function loadState(uid, callback, _retries) {
       _retries = _retries || 0;
       AA.db.collection('streakCat').doc(uid).get().then(function(doc) {
@@ -1017,13 +1081,18 @@
           state.unlockedItems   = dedup(d.unlockedItems || []);
           state.equippedItems   = dedup(d.equippedItems || []);
         }
+        cleanStaleIds();  /* remove old 'bonus-cat' etc. */
+        backupToLocal();  /* mirror good state to localStorage */
         callback();
       }).catch(function(err) {
         console.warn('[StreakCat] load failed (attempt ' + (_retries + 1) + '):', err.message);
         if (_retries < 2) {
           setTimeout(function() { loadState(uid, callback, _retries + 1); }, 1500);
         } else {
-          /* Give up — continue with default empty state */
+          /* Firestore gave up — try localStorage as crash-recovery fallback */
+          console.warn('[StreakCat] Firestore failed — falling back to localStorage backup');
+          var restored = restoreFromLocal();
+          if (restored) cleanStaleIds();
           callback();
         }
       });
@@ -1191,6 +1260,36 @@
       updateSpeech();
       saveState();
     };
+    /* Claude: 2026-03-21 — redundancy: recalculate streak when tab regains focus
+       (handles overnight sessions where a new day starts while page is open) */
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && _uid) {
+        calculateStreak(_uid, function(streak, checkedInToday) {
+          if (streak !== state.streak) {
+            state.streak = streak;
+            if (streak > state.bestStreak) state.bestStreak = streak;
+            var newUnlocks = processUnlocks();
+            updateCatStage();
+            updateSpeech();
+            renderInventory();
+            updateStreakDisplay();
+            if (newUnlocks.length > 0) {
+              newUnlocks.forEach(function(item, i) {
+                setTimeout(function() { showRewardToast(item); }, i * 3800);
+              });
+            }
+            saveState();
+          }
+          /* Also refresh check-in button state in case day changed */
+          var btn = document.getElementById('checkin-btn');
+          if (btn) {
+            btn.disabled = checkedInToday;
+            btn.textContent = checkedInToday ? '✅ Checked In Today!' : '📅 Daily Check-In';
+          }
+        });
+      }
+    });
+
     }); /* end _waitForAA */
 
     /* ══════════════════════════════════════════════════════════
