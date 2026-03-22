@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: #FAFAF9;
+      color: #333;
+      min-height: 100vh;
+    }
+    .settings-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+    }
+    h1 { color: #4a7f82; margin-bottom: 6px; font-size: 1.6rem; }
+    .settings-subtitle { color: #888; font-size: 0.92rem; margin-bottom: 28px; }
+
+    /* ── Section cards ─────────────────────────────── */
+    .settings-section {
+      background: #fff;
+      border: 1px solid #e1e5e9;
+      border-radius: 14px;
+      padding: 22px 24px;
+      margin-bottom: 20px;
+    }
+    .settings-section h2 {
+      font-size: 1.1rem;
+      color: #4a7f82;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .settings-section .sec-desc {
+      font-size: 0.85rem;
+      color: #999;
+      margin-bottom: 18px;
+    }
+
+    /* ── Row layout ────────────────────────────────── */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+      flex-wrap: wrap;
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-weight: 600; font-size: 0.95rem; }
+    .setting-hint { font-size: 0.8rem; color: #999; margin-top: 2px; }
+    .setting-left { flex: 1; min-width: 180px; }
+
+    /* ── Toggle switch ─────────────────────────────── */
+    .toggle-wrap { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; }
+    .toggle-wrap input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: #ccc; border-radius: 26px; cursor: pointer;
+      transition: background 0.25s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute; width: 20px; height: 20px;
+      left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+      transition: transform 0.25s;
+    }
+    .toggle-wrap input:checked + .toggle-slider { background: #4CAF50; }
+    .toggle-wrap input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+    /* ── Inputs ─────────────────────────────────────── */
+    .setting-input {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      width: 110px;
+    }
+    select.setting-input { width: auto; min-width: 110px; }
+
+    /* ── Checkbox group ─────────────────────────────── */
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
+    .checkbox-group label {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.88rem; cursor: pointer;
+      background: #f5f5f5; padding: 6px 12px; border-radius: 6px;
+      border: 1px solid #e0e0e0;
+    }
+    .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+
+    /* ── Buttons ────────────────────────────────────── */
+    .btn-save {
+      background: #4CAF50; color: #fff; border: none; border-radius: 8px;
+      padding: 12px 28px; font-size: 1rem; font-weight: 600; cursor: pointer;
+      margin-top: 18px;
+    }
+    .btn-save:hover { background: #43a047; }
+    .btn-danger {
+      background: #dc3545; color: #fff; border: none; border-radius: 8px;
+      padding: 10px 22px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    }
+    .btn-danger:hover { background: #c82333; }
+    .btn-secondary {
+      background: #6CA0A3; color: #fff; border: none; border-radius: 8px;
+      padding: 10px 22px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    }
+    .btn-secondary:hover { background: #5a8e91; }
+
+    /* ── Account info ──────────────────────────────── */
+    .account-info {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 0; flex-wrap: wrap;
+    }
+    .account-avatar {
+      width: 48px; height: 48px; border-radius: 50%;
+      object-fit: cover; border: 2px solid #e1e5e9;
+    }
+    .account-name { font-weight: 700; font-size: 1rem; }
+    .account-email { font-size: 0.85rem; color: #888; }
+    .account-role {
+      font-size: 0.8rem; color: #fff; background: #6CA0A3;
+      padding: 2px 10px; border-radius: 10px; display: inline-block; margin-top: 4px;
+    }
+
+    /* ── Toast ──────────────────────────────────────── */
+    .settings-toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #333; color: #fff; padding: 12px 24px; border-radius: 8px;
+      font-size: 0.9rem; z-index: 9999; opacity: 0; transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .settings-toast.show { opacity: 1; }
+
+    /* ── Auth gate ─────────────────────────────────── */
+    #settingsAuthGate {
+      text-align: center; padding: 60px 20px; color: #888;
+    }
+
+    @media (max-width: 600px) {
+      .settings-wrap { padding: 16px 14px 40px; }
+      .settings-section { padding: 16px 16px; }
+      .setting-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>
+  /* Claude: 2026-03-12 — Settings page created */
+  fetch('/Academic-Allies/modular/shared-header.html?v=20260320')
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var c = document.getElementById('site-header');
+      c.innerHTML = html;
+      c.querySelectorAll('script').forEach(function(old) {
+        var s = document.createElement('script');
+        Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+        s.textContent = old.textContent;
+        old.replaceWith(s);
+      });
+      var d = document.createElement('script');
+      d.src = '/Academic-Allies/modular/js/draggable.js';
+      d.onload = function() { if(typeof initDrag === 'function') initDrag(); };
+      document.body.appendChild(d);
+    })
+    .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<!-- Auth gate: shown until signed in -->
+<div id="settingsAuthGate">
+  <p style="font-size:1.2rem;">⚙️</p>
+  <p>Please sign in to access your settings.</p>
+</div>
+
+<!-- Main settings content: hidden until signed in -->
+<div class="settings-wrap" id="settingsMain" style="display:none;">
+  <h1>⚙️ Settings</h1>
+  <p class="settings-subtitle">Your preferences for Academic Allies. Changes here won't remove shortcuts elsewhere — this is a central hub.</p>
+
+  <!-- ═══════════════ DISPLAY & THEME ═══════════════ -->
+  <div class="settings-section">
+    <h2>🎨 Display &amp; Theme</h2>
+    <p class="sec-desc">Customize how Academic Allies looks.</p>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Dark Mode</div>
+        <div class="setting-hint">Also available from the header button</div>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" id="setDarkMode" onchange="toggleSettingDarkMode(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Font Size</div>
+        <div class="setting-hint">Adjust text size across all pages</div>
+      </div>
+      <select id="setFontSize" class="setting-input" onchange="changeFontSize(this.value)">
+        <option value="normal">Normal</option>
+        <option value="large">Large</option>
+        <option value="x-large">Extra Large</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ═══════════════ ATOMIC CLOCK ═══════════════ -->
+  <!-- Claude: 2026-03-14 — Clock widget settings: corner position + visibility toggle -->
+  <div class="settings-section">
+    <h2>⏰ Atomic Clock</h2>
+    <p class="sec-desc">Control the floating clock widget that appears on every page.</p>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Show Clock</div>
+        <div class="setting-hint">Display the atomic clock widget on all pages</div>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" id="setClockVisible" onchange="toggleClockVisible(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Clock Position</div>
+        <div class="setting-hint">Which corner of the screen the clock lives in</div>
+      </div>
+      <select id="setClockCorner" class="setting-input" onchange="changeClockCorner(this.value)">
+        <option value="top-left">Top Left</option>
+        <option value="top-right">Top Right</option>
+        <option value="bottom-left">Bottom Left</option>
+        <option value="bottom-right" selected>Bottom Right</option>
+      </select>
+    </div>
+
+    <div id="clockPreview" style="margin-top:12px;padding:14px;background:#f8fafa;border:1px dashed #d0d8d8;border-radius:10px;text-align:center;">
+      <div style="font-size:11px;color:#888;margin-bottom:6px;">Preview</div>
+      <div style="display:inline-block;padding:6px 12px;background:rgba(248,250,252,0.94);border:1px solid #d9e4e5;border-radius:8px;font-family:'Atkinson Hyperlegible',Arial,sans-serif;font-size:13px;font-variant-numeric:tabular-nums;color:#333;box-shadow:0 2px 8px rgba(0,0,0,0.1);line-height:1.3;text-align:center;min-width:90px;">
+        <div id="clockPreviewTime" style="font-weight:700;font-size:15px;letter-spacing:0.5px;">--:--:--</div>
+        <div style="font-size:9px;color:#888;margin-top:1px;">Atomic-synced</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ NOTIFICATIONS ═══════════════ -->
+  <div class="settings-section" id="sectionNotifications">
+    <h2>🔔 Notifications</h2>
+    <p class="sec-desc">Control when and how alerts are triggered.</p>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Missed Meal Alert Time</div>
+        <div class="setting-hint">Support team is notified if no meal is logged by this time</div>
+      </div>
+      <input type="time" id="setMealAlertHour" class="setting-input" value="14:00">
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Low Spoon Alert Threshold</div>
+        <div class="setting-hint">Alert when spoons drop below this percentage</div>
+      </div>
+      <select id="setLowSpoonPct" class="setting-input">
+        <option value="10">10%</option>
+        <option value="20" selected>20%</option>
+        <option value="30">30%</option>
+        <option value="40">40%</option>
+      </select>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Who Receives Alerts</div>
+        <div class="setting-hint">Choose which support roles get notified</div>
+      </div>
+      <div class="checkbox-group" id="setAlertRecipients">
+        <label><input type="checkbox" value="family" checked> Family</label>
+        <label><input type="checkbox" value="network-lead" checked> Network Lead</label>
+        <label><input type="checkbox" value="support"> Support</label>
+        <label><input type="checkbox" value="nearby-help"> Nearby Help</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CHECK-IN ALERTS ═══════════════ -->
+  <div class="settings-section" id="sectionCheckinAlerts">
+    <h2>📋 Check-in Alerts</h2>
+    <p class="sec-desc">How long without a check-in before your status circle turns yellow.</p>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Days Without Check-in Before Alert</div>
+        <div class="setting-hint">Your status circle turns to a caution diamond after this many days</div>
+      </div>
+      <select id="setAlertThreshold" class="setting-input">
+        <option value="2">2 days</option>
+        <option value="3">3 days</option>
+        <option value="4">4 days</option>
+        <option value="5" selected>5 days</option>
+        <option value="7">7 days</option>
+        <option value="10">10 days</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ═══════════════ ACCOUNT ═══════════════ -->
+  <div class="settings-section">
+    <h2>👤 Account</h2>
+    <p class="sec-desc">Your sign-in info and session settings.</p>
+
+    <div class="account-info" id="accountInfo">
+      <img class="account-avatar" id="accountAvatar" src="" alt="">
+      <div>
+        <div class="account-name" id="accountName">—</div>
+        <div class="account-email" id="accountEmail">—</div>
+        <div class="account-role" id="accountRole">—</div>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Keep Me Signed In</div>
+        <div class="setting-hint">Stay signed in between browser sessions (personal devices only)</div>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" id="setKeepSignedIn" onchange="toggleKeepSignedIn(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Sign Out</div>
+        <div class="setting-hint">Sign out of Academic Allies on this device</div>
+      </div>
+      <button class="btn-danger" onclick="settingsSignOut()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PRIVACY & DATA ═══════════════ -->
+  <div class="settings-section">
+    <h2>🔒 Privacy &amp; Data</h2>
+    <p class="sec-desc">Manage your data and privacy preferences.</p>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">Request Data Deletion</div>
+        <div class="setting-hint">Submit a request to delete all your data from Academic Allies</div>
+      </div>
+      <button class="btn-danger" onclick="requestAccountDeletion()">Request Deletion</button>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-left">
+        <div class="setting-label">View Audit Log</div>
+        <div class="setting-hint">See who has accessed your data and when</div>
+      </div>
+      <a href="/Academic-Allies/modular/components/audit-log/audit-log.html" class="btn-secondary" style="text-decoration:none;display:inline-block;text-align:center;">View Log</a>
+    </div>
+  </div>
+
+  <!-- Save button for Firestore-backed settings -->
+  <button class="btn-save" id="btnSaveSettings" onclick="saveSettings()">💾 Save Settings</button>
+</div>
+
+<div class="settings-toast" id="settingsToast"></div>
+
+<script>
+/* Claude: 2026-03-12 — Settings page logic.
+   Reads/writes from user's Firestore doc + localStorage.
+   Central hub — does NOT remove settings from their existing locations. */
+
+var _settingsUid = null;
+var _settingsRole = null;
+
+/* ── Toast helper ─────────────────────────────────── */
+function showToast(msg) {
+  var t = document.getElementById('settingsToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2400);
+}
+
+/* ── Wait for AA + auth ───────────────────────────── */
+function _waitForAA(cb, tries) {
+  tries = tries || 0;
+  if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+  if (tries > 60) return;
+  setTimeout(function() { _waitForAA(cb, tries + 1); }, 200);
+}
+
+_waitForAA(function() {
+  var ready = window.AA._persistenceReady || Promise.resolve();
+  ready.then(function() {
+    AA.auth.onAuthStateChanged(function(user) {
+      if (!user) {
+        document.getElementById('settingsAuthGate').style.display = 'block';
+        document.getElementById('settingsMain').style.display = 'none';
+        return;
+      }
+      document.getElementById('settingsAuthGate').style.display = 'none';
+      document.getElementById('settingsMain').style.display = 'block';
+      _settingsUid = user.uid;
+      loadSettings(user);
+    });
+  }).catch(function() {});
+});
+
+/* ── Load all settings from Firestore + localStorage ── */
+function loadSettings(user) {
+  /* Account info */
+  var avatar = document.getElementById('accountAvatar');
+  if (user.photoURL) { avatar.src = user.photoURL; avatar.style.display = 'block'; }
+  else { avatar.style.display = 'none'; }
+  document.getElementById('accountName').textContent = user.displayName || '(no name)';
+  document.getElementById('accountEmail').textContent = user.email || '—';
+
+  /* Clock settings — read from localStorage */
+  /* Claude: 2026-03-14 — load clock widget preferences */
+  /* Claude: 2026-03-16 — safe storage reads */
+  var clockVis = null;
+  var clockCorner = 'bottom-right';
+  var darkOn = false;
+  var fontSize = 'normal';
+  var keepSI = null;
+  try {
+    clockVis = localStorage.getItem('AA_CLOCK_VISIBLE');
+    clockCorner = localStorage.getItem('AA_CLOCK_CORNER') || 'bottom-right';
+    darkOn = localStorage.getItem('AA_DARK_MODE') === 'true';
+    fontSize = localStorage.getItem('AA_FONT_SIZE') || 'normal';
+    keepSI = localStorage.getItem('AA_KEEP_SIGNED_IN');
+  } catch (e) {
+    console.warn('[AA] localStorage read failed (using defaults):', e.message);
+  }
+  document.getElementById('setClockVisible').checked = (clockVis === null || clockVis === 'true');
+  document.getElementById('setClockCorner').value = clockCorner;
+  document.getElementById('setDarkMode').checked = darkOn;
+  document.getElementById('setFontSize').value = fontSize;
+  document.getElementById('setKeepSignedIn').checked = (keepSI === 'true' || keepSI === null);
+
+  /* Firestore settings */
+  AA.db.collection('users').doc(user.uid).get().then(function(doc) {
+    if (!doc.exists) return;
+    var data = doc.data();
+
+    /* Role display */
+    _settingsRole = data.role || 'pending';
+    document.getElementById('accountRole').textContent = _settingsRole;
+
+    /* Show/hide student-only notification sections */
+    /* Claude: 2026-03-12 — show notification settings for student + backstage-manager */
+    var showNotifSettings = (_settingsRole === 'student' || _settingsRole === 'backstage-manager');
+    document.getElementById('sectionNotifications').style.display = showNotifSettings ? 'block' : 'none';
+    document.getElementById('sectionCheckinAlerts').style.display = showNotifSettings ? 'block' : 'none';
+
+    /* mealAlertHour — stored as integer (hour), display as HH:00 */
+    if (data.mealAlertHour !== undefined) {
+      var h = parseInt(data.mealAlertHour, 10);
+      var hStr = (h < 10 ? '0' : '') + h + ':00';
+      document.getElementById('setMealAlertHour').value = hStr;
+    }
+
+    /* lowSpoonPct — stored as integer percentage, default 20 */
+    if (data.lowSpoonPct !== undefined) {
+      document.getElementById('setLowSpoonPct').value = String(data.lowSpoonPct);
+    }
+
+    /* alertThreshold */
+    if (data.alertThreshold !== undefined) {
+      document.getElementById('setAlertThreshold').value = String(data.alertThreshold);
+    }
+
+    /* alertRecipients */
+    if (data.alertRecipients && Array.isArray(data.alertRecipients)) {
+      var boxes = document.querySelectorAll('#setAlertRecipients input[type="checkbox"]');
+      boxes.forEach(function(box) {
+        box.checked = data.alertRecipients.indexOf(box.value) !== -1;
+      });
+    }
+
+    /* Font size from Firestore (if localStorage not set) */
+    /* Claude: 2026-03-16 — safe storage read */
+    var fsCheck = null;
+    try {
+      fsCheck = localStorage.getItem('AA_FONT_SIZE');
+    } catch (e) {
+      console.warn('[AA] localStorage read failed:', e.message);
+    }
+    if (!fsCheck && data.fontSize) {
+      document.getElementById('setFontSize').value = data.fontSize;
+      applyFontSize(data.fontSize);
+    }
+
+    /* Claude: 2026-03-14 — clock settings from Firestore (if localStorage not set) */
+    /* Claude: 2026-03-16 — safe storage reads/writes */
+    var cvCheck = null;
+    var ccCheck = null;
+    try {
+      cvCheck = localStorage.getItem('AA_CLOCK_VISIBLE');
+      ccCheck = localStorage.getItem('AA_CLOCK_CORNER');
+    } catch (e) {
+      console.warn('[AA] localStorage read failed:', e.message);
+    }
+    if (data.clockVisible !== undefined && cvCheck === null) {
+      var vis = data.clockVisible !== false;
+      document.getElementById('setClockVisible').checked = vis;
+      try {
+        localStorage.setItem('AA_CLOCK_VISIBLE', vis ? 'true' : 'false');
+      } catch (e) {
+        console.warn('[AA] localStorage write failed:', e.message);
+      }
+    }
+    if (data.clockCorner && !ccCheck) {
+      document.getElementById('setClockCorner').value = data.clockCorner;
+      try {
+        localStorage.setItem('AA_CLOCK_CORNER', data.clockCorner);
+      } catch (e) {
+        console.warn('[AA] localStorage write failed:', e.message);
+      }
+    }
+  }).catch(function(err) {
+    console.warn('[Settings] Error loading settings:', err.message);
+  });
+}
+
+/* ── Dark mode toggle ─────────────────────────────── */
+function toggleSettingDarkMode(on) {
+  if (typeof window.AA_toggleDarkMode === 'function') {
+    window.AA_toggleDarkMode();
+    /* Sync checkbox with actual state (dark-mode.js is source of truth) */
+    setTimeout(function() {
+      var isDark = typeof window.AA_isDarkMode === 'function' && window.AA_isDarkMode();
+      document.getElementById('setDarkMode').checked = isDark;
+    }, 50);
+  } else {
+    /* Claude: 2026-03-16 — safe storage write */
+    try {
+      localStorage.setItem('AA_DARK_MODE', on ? 'true' : 'false');
+    } catch (e) {
+      console.warn('[AA] localStorage write failed:', e.message);
+    }
+  }
+}
+
+/* ── Font size ────────────────────────────────────── */
+function changeFontSize(size) {
+  try { localStorage.setItem('AA_FONT_SIZE', size); } catch(e) {} /* Claude: 2026-03-14 — safe for private browsing */
+  applyFontSize(size);
+}
+
+function applyFontSize(size) {
+  var root = document.documentElement;
+  if (size === 'large') { root.style.fontSize = '118%'; }
+  else if (size === 'x-large') { root.style.fontSize = '136%'; }
+  else { root.style.fontSize = ''; }
+}
+
+/* Apply font size on load */
+(function() {
+  var fs = localStorage.getItem('AA_FONT_SIZE');
+  if (fs) applyFontSize(fs);
+})();
+
+/* ── Clock settings ───────────────────────────────── */
+/* Claude: 2026-03-14 — clock widget position + visibility */
+function toggleClockVisible(on) {
+  try { localStorage.setItem('AA_CLOCK_VISIBLE', on ? 'true' : 'false'); } catch(e) {} /* Claude: 2026-03-14 */
+  showToast(on ? 'Atomic clock is now visible on all pages' : 'Atomic clock hidden');
+}
+
+function changeClockCorner(corner) {
+  try { localStorage.setItem('AA_CLOCK_CORNER', corner); } catch(e) {} /* Claude: 2026-03-14 */
+  showToast('Clock moved to ' + corner.replace('-', ' '));
+}
+
+/* Clock preview tick */
+(function() {
+  var previewEl = document.getElementById('clockPreviewTime');
+  if (!previewEl) return;
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function tick() {
+    var now = new Date();
+    var h = now.getHours();
+    var ap = h >= 12 ? ' PM' : ' AM';
+    var h12 = h % 12 || 12;
+    previewEl.textContent = pad2(h12) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds()) + ap;
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+
+/* ── Keep signed in ───────────────────────────────── */
+function toggleKeepSignedIn(on) {
+  try { localStorage.setItem('AA_KEEP_SIGNED_IN', on ? 'true' : 'false'); } catch(e) {} /* Claude: 2026-03-14 */
+  try { sessionStorage.setItem('AA_KEEP_SIGNED_IN_SS', on ? 'true' : 'false'); } catch(e) {}
+  showToast(on ? 'You will stay signed in' : 'You will be signed out when the browser closes');
+}
+
+/* ── Sign out ─────────────────────────────────────── */
+function settingsSignOut() {
+  if (typeof window.signOut === 'function') {
+    window.signOut();
+  } else if (window.AA && window.AA.auth) {
+    window.AA.auth.signOut().then(function() {
+      window.location.href = '/Academic-Allies/';
+    });
+  }
+}
+
+/* ── Save Firestore-backed settings ───────────────── */
+function saveSettings() {
+  /* Claude: 2026-03-13 — mirror guard: supporters cannot change student settings */
+  if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) { showToast('Read-only in mirror mode'); return; }
+  if (!_settingsUid) { showToast('Not signed in'); return; }
+
+  /* Gather values */
+  var mealTimeVal = document.getElementById('setMealAlertHour').value;
+  var mealHour = mealTimeVal ? parseInt(mealTimeVal.split(':')[0], 10) : 14;
+
+  var lowSpoonPct = parseInt(document.getElementById('setLowSpoonPct').value, 10) || 20;
+  var alertThreshold = parseInt(document.getElementById('setAlertThreshold').value, 10) || 5;
+
+  var recipients = [];
+  document.querySelectorAll('#setAlertRecipients input[type="checkbox"]').forEach(function(box) {
+    if (box.checked) recipients.push(box.value);
+  });
+
+  var fontSize = document.getElementById('setFontSize').value;
+
+  /* Claude: 2026-03-14 — include clock settings in Firestore save */
+  var clockVisible = document.getElementById('setClockVisible').checked;
+  var clockCorner = document.getElementById('setClockCorner').value;
+
+  var updates = {
+    mealAlertHour: mealHour,
+    lowSpoonPct: lowSpoonPct,
+    alertThreshold: alertThreshold,
+    alertRecipients: recipients,
+    fontSize: fontSize,
+    clockVisible: clockVisible,
+    clockCorner: clockCorner,
+    settingsUpdatedAt: new Date().toISOString()
+  };
+
+  document.getElementById('btnSaveSettings').disabled = true;
+  document.getElementById('btnSaveSettings').textContent = 'Saving...';
+
+  AA.db.collection('users').doc(_settingsUid).update(updates).then(function() {
+    showToast('Settings saved!');
+    document.getElementById('btnSaveSettings').disabled = false;
+    document.getElementById('btnSaveSettings').textContent = '💾 Save Settings';
+  }).catch(function(err) {
+    showToast('Error saving: ' + err.message);
+    document.getElementById('btnSaveSettings').disabled = false;
+    document.getElementById('btnSaveSettings').textContent = '💾 Save Settings';
+    console.error('[Settings] Save failed:', err);
+  });
+}
+</script>
+
+</body>
+</html>

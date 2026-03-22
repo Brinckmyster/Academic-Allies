@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nope Day — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+      min-height: 100vh;
+      background: #0f1117;
+      color: #e8e8e8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* ── Shared ─────────────────────────────────────────── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      text-align: center;
+      gap: 32px;
+    }
+    .screen.active { display: flex; }
+
+    /* ── Nope Screen ─────────────────────────────────────── */
+    #nope-screen { gap: 28px; }
+
+    .nope-day-text {
+      font-size: 52pt;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    .nope-sub {
+      font-size: 16pt;
+      color: #8a8a9a;
+      line-height: 1.6;
+      max-width: 340px;
+    }
+    .nope-notify-box {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 16px 22px;
+      font-size: 12pt;
+      color: #9090aa;
+      line-height: 1.7;
+      max-width: 380px;
+      width: 100%;
+      text-align: left;
+    }
+    .nope-notify-box strong { color: #b0b0c8; display: block; margin-bottom: 6px; }
+    .notify-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
+      font-size: 12pt;
+    }
+    .notify-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #dc3545; flex-shrink: 0;
+    }
+
+    /* Nope screen controls: semi-nope top-left area, cancel bottom-center */
+    .nope-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+    }
+    .btn-cancel-nope {
+      background: #2d6a6d;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 16px 44px;
+      font-size: 15pt;
+      font-family: inherit;
+      cursor: pointer;
+      min-height: 19mm;
+      transition: background 0.2s;
+      width: 100%;
+      max-width: 320px;
+    }
+    .btn-cancel-nope:hover { background: #3a8285; }
+
+    .btn-semi-nope {
+      background: transparent;
+      color: #6a6a8a;
+      border: 1px solid #3a3a5a;
+      border-radius: 50px;
+      padding: 10px 28px;
+      font-size: 11pt;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-semi-nope:hover { color: #9a9abc; border-color: #6a6a8a; }
+
+    /* Claude: 2026-03-12 — Semi-Nope CSS removed. Now lives in semi-nope.html. */
+
+    /* ── Confirm overlay ─────────────────────────────────── */
+    .confirm-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .confirm-overlay.open { display: flex; }
+    .confirm-box {
+      background: #1e2133;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 22px;
+      padding: 32px 28px;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+    }
+    .confirm-box p {
+      font-size: 15pt;
+      color: #d0d0e8;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .confirm-btns { display: flex; gap: 12px; }
+    .confirm-yes {
+      flex: 1; padding: 14px;
+      background: #dc3545; color: #fff;
+      border: none; border-radius: 14px;
+      font-size: 14pt; font-family: inherit; cursor: pointer;
+    }
+    .confirm-yes:hover { background: #c82333; }
+    .confirm-no {
+      flex: 1; padding: 14px;
+      background: rgba(255,255,255,0.08); color: #aaa;
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 14px;
+      font-size: 14pt; font-family: inherit; cursor: pointer;
+    }
+    .confirm-no:hover { background: rgba(255,255,255,0.14); }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+
+    /* Claude: 2026-03-13 — mobile responsive breakpoints, focus-visible */
+    .btn-cancel-nope:focus-visible, .btn-semi-nope:focus-visible { outline: 3px solid #6CA0A3; outline-offset: 3px; }
+    .confirm-yes:focus-visible, .confirm-no:focus-visible { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+    .btn-semi-nope { min-height: 44px; }
+
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      .nope-day-text { font-size: 36pt; }
+      .nope-sub { font-size: 14pt; max-width: 100%; }
+      .nope-notify-box { padding: 14px 16px; max-width: 100%; }
+      .nope-controls { max-width: 100%; }
+      .confirm-box { padding: 24px 20px; }
+      .confirm-btns { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Auth Gate — covers everything until signed in ─────── -->
+  <div id="auth-gate" style="display:flex;position:fixed;inset:0;background:#0f1117;z-index:900;align-items:center;justify-content:center;padding:20px;">
+    <div style="text-align:center;max-width:320px;">
+      <div style="font-size:36pt;margin-bottom:12px;">🔐</div>
+      <h1 style="font-size:20pt;color:#fff;margin-bottom:10px;font-family:inherit;">Academic Allies</h1>
+      <p style="color:#7a8aaa;font-size:13pt;margin-bottom:28px;line-height:1.5;">
+        Sign in so your team knows when you need a Nope Day.
+      </p>
+      <button onclick="AA.signInWithGoogle()"
+              style="background:#fff;color:#222;border:none;border-radius:12px;padding:14px 24px;font-size:13pt;cursor:pointer;display:flex;align-items:center;gap:10px;margin:0 auto;font-family:inherit;font-weight:600;">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20" alt="Google">
+        Sign in with Google
+      </button>
+      <p style="margin-top:16px;font-size:11pt;color:#3a3a5a;">You'll stay signed in on this device.</p>
+    </div>
+  </div>
+
+  <!-- ── Confirm overlay (before entering nope) ─────────── -->
+  <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmText">
+    <div class="confirm-box">
+      <p id="confirmText">Set a Nope Day?<br>
+        <span style="font-size:12pt;color:#7a8aaa;">Your team will be notified. You can cancel any time.</span>
+      </p>
+      <div class="confirm-btns">
+        <button class="confirm-yes" onclick="activateNope()">Yes — Nope Day</button>
+        <button class="confirm-no"  onclick="closeConfirm()">Not yet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── NOPE SCREEN ────────────────────────────────────── -->
+  <div id="nope-screen" class="screen" role="main" aria-label="Nope Day screen">
+
+    <div>
+      <div class="nope-day-text">Nope Day.</div>
+      <p class="nope-sub" style="margin-top:14px;">
+        You don't have to exist today.<br>That's okay.
+      </p>
+    </div>
+
+    <!-- Claude: 2026-03-12 — notification box now dynamic from Firestore support network.
+         Archive: nope-mode_2026-03-12_pre-firebase-restore.bak.html -->
+    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <div class="nope-notify-box" aria-live="polite" id="nope-notify-box" data-card-id="team">
+      <strong>🔴 Your team has been notified.</strong>
+      <div id="nope-notify-names" style="margin-top:8px;">
+        <div class="notify-name"><span class="notify-dot"></span>Loading&hellip;</div>
+      </div>
+      <p style="margin-top:10px;font-size:11pt;color:#6a6a8a;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;">
+        They know: no texting, email, or knocking today.
+      </p>
+    </div>
+
+    <!-- Claude: 2026-03-19 — data-card-id for card-level config -->
+    <div class="nope-controls" data-card-id="controls">
+      <button class="btn-cancel-nope" onclick="cancelNope()" aria-label="Cancel Nope Day and return to app">
+        Cancel Nope Day
+      </button>
+      <button class="btn-semi-nope" onclick="goSemiNope()" aria-label="Enter semi-nope mode — come back slowly">
+        semi-nope (come back slowly)
+      </button>
+    </div>
+
+    <p style="font-size:10pt;color:#3a3a5a;margin-top:8px;" id="nope-timestamp"></p>
+  </div>
+
+  <!-- Claude: 2026-03-12 — Semi-Nope screen removed. Now lives at semi-nope.html. -->
+
+  <!-- Claude: 2026-03-12 — Firebase SDK restored. These pages skip shared-header.html
+       (dark minimal UI for crisis mode) so they must load Firebase directly.
+       Archive: nope-mode_2026-03-12_pre-firebase-restore.bak.html -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js?v=20260316a"></script>
+  <!-- Claude: 2026-03-19 — RESTORED aa-mirror.js. This page skips shared-header.html
+       (dark minimal UI for crisis mode) so it MUST load aa-mirror.js directly.
+       The 2026-03-14 removal was incorrect — without it, AA_MIRROR_UID is never set
+       and supporters in mirror mode could accidentally trigger nope for the student.
+       Archive: nope-mode_2026-03-19_mode-cards.bak.html -->
+  <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260319a"></script>
+
+  <script>
+    /* Claude: 2026-03-12 — SECTIONS, comfortVerses, and semi-nope JS removed.
+       Now lives in semi-nope.html. */
+
+    // ── Firebase-backed state ──────────────────────────────
+    var currentMode     = null;   // 'nope' | null (semi-nope redirects to its own page)
+    var nopeActivatedAt = null;   // Date object
+    var currentUid      = null;
+    var _nopeUnsub      = null;   // unsubscribe fn for onSnapshot
+    var _npUid          = null;   // UID guard — prevents re-init + listener stacking on 45-min token refresh. Claude, 2026-03-07.
+
+    // ── Auth gate ──────────────────────────────────────────
+    function showAuthGate(visible) {
+      var gate = document.getElementById('auth-gate');
+      if (gate) gate.style.display = visible ? 'flex' : 'none';
+    }
+
+    // ── Boot: listen for sign-in ───────────────────────────
+    // Claude: 2026-03-16 — wait for persistence to resolve before registering
+    // auth listener. Prevents flash of auth-gate on return visits.
+    var _pReady = (window.AA && window.AA._persistenceReady) ? window.AA._persistenceReady : Promise.resolve();
+    _pReady.then(function() {
+    AA.auth.onAuthStateChanged(function (user) {
+      if (user) {
+        if (user.uid === _npUid) return; // token refresh — skip re-init + listener stack
+        _npUid = user.uid;
+        currentUid = window.AA_MIRROR_UID || user.uid;
+        /* Claude: 2026-03-12 — meal plan routing moved to semi-nope.html */
+        showAuthGate(false);
+        subscribeToNope();
+      } else {
+        currentUid = null;
+        showAuthGate(true);
+        if (_nopeUnsub) { _nopeUnsub(); _nopeUnsub = null; }
+      }
+    });
+    }).catch(function() { AA.auth.onAuthStateChanged(function(u) { if (!u) showAuthGate(true); }); });
+
+    // Real-time Firestore listener — drives all routing
+    function subscribeToNope() {
+      if (_nopeUnsub) _nopeUnsub();
+      /* Claude: 2026-03-16 — 15-second loading timeout with retry */
+      var _nopeLoadTimer = setTimeout(function() {
+        var screen = document.getElementById('nope-screen');
+        var confirm = document.getElementById('confirmOverlay');
+        if (screen && !screen.classList.contains('active') && confirm && !confirm.classList.contains('open')) {
+          var container = document.querySelector('.page-wrap') || document.body;
+          var msg = document.createElement('div');
+          msg.style.cssText = 'text-align:center;color:#999;padding:2rem;';
+          msg.innerHTML = '<p style="margin-bottom:1rem;">Taking longer than expected…</p><button onclick="location.reload()" style="color:#6CA0A3;background:none;border:none;cursor:pointer;font-weight:700;text-decoration:underline;">Retry</button>';
+          container.appendChild(msg);
+        }
+      }, 15000);
+      _nopeUnsub = AA.watchNope(currentUid, function (data) {
+        clearTimeout(_nopeLoadTimer);
+        if (data && data.mode) {
+          currentMode     = data.mode;
+          nopeActivatedAt = data.activatedAt ? data.activatedAt.toDate() : null;
+        } else {
+          currentMode     = null;
+          nopeActivatedAt = null;
+        }
+        route();
+      });
+    }
+
+    // ── Routing ────────────────────────────────────────────
+    function route() {
+      /* Mirror: if student is not in nope, nothing to see here — go home */
+      if (window.AA_MIRROR_UID && currentMode === null) {
+        window.location.href = '/Academic-Allies/';
+        return;
+      }
+      if (currentMode === 'nope') {
+        showScreen('nope-screen');
+        updateTimestamp();
+      } else if (currentMode === 'semi-nope') {
+        /* Claude: 2026-03-12 — redirect to standalone semi-nope page */
+        window.location.href = '/Academic-Allies/modular/semi-nope.html';
+      } else {
+        document.getElementById('confirmOverlay').classList.add('open');
+      }
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+      var el = document.getElementById(id);
+      if (el) el.classList.add('active');
+    }
+
+    // ── Confirm & activate ─────────────────────────────────
+    function closeConfirm() {
+      document.getElementById('confirmOverlay').classList.remove('open');
+      window.location.href = '/Academic-Allies/';
+    }
+
+    // Claude 2026-03-08: helper — is this a mirror session?
+    function _isMirror() {
+      return !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
+        && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+    }
+
+    function activateNope() {
+      // Claude 2026-03-08: student is sudo — supporters can only suggest
+      if (_isMirror()) {
+        AA.suggestMode(window.AA_MIRROR_UID, 'nope', {}).then(function() {
+          alert('Suggestion sent! The student will see a flash notification.');
+        }).catch(function(err) { alert('Could not send suggestion: ' + err.message); });
+        return;
+      }
+      document.getElementById('confirmOverlay').classList.remove('open');
+      nopeActivatedAt = new Date();
+      currentMode     = 'nope';
+      showScreen('nope-screen');
+      updateTimestamp();
+      if (currentUid) {
+        /* Claude: 2026-03-14 — added .catch() to fire-and-forget Firebase writes */
+        AA.setNopeMode(currentUid, 'nope', {}, AA.Timestamp.fromDate(nopeActivatedAt))
+          .catch(function(e) { console.warn('[AA] setNopeMode failed:', e.message); });
+        AA.addNopeLog(currentUid, 'nope_day_set')
+          .catch(function(e) { console.warn('[AA] addNopeLog failed:', e.message); });
+        /* Claude: 2026-03-12 — actively notify supporters that nope day was activated */
+        AA.addNotification(currentUid, 'nope_activated',
+          '🛑 Nope Day activated at ' + nopeActivatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        ).catch(function (err) { console.warn('[AA] nope notification failed:', err.message); });
+      }
+    }
+
+    // ── Nope → Semi-Nope ───────────────────────────────────
+    /* Claude: 2026-03-12 — sets mode in Firestore then redirects to semi-nope.html */
+    function goSemiNope() {
+      if (_isMirror()) {
+        AA.suggestMode(window.AA_MIRROR_UID, 'semi-nope', {}).then(function() {
+          alert('Suggestion sent!');
+        }).catch(function(err) { alert('Could not send: ' + err.message); });
+        return;
+      }
+      currentMode = 'semi-nope';
+      if (currentUid) {
+        /* Claude: 2026-03-14 — added .catch() to fire-and-forget Firebase writes */
+        AA.setNopeMode(currentUid, 'semi-nope', {})
+          .catch(function(e) { console.warn('[AA] setNopeMode failed:', e.message); });
+        AA.addNopeLog(currentUid, 'semi_nope_started')
+          .catch(function(e) { console.warn('[AA] addNopeLog failed:', e.message); });
+        /* Claude: 2026-03-12 — notify supporters that student moved to semi-nope */
+        AA.addNotification(currentUid, 'semi_nope',
+          '🟡 Moved to Semi-Nope (coming back slowly)'
+        ).catch(function(err) { console.warn('[AA] semi-nope notification failed:', err.message); });
+      }
+      window.location.href = '/Academic-Allies/modular/semi-nope.html';
+    }
+
+    // ── Cancel everything ──────────────────────────────────
+    function cancelNope() {
+      if (_isMirror()) {
+        AA.suggestMode(window.AA_MIRROR_UID, 'cancel', {}).then(function() {
+          alert('Cancel suggestion sent!');
+        }).catch(function(err) { alert('Could not send: ' + err.message); });
+        window.location.href = '/Academic-Allies/';
+        return;
+      }
+      if (currentUid) {
+        /* Claude: 2026-03-14 — added .catch() to fire-and-forget Firebase writes */
+        AA.addNopeLog(currentUid, 'nope_canceled')
+          .catch(function(e) { console.warn('[AA] addNopeLog failed:', e.message); });
+        AA.clearNope(currentUid)
+          .catch(function(e) { console.warn('[AA] clearNope failed:', e.message); });
+        /* Claude: 2026-03-12 — notify supporters that student canceled nope (good news!) */
+        AA.addNotification(currentUid, 'nope_canceled',
+          '✅ Nope Day canceled — student is back'
+        ).catch(function (err) { console.warn('[AA] cancel notification failed:', err.message); });
+      }
+      currentMode = null;
+      /* Claude: 2026-03-12 — exit to recovery mode, not straight to normal.
+         Student needs a soft landing after nope. Sets appMode so mode-enforcer
+         picks it up, then routes to recovery page. */
+      localStorage.setItem('appMode', 'recovery');
+      window.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: 'recovery' } }));
+      window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
+    }
+
+    /* Claude: 2026-03-12 — toggleSection, restoreCheckboxes, renderLinks
+       removed. Now live in semi-nope.html. */
+
+    // ── Timestamp display ──────────────────────────────────
+    function updateTimestamp() {
+      var el = document.getElementById('nope-timestamp');
+      if (!el) return;
+      if (nopeActivatedAt) {
+        el.textContent = 'Set at ' + nopeActivatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    }
+
+    // Route() is now called by the Firestore snapshot — no manual init call needed.
+
+    /* ── Mode Suggestion Flash — Claude 2026-03-08 ────────────────
+       When a student opens nope-mode, check for pending mode suggestions
+       and show a flash notification so they can accept or dismiss quickly. */
+    function checkModeSuggestions() {
+      if (_isMirror()) return;
+      if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
+      var uid = AA.auth.currentUser.uid;
+      AA.getPendingModeSuggestions(uid).then(function(suggestions) {
+        if (!suggestions || suggestions.length === 0) return;
+        var s = suggestions[0]; // newest first
+        var modeLabel = s.mode === 'nope' ? 'a Nope Day' : s.mode === 'semi-nope' ? 'Semi-Nope mode' : 'cancelling Nope mode';
+        var flash = document.createElement('div');
+        flash.id = 'mode-suggestion-flash';
+        flash.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;' +
+          'background:#fef3c7;border:2px solid #f59e0b;border-radius:16px;padding:20px 28px;' +
+          'max-width:400px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);' +
+          'animation:flashIn 0.4s ease-out;';
+        flash.innerHTML =
+          '<style>@keyframes flashIn { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }</style>' +
+          '<p style="font-size:15pt;font-weight:700;color:#92400e;margin-bottom:8px;">💡 Suggestion from ' + (s.suggestedByName || 'your supporter') + '</p>' +
+          '<p style="font-size:14pt;color:#78350f;margin-bottom:16px;">They suggest ' + modeLabel + '</p>' +
+          '<div style="display:flex;gap:10px;justify-content:center;">' +
+            '<button onclick="acceptModeSuggestion(\'' + s.id + '\',\'' + s.mode + '\')" style="background:#22c55e;color:white;border:none;border-radius:12px;padding:12px 24px;font-size:14pt;font-weight:600;cursor:pointer;min-height:19mm;">Accept</button>' +
+            '<button onclick="dismissModeSuggestion(\'' + s.id + '\')" style="background:#999;color:white;border:none;border-radius:12px;padding:12px 24px;font-size:14pt;font-weight:600;cursor:pointer;min-height:19mm;">Dismiss</button>' +
+          '</div>';
+        document.body.appendChild(flash);
+      }).catch(function(err) { console.warn('[AA] mode suggestion check:', err.message); });
+    }
+
+    function acceptModeSuggestion(id, mode) {
+      var uid = AA.auth.currentUser.uid;
+      AA.respondModeSuggestion(uid, id, true).then(function() {
+        var flash = document.getElementById('mode-suggestion-flash');
+        if (flash) flash.remove();
+        if (mode === 'nope') {
+          nopeActivatedAt = new Date();
+          currentMode = 'nope';
+          showScreen('nope-screen');
+          updateTimestamp();
+          /* Claude: 2026-03-14 — added .catch() */
+          AA.setNopeMode(uid, 'nope', {}, AA.Timestamp.fromDate(nopeActivatedAt))
+            .catch(function(e) { console.warn('[AA] setNopeMode failed:', e.message); });
+          AA.addNopeLog(uid, 'nope_day_set')
+            .catch(function(e) { console.warn('[AA] addNopeLog failed:', e.message); });
+        } else if (mode === 'semi-nope') {
+          /* Claude: 2026-03-12 — redirect to standalone semi-nope page
+             instead of referencing removed functions (semiVisible, showScreen, etc.)
+             Archive: nope-mode_2026-03-12_pre-firebase-restore.bak.html */
+          currentMode = 'semi-nope';
+          /* Claude: 2026-03-14 — added .catch() */
+          AA.setNopeMode(uid, 'semi-nope', {})
+            .catch(function(e) { console.warn('[AA] setNopeMode failed:', e.message); });
+          AA.addNopeLog(uid, 'semi_nope_started')
+            .catch(function(e) { console.warn('[AA] addNopeLog failed:', e.message); });
+          window.location.href = '/Academic-Allies/modular/semi-nope.html';
+        } else if (mode === 'cancel') {
+          /* Claude: 2026-03-14 — added .catch() */
+          AA.addNopeLog(uid, 'nope_canceled')
+            .catch(function(e) { console.warn('[AA] addNopeLog failed:', e.message); });
+          AA.clearNope(uid)
+            .catch(function(e) { console.warn('[AA] clearNope failed:', e.message); });
+          currentMode = null;
+          /* Claude: 2026-03-12 — exit to recovery, not normal */
+          localStorage.setItem('appMode', 'recovery');
+          window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
+        }
+      }).catch(function(err) { alert('Error: ' + err.message); });
+    }
+
+    function dismissModeSuggestion(id) {
+      var uid = AA.auth.currentUser.uid;
+      AA.respondModeSuggestion(uid, id, false).then(function() {
+        var flash = document.getElementById('mode-suggestion-flash');
+        if (flash) flash.remove();
+      }).catch(function(err) { alert('Error: ' + err.message); });
+    }
+
+    // Check on load (after auth)
+    function _initModeSuggestions() {
+      if (window.AA && AA.auth && AA.auth.currentUser) {
+        checkModeSuggestions();
+      } else {
+        setTimeout(_initModeSuggestions, 400);
+      }
+    }
+    _initModeSuggestions();
+
+    /* ── Dynamic notification list — Claude 2026-03-12 ──────────────
+       Reads the student's support network from Firestore and displays
+       actual team member names instead of hardcoded placeholders. */
+    function loadNotifyNames() {
+      if (!currentUid || !window.AA || !AA.db) return;
+      var container = document.getElementById('nope-notify-names');
+      if (!container) return;
+
+      AA.db.collection('users').doc(currentUid).get().then(function(doc) {
+        if (!doc.exists) return;
+        var network = doc.data().supportNetwork || {};
+        var memberUids = Object.keys(network);
+
+        if (memberUids.length === 0) {
+          container.innerHTML = '<div class="notify-name"><span class="notify-dot"></span>No team members yet</div>';
+          return;
+        }
+
+        /* Look up display names for each member */
+        var ROLE_LABELS = {
+          'network-lead': 'Lead',
+          'family': 'Family',
+          'support': 'Support',
+          'nearby-help': 'Nearby',
+          'backstage-manager': 'Admin'
+        };
+
+        Promise.all(memberUids.map(function(uid) {
+          return AA.db.collection('users').doc(uid).get().then(function(memberDoc) {
+            var name = memberDoc.exists
+              ? (memberDoc.data().displayName || memberDoc.data().email || 'Team member')
+              : 'Team member';
+            var role = network[uid];
+            var roleLabel = ROLE_LABELS[role] || role;
+            return { name: name, role: roleLabel };
+          }).catch(function() {
+            return { name: 'Team member', role: network[uid] || '' };
+          });
+        })).then(function(members) {
+          container.innerHTML = '';
+          members.forEach(function(m) {
+            var div = document.createElement('div');
+            div.className = 'notify-name';
+            div.innerHTML = '<span class="notify-dot"></span>' +
+              m.name + ' <span style="color:#6a6a8a;font-size:10pt;">(' + m.role + ')</span>';
+            container.appendChild(div);
+          });
+        }).catch(function(err) { console.warn('[NOPE] Team member fetch failed:', err.message); });
+      }).catch(function(err) {
+        console.warn('[AA] notify names load failed:', err.message);
+      });
+    }
+
+    /* Call after auth resolves */
+    function _initNotifyNames() {
+      if (currentUid && window.AA && AA.db) {
+        loadNotifyNames();
+      } else {
+        setTimeout(_initNotifyNames, 500);
+      }
+    }
+    _initNotifyNames();
+  </script>
+
+  <!-- Claude: 2026-03-19 — card-level layout engine for nope mode -->
+  <script src="/Academic-Allies/modular/js/student-config.js"></script>
+  <script>
+  (function _nopeCardLayout() {
+    'use strict';
+    function _applyCardLayout(cardsCfg) {
+      var container = document.getElementById('nope-screen');
+      if (!container) return;
+      var enabledMap = {};
+      cardsCfg.forEach(function(c) { enabledMap[c.id] = c.enabled !== false; });
+      var allCards = container.querySelectorAll('[data-card-id]');
+      allCards.forEach(function(el) {
+        var id = el.getAttribute('data-card-id');
+        if (enabledMap[id] === false) { el.style.display = 'none'; }
+      });
+    }
+    function _waitBoot(cb, tries) {
+      tries = tries || 0;
+      if (window.AA && window.AA.auth && window.AA.db && window.AA_CONFIG) { cb(); return; }
+      if (tries > 40) return;
+      setTimeout(function() { _waitBoot(cb, tries + 1); }, 200);
+    }
+    _waitBoot(function() {
+      AA.auth.onAuthStateChanged(function(user) {
+        if (!user) return;
+        var uid = window.AA_MIRROR_UID || user.uid;
+        window.AA_CONFIG.load(uid).then(function() {
+          var cardsCfg = window.AA_CONFIG.get('modes.cards.nope', null);
+          if (cardsCfg && Array.isArray(cardsCfg)) { _applyCardLayout(cardsCfg); }
+        });
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

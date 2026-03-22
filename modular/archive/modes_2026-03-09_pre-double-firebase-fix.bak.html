@@ -1,0 +1,525 @@
+<!-- ============================================================
+     modes/modes.html — Academic Allies Mode Switcher + Customizer
+     Updated: 2026-03-09 by Claude — added per-mode feature customization.
+       Students can now configure which app features are available in each mode.
+       Archive: modes/archive/modes_2026-03-09_pre-customize.html
+     Mode pages:
+       Normal         → /Academic-Allies/
+       Recovery       → /Academic-Allies/modular/components/recovery-mode.html
+       Bad Brain Day  → /Academic-Allies/modular/components/bad-brain-day.html
+       Semi-Nope      → /Academic-Allies/modular/nope-mode.html
+       Nope           → /Academic-Allies/modular/nope-mode.html
+       Migraine       → toggle overlay (any page)
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Claude: 2026-03-09 — prevent stale caching so AA_uid fix reaches users -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Modes — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
+
+  <!-- Firebase compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js"></script>
+  <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260322"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 3rem;
+    }
+    #site-header { min-height: 56px; }
+    .page-wrap { max-width: 720px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+
+    h1 { font-size: 1.5rem; color: var(--teal-dk); margin: 1rem 0 .25rem; }
+    .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 1.75rem; }
+
+    /* ── Modes grid ── */
+    .modes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .mode-tile {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: .5rem; padding: 1.25rem 1rem;
+      background: var(--card); border: 2px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); cursor: pointer; text-decoration: none; color: var(--text);
+      transition: border-color .15s, background .15s, transform .1s; text-align: center;
+    }
+    .mode-tile:hover { border-color: var(--teal); background: #f0f8f8; transform: translateY(-2px); }
+    .mode-tile:active { transform: translateY(0); }
+    .mode-tile.active-mode { border-color: var(--teal); background: #e8f2f3; }
+    .mode-tile .mode-icon { font-size: 2rem; line-height: 1; }
+    .mode-tile .mode-name { font-weight: 700; font-size: .95rem; color: var(--teal-dk); }
+    .mode-tile .mode-desc { font-size: .78rem; color: var(--muted); line-height: 1.35; }
+
+    /* ── Mode customizer panel ── */
+    .mode-config-section { margin-bottom: 24px; }
+    .mode-config-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 18px 20px; margin-bottom: 12px; box-shadow: var(--shadow);
+    }
+    .mode-config-header {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+    }
+    .mode-config-header h3 { font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .mode-config-toggle { font-size: 0.82rem; color: var(--teal); }
+    .mode-config-body { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #f0f0f0; }
+    .mode-config-body.open { display: block; }
+    .mode-config-desc { font-size: 0.85rem; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+
+    .feature-row {
+      display: flex; align-items: center; gap: 10px; padding: 6px 0;
+      font-size: 0.88rem; color: #444;
+    }
+    .feature-row label { flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .feat-switch { position: relative; display: inline-block; width: 36px; height: 20px; flex-shrink: 0; }
+    .feat-switch input { opacity: 0; width: 0; height: 0; }
+    .feat-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #ccc; border-radius: 20px; transition: 0.2s;
+    }
+    .feat-slider:before {
+      position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
+      background: #fff; border-radius: 50%; transition: 0.2s;
+    }
+    .feat-switch input:checked + .feat-slider { background: var(--teal); }
+    .feat-switch input:checked + .feat-slider:before { transform: translateX(16px); }
+
+    .mode-save-row { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+    .btn-mode-save {
+      padding: 6px 16px; background: var(--teal); color: #fff; border: none;
+      border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600;
+    }
+    .btn-mode-save:hover { background: var(--teal-dk); }
+    .btn-mode-reset {
+      padding: 6px 16px; background: #fff; color: #888; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 13px; cursor: pointer;
+    }
+    .mode-save-status { font-size: 0.82rem; min-height: 18px; }
+
+    #signin-msg { text-align: center; padding: 40px; color: #aaa; font-size: 1rem; }
+    #main-body { display: none; }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260322')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        container.querySelectorAll('script').forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(function(attr) {
+            newScript.setAttribute(attr.name, attr.value);
+          });
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+      });
+  </script>
+
+  <div class="page-wrap">
+    <div id="signin-msg" style="display:none;">Please sign in to manage your modes.</div>
+
+    <div id="main-body">
+      <h1>Modes</h1>
+      <p class="subtitle">Quick-switch or customize what each mode does for you.</p>
+
+      <!-- Quick-switch tiles -->
+      <section aria-label="Quick Switch">
+        <div class="modes-grid" role="list">
+          <a class="mode-tile" href="/Academic-Allies/" data-mode="normal" role="listitem" title="Normal Mode">
+            <span class="mode-icon">🌿</span>
+            <span class="mode-name">Normal</span>
+            <span class="mode-desc">Full app experience</span>
+          </a>
+          <a class="mode-tile" href="/Academic-Allies/modular/components/recovery-mode.html"
+             data-mode="recovery" role="listitem" title="Recovery Mode">
+            <span class="mode-icon">🛌</span>
+            <span class="mode-name">Recovery</span>
+            <span class="mode-desc">Rest &amp; healing focus</span>
+          </a>
+          <a class="mode-tile" href="/Academic-Allies/modular/components/bad-brain-day.html"
+             data-mode="bad-brain-day" role="listitem" title="Bad Brain Day">
+            <span class="mode-icon">🌧️</span>
+            <span class="mode-name">Bad Brain Day</span>
+            <span class="mode-desc">Low energy, simplified</span>
+          </a>
+          <a class="mode-tile" href="/Academic-Allies/modular/nope-mode.html"
+             data-mode="semi-nope" role="listitem" title="Semi-Nope">
+            <span class="mode-icon">😶</span>
+            <span class="mode-name">Semi-Nope</span>
+            <span class="mode-desc">Minimal — almost nope</span>
+          </a>
+          <a class="mode-tile" href="/Academic-Allies/modular/nope-mode.html"
+             data-mode="nope" role="listitem" title="Nope Day">
+            <span class="mode-icon">🚫</span>
+            <span class="mode-name">Nope Day</span>
+            <span class="mode-desc">Full rest — not today</span>
+          </a>
+          <a class="mode-tile" href="#" data-mode="migraine" role="listitem" title="Migraine Mode"
+             onclick="event.preventDefault();if(window.AA_toggleMigraineMode)window.AA_toggleMigraineMode();">
+            <span class="mode-icon">🌑</span>
+            <span class="mode-name">Migraine</span>
+            <span class="mode-desc">Dim &amp; muted overlay</span>
+          </a>
+        </div>
+      </section>
+
+        <!-- Claude: 2026-03-09 — Supporter banner when viewing student's modes in mirror -->
+      <div id="supporter-banner" style="display:none;background:#fff9e6;border-left:4px solid #f59e0b;padding:12px 16px;margin-bottom:16px;border-radius:4px;">
+        <p style="font-size:0.9rem;color:#92400e;margin:0;">You are viewing <strong id="student-name-banner">this student</strong>'s mode settings (read-only). Supporters cannot modify mode configurations directly — use the suggestion system instead.</p>
+      </div>
+
+      <!-- Customize section -->
+      <h2 style="font-size:1.15rem;color:var(--teal-dk);margin:0 0 4px;">Customize Each Mode</h2>
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:16px;">Choose which features stay available in each mode. Your choices are saved to your profile.</p>
+
+      <div id="mode-configs" class="mode-config-section"></div>
+    </div>
+  </div>
+
+  <script>
+  /* Claude: 2026-03-09 — Modes page with per-mode feature customization */
+  (function() {
+    'use strict';
+
+    /* ── Mode definitions ── */
+    var MODES = [
+      {
+        key: 'normal',
+        icon: '🌿',
+        name: 'Normal Mode',
+        desc: 'Full app experience — everything available. Toggle features off here if you want a lighter default.',
+        color: '#4d787b'
+      },
+      {
+        key: 'recovery',
+        icon: '🛌',
+        name: 'Recovery Mode',
+        desc: 'Focused on rest and gentle re-engagement. Non-essential features off by default.',
+        color: '#7c5cbf'
+      },
+      {
+        key: 'bad-brain-day',
+        icon: '🌧️',
+        name: 'Bad Brain Day',
+        desc: 'Bare minimum — only crisis-level features. Everything else is noise.',
+        color: '#6b7280'
+      },
+      {
+        key: 'semi-nope',
+        icon: '😶',
+        name: 'Semi-Nope',
+        desc: 'Almost full shutdown but you pick which few things stay on.',
+        color: '#92400e'
+      },
+      {
+        key: 'nope',
+        icon: '🚫',
+        name: 'Nope Day',
+        desc: 'Full rest. Only emergency contacts and a comfort message.',
+        color: '#c0392b'
+      },
+      {
+        key: 'migraine',
+        icon: '🌑',
+        name: 'Migraine Mode',
+        desc: 'Dims and mutes the screen. Works on top of any other mode. Configure which features to keep visible.',
+        color: '#8b4513'
+      }
+    ];
+
+    /* ── Feature definitions ── */
+    var FEATURES = [
+      { key: 'checkin',      icon: '📋', label: 'Daily Check-In' },
+      { key: 'spoonPlanner', icon: '🥄', label: 'Spoon Planner' },
+      { key: 'mealPlan',     icon: '🍽️', label: 'Meal Planner' },
+      { key: 'messages',     icon: '💬', label: 'Messages' },
+      { key: 'calendar',     icon: '📅', label: 'Calendar' },
+      { key: 'audioNotes',   icon: '🎙️', label: 'Audio Notes' },
+      { key: 'emergency',    icon: '🚨', label: 'Emergency Contacts' },
+      { key: 'statusCircle', icon: '🔵', label: 'Status Circle' },
+      { key: 'comfort',      icon: '📖', label: 'A Word of Comfort' },
+      { key: 'flowerQuiz',   icon: '🌸', label: 'Flower Quiz' },
+      /* Claude: 2026-03-09 — icon synced to 🪞 to match dashboard (was 📊) */
+      { key: 'supportDash',  icon: '🪞', label: 'Support Dashboard' }
+    ];
+
+    /* ── Default feature states per mode ── */
+    var MODE_DEFAULTS = {
+      'normal':        { checkin: true, spoonPlanner: true, mealPlan: true, messages: true, calendar: true, audioNotes: true, emergency: true, statusCircle: true, comfort: true, flowerQuiz: true, supportDash: true },
+      'recovery':      { checkin: true, spoonPlanner: true, mealPlan: true, messages: true, calendar: false, audioNotes: false, emergency: true, statusCircle: true, comfort: true, flowerQuiz: true, supportDash: false },
+      'bad-brain-day': { checkin: true, spoonPlanner: false, mealPlan: false, messages: true, calendar: false, audioNotes: false, emergency: true, statusCircle: false, comfort: true, flowerQuiz: false, supportDash: false },
+      'semi-nope':     { checkin: true, spoonPlanner: true, mealPlan: true, messages: true, calendar: true, audioNotes: false, emergency: true, statusCircle: false, comfort: true, flowerQuiz: false, supportDash: false },
+      'nope':          { checkin: false, spoonPlanner: false, mealPlan: false, messages: false, calendar: false, audioNotes: false, emergency: true, statusCircle: false, comfort: true, flowerQuiz: false, supportDash: false },
+      'migraine':      { checkin: true, spoonPlanner: false, mealPlan: false, messages: true, calendar: false, audioNotes: false, emergency: true, statusCircle: false, comfort: true, flowerQuiz: false, supportDash: false }
+    };
+
+    /* ── Loaded custom settings from Firestore ── */
+    var _modeSettings = {};
+    var _uid = null;
+    /* Claude: 2026-03-09 — Flag for supporter role checks */
+    var _isSupporterRole = false;
+    var _studentName = '';
+
+    function getEffective(modeKey) {
+      var defaults = MODE_DEFAULTS[modeKey] || {};
+      var custom = (_modeSettings && _modeSettings[modeKey]) || {};
+      var result = {};
+      FEATURES.forEach(function(f) {
+        result[f.key] = (custom[f.key] !== undefined) ? custom[f.key] : (defaults[f.key] || false);
+      });
+      return result;
+    }
+
+    /* ── Build UI ── */
+    function renderModeConfigs() {
+      var container = document.getElementById('mode-configs');
+      if (!container) return;
+      container.innerHTML = '';
+
+      MODES.forEach(function(mode) {
+        var effective = getEffective(mode.key);
+        var card = document.createElement('div');
+        card.className = 'mode-config-card';
+        card.id = 'mconfig-' + mode.key;
+
+        var headerHtml = '<div class="mode-config-header" onclick="toggleModeConfig(\'' + mode.key + '\')">'
+          + '<h3><span>' + mode.icon + '</span><span style="color:' + mode.color + ';">' + mode.name + '</span></h3>'
+          + '<span class="mode-config-toggle" id="mctoggle-' + mode.key + '">▶ Customize</span>'
+          + '</div>';
+
+        var bodyHtml = '<div class="mode-config-body" id="mcbody-' + mode.key + '">';
+        bodyHtml += '<div class="mode-config-desc">' + mode.desc + '</div>';
+
+        FEATURES.forEach(function(f) {
+          var isOn = effective[f.key];
+          var isDefault = MODE_DEFAULTS[mode.key] ? MODE_DEFAULTS[mode.key][f.key] : false;
+          var customTag = (_modeSettings[mode.key] && _modeSettings[mode.key][f.key] !== undefined)
+            ? '<span style="font-size:0.7rem;color:#b45309;margin-left:4px;">(custom)</span>' : '';
+
+          bodyHtml += '<div class="feature-row">';
+          bodyHtml += '<label for="mf-' + mode.key + '-' + f.key + '">';
+          bodyHtml += '<span style="width:20px;text-align:center;">' + f.icon + '</span>';
+          bodyHtml += '<span>' + f.label + customTag + '</span>';
+          bodyHtml += '</label>';
+          bodyHtml += '<span class="feat-switch">';
+          bodyHtml += '<input type="checkbox" id="mf-' + mode.key + '-' + f.key + '"' + (isOn ? ' checked' : '') + '>';
+          bodyHtml += '<span class="feat-slider"></span>';
+          bodyHtml += '</span>';
+          bodyHtml += '</div>';
+        });
+
+        bodyHtml += '<div class="mode-save-row">';
+        bodyHtml += '<button class="btn-mode-save" onclick="saveModeConfig(\'' + mode.key + '\')">Save</button>';
+        bodyHtml += '<button class="btn-mode-reset" onclick="resetModeConfig(\'' + mode.key + '\')">Reset to Defaults</button>';
+        bodyHtml += '<span class="mode-save-status" id="mcstatus-' + mode.key + '"></span>';
+        bodyHtml += '</div></div>';
+
+        card.innerHTML = headerHtml + bodyHtml;
+        container.appendChild(card);
+      });
+    }
+
+    /* ── Toggle config panel open/close ── */
+    window.toggleModeConfig = function(modeKey) {
+      var body = document.getElementById('mcbody-' + modeKey);
+      var toggle = document.getElementById('mctoggle-' + modeKey);
+      if (!body) return;
+      var isOpen = body.classList.contains('open');
+      body.classList.toggle('open');
+      if (toggle) toggle.textContent = isOpen ? '▶ Customize' : '▼ Close';
+    };
+
+    /* ── Save mode config to Firestore ── */
+    window.saveModeConfig = function(modeKey) {
+      /* Claude: 2026-03-09 — Block supporters from saving mode configs */
+      if (_isSupporterRole) {
+        alert('Supporters cannot change mode settings directly. Use the suggestion system.');
+        return;
+      }
+      if (!_uid) return;
+      var statusEl = document.getElementById('mcstatus-' + modeKey);
+
+      /* Gather toggle states */
+      var config = {};
+      var defaults = MODE_DEFAULTS[modeKey] || {};
+      FEATURES.forEach(function(f) {
+        var cb = document.getElementById('mf-' + modeKey + '-' + f.key);
+        if (!cb) return;
+        /* Only store overrides that differ from defaults */
+        if (cb.checked !== (defaults[f.key] || false)) {
+          config[f.key] = cb.checked;
+        }
+      });
+
+      if (statusEl) { statusEl.style.color = '#888'; statusEl.textContent = 'Saving…'; }
+
+      var update = {};
+      update['modeSettings.' + modeKey] = config;
+      AA.db.collection('users').doc(_uid).update(update)
+        .then(function() {
+          _modeSettings[modeKey] = config;
+          if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Saved!'; }
+          setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 3000);
+          if (AA.logAccess) AA.logAccess('write', _uid, 'modeSettings');
+        })
+        .catch(function(err) {
+          if (statusEl) { statusEl.style.color = '#c0392b'; statusEl.textContent = '❌ ' + err.message; }
+        });
+    };
+
+    /* ── Reset a mode to defaults ── */
+    window.resetModeConfig = function(modeKey) {
+      /* Claude: 2026-03-09 — Block supporters from resetting mode configs */
+      if (_isSupporterRole) {
+        alert('Supporters cannot change mode settings directly. Use the suggestion system.');
+        return;
+      }
+      if (!_uid) return;
+      if (!confirm('Reset ' + modeKey + ' to default features?')) return;
+
+      var update = {};
+      update['modeSettings.' + modeKey] = firebase.firestore.FieldValue.delete();
+      AA.db.collection('users').doc(_uid).update(update)
+        .then(function() {
+          delete _modeSettings[modeKey];
+          renderModeConfigs();
+          /* Re-open the panel they were editing */
+          var body = document.getElementById('mcbody-' + modeKey);
+          var toggle = document.getElementById('mctoggle-' + modeKey);
+          if (body) body.classList.add('open');
+          if (toggle) toggle.textContent = '▼ Close';
+          var statusEl = document.getElementById('mcstatus-' + modeKey);
+          if (statusEl) { statusEl.style.color = '#10b981'; statusEl.textContent = '✅ Reset!'; }
+          setTimeout(function() { var s = document.getElementById('mcstatus-' + modeKey); if (s) s.textContent = ''; }, 3000);
+        })
+        .catch(function(err) { alert('Reset failed: ' + err.message); });
+    };
+
+    /* ── Highlight current mode tile ── */
+    function highlightActive() {
+      var savedMode = localStorage.getItem('appMode') || 'normal';
+      document.querySelectorAll('.mode-tile').forEach(function(tile) {
+        if (tile.getAttribute('data-mode') === savedMode) {
+          tile.classList.add('active-mode');
+        }
+        tile.addEventListener('click', function() {
+          var mode = tile.getAttribute('data-mode');
+          if (mode !== 'migraine') {
+            localStorage.setItem('appMode', mode);
+            document.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: mode } }));
+          }
+        });
+      });
+    }
+
+    /* ── Boot ── */
+    function waitForAA(cb, tries) {
+      tries = tries || 0;
+      if (window.AA && window.AA.auth) { cb(); return; }
+      if (tries > 40) return;
+      setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
+    }
+
+    waitForAA(function() {
+      AA.auth.onAuthStateChanged(function(user) {
+        if (!user) {
+          document.getElementById('signin-msg').style.display = 'block';
+          document.getElementById('main-body').style.display = 'none';
+          return;
+        }
+        document.getElementById('signin-msg').style.display = 'none';
+        document.getElementById('main-body').style.display = 'block';
+        /* Claude: 2026-03-09 — Use AA_uid() so Network Lead writes to student's doc in mirror mode */
+        _uid = window.AA_uid ? window.AA_uid(user.uid) : user.uid;
+
+        /* Claude: 2026-03-09 — Fetch user role and set supporter flag */
+        AA.db.collection('users').doc(user.uid).get().then(function(doc) {
+          var userData = doc.exists ? doc.data() : {};
+          var role = userData.role || 'student';
+          _isSupporterRole = (role === 'family' || role === 'support' || role === 'nearby-help');
+
+          /* Claude: 2026-03-09 — Show banner if supporter viewing student's modes */
+          if (_isSupporterRole && window.AA_uid && _uid !== user.uid) {
+            var bannerEl = document.getElementById('supporter-banner');
+            if (bannerEl) {
+              bannerEl.style.display = 'block';
+              /* Attempt to fetch student name for banner */
+              AA.db.collection('users').doc(_uid).get().then(function(studentDoc) {
+                var studentData = studentDoc.exists ? studentDoc.data() : {};
+                _studentName = studentData.displayName || studentData.email || 'this student';
+                var nameEl = document.getElementById('student-name-banner');
+                if (nameEl) nameEl.textContent = _studentName + "'s";
+              }).catch(function() {
+                /* Fallback if fetch fails */
+                var nameEl = document.getElementById('student-name-banner');
+                if (nameEl) nameEl.textContent = 'this student\'s';
+              });
+            }
+          }
+
+          /* Load custom mode settings */
+          AA.getUserDoc(_uid).then(function(doc) {
+            if (doc.exists && doc.data().modeSettings) {
+              _modeSettings = doc.data().modeSettings;
+            }
+            renderModeConfigs();
+            highlightActive();
+          }).catch(function() {
+            renderModeConfigs();
+            highlightActive();
+          });
+        }).catch(function(err) {
+          console.error('Failed to fetch user role:', err);
+          /* Continue without role check if fetch fails */
+          AA.getUserDoc(_uid).then(function(doc) {
+            if (doc.exists && doc.data().modeSettings) {
+              _modeSettings = doc.data().modeSettings;
+            }
+            renderModeConfigs();
+            highlightActive();
+          }).catch(function() {
+            renderModeConfigs();
+            highlightActive();
+          });
+        });
+      });
+    });
+  })();
+  </script>
+
+</body>
+</html>

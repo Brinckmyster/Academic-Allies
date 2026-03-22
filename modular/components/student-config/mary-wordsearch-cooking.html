@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FCS Cooking Final — Word Search</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+  .page { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+  h1 { text-align: center; color: #c0392b; margin-bottom: 5px; font-size: 1.6rem; }
+  .subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 0.9rem; }
+  .grid-container { display: flex; justify-content: center; margin: 20px 0; }
+  table.wordsearch { border-collapse: collapse; }
+  table.wordsearch td { width: 30px; height: 30px; text-align: center; font-size: 16px; font-weight: bold; font-family: 'Courier New', monospace; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s; }
+  table.wordsearch td:hover { background: #fff3cd; }
+  table.wordsearch td.found { background: #d4edda; color: #155724; }
+  table.wordsearch td.selected { background: #cce5ff; color: #004085; }
+  .word-bank { margin-top: 20px; }
+  .word-bank h3 { color: #c0392b; margin-bottom: 10px; font-size: 1.1rem; border-bottom: 2px solid #e74c3c; padding-bottom: 5px; }
+  .word-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; }
+  .word-item { font-size: 0.9rem; padding: 4px 8px; border-radius: 4px; background: #f8f9fa; }
+  .word-item.found { text-decoration: line-through; color: #28a745; background: #d4edda; }
+  .btn-group { text-align: center; margin-top: 20px; }
+  .btn { padding: 10px 20px; margin: 5px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+  .btn-print { background: #e8f2f3; color: #4d787b; }
+  .score { text-align: center; margin-top: 10px; font-size: 1rem; color: #666; }
+  @media print { .btn-group { display: none; } body { background: white; } .page { box-shadow: none; } }
+  @media (max-width: 600px) { table.wordsearch td { width: 24px; height: 24px; font-size: 13px; } .word-list { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Cooking Final — Word Search</h1>
+  <p class="subtitle">Find all the key terms from your semester! Words go → ↓ ↘</p>
+
+  <div class="grid-container">
+    <table class="wordsearch" id="grid"></table>
+  </div>
+
+  <div class="word-bank">
+    <h3>Words to Find (<span id="foundCount">0</span>/<span id="totalCount">0</span>)</h3>
+    <div class="word-list" id="wordList"></div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-print" onclick="window.print()">Print</button>
+  </div>
+  <div class="score" id="score"></div>
+</div>
+
+<script>
+/* Claude: 2026-03-20 — Word search for Mary's FCS cooking final review */
+var WORDS = [
+  'BRAISING', 'ROASTING', 'SEARING', 'SAUTE', 'BLANCH',
+  'EMULSION', 'GLUTEN', 'PESTO', 'ROUX', 'STOCK',
+  'BECHAMEL', 'VELOUTE', 'CHIFFON', 'PASTRY', 'CUSTARD',
+  'MAILLARD', 'DREDGE', 'PROOF', 'MINCE', 'BROTH',
+  'MARBLING', 'FLUTING', 'ALDENTE', 'GERM', 'BRAN',
+  'FABRICATION', 'HOLLANDAISE'
+];
+
+var GRID_SIZE = 20;
+var grid = [];
+var placedWords = [];
+var foundWords = {};
+
+/* Initialize grid with empty cells */
+for (var r = 0; r < GRID_SIZE; r++) {
+  grid[r] = [];
+  for (var c = 0; c < GRID_SIZE; c++) {
+    grid[r][c] = '';
+  }
+}
+
+/* Directions: right, down, diagonal-down-right */
+var DIRS = [[0,1],[1,0],[1,1]];
+
+function canPlace(word, row, col, dr, dc) {
+  for (var i = 0; i < word.length; i++) {
+    var r = row + dr * i;
+    var c = col + dc * i;
+    if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return false;
+    if (grid[r][c] !== '' && grid[r][c] !== word[i]) return false;
+  }
+  return true;
+}
+
+function placeWord(word) {
+  var attempts = 0;
+  while (attempts < 200) {
+    var dir = DIRS[Math.floor(Math.random() * DIRS.length)];
+    var row = Math.floor(Math.random() * GRID_SIZE);
+    var col = Math.floor(Math.random() * GRID_SIZE);
+    if (canPlace(word, row, col, dir[0], dir[1])) {
+      var cells = [];
+      for (var i = 0; i < word.length; i++) {
+        var r = row + dir[0] * i;
+        var c = col + dir[1] * i;
+        grid[r][c] = word[i];
+        cells.push(r + ',' + c);
+      }
+      return { word: word, cells: cells };
+    }
+    attempts++;
+  }
+  return null;
+}
+
+/* Sort by length descending so longer words get placed first */
+var sortedWords = WORDS.slice().sort(function(a, b) { return b.length - a.length; });
+sortedWords.forEach(function(word) {
+  var result = placeWord(word);
+  if (result) placedWords.push(result);
+});
+
+/* Fill remaining cells with random letters */
+var LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+for (var r = 0; r < GRID_SIZE; r++) {
+  for (var c = 0; c < GRID_SIZE; c++) {
+    if (grid[r][c] === '') {
+      grid[r][c] = LETTERS[Math.floor(Math.random() * 26)];
+    }
+  }
+}
+
+/* Build grid HTML */
+var table = document.getElementById('grid');
+for (var r = 0; r < GRID_SIZE; r++) {
+  var tr = document.createElement('tr');
+  for (var c = 0; c < GRID_SIZE; c++) {
+    var td = document.createElement('td');
+    td.textContent = grid[r][c];
+    td.dataset.row = r;
+    td.dataset.col = c;
+    td.addEventListener('click', function() {
+      this.classList.toggle('selected');
+      checkFoundWords();
+    });
+    tr.appendChild(td);
+  }
+  table.appendChild(tr);
+}
+
+/* Build word list */
+var wordList = document.getElementById('wordList');
+document.getElementById('totalCount').textContent = placedWords.length;
+placedWords.sort(function(a, b) { return a.word.localeCompare(b.word); });
+placedWords.forEach(function(pw) {
+  var div = document.createElement('div');
+  div.className = 'word-item';
+  div.id = 'word-' + pw.word;
+  div.textContent = pw.word;
+  wordList.appendChild(div);
+});
+
+function checkFoundWords() {
+  var selected = document.querySelectorAll('td.selected');
+  var selectedSet = new Set();
+  selected.forEach(function(td) {
+    selectedSet.add(td.dataset.row + ',' + td.dataset.col);
+  });
+
+  placedWords.forEach(function(pw) {
+    if (foundWords[pw.word]) return;
+    var allSelected = pw.cells.every(function(cell) { return selectedSet.has(cell); });
+    if (allSelected) {
+      foundWords[pw.word] = true;
+      pw.cells.forEach(function(cell) {
+        var parts = cell.split(',');
+        var td = document.querySelector('td[data-row="' + parts[0] + '"][data-col="' + parts[1] + '"]');
+        td.classList.remove('selected');
+        td.classList.add('found');
+      });
+      document.getElementById('word-' + pw.word).classList.add('found');
+      document.getElementById('foundCount').textContent = Object.keys(foundWords).length;
+      if (Object.keys(foundWords).length === placedWords.length) {
+        document.getElementById('score').textContent = 'You found all ' + placedWords.length + ' words! Great job studying!';
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>

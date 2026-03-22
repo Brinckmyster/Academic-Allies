@@ -1,0 +1,2046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpoonPal - Academic Allies</title>
+  <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
+
+  <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. -->
+  <!-- Note: Firebase was added 2026-03-02 because SpoonPal was missing it, causing waitForAA() to poll forever. -->
+  <script src="/Academic-Allies/modular/js/aa-mirror.js?v=20260322"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      background: #FAFAF9;
+      color: #333;
+      min-height: 100vh;
+      padding: 20px 16px 60px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 22pt;
+      color: #6CA0A3;
+      margin: 16px 0 4px;
+    }
+
+    #timestamp {
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    #debtWarning {
+      background: #ffd6d6;
+      border: 1px solid #dc3545;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      display: none;
+      color: #721c24;
+    }
+
+    .section {
+      background: white;
+      border: 1px solid #e1e5e9;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+
+    /* Claude: 2026-03-07 — visual spoon budget bar replaces plain text wall */
+    .section.spoon-summary { font-size: 15px; }
+
+    #spoonBudgetWrap {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+    }
+    #spoonBudgetBar {
+      flex: 1; height: 22px; background: #f0f0f0; border-radius: 11px;
+      overflow: hidden; display: flex;
+    }
+    #spoonBarSpent {
+      background: #6CA0A3; transition: width 0.4s ease; height: 100%;
+    }
+    #spoonBarPlanned {
+      background: repeating-linear-gradient(
+        45deg, #6CA0A3, #6CA0A3 4px,
+        rgba(108,160,163,0.25) 4px, rgba(108,160,163,0.25) 8px
+      );
+      transition: width 0.4s ease; height: 100%;
+    }
+    #spoonRemainingBadge {
+      font-weight: 700; font-size: 16px; white-space: nowrap; min-width: 70px; text-align: right;
+    }
+    .spoon-ok   { color: #2d8a4e; }
+    .spoon-low  { color: #b8860b; }
+    .spoon-debt { color: #c0392b; }
+    #spoonStatsRow {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      font-size: 13px; color: #666; margin-bottom: 6px;
+    }
+    #spoonBreakdown { font-size: 12px; color: #aaa; margin-top: 2px; }
+
+    /* Claude: 2026-03-07 — task modal live budget impact */
+    #taskBudgetImpact {
+      margin-top: 6px; padding: 7px 10px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; display: none;
+    }
+    #taskBudgetImpact.tbi-ok   { background: #d4edda; color: #155724; }
+    #taskBudgetImpact.tbi-low  { background: #fff3cd; color: #856404; }
+    #taskBudgetImpact.tbi-debt { background: #f8d7da; color: #721c24; }
+
+    /* ── Quick-entry check-in — Updated 2026-03-02 by Claude ── */
+    .section.checkin { display: flex; flex-direction: column; gap: 12px; }
+    .qe-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .qe-label { font-weight: 600; font-size: 13px; color: #555; min-width: 72px; }
+    .qe-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .qe-btn {
+      padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
+      border: 2px solid #ddd; background: #f8f9fa; color: #333;
+      cursor: pointer; transition: all .15s; line-height: 1.4;
+      /* Claude: 2026-03-07 — flex column so cost hint sits below label */
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+    }
+    .qe-btn:hover { border-color: #aaa; background: #eee; }
+    .qe-btn.selected[data-color="green"]  { background: #d4edda; border-color: #28a745; color: #155724; }
+    .qe-btn.selected[data-color="yellow"] { background: #fff3cd; border-color: #ffc107; color: #856404; }
+    .qe-btn.selected[data-color="orange"] { background: #ffe5cc; border-color: #fd7e14; color: #7d3800; }
+    .qe-btn.selected[data-color="red"]    { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+    /* Claude: 2026-03-07 — inline spoon-cost hint on check-in buttons (cache bust #18) */
+    .qe-cost { font-size: 10px; font-weight: 500; line-height: 1; }
+    .qe-cost-zero { opacity: 0.35; }
+    .qe-cost-neg  { color: #c0392b; }
+    .qe-cost-pos  { color: #2d8a4e; }
+    .section.weather { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #555; }
+
+    #legend {
+      font-family: monospace;
+      white-space: nowrap;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      font-size: 13px;
+      color: #555;
+    }
+
+    /* ── Table ─────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    th, td { padding: 8px 10px; border: 1px solid #ccc; text-align: left; }
+    th { position: sticky; top: 0; background: #f0f4f9; z-index: 1; font-size: 13px; }
+    tr.overdue { background: #ffd6d6; }
+    tr.completed { background: #d7f0d7; opacity: 0.85; }
+    tr.outoforder { border-left: 5px solid #ffa500; background: #fffaf0; }
+    /* Claude: 2026-03-07 — fixed-time tasks get a teal left accent (cache bust #19) */
+    tr.task-fixed { border-left: 4px solid #6CA0A3; }
+    /* Claude: 2026-03-07 — next-up task gets warm amber highlight (cache bust #20) */
+    tr.task-nextup { background: #fffbec; }
+    tr.task-nextup td:first-child::before { content: '▶ '; color: #d4870a; font-size: 11px; }
+    td.clickable { cursor: pointer; }
+
+    /* ── Buttons ────────────────────────────────────── */
+    button { cursor: pointer; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; background: #1a73e8; color: white; transition: background-color 0.3s ease; font-size: 14px; }
+    button:hover { background: #155ab6; }
+    button:disabled { background: #a6c8f3; cursor: not-allowed; }
+    .btn-row { text-align: center; margin-top: 1rem; }
+    .btn-row button { display: inline-block; margin: 0 0.4rem; }
+    #loadDayBtn { background: #28a745; }
+    #loadDayBtn:hover { background: #218838; }
+
+    /* ── Modals ─────────────────────────────────────── */
+    .modal { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); overflow-y: auto; }
+    .modal-content { background: white; max-width: 500px; margin: 5% auto; padding: 1.5rem 2rem 2rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.25); position: relative; }
+    .modal-content h2 { margin: 0 0 1rem; }
+    .modal-content label { display: block; margin-top: 0.75rem; font-weight: 600; }
+    .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 0.5rem 0.75rem; margin-top: 0.25rem; font-size: 1rem; border-radius: 5px; border: 1px solid #ccc; }
+    .modal-content textarea { min-height: 60px; resize: vertical; }
+    .modal-close { position: absolute; top: 10px; right: 14px; font-size: 1.8rem; font-weight: 700; color: #666; cursor: pointer; background: none; padding: 0; }
+    .modal-close:hover { color: #000; background: none; }
+    .modal-actions { margin-top: 1.25rem; display: flex; gap: 1rem; }
+    .modal-actions button { flex: 1; padding: 0.65rem 0; }
+    #templateList { max-height: 300px; overflow-y: auto; margin-top: 1rem; }
+
+    /* Claude: 2026-03-07 — pre-rollover summary modal */
+    #rolloverSummaryRows { margin: 1rem 0; display: flex; flex-direction: column; gap: 8px; }
+    .ro-row { display: flex; justify-content: space-between; align-items: center;
+              padding: 8px 12px; border-radius: 6px; background: #f7f7f7; font-size: 14px; }
+    .ro-row strong { font-size: 15px; }
+    #rolloverBalanceRow { font-size: 15px; font-weight: 700; padding: 10px 14px; border-radius: 6px; }
+    .ro-ok   { background: #d4edda; color: #155724; }
+    .ro-low  { background: #fff3cd; color: #856404; }
+    .ro-debt { background: #f8d7da; color: #721c24; }
+    .template-item { border-bottom: 1px solid #eee; padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .template-item span { flex: 1; font-size: 14px; }
+    .emoji-preview { font-size: 1.5em; min-height: 1.8em; margin-top: 0.4rem; padding: 0.25rem 0; }
+
+    /* Claude 2026-03-06: time picker + bump buttons */
+    .time-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.25rem; }
+    .time-row input[type="time"] { flex: 1; padding: 0.5rem 0.75rem; font-size: 1rem; border-radius: 5px; border: 1px solid #ccc; }
+    .time-bump-row { display: flex; gap: 0.4rem; margin-top: 0.35rem; flex-wrap: wrap; }
+    .time-bump-row button { flex: 1; padding: 0.35rem 0; font-size: 13px; background: #e8f0fe; color: #1a73e8; border: 1px solid #c5d8fc; border-radius: 5px; min-width: 48px; }
+    .time-bump-row button:hover { background: #d2e3fc; color: #155ab6; }
+
+    /* Claude 2026-03-06: status picker popup */
+    #statusPicker {
+      position: fixed;
+      z-index: 10001;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+      padding: 0.5rem;
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem;
+      min-width: 200px;
+    }
+    #statusPicker.open { display: grid; }
+    .sp-status-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.7rem;
+      border-radius: 7px;
+      background: #f0f4f9;
+      color: #222;
+      border: 1px solid #dde3f0;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .sp-status-btn:hover { background: #d2e3fc; border-color: #aac4f7; }
+    .sp-status-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+
+    /* Claude: Toast notification for auto-reschedule events */
+    .sp-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #333;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      font-size: 14px;
+      z-index: 10000;
+      animation: sp-toast-fadeout 3s ease-in-out forwards;
+    }
+    @keyframes sp-toast-fadeout {
+      0% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260322')
+      .then(response => response.text())
+      .then(html => {
+        const container = document.getElementById('site-header');
+        container.innerHTML = html;
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+        const dragScript = document.createElement('script');
+        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
+        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(dragScript);
+      });
+  </script>
+<div class="container" role="main" aria-label="SpoonPal Mini App for chronic pain management and spoon accounting">
+  <h1>SpoonPal Mini App</h1>
+  <div id="timestamp" aria-live="polite"></div>
+  <div id="legend" class="section" aria-label="Protocol Legend"></div>
+  <div id="debtWarning" role="alert" aria-live="assertive"></div>
+
+  <!-- Claude: 2026-03-07 — visual budget bar replaces 7-number text wall.
+       All original span IDs kept hidden for backward compat with calculateSpoons(). -->
+  <section class="section spoon-summary" aria-label="Spoon Budget">
+    <!-- Budget bar: spent (solid) + planned-remaining (striped) + buffer (empty) -->
+    <div id="spoonBudgetWrap">
+      <div id="spoonBudgetBar" title="Solid = spent · Striped = planned · Empty = available">
+        <div id="spoonBarSpent"></div>
+        <div id="spoonBarPlanned"></div>
+      </div>
+      <span id="spoonRemainingBadge" class="spoon-ok">-- left</span>
+    </div>
+    <!-- Stats row -->
+    <div id="spoonStatsRow">
+      <span>🥄 <strong id="spentSpoons">--</strong> spent</span>
+      <span>📋 <strong id="plannedSpoons">--</strong> planned</span>
+      <span>⭐ <strong id="startSpoons">--</strong> start</span>
+      <span id="debtDaysSpan" style="display:none">🔴 <strong id="consecutiveDebt">0</strong> debt day(s)</span>
+    </div>
+    <!-- Why today is X spoons -->
+    <div id="spoonBreakdown"></div>
+    <!-- Hidden compat spans (calculateSpoons still writes to these) -->
+    <span id="baselineSpoons"  style="display:none">--</span>
+    <span id="borrowedSpoons"  style="display:none">--</span>
+    <span id="remainingSpoons" style="display:none">--</span>
+    <span id="depletionSpoons" style="display:none">--</span>
+  </section>
+
+  <!-- Check-in quick-entry — Updated 2026-03-02 by Claude:
+       Replaced 1-10 number scales with tap-to-pick buttons. No scales. -->
+  <section class="section checkin" aria-label="User daily check-in metrics">
+    <div class="qe-group">
+      <span class="qe-label">Pain</span>
+      <div class="qe-btns" id="painBtns" role="group" aria-label="Pain level">
+        <button type="button" class="qe-btn" data-field="pain" data-val="1" data-color="green">🟢 None<span class="qe-cost qe-cost-zero">±0 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="pain" data-val="3" data-color="yellow">🟡 Low<span class="qe-cost qe-cost-zero">±0 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="pain" data-val="6" data-color="orange">🟠 Medium<span class="qe-cost qe-cost-neg">−1 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="pain" data-val="9" data-color="red">🔴 High<span class="qe-cost qe-cost-neg">−4 🥄</span></button>
+      </div>
+    </div>
+    <div class="qe-group">
+      <span class="qe-label">Fatigue</span>
+      <div class="qe-btns" id="fatigueBtns" role="group" aria-label="Fatigue level">
+        <button type="button" class="qe-btn" data-field="fatigue" data-val="1" data-color="green">🟢 None<span class="qe-cost qe-cost-zero">±0 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="fatigue" data-val="3" data-color="yellow">🟡 Low<span class="qe-cost qe-cost-zero">±0 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="fatigue" data-val="6" data-color="orange">🟠 Medium<span class="qe-cost qe-cost-neg">−1 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="fatigue" data-val="9" data-color="red">🔴 High<span class="qe-cost qe-cost-neg">−4 🥄</span></button>
+      </div>
+    </div>
+    <div class="qe-group">
+      <span class="qe-label">Sleep (hrs)</span>
+      <input type="number" id="sleepHours" step="0.25" min="0" max="24" value="8.33"
+             style="width:80px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:15px;" />
+    </div>
+    <div class="qe-group">
+      <span class="qe-label">Mood</span>
+      <div class="qe-btns" id="moodBtns" role="group" aria-label="Mood level">
+        <button type="button" class="qe-btn" data-field="mood" data-val="excellent" data-color="green">🌟 Great<span class="qe-cost qe-cost-pos">+2 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="mood" data-val="good" data-color="green">😊 Good<span class="qe-cost qe-cost-pos">+1 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="mood" data-val="okay" data-color="yellow">😐 Okay<span class="qe-cost qe-cost-zero">±0 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="mood" data-val="poor" data-color="orange">😔 Poor<span class="qe-cost qe-cost-neg">−1 🥄</span></button>
+        <button type="button" class="qe-btn" data-field="mood" data-val="terrible" data-color="red">😞 Rough<span class="qe-cost qe-cost-neg">−3 🥄</span></button>
+      </div>
+    </div>
+    <!-- Hidden inputs keep compatibility with updateCheckIn() reading these IDs -->
+    <input type="hidden" id="painLevel" value="6" />
+    <input type="hidden" id="fatigueLevel" value="5" />
+    <input type="hidden" id="moodLevel" value="poor" />
+  </section>
+
+  <section class="section weather" aria-label="Weather information and controls">
+    <span id="weatherInfo">Loading weather...</span>
+    <button id="refreshWeather" type="button" aria-label="Refresh weather">Refresh</button>
+  </section>
+
+  <table aria-label="Daily task timeline" id="timelineTable" role="grid">
+    <thead>
+      <tr>
+        <th scope="col">Time</th>
+        <th scope="col">LMJ</th>
+        <th scope="col">Task Description</th>
+        <th scope="col">Spoon <span aria-hidden="true">🥄</span></th>
+        <th scope="col">Status</th>
+        <th scope="col">Area Notes</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="timelineBody">
+    </tbody>
+  </table>
+
+  <!-- Claude 2026-03-06: status picker popup — populated and positioned by JS -->
+  <div id="statusPicker" role="listbox" aria-label="Set task status"></div>
+
+  <!-- Fix #1: Load Day button added alongside existing buttons -->
+  <!-- Claude 2026-03-06: Save as Template button added -->
+  <div class="btn-row">
+    <button id="addTaskBtn" type="button" aria-label="Add new task">Add Task</button>
+    <button id="loadDayBtn" type="button" aria-label="Load a full-day template">Load Day</button>
+    <button id="saveAsTemplateBtn" type="button" aria-label="Save current timeline as a day template" style="background:#6f42c1;">💾 Save as Template</button>
+    <button id="manageTemplatesBtn" type="button" aria-label="Manage editable templates">Manage Templates</button>
+  </div>
+
+  <!-- Task Edit Modal -->
+  <div id="taskModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+    <div class="modal-content">
+      <button class="modal-close" id="taskModalClose" aria-label="Close modal">&times;</button>
+      <h2 id="taskModalTitle">Edit Task</h2>
+      <form id="taskForm">
+        <!-- Claude 2026-03-06: taskTemplateSelect removed — individual task templates deprecated, always empty. Archive: <label>Apply Template</label><select id="taskTemplateSelect">... -->
+        <label for="taskTime">Time</label>
+        <!-- Claude 2026-03-06: replaced text input with native time picker + bump buttons -->
+        <!-- Archive: <input type="text" id="taskTime" name="taskTime" placeholder="8:30 AM" autocomplete="off" required /> -->
+        <div class="time-row">
+          <input type="time" id="taskTime" name="taskTime" required />
+        </div>
+        <div class="time-bump-row" aria-label="Adjust time">
+          <button type="button" onclick="bumpTime(-30)">−30m</button>
+          <button type="button" onclick="bumpTime(-15)">−15m</button>
+          <button type="button" onclick="bumpTime(+15)">+15m</button>
+          <button type="button" onclick="bumpTime(+30)">+30m</button>
+        </div>
+        <label for="taskLmj">LMJ Code</label>
+        <input type="text" id="taskLmj" name="taskLmj" readonly aria-readonly="true" />
+        <!-- Claude: Emoji input field removed (Fix #3) — emoji derived at render time -->
+        <label for="taskDescription">Description</label>
+        <input type="text" id="taskDescription" name="taskDescription" required />
+        <!-- Fix #2: Auto-emoji preview (read-only, updates on description input) -->
+        <div class="emoji-preview" id="emojiPreview" aria-label="Auto-detected emoji" title="Emoji auto-detected from description"></div>
+        <label for="taskSpoon">Spoon Cost</label>
+        <input type="number" id="taskSpoon" name="taskSpoon" step="0.5" min="0" max="20" required />
+        <!-- Claude: 2026-03-07 — live budget impact updates as spoon cost changes -->
+        <div id="taskBudgetImpact" aria-live="polite"></div>
+        <label for="taskPriority">Priority</label>
+        <select id="taskPriority" name="taskPriority" required>
+          <option value="Urgent">Urgent</option>
+          <option value="High" selected>High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <label for="taskFixed">Fixed / Flexible</label>
+        <select id="taskFixed" name="taskFixed" required>
+          <option value="true">Fixed 🔒</option>
+          <option value="false" selected>Flexible ↕️</option>
+        </select>
+        <label for="taskStatus">Status</label>
+        <select id="taskStatus" name="taskStatus" required>
+          <option value="incomplete">⬜ Incomplete</option>
+          <option value="partial">⏳ Partial</option>
+          <option value="progress">🛠️ Progress</option>
+          <option value="complete">✅ Complete</option>
+          <option value="interrupted">🚧 Interrupted</option>
+          <option value="skipped">❌ Skipped</option>
+          <option value="rescheduled">🔄 Rescheduled</option>
+        </select>
+        <label for="taskNotes">Area Notes</label>
+        <textarea id="taskNotes" name="taskNotes"></textarea>
+        <div class="modal-actions">
+          <button type="submit">Save</button>
+          <button type="button" id="deleteTaskBtn" style="background:#d9534f; color:#fff;">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Claude: BUG #8 FIX — Templates Management Modal (Day Templates Only) -->
+  <div id="templateModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="templateModalTitle">
+    <div class="modal-content">
+      <button class="modal-close" id="templateModalClose" aria-label="Close modal">&times;</button>
+      <h2 id="templateModalTitle">Day Templates</h2>
+      <button id="addTemplateBtn" type="button" style="margin-bottom: 1rem;">New Template (Clone Normal Day)</button>
+      <div id="templateList" aria-label="List of day templates">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Claude 2026-03-06: Template rename modal — day templates only, task-level fields removed -->
+  <!-- Archive of old fields: emoji, desc, defaultCost, priority, fixed — were for individual task templates (deprecated) -->
+  <div id="templateEditModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="templateEditTitle">
+    <div class="modal-content">
+      <button class="modal-close" id="templateEditClose" aria-label="Close modal">&times;</button>
+      <h2 id="templateEditTitle">Rename Template</h2>
+      <p style="font-size:0.9em;color:#555;margin-bottom:0.5rem;">To change a template's tasks: load it, edit your timeline, then use <strong>Save as Template</strong>.</p>
+      <form id="templateForm">
+        <label for="templateName">Template Name</label>
+        <input type="text" id="templateName" name="templateName" required />
+        <div class="modal-actions">
+          <button type="submit">Rename</button>
+          <button type="button" id="deleteTemplateBtn" style="background:#d9534f; color:#fff;">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Claude: 2026-03-07 — Pre-rollover day summary modal -->
+  <div id="rolloverPreviewModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="rolloverPreviewTitle">
+    <div class="modal-content">
+      <button class="modal-close" id="rolloverPreviewClose" aria-label="Close">&times;</button>
+      <h2 id="rolloverPreviewTitle">📊 End of Day</h2>
+      <div id="rolloverSummaryRows"></div>
+      <div class="modal-actions">
+        <button id="rolloverCancelBtn" style="background:#e9ecef;color:#333;">Not Yet</button>
+        <button id="rolloverConfirmBtn" style="background:#6CA0A3;color:#fff;">Roll Over →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fix #1: Load Day Modal -->
+  <div id="loadDayModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loadDayModalTitle">
+    <div class="modal-content">
+      <button class="modal-close" id="loadDayModalClose" aria-label="Close modal">&times;</button>
+      <h2 id="loadDayModalTitle">Load Day Template</h2>
+      <label for="dayTemplateSelect">Choose a Day Template</label>
+      <select id="dayTemplateSelect" aria-label="Select day template to load"></select>
+      <p style="margin-top: 0.75rem; font-size: 0.9em; color: #666;">Incomplete tasks will carry forward automatically.</p>
+      <div class="modal-actions">
+        <button type="button" id="confirmLoadDayBtn">Load Day</button>
+        <button type="button" id="startFreshDayBtn" style="background: #d9534f;">Start Fresh</button>
+        <button type="button" id="cancelLoadDayBtn" style="background: #6c757d;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // Claude: Audit fixes applied — full-day templates, auto-emoji, emoji field removal,
+  // Normal Day template, ZZ rollover + stale-data detection. Archive: spoon-pal_2026-03-01_pre-audit.html
+
+  // ── Fix #2: Keyword→Emoji map ─────────────────────────────────────────────────
+  // Claude: BUG #3 FIX — Expanded KEYWORD_EMOJI_MAP with comprehensive task keywords
+  const KEYWORD_EMOJI_MAP = {
+    lunch: '🍽️', eat: '🍽️', food: '🍽️', meal: '🍽️', breakfast: '🍽️', dinner: '🍽️',
+    jobs: '💼', apply: '💼', work: '💼', career: '💼', resume: '💼',
+    news: '📰', read: '📰', article: '📰', blog: '📰',
+    walk: '🚶', steps: '🚶', outside: '🚶',
+    meds: '💊', medication: '💊', pills: '💊', vitamins: '💊',
+    sleep: '😴', rest: '😴', nap: '😴', bed: '😴',
+    shower: '🚿', bath: '🚿', hygiene: '🚿', groom: '🚿',
+    brush: '🪥', teeth: '🪥', dental: '🪥',
+    call: '📞', phone: '📞', meeting: '📞', zoom: '📞',
+    write: '✏️', journal: '✏️', notes: '✏️', plan: '✏️',
+    cook: '🍳', prep: '🍳', kitchen: '🍳',
+    drink: '💧', water: '💧', hydrate: '💧',
+    stretch: '🤸', yoga: '🤸', exercise: '🤸', gym: '🤸',
+    dress: '👗', clothes: '👗', outfit: '👗',
+    conference: '🎪', event: '🎪', rootstech: '🎪', expo: '🎪',
+    therapy: '🏥', counseling: '🏥', appointment: '🏥',
+    music: '🎵', listen: '🎵', podcast: '🎵',
+    clean: '🧺', laundry: '🧺', tidy: '🧺', dishes: '🧺',
+    family: '👨‍👩‍👧', kids: '👨‍👩‍👧', parent: '👨‍👩‍👧',
+    travel: '🚗', drive: '🚗', commute: '🚗',
+    shop: '🛒', grocery: '🛒', errand: '🛒'
+  };
+
+  // Constants and locked protocol data (corrected: B🍽️, S🤟, ZZ📵, C🔗 Word Connect, I🎨 NightCafe, all streak savers)
+  const LOCKED_LMJ_ORDER = ['A', 'V', 'B', 'C', 'D', 'S', 'L', 'I', 'G', 'N', 'ME', 'H', 'CC', 'DD', 'EE', 'FF', 'ZZ'];
+  const LOCKED_LMJ_META = {
+    A:  {emoji: '💊',  desc: 'Morning Medications',           defaultCost: 2, fixed: true},
+    V:  {emoji: '🦾',  desc: 'CPAP Prep / Wrist Brace',       defaultCost: 1, fixed: true},
+    B:  {emoji: '🍽️', desc: 'Family Scriptures / Breakfast',  defaultCost: 2, fixed: false},
+    C:  {emoji: '🔗',  desc: 'Word Connect Streak Saver',      defaultCost: 1, fixed: false},
+    D:  {emoji: '🦉',  desc: 'Duolingo Streak Saver',          defaultCost: 1, fixed: false},
+    S:  {emoji: '🤟',  desc: 'ASL Streak Saver',               defaultCost: 1, fixed: false},
+    L:  {emoji: '🦙',  desc: 'Lingo Legend Streak Saver',      defaultCost: 1, fixed: false},
+    I:  {emoji: '🎨',  desc: 'NightCafe Streak Saver',         defaultCost: 1, fixed: false},
+    G:  {emoji: '🐣',  desc: 'Gosling Time',                   defaultCost: 1, fixed: false},
+    N:  {emoji: '📰',  desc: 'News with Mom',                  defaultCost: 1, fixed: false},
+    ME: {emoji: '🙂',  desc: 'Me Time',                        defaultCost: 1, fixed: false},
+    H:  {emoji: '🧺',  desc: 'Hamper (Clothes / Bedtime)',     defaultCost: 1, fixed: false},
+    CC: {emoji: '🛏️', desc: 'In Bed',                         defaultCost: 0, fixed: true},
+    DD: {emoji: '🌬️', desc: 'Breathe (Recovery)',             defaultCost: 0, fixed: true},
+    EE: {emoji: '😷',  desc: 'CPAP Mask On',                   defaultCost: 0, fixed: true},
+    FF: {emoji: '🛡️', desc: 'Wrist Brace (Night)',            defaultCost: 0, fixed: true},
+    ZZ: {emoji: '📵',  desc: 'Device Off / Crash',             defaultCost: 0, fixed: true}
+  };
+
+  // ── Fix #4: Protected Normal Day template (constant — not stored, not deletable) ───
+  // Claude: BUG #4 FIX — Corrected all times to match canonical schedule
+  const NORMAL_DAY_TIMES = {
+    A: '9:00 AM',   V: '9:15 AM',   B: '9:30 AM',   C: '11:00 AM',
+    D: '11:30 AM',  S: '12:00 PM',  L: '12:30 PM',  I: '1:00 PM',
+    G: '2:00 PM',   N: '7:00 PM',   ME: '8:00 PM',  H: '8:30 PM',
+    CC: '9:00 PM',  DD: '9:30 PM',  EE: '9:45 PM',  FF: '10:00 PM',
+    ZZ: '10:30 PM'
+  };
+  const NORMAL_DAY_TEMPLATE = {
+    name: 'Normal Day',
+    type: 'day',
+    locked: true,
+    tasks: LOCKED_LMJ_ORDER.map(lmj => {
+      const meta = LOCKED_LMJ_META[lmj];
+      return {
+        time: NORMAL_DAY_TIMES[lmj] || '8:30 AM',
+        lmj,
+        description: meta.desc,
+        spoon: meta.defaultCost,
+        priority: 'High',
+        fixed: meta.fixed,
+        status: 'incomplete',
+        notes: ''
+      };
+    })
+  };
+
+  const STATUS_ORDER = ['incomplete', 'partial', 'progress', 'complete', 'interrupted', 'skipped', 'rescheduled'];
+  const STATUS_ICONS = {
+    incomplete: '⬜', partial: '⏳', progress: '🛠️', complete: '✅',
+    interrupted: '🚧', skipped: '❌', rescheduled: '🔄'
+  };
+
+  // Claude 2026-03-06: RESCHEDULE_GRACE_SECONDS replaced by sequential queue — see checkOverdueTasks()
+  // Archive: const RESCHEDULE_GRACE_SECONDS = 5;
+  // rescheduleTimers kept for cancelAutoReschedule/rolloverDay backward compat
+  const rescheduleTimers = {};
+
+  // Variables
+  let timeline = [];
+  let checkIn = {pain: 7, fatigue: 5, sleep: 8.33, mood: 'poor'};
+  let spoonDebtHistory = [];
+  let dayStart = 8;
+  let dayEnd = 25;
+  let weather = {desc: 'Loading...', impact: -1}; // Communal cold penalty
+  let selectedIndex = null;
+  let currentUid = null;  // set by Firebase auth
+  // Claude: BUG #1 FIX — flag to prevent auto-save during initial load cycle
+  let isInitialLoad = true;
+  // Claude: BUG #8 FIX — Day templates only; individual task templates removed
+  // All task quick-add functionality moved to LMJ Code buttons in Normal Day
+  let templates = {
+    'Monday': {type: 'day', tasks: [
+      {time: '8:30 AM', lmj: 'A',  description: 'Bathroom/CPAP cleaning',      spoon: 1, priority: 'High', fixed: true,  status: 'incomplete', notes: 'Essential start, sanitize CPAP'},
+      {time: '9:00 AM', lmj: 'B',  description: 'Family scriptures & breakfast', spoon: 1, priority: 'High', fixed: true,  status: 'incomplete', notes: 'PB/fruit, hydrate with meal'},
+      {time: '9:30 AM', lmj: 'C',  description: 'Bathroom break',               spoon: 0, priority: 'High', fixed: false, status: 'incomplete', notes: 'Standalone'},
+      {time: '10:00 AM',lmj: 'D',  description: 'Clean kitchen counters',       spoon: 1, priority: 'High', fixed: false, status: 'incomplete', notes: 'Microtask, quick win'},
+      {time: '10:00 PM',lmj: 'ZZ', description: 'Device off, crash',            spoon: 0, priority: 'High', fixed: true,  status: 'incomplete', notes: 'Sleep initiation'}
+    ]}
+  };
+  let selectedTemplateKey = null;
+
+  // ── Utilities ─────────────────────────────────────────────────────────────────
+  function pad(n) { return n.toString().padStart(2, '0'); }
+
+  // Fix #5: Get today's date key (YYYY-MM-DD)
+  function getTodayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function parseTime(tstr) {
+    const m = tstr.match(/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1]), mns = parseInt(m[2] || '0');
+    if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+    return h * 60 + mns;
+  }
+
+  function formatTime(minutes) {
+    if (minutes < 0) minutes += 1440;
+    const h = Math.floor(minutes / 60) % 24;
+    const m = minutes % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hr12 = h % 12 || 12;
+    return `${hr12}:${pad(m)} ${ampm}`;
+  }
+
+  // Claude 2026-03-06: helpers for native <input type="time"> ↔ stored "8:30 AM" format
+  // to24h("8:30 AM") → "08:30"  |  from24h("08:30") → "8:30 AM"
+  function to24h(str) {
+    const mins = parseTime(str);
+    if (mins === null) return '';
+    return `${pad(Math.floor(mins / 60) % 24)}:${pad(mins % 60)}`;
+  }
+  function from24h(str) {
+    const parts = (str || '').match(/^(\d{2}):(\d{2})$/);
+    if (!parts) return '';
+    return formatTime(parseInt(parts[1]) * 60 + parseInt(parts[2]));
+  }
+  // Bump the time picker value by ±deltaMins and wrap around midnight
+  function bumpTime(deltaMins) {
+    const input = document.getElementById('taskTime');
+    const parts = (input.value || '').match(/^(\d{2}):(\d{2})$/);
+    if (!parts) return;
+    const newMins = (parseInt(parts[1]) * 60 + parseInt(parts[2]) + deltaMins + 1440) % 1440;
+    input.value = `${pad(Math.floor(newMins / 60))}:${pad(newMins % 60)}`;
+  }
+
+  function uniqueLMJ() {
+    const taken = new Set(timeline.map(t => t.lmj));
+    for (const lmj of LOCKED_LMJ_ORDER) {
+      if (!taken.has(lmj)) return lmj;
+    }
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (let i = 0; i < letters.length; i++) {
+      if (!taken.has(letters[i])) return letters[i];
+    }
+    for (let l1 of letters) {
+      for (let l2 of letters) {
+        const c = l1 + l2;
+        if (!taken.has(c)) return c;
+      }
+    }
+    return 'XX';
+  }
+
+  // ── Fix #3: Derive emoji at render time (priority: locked meta > keyword > fallback) ──
+  // Updated 2026-03-02 by Claude: keyword matching changed from substring to whole-word
+  // to prevent false matches (e.g. 'eat' ghosting inside 'Breakfast', 'rest' in 'Wrist').
+  function deriveEmoji(task) {
+    // 1. LOCKED_LMJ_META emoji if task has a known LMJ code
+    if (LOCKED_LMJ_META[task.lmj]) return LOCKED_LMJ_META[task.lmj].emoji;
+    // 2. Whole-word keyword match from KEYWORD_EMOJI_MAP (case-insensitive)
+    const words = (task.description || '').toLowerCase().split(/\W+/);
+    for (const kw in KEYWORD_EMOJI_MAP) {
+      if (words.indexOf(kw) !== -1) return KEYWORD_EMOJI_MAP[kw];
+    }
+    // 3. Fallback
+    return '🧩';
+  }
+
+  // Strip any leading emoji chars from a description string.
+  // Prevents duplicate emoji when old saved data has emoji baked into description text
+  // and the LMJ column also derives the same emoji. (Added 2026-03-02 by Claude)
+  // Claude 2026-03-06: Added \uFE0F (variation selector) and \u200D (ZWJ) to prevent
+  // stray combining chars being left behind for emoji sequences like 🍽️.
+  // Archive of prior regex: /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u
+  function stripLeadingEmoji(str) {
+    return (str || '').replace(/^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D\s]+/u, '').trim();
+  }
+
+  // ── Fix #2: Update emoji preview in task modal ────────────────────────────────
+  function updateEmojiPreview() {
+    const lmj = document.getElementById('taskLmj').value;
+    const desc = document.getElementById('taskDescription').value;
+    const emoji = deriveEmoji({ lmj, description: desc });
+    document.getElementById('emojiPreview').textContent = emoji;
+  }
+
+  // ── Spoon calculations ────────────────────────────────────────────────────────
+  function calculateSpoons() {
+    /* Claude: 2026-03-07 — track each adjustment separately for breakdown display */
+    const painAdj    = Math.max(0, checkIn.pain - 5);
+    const fatigueAdj = Math.max(0, checkIn.fatigue - 5);
+    const sleepHrs   = checkIn.sleep;
+    const sleepAdj   = sleepHrs < 7 ? -(2 * (7 - sleepHrs))
+                     : sleepHrs > 9 ? Math.min(3, sleepHrs - 9) : 0;
+    const moodAdj    = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
+    const moodAdjVal = moodAdj[checkIn.mood] || 0;
+    const weatherAdj = weather.impact || 0;
+
+    // Claude: 2026-03-07 — read borrowedFromPrevDay BEFORE filter wipes today's entry (cache bust #21)
+    const _todayStr = new Date().toDateString();
+    const _prevEntry = spoonDebtHistory.find(h => h.date === _todayStr);
+    const borrowed = (_prevEntry && _prevEntry.borrowedFromPrevDay) || 0;
+
+    let base = 20;
+    base -= painAdj;
+    base -= fatigueAdj;
+    base += sleepAdj;
+    base += moodAdjVal;
+    base += weatherAdj;
+    base -= borrowed; // repay yesterday's debt — was hardcoded 0, now functional
+    base = Math.max(1, base);
+
+    let planned = timeline.reduce((acc, t) => acc + (t.spoon || 0), 0);
+    let spent = timeline.reduce((acc, t) => {
+      if (t.status === 'complete') return acc + (t.spoon || 0);
+      else if (t.status === 'partial') return acc + (t.spoon || 0) / 2;
+      else return acc;
+    }, 0);
+
+    const start = base;
+    const remaining = start - spent;
+    const depletion = remaining - (planned - spent);
+
+    // Preserve borrowedFromPrevDay in the new entry so it survives subsequent calculateSpoons() calls
+    spoonDebtHistory = spoonDebtHistory.filter(h => h.date !== _todayStr);
+    spoonDebtHistory.push({ date: _todayStr, base, spent, depletion, borrowedFromPrevDay: borrowed });
+
+    let counter = 0;
+    for (let i = spoonDebtHistory.length - 1; i >= 0; i--) {
+      if (spoonDebtHistory[i].depletion < 0) counter++;
+      else break;
+    }
+    document.getElementById('baselineSpoons').textContent = base;
+    document.getElementById('borrowedSpoons').textContent = borrowed;
+    document.getElementById('startSpoons').textContent = start;
+    document.getElementById('plannedSpoons').textContent = planned.toFixed(1);
+    document.getElementById('spentSpoons').textContent = spent.toFixed(1);
+    document.getElementById('remainingSpoons').textContent = remaining.toFixed(1);
+    document.getElementById('depletionSpoons').textContent = depletion.toFixed(1);
+    document.getElementById('consecutiveDebt').textContent = counter;
+
+    if (counter >= 2) {
+      let text = counter >= 5 ? '🚨 CRITICAL SPOON DEBT PERIOD 🚨' : '⚠️ SPOON DEBT WARNING ⚠️';
+      let debtDiv = document.getElementById('debtWarning');
+      debtDiv.textContent = `${text} (${counter} days)`;
+      debtDiv.style.display = 'block';
+    } else {
+      document.getElementById('debtWarning').style.display = 'none';
+    }
+
+    /* Claude: 2026-03-07 — update visual budget bar + breakdown equation */
+    const safeStart  = Math.max(start, 0.1);
+    const spentPct   = Math.min(100, (spent / safeStart) * 100);
+    const pendingPct = Math.max(0, Math.min(100 - spentPct, ((planned - spent) / safeStart) * 100));
+    document.getElementById('spoonBarSpent').style.width   = spentPct + '%';
+    document.getElementById('spoonBarPlanned').style.width = pendingPct + '%';
+
+    // Remaining badge — color coded
+    const badge = document.getElementById('spoonRemainingBadge');
+    badge.textContent = remaining.toFixed(1) + ' left';
+    badge.className = remaining > 2 ? 'spoon-ok' : remaining > 0 ? 'spoon-low' : 'spoon-debt';
+
+    // Debt days row
+    const debtSpan = document.getElementById('debtDaysSpan');
+    if (debtSpan) debtSpan.style.display = counter > 0 ? 'inline' : 'none';
+
+    // Why-today equation (only show adjustments that are non-zero)
+    let eq = '20 base';
+    if (painAdj)        eq += ` − pain(${painAdj})`;
+    if (fatigueAdj)     eq += ` − fatigue(${fatigueAdj})`;
+    if (sleepAdj < 0)   eq += ` − sleep(${Math.abs(sleepAdj).toFixed(1)})`;
+    if (sleepAdj > 0)   eq += ` + sleep(+${sleepAdj.toFixed(1)})`;
+    if (moodAdjVal < 0) eq += ` − mood(${Math.abs(moodAdjVal)})`;
+    if (moodAdjVal > 0) eq += ` + mood(+${moodAdjVal})`;
+    if (weatherAdj < 0) eq += ` − weather(${Math.abs(weatherAdj)})`;
+    if (weatherAdj > 0) eq += ` + weather(+${weatherAdj})`;
+    if (borrowed > 0)   eq += ` − borrowed(${borrowed})`;
+    eq += ` = ${base} today`;
+    document.getElementById('spoonBreakdown').textContent = eq;
+  }
+
+  // ── Timeline rendering ────────────────────────────────────────────────────────
+  function renderTimeline() {
+    const tbody = document.getElementById('timelineBody');
+    tbody.innerHTML = '';
+    timeline.sort((a, b) => {
+      let aM = parseTime(a.time);
+      let bM = parseTime(b.time);
+      if (aM < dayStart * 60) aM += 1440;
+      if (bM < dayStart * 60) bM += 1440;
+      return aM - bM;
+    });
+    // Enforce H after ME
+    const idxME = timeline.findIndex(t => t.lmj === 'ME');
+    const idxH  = timeline.findIndex(t => t.lmj === 'H');
+    if (idxME !== -1 && idxH !== -1) {
+      if (parseTime(timeline[idxH].time) <= parseTime(timeline[idxME].time)) {
+        timeline[idxH].time = formatTime(parseTime(timeline[idxME].time) + 30);
+      }
+    }
+    // Claude: 2026-03-07 — track whether we've marked the next-up task yet (cache bust #20)
+    let nextUpMarked = false;
+    for (let i = 0; i < timeline.length; i++) {
+      const t = timeline[i];
+      const tr = document.createElement('tr');
+      if (t.status === 'complete') tr.classList.add('completed');
+      if (t.fixed) tr.classList.add('task-fixed'); // Claude: 2026-03-07 — teal left border for fixed-time tasks
+      const now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
+      let taskTime = parseTime(t.time);
+      let adjTaskTime = taskTime;
+      if (taskTime < dayStart * 60) adjTaskTime += 1440;
+      if (t.status === 'incomplete' && adjTaskTime < now - 15) tr.classList.add('overdue');
+      // Amber highlight on the first upcoming incomplete task — your "do this now" signal
+      if (!nextUpMarked && t.status === 'incomplete' && adjTaskTime >= now - 15) {
+        tr.classList.add('task-nextup');
+        nextUpMarked = true;
+      }
+
+      const timeTd = document.createElement('td');
+      timeTd.textContent = `${t.time} ${taskTime >= 720 ? '🌙' : '☀️'} ${t.fixed ? '🔒' : '↕️'}`;
+      tr.appendChild(timeTd);
+
+      const lmjTd = document.createElement('td');
+      // Fix #3: Use deriveEmoji — no stored emoji
+      lmjTd.textContent = `${t.lmj}${deriveEmoji(t)}`;
+      tr.appendChild(lmjTd);
+
+      const descTd = document.createElement('td');
+      // stripLeadingEmoji: old Firestore data may have emoji baked into description;
+      // deriveEmoji() already adds the emoji in the LMJ column, so strip it here. (2026-03-02 by Claude)
+      descTd.textContent = `${stripLeadingEmoji(t.description)} (${t.priority})`;
+      descTd.classList.add('clickable');
+      descTd.onclick = () => openTaskModal(i);
+      tr.appendChild(descTd);
+
+      const spoonTd = document.createElement('td');
+      spoonTd.textContent = t.spoon.toFixed(1);
+      spoonTd.classList.add('clickable');
+      spoonTd.onclick = () => openTaskModal(i);
+      tr.appendChild(spoonTd);
+
+      const statusTd = document.createElement('td');
+      statusTd.textContent = STATUS_ICONS[t.status] || STATUS_ICONS['incomplete'];
+      statusTd.classList.add('clickable');
+      statusTd.title = 'Tap to change status';
+      // Claude 2026-03-06: open picker instead of cycling
+      statusTd.onclick = (e) => { e.stopPropagation(); openStatusPicker(i, statusTd); };
+      tr.appendChild(statusTd);
+
+      const noteTd = document.createElement('td');
+      noteTd.textContent = t.notes || '';
+      noteTd.classList.add('clickable');
+      noteTd.onclick = () => openTaskModal(i);
+      tr.appendChild(noteTd);
+
+      const actionTd = document.createElement('td');
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = (e) => { e.stopPropagation(); openTaskModal(i); };
+      actionTd.appendChild(editBtn);
+      const cloneBtn = document.createElement('button');
+      cloneBtn.textContent = 'Clone';
+      cloneBtn.style.background = '#28a745';
+      cloneBtn.onclick = (e) => { e.stopPropagation(); addFromTemplate(t); };
+      actionTd.appendChild(cloneBtn);
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.style.background = '#d9534f';
+      delBtn.onclick = (e) => { e.stopPropagation(); deleteTask(i); };
+      actionTd.appendChild(delBtn);
+      tr.appendChild(actionTd);
+
+      tbody.appendChild(tr);
+    }
+  }
+
+  /* Claude: 2026-03-07 — live budget impact in task modal.
+     Shows remaining spoons after this task, color-coded green/yellow/red.
+     Called on modal open and on every change to the spoon cost input. */
+  function updateTaskBudgetImpact() {
+    const div = document.getElementById('taskBudgetImpact');
+    if (!div) return;
+    const newCost = parseFloat(document.getElementById('taskSpoon').value) || 0;
+    const budget  = calculateDailyBudget();
+    // Sum all tasks EXCEPT the one being edited (so edit doesn't double-count)
+    const otherPlanned = timeline.reduce(function(acc, t, i) {
+      if (i === selectedIndex) return acc; // exclude current task
+      return acc + (t.spoon || 0);
+    }, 0);
+    const after = budget - (otherPlanned + newCost);
+    div.style.display = 'block';
+    div.className = after > 2 ? 'tbi-ok' : after >= 0 ? 'tbi-low' : 'tbi-debt';
+    div.textContent = after > 0
+      ? `✅ After saving: ${after.toFixed(1)} spoons remaining`
+      : after === 0
+      ? `⚖️ After saving: exactly even — nothing left`
+      : `⚠️ After saving: ${Math.abs(after).toFixed(1)} spoons into debt`;
+  }
+
+  // ── Task Modal functions ──────────────────────────────────────────────────────
+  function openTaskModal(index) {
+    selectedIndex = index;
+    const task = timeline[index];
+    // Claude: Cancel pending auto-reschedule on user interaction
+    cancelAutoReschedule(index);
+    // Claude 2026-03-06: convert stored "8:30 AM" to "08:30" for native time picker
+    document.getElementById('taskTime').value = to24h(task.time);
+    document.getElementById('taskLmj').value = task.lmj;
+    // Fix #3: no emoji field — show derived emoji as preview
+    // Claude 2026-03-06: strip emoji from description in modal — prevents user from
+    // re-saving stale Firestore data that has emoji baked in, which would cause duplicates
+    document.getElementById('taskDescription').value = stripLeadingEmoji(task.description);
+    updateEmojiPreview();
+    document.getElementById('taskSpoon').value = task.spoon;
+    document.getElementById('taskPriority').value = task.priority;
+    document.getElementById('taskFixed').value = task.fixed ? 'true' : 'false';
+    document.getElementById('taskStatus').value = task.status;
+    document.getElementById('taskNotes').value = task.notes || '';
+    // Claude: 2026-03-07 — show budget impact immediately + keep it live
+    updateTaskBudgetImpact();
+    document.getElementById('taskSpoon').oninput = updateTaskBudgetImpact;
+    document.getElementById('taskModal').style.display = 'block';
+  }
+
+  function closeTaskModal() {
+    document.getElementById('taskModal').style.display = 'none';
+    document.getElementById('taskSpoon').oninput = null; // cleanup listener
+    const div = document.getElementById('taskBudgetImpact');
+    if (div) div.style.display = 'none';
+    selectedIndex = null;
+  }
+
+  function saveTask(e) {
+    e.preventDefault();
+    if (selectedIndex === null) return;
+    const t = timeline[selectedIndex];
+    // Claude 2026-03-06: read native time picker (24h "HH:MM"), convert back to "8:30 AM"
+    // Archive of old text-input validation:
+    //   const timeVal = document.getElementById('taskTime').value.trim().toUpperCase();
+    //   if (!/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/.test(timeVal)) { alert(...); return; }
+    //   t.time = timeVal;
+    const raw24 = document.getElementById('taskTime').value;
+    const timeVal = from24h(raw24);
+    if (!timeVal) { alert('Please set a time.'); return; }
+    t.time = timeVal;
+    // Claude 2026-03-06: strip emoji before saving — ensures descriptions stay clean in Firestore
+    // Archive: t.description = document.getElementById('taskDescription').value.trim() || '';
+    t.description = stripLeadingEmoji(document.getElementById('taskDescription').value.trim()) || '';
+    t.spoon = parseFloat(document.getElementById('taskSpoon').value) || 0;
+    t.priority = document.getElementById('taskPriority').value;
+    t.fixed = document.getElementById('taskFixed').value === 'true';
+    t.status = document.getElementById('taskStatus').value;
+    t.notes = document.getElementById('taskNotes').value.trim();
+    // Fix #3: emoji not saved — derived at render time
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+    closeTaskModal();
+  }
+
+  // ── Template functions ────────────────────────────────────────────────────────
+  // Fix #1: Only show task-type templates (not day templates) in task modal select
+  function populateTemplateSelect(selectId) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">None</option>';
+    for (const key in templates) {
+      const temp = templates[key];
+      // Skip day templates
+      if (temp.type === 'day' || temp.tasks) continue;
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = key;
+      select.appendChild(opt);
+    }
+  }
+
+  function applyTemplate(key) {
+    const temp = templates[key];
+    if (!temp || temp.tasks || temp.type === 'day') return; // skip day templates
+    document.getElementById('taskDescription').value = temp.desc;
+    document.getElementById('taskSpoon').value = temp.defaultCost;
+    document.getElementById('taskPriority').value = temp.priority;
+    document.getElementById('taskFixed').value = temp.fixed ? 'true' : 'false';
+    updateEmojiPreview();
+  }
+
+  function openTemplateModal() {
+    renderTemplateList();
+    document.getElementById('templateModal').style.display = 'block';
+  }
+
+  function closeTemplateModal() {
+    document.getElementById('templateModal').style.display = 'none';
+  }
+
+  // Claude: BUG #5 FIX — template picker now shows ONLY day templates
+  // Claude: BUG #8 FIX — renderTemplateList shows day templates only, Normal Day protected
+  function renderTemplateList() {
+    const list = document.getElementById('templateList');
+    list.innerHTML = '';
+
+    // BUG #8: Show protected Normal Day template first (copy button only, no edit/delete)
+    const ndItem = document.createElement('div');
+    ndItem.classList.add('template-item');
+    ndItem.innerHTML = `<span>🔒 <strong>Normal Day</strong> — Day template<br><small>Protected — copy to customize</small></span>`;
+    const ndCopyBtn = document.createElement('button');
+    ndCopyBtn.textContent = 'Copy';
+    ndCopyBtn.style.background = '#28a745';
+    ndCopyBtn.onclick = () => duplicateNormalDay();
+    ndItem.appendChild(ndCopyBtn);
+    list.appendChild(ndItem);
+
+    // BUG #8: User day templates only (filter out any individual task templates)
+    for (const key in templates) {
+      const temp = templates[key];
+      const isDay = temp.type === 'day' || !!temp.tasks;
+
+      // Skip individual task templates (type === 'task'), show only day templates
+      if (!isDay) continue;
+
+      const item = document.createElement('div');
+      item.classList.add('template-item');
+      const label = `📅 ${key} — Day template (${(temp.tasks || []).length} tasks)`;
+      item.innerHTML = `<span>${label}</span>`;
+
+      // Edit button (for user templates, not locked templates)
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.style.background = '#007bff';
+      editBtn.onclick = () => openTemplateEdit(key); // Claude: fix — was calling openLoadDayModal(), now opens editor
+      item.appendChild(editBtn);
+
+      // Delete button
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.style.background = '#d9534f';
+      delBtn.onclick = () => {
+        if (confirm(`Delete "${key}"?`)) {
+          delete templates[key];
+          saveData();
+          renderTemplateList();
+        }
+      };
+      item.appendChild(delBtn);
+
+      list.appendChild(item);
+    }
+  }
+
+  // Fix #4: Duplicate Normal Day into user-editable copy
+  function duplicateNormalDay() {
+    let newKey = 'Normal Day (Copy)';
+    let i = 2;
+    while (templates[newKey]) { newKey = `Normal Day (Copy ${i++})`; }
+    templates[newKey] = {
+      type: 'day',
+      tasks: NORMAL_DAY_TEMPLATE.tasks.map(t => ({ ...t, status: 'incomplete' }))
+    };
+    saveData();
+    renderTemplateList();
+    alert(`"${newKey}" created — you can now edit it in the timeline.`);
+  }
+
+  // Claude 2026-03-06: simplified to rename-only — task-level fields removed
+  // Archive: old openTemplateEdit populated emoji, desc, defaultCost, priority, fixed
+  function openTemplateEdit(key) {
+    selectedTemplateKey = key;
+    document.getElementById('templateName').value = key || '';
+    document.getElementById('templateEditModal').style.display = 'block';
+  }
+
+  function closeTemplateEdit() {
+    document.getElementById('templateEditModal').style.display = 'none';
+    selectedTemplateKey = null;
+  }
+
+  // Claude 2026-03-06: saveTemplate now renames a day template
+  // Archive of old behavior: showed alert "Individual task templates are no longer supported."
+  function saveTemplate(e) {
+    e.preventDefault();
+    const newName = document.getElementById('templateName').value.trim();
+    if (!newName) { alert('Template name required.'); return; }
+    if (!selectedTemplateKey || !templates[selectedTemplateKey]) { closeTemplateEdit(); return; }
+    if (newName !== selectedTemplateKey) {
+      if (templates[newName]) { alert(`A template named "${newName}" already exists.`); return; }
+      templates[newName] = templates[selectedTemplateKey];
+      delete templates[selectedTemplateKey];
+    }
+    saveData();
+    renderTemplateList();
+    closeTemplateEdit();
+  }
+
+  // Claude 2026-03-06: save current timeline as a named day template
+  function saveTimelineAsTemplate() {
+    if (!timeline.length) { alert('Your timeline is empty — add some tasks first.'); return; }
+    let name = prompt('Name this day template:', 'My Day');
+    if (!name) return;
+    name = name.trim();
+    if (!name) return;
+    if (templates[name]) {
+      if (!confirm(`"${name}" already exists. Overwrite it?`)) return;
+    }
+    templates[name] = {
+      type: 'day',
+      tasks: timeline.map(function(t) {
+        return {
+          time: t.time, lmj: t.lmj,
+          description: stripLeadingEmoji(t.description || ''),
+          spoon: t.spoon, priority: t.priority,
+          fixed: t.fixed, notes: t.notes || ''
+        };
+      })
+    };
+    saveData();
+    showToast(`✅ Saved as "${name}"`);
+  }
+
+  function deleteTemplate() {
+    if (selectedTemplateKey && confirm(`Delete template "${selectedTemplateKey}"?`)) {
+      delete templates[selectedTemplateKey];
+      saveData();
+      renderTemplateList();
+      closeTemplateEdit();
+    }
+  }
+
+  function addFromTemplate(task) {
+    const lmj = uniqueLMJ();
+    timeline.push({
+      time: task.time,
+      lmj,
+      // Claude 2026-03-06: strip emoji from cloned description to prevent accumulation
+      description: stripLeadingEmoji(task.description || ''),
+      spoon: task.spoon,
+      priority: task.priority,
+      fixed: task.fixed,
+      status: 'incomplete',
+      notes: task.notes
+      // Fix #3: emoji not stored
+    });
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+  }
+
+  // ── Add task ──────────────────────────────────────────────────────────────────
+  function addTask() {
+    const lmj = uniqueLMJ();
+    const startMinutes = dayStart * 60;
+    const time = formatTime(startMinutes);
+    timeline.push({
+      time,
+      lmj,
+      description: LOCKED_LMJ_META[lmj]?.desc || '',
+      spoon: LOCKED_LMJ_META[lmj]?.defaultCost || 1,
+      priority: 'High',
+      fixed: LOCKED_LMJ_META[lmj]?.fixed || false,
+      status: 'incomplete',
+      notes: ''
+      // Fix #3: emoji not stored
+    });
+    openTaskModal(timeline.length - 1);
+    // Claude 2026-03-06: populateTemplateSelect removed — task templates deprecated
+  }
+
+  // Delete task
+  function deleteTask(index) {
+    if (!confirm('Delete this task?')) return;
+    timeline.splice(index, 1);
+    saveData();
+    renderTimeline();
+  }
+
+  // ── Fix #5: Toggle status — triggers ZZ rollover when ZZ marked complete ──────
+  // ── Claude 2026-03-06: Status picker popup — replaces linear cycle ───────────
+  // Archive of old toggleStatus (linear cycle through STATUS_ORDER):
+  //   var rescheduleDebounce = {};
+  //   function toggleStatus(index) {
+  //     if (rescheduleDebounce[index]) { clearTimeout(rescheduleDebounce[index]); delete rescheduleDebounce[index]; }
+  //     let pos = (STATUS_ORDER.indexOf(timeline[index].status) + 1) % STATUS_ORDER.length;
+  //     timeline[index].status = STATUS_ORDER[pos];
+  //     calculateSpoons(); renderTimeline(); saveData();
+  //     if (STATUS_ORDER[pos] === 'rescheduled') {
+  //       rescheduleDebounce[index] = setTimeout(function() { delete rescheduleDebounce[index]; manualReschedule(index); }, 1000);
+  //     }
+  //     if (timeline[index]?.lmj === 'ZZ' && timeline[index].status === 'complete') rolloverDay();
+  //   }
+
+  var _statusPickerIndex = null;
+
+  // Labels shown in the popup grid
+  var STATUS_LABELS = {
+    incomplete: 'Incomplete', partial: 'Partial', progress: 'In Progress',
+    complete: 'Complete', interrupted: 'Interrupted', skipped: 'Skipped', rescheduled: 'Reschedule'
+  };
+
+  function openStatusPicker(index, cell) {
+    if (index < 0 || index >= timeline.length) return;
+    _statusPickerIndex = index;
+    const current = timeline[index].status;
+    const picker = document.getElementById('statusPicker');
+
+    // Build buttons
+    picker.innerHTML = '';
+    STATUS_ORDER.forEach(function(s) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sp-status-btn' + (s === current ? ' active' : '');
+      btn.innerHTML = `<span>${STATUS_ICONS[s]}</span> ${STATUS_LABELS[s]}`;
+      btn.onclick = function(e) { e.stopPropagation(); setStatus(index, s); };
+      picker.appendChild(btn);
+    });
+
+    // Position near the tapped cell
+    const rect = cell.getBoundingClientRect();
+    const pickerH = 220; // approx
+    let top = rect.bottom + 4;
+    if (top + pickerH > window.innerHeight) top = rect.top - pickerH - 4;
+    picker.style.top = `${Math.max(4, top)}px`;
+    picker.style.left = `${Math.min(rect.left, window.innerWidth - 220)}px`;
+    picker.classList.add('open');
+  }
+
+  function closeStatusPicker() {
+    const picker = document.getElementById('statusPicker');
+    if (picker) picker.classList.remove('open');
+    _statusPickerIndex = null;
+  }
+
+  function setStatus(index, newStatus) {
+    closeStatusPicker();
+    if (index < 0 || index >= timeline.length) return;
+    timeline[index].status = newStatus;
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+    // 'rescheduled' chosen deliberately — reschedule immediately
+    if (newStatus === 'rescheduled') {
+      manualReschedule(index);
+      return;
+    }
+    // ZZ rollover trigger — Claude: 2026-03-07: show summary preview first
+    if (timeline[index] && timeline[index].lmj === 'ZZ' && newStatus === 'complete') {
+      showRolloverPreview(index);
+    }
+  }
+
+  // ── Fix #1: Load Day Modal ────────────────────────────────────────────────────
+  function openLoadDayModal() {
+    const select = document.getElementById('dayTemplateSelect');
+    select.innerHTML = '';
+    // Normal Day always first
+    const ndOpt = document.createElement('option');
+    ndOpt.value = '__NORMAL_DAY__';
+    ndOpt.textContent = 'Normal Day (Standard Protocol)';
+    select.appendChild(ndOpt);
+    // User day templates
+    for (const key in templates) {
+      if (templates[key].type === 'day' || templates[key].tasks) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = key;
+        select.appendChild(opt);
+      }
+    }
+    document.getElementById('loadDayModal').style.display = 'block';
+  }
+
+  function closeLoadDayModal() {
+    document.getElementById('loadDayModal').style.display = 'none';
+  }
+
+  // Claude: applyDayTemplate — carry forward incomplete tasks, then load template (no confirm)
+  // Archive: had confirm('This will replace your current timeline...') — removed per requirement
+  function applyDayTemplate() {
+    const key = document.getElementById('dayTemplateSelect').value;
+    if (!key) return;
+    // Claude: DEBUG — log timeline state before carry-forward so we can see what's there.
+    // Note: timeline is a module-scoped let, NOT window.timeline (window.timeline is undefined).
+    // Carry-forward reads from this module variable, not directly from Firestore.
+    console.log('[SpoonPal] applyDayTemplate — timeline before carry-forward:', JSON.parse(JSON.stringify(timeline)));
+    console.log('[SpoonPal] applyDayTemplate — timeline.length:', timeline.length, '| window.timeline:', typeof window.timeline);
+    let sourceTasks;
+    if (key === '__NORMAL_DAY__') {
+      sourceTasks = NORMAL_DAY_TEMPLATE.tasks;
+    } else {
+      const temp = templates[key];
+      if (!temp || !temp.tasks) { alert('Day template not found.'); return; }
+      sourceTasks = temp.tasks;
+    }
+    // Carry forward incomplete/partial tasks from current timeline
+    const carryForward = timeline.filter(t => t.status !== 'complete' && t.status !== 'skipped');
+    console.log('[SpoonPal] applyDayTemplate — carryForward count:', carryForward.length, carryForward.map(t => t.description + ' [' + t.status + ']'));
+    const newTasks = sourceTasks.map(t => ({
+      time: t.time,
+      lmj: t.lmj,
+      description: stripLeadingEmoji(t.description || ''),
+      spoon: t.spoon,
+      priority: t.priority,
+      fixed: t.fixed,
+      status: 'incomplete',
+      notes: t.notes || ''
+    }));
+    // Claude 2026-03-08: Deduplicate — skip carried tasks whose LMJ code
+    // already exists in the template. Prevents daily events (breakfast, CPAP,
+    // streak savers, dinner, etc.) from appearing twice after rollover.
+    const templateLmjCodes = new Set(newTasks.map(t => t.lmj).filter(Boolean));
+    const uniqueCarry = carryForward.filter(t => !t.lmj || !templateLmjCodes.has(t.lmj));
+    const skippedCount = carryForward.length - uniqueCarry.length;
+    if (skippedCount > 0) {
+      console.log('[SpoonPal] applyDayTemplate — skipped ' + skippedCount + ' duplicate daily task(s)');
+    }
+    // Place carried tasks into available slots after the template tasks
+    const merged = [...newTasks];
+    uniqueCarry.forEach(function(t) {
+      const slot = findNextAvailableSlot(merged, 9, true);
+      merged.push({ ...t, time: slot, status: 'incomplete' });
+    });
+    timeline = merged;
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+    closeLoadDayModal();
+    if (uniqueCarry.length > 0 || skippedCount > 0) {
+      let msg = '📋 Loaded template';
+      if (uniqueCarry.length > 0) msg += ' + carried forward ' + uniqueCarry.length + ' task(s)';
+      if (skippedCount > 0) msg += ' (skipped ' + skippedCount + ' daily repeat' + (skippedCount > 1 ? 's' : '') + ')';
+      showToast(msg + '.', 3000);
+    }
+  }
+
+  // Claude: startFreshDayTemplate — wipe timeline and load template (has confirm)
+  function startFreshDayTemplate() {
+    const key = document.getElementById('dayTemplateSelect').value;
+    if (!key) return;
+    if (!confirm('Start Fresh will discard ALL current tasks and load the template from scratch. Continue?')) return;
+    let sourceTasks;
+    if (key === '__NORMAL_DAY__') {
+      sourceTasks = NORMAL_DAY_TEMPLATE.tasks;
+    } else {
+      const temp = templates[key];
+      if (!temp || !temp.tasks) { alert('Day template not found.'); return; }
+      sourceTasks = temp.tasks;
+    }
+    timeline = sourceTasks.map(t => ({
+      time: t.time,
+      lmj: t.lmj,
+      description: stripLeadingEmoji(t.description || ''),
+      spoon: t.spoon,
+      priority: t.priority,
+      fixed: t.fixed,
+      status: 'incomplete',
+      notes: t.notes || ''
+    }));
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+    closeLoadDayModal();
+  }
+
+  // ── Claude: BUG #7 FIX — findNextAvailableSlot helper ──────────────────────────
+  // Finds the first future 30-minute window with no task in existingTasks array.
+  // Claude 2026-03-07: Fixed critical bug — was searching from startHour (9am) regardless
+  // of current time, so rescheduled tasks could land in the past and immediately become
+  // overdue again, causing an infinite reschedule loop.
+  // Archive: for (let mins = startHour * 60; mins <= 22 * 60; mins += 30)
+  // Fix: search starts from max(startHour, now+15min) — always in the future.
+  // forNewDay=true bypasses the "must be in future" guard — used by rolloverDay()
+  // so tomorrow's tasks are placed from dayStart (e.g. 9am), not from tonight's time.
+  function findNextAvailableSlot(existingTasks, startHour = 9, forNewDay = false) {
+    // Convert time string "HH:MM AM/PM" to minutes since midnight
+    function timeToMinutes(timeStr) {
+      const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (!match) return null;
+      let h = parseInt(match[1]);
+      const m = parseInt(match[2]);
+      const period = match[3].toUpperCase();
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return h * 60 + m;
+    }
+
+    // Convert minutes since midnight back to time string
+    function minutesToTime(mins) {
+      const h = Math.floor(mins / 60) % 24;
+      const m = mins % 60;
+      const period = h >= 12 ? 'PM' : 'AM';
+      const displayH = h % 12 || 12;
+      return `${displayH}:${pad(m)} ${period}`;
+    }
+
+    // Build set of occupied 30-min slots
+    const occupiedSlots = new Set();
+    for (const task of existingTasks) {
+      const mins = timeToMinutes(task.time);
+      if (mins !== null) occupiedSlots.add(mins);
+    }
+
+    // For today: start from max(startHour, now+15min) — never place in the past.
+    // For new day rollover: start from startHour exactly (tomorrow hasn't happened yet).
+    let searchStart;
+    let fallback;
+    if (forNewDay) {
+      searchStart = startHour * 60;
+      fallback = minutesToTime(startHour * 60);
+    } else {
+      const nowMins = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
+      const nowRounded = Math.ceil((nowMins + 15) / 30) * 30;
+      searchStart = Math.max(startHour * 60, nowRounded);
+      fallback = minutesToTime(nowRounded);
+    }
+    const searchEnd = (dayEnd || 25) * 60;
+
+    for (let mins = searchStart; mins <= searchEnd; mins += 30) {
+      if (!occupiedSlots.has(mins)) {
+        return minutesToTime(mins);
+      }
+    }
+
+    // Fallback: no open slot found
+    return fallback;
+  }
+
+  /* Claude: 2026-03-07 — pre-rollover summary modal.
+     Called when ZZ is marked complete. Shows day stats before committing to rollover.
+     If user cancels, ZZ status reverts to incomplete. */
+  function showRolloverPreview(zzIndex) {
+    // Count task outcomes
+    const completed  = timeline.filter(t => t.status === 'complete');
+    const partial    = timeline.filter(t => t.status === 'partial');
+    const skipped    = timeline.filter(t => t.status === 'skipped' || t.status === 'interrupted');
+    const carrying   = timeline.filter(t => t.status !== 'complete' && t.lmj !== 'ZZ');
+    const spentTotal = completed.reduce((a, t) => a + (t.spoon || 0), 0)
+                     + partial.reduce((a, t) => a + (t.spoon || 0) / 2, 0);
+    const balance    = calculateEndOfDayBalance();
+    const borrowed   = Math.max(0, -balance);
+
+    // Build rows
+    const rows = document.getElementById('rolloverSummaryRows');
+    rows.innerHTML = '';
+    function addRow(icon, label, value) {
+      const div = document.createElement('div');
+      div.className = 'ro-row';
+      div.innerHTML = `<span>${icon} ${label}</span><strong>${value}</strong>`;
+      rows.appendChild(div);
+    }
+    addRow('✅', 'Completed', `${completed.length} task${completed.length !== 1 ? 's' : ''} (${spentTotal.toFixed(1)} 🥄)`);
+    if (partial.length)  addRow('⚡', 'Partial',   `${partial.length} task${partial.length !== 1 ? 's' : ''}`);
+    if (skipped.length)  addRow('⏭️', 'Skipped',   `${skipped.length} task${skipped.length !== 1 ? 's' : ''}`);
+    addRow('🔄', 'Carrying forward', `${carrying.length} task${carrying.length !== 1 ? 's' : ''}`);
+
+    // Balance row — color coded
+    const balDiv = document.createElement('div');
+    balDiv.id = 'rolloverBalanceRow';
+    if (balance > 0) {
+      balDiv.className = 'ro-ok';
+      balDiv.textContent = `💰 Balance: +${balance.toFixed(1)} spoons`;
+    } else if (balance === 0) {
+      balDiv.className = 'ro-low';
+      balDiv.textContent = `⚖️ Balance: exactly even`;
+    } else {
+      balDiv.className = 'ro-debt';
+      balDiv.textContent = `⚠️ Balance: ${balance.toFixed(1)} spoons — ${borrowed.toFixed(1)} borrowed from tomorrow`;
+    }
+    rows.appendChild(balDiv);
+
+    // Wire buttons
+    const modal = document.getElementById('rolloverPreviewModal');
+    document.getElementById('rolloverConfirmBtn').onclick = function() {
+      modal.style.display = 'none';
+      rolloverDay();
+    };
+    function cancelRollover() {
+      modal.style.display = 'none';
+      // Revert ZZ back to incomplete so user isn't accidentally rolled over
+      if (zzIndex >= 0 && zzIndex < timeline.length) {
+        timeline[zzIndex].status = 'incomplete';
+        calculateSpoons(); renderTimeline(); saveData();
+      }
+    }
+    document.getElementById('rolloverCancelBtn').onclick = cancelRollover;
+    document.getElementById('rolloverPreviewClose').onclick = cancelRollover;
+    modal.style.display = 'block';
+  }
+
+  // ── Claude: BUG #7 FIX — Day rollover with carry-forward and spoon debt tracking ──
+  function rolloverDay() {
+    // Claude: Clear all pending auto-reschedule timers on day rollover
+    for (const idx in rescheduleTimers) {
+      cancelAutoReschedule(parseInt(idx));
+    }
+
+    const dateKey = getTodayKey();
+
+    // A. ARCHIVE: Save current day to Firestore before clearing
+    // Claude: 2026-03-08 — wrapped in try/catch so a permissions error doesn't block carry-forward.
+    // Archive: was bare if-block; Firestore .set() is fire-and-forget but any sync error
+    // (e.g. AA.db undefined during race) could throw and skip carry-forward below.
+    const endOfDayBalance = calculateEndOfDayBalance();
+    const borrowedSpoons = Math.max(0, -endOfDayBalance);
+
+    try {
+      if (window.AA && window.AA.db && currentUid) {
+        // Claude: Archive full snapshot to subcollection spoonPal/{uid}/days/{dateKey}
+        window.AA.db.collection('spoonPal').doc(currentUid).collection('days').doc(dateKey).set({
+          timeline,
+          checkIn,
+          spoonDebtHistory,
+          endOfDayBalance,
+          borrowedSpoons,
+          dailyBudget: calculateDailyBudget(),
+          dateKey,
+          archivedAt: new Date().toISOString()
+        }).catch(err => console.error('[SpoonPal] Rollover archive error:', err));
+      }
+    } catch (archiveErr) {
+      console.error('[SpoonPal] Rollover archive threw:', archiveErr);
+    }
+
+    // B. TASK CARRY-FORWARD: Only keep non-complete tasks, assign new times
+    // Claude 2026-03-07: Fixed two bugs:
+    //   1. Was passing old `timeline` to findNextAvailableSlot inside the map —
+    //      all tasks got the same slot because the new list wasn't visible yet.
+    //      Fix: build newTimeline progressively so each task sees prior placements.
+    //   2. Was using the live "now+15min" guard, so rollover at 10pm placed all
+    //      tomorrow's tasks starting at 10:15pm. Fix: pass forNewDay=true.
+    // Archive: timeline = carryForwardTasks.map(t => { const newTime = findNextAvailableSlot(timeline, 9); ... });
+    const carryForwardTasks = timeline.filter(t => t.status !== 'complete');
+    const newTimeline = [];
+    carryForwardTasks.forEach(function(t) {
+      const newTime = findNextAvailableSlot(newTimeline, dayStart || 9, true); // forNewDay=true
+      newTimeline.push({ ...t, time: newTime, status: 'incomplete' });
+    });
+    timeline = newTimeline;
+
+    // C. NEW DAY INIT: Set borrowed spoons flag on new day
+    // Claude: 2026-03-07 — store under TOMORROW's date so calculateSpoons() finds it
+    //   the next morning. Cache bust #22.
+    //   Archive: date: new Date().toDateString() — stored under today, invisible next morning.
+    if (borrowedSpoons > 0) {
+      const _tomorrow = new Date();
+      _tomorrow.setDate(_tomorrow.getDate() + 1);
+      spoonDebtHistory.push({
+        date: _tomorrow.toDateString(),
+        base: 0,
+        spent: 0,
+        depletion: 0,
+        borrowedFromPrevDay: borrowedSpoons
+      });
+    }
+
+    // Recalculate for new day (show borrowed spoon warning if applicable)
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+
+    // D. PROMPT: Offer to load template — Claude: 2026-03-07 replaced native confirm()
+    showToast('🎉 Day rolled over! ' + carryForwardTasks.length + ' task(s) carried forward.' +
+              (borrowedSpoons > 0 ? ` ⚠️ ${borrowedSpoons} spoon(s) borrowed.` : ''), 4000);
+    // Open template loader after a short delay so toast is visible first
+    setTimeout(function() { openLoadDayModal(); }, 600);
+  }
+
+  // Claude: Helper to calculate end-of-day spoon balance
+  function calculateEndOfDayBalance() {
+    const dailyBudget = calculateDailyBudget();
+    const totalSpent = timeline.reduce((acc, t) => {
+      if (t.status === 'complete') return acc + (t.spoon || 0);
+      else if (t.status === 'partial') return acc + (t.spoon || 0) / 2;
+      return acc;
+    }, 0);
+    return dailyBudget - totalSpent;
+  }
+
+  // Claude: Helper to calculate daily budget (without borrowed deduction)
+  function calculateDailyBudget() {
+    // Claude: 2026-03-07 — also subtract borrowed spoons so task modal impact matches budget bar (cache bust #21)
+    const _todayEntry = spoonDebtHistory.find(h => h.date === new Date().toDateString());
+    const _borrowed = (_todayEntry && _todayEntry.borrowedFromPrevDay) || 0;
+    let base = 20;
+    base -= Math.max(0, checkIn.pain - 5);
+    base -= Math.max(0, checkIn.fatigue - 5);
+    if (checkIn.sleep < 7) base -= 2 * (7 - checkIn.sleep);
+    else if (checkIn.sleep > 9) base += Math.min(3, checkIn.sleep - 9);
+    const moodAdj = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
+    base += moodAdj[checkIn.mood] || 0;
+    base += weather.impact || 0;
+    base -= _borrowed;
+    return Math.max(1, base);
+  }
+
+  // ── Claude 2026-03-06: Auto-reschedule — sequential queue ──────────────────────
+  // Archive of old approach: individual setTimeout per task (RESCHEDULE_GRACE_SECONDS = 5).
+  // Problem: all overdue tasks fired simultaneously → all called findNextAvailableSlot at the
+  // same moment → all landed on the same slot. Also, first check was 30s after page load,
+  // so tasks missed earlier in the day weren't caught until then.
+  //
+  // New approach:
+  //   - Collect ALL overdue non-fixed incomplete tasks, sort by scheduled time
+  //   - Process sequentially with 400ms gap so each task sees the updated timeline
+  //   - Run immediately on load (via startOverdueCheck) AND every 60s thereafter
+  //   - Fixed tasks are never auto-rescheduled (their time is locked by definition)
+
+  var _rescheduleQueue = [];      // ordered list of task indices awaiting reschedule
+  var _rescheduleRunning = false;  // true while queue is being drained
+
+  // Add a task index to the reschedule queue (no duplicates).
+  function queueReschedule(taskIndex) {
+    if (_rescheduleQueue.indexOf(taskIndex) !== -1) return; // already queued
+    if (rescheduleTimers[taskIndex] !== undefined) return;   // legacy guard (kept for cancelAutoReschedule compat)
+    _rescheduleQueue.push(taskIndex);
+    if (!_rescheduleRunning) _drainRescheduleQueue();
+  }
+
+  // Process the queue one task at a time, 400ms apart so timeline is stable between moves.
+  function _drainRescheduleQueue() {
+    if (_rescheduleQueue.length === 0) { _rescheduleRunning = false; return; }
+    _rescheduleRunning = true;
+    const taskIndex = _rescheduleQueue.shift();
+
+    // Task may no longer exist or may have been completed while waiting
+    if (taskIndex < 0 || taskIndex >= timeline.length || timeline[taskIndex].status !== 'incomplete') {
+      setTimeout(_drainRescheduleQueue, 0);
+      return;
+    }
+
+    const task = timeline[taskIndex];
+    const newTime = findNextAvailableSlot(timeline, 9);
+    if (newTime !== task.time) {
+      task.time = newTime;
+      // status stays 'incomplete' — task is not done, just moved
+      calculateSpoons();
+      renderTimeline();
+      saveData();
+      showToast(`⏰ ${stripLeadingEmoji(task.description)} → ${newTime}`);
+    }
+
+    setTimeout(_drainRescheduleQueue, 400); // gap keeps findNextAvailableSlot accurate
+  }
+
+  // Claude: Manual reschedule — finds next open 30-min slot, updates task time, saves.
+  function manualReschedule(index) {
+    if (index < 0 || index >= timeline.length) return;
+    const task = timeline[index];
+    const newTime = findNextAvailableSlot(timeline, 9);
+    if (newTime === task.time) { showToast('No open slot found'); return; }
+    task.time = newTime;
+    // Remove from queue if pending
+    const qi = _rescheduleQueue.indexOf(index);
+    if (qi !== -1) _rescheduleQueue.splice(qi, 1);
+    calculateSpoons();
+    renderTimeline();
+    saveData();
+    showToast(`🔄 ${stripLeadingEmoji(task.description)} → ${newTime}`);
+  }
+
+  // Claude: Cancels a pending reschedule for a task (e.g., user opened modal).
+  function cancelAutoReschedule(taskIndex) {
+    // Remove from sequential queue
+    const qi = _rescheduleQueue.indexOf(taskIndex);
+    if (qi !== -1) _rescheduleQueue.splice(qi, 1);
+    // Legacy timer cleanup (kept for rolloverDay compat)
+    if (rescheduleTimers[taskIndex] !== undefined) {
+      clearTimeout(rescheduleTimers[taskIndex]);
+      delete rescheduleTimers[taskIndex];
+    }
+  }
+
+  // Scan timeline for overdue non-fixed incomplete tasks and queue them in time order.
+  function checkOverdueTasks() {
+    if (!timeline || timeline.length === 0) return;
+    const now = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
+    const overdue = [];
+    for (let i = 0; i < timeline.length; i++) {
+      const task = timeline[i];
+      if (task.status !== 'incomplete') continue;
+      if (task.fixed) continue; // fixed tasks stay put — their time is intentional
+      let taskTime = parseTime(task.time);
+      if (taskTime === null) continue;
+      if (taskTime < dayStart * 60) taskTime += 1440;
+      if (taskTime < now) overdue.push({ index: i, taskTime });
+    }
+    // Sort by original scheduled time so earlier tasks get rescheduled first
+    overdue.sort(function(a, b) { return a.taskTime - b.taskTime; });
+    overdue.forEach(function(o) { queueReschedule(o.index); });
+  }
+
+  // Start polling: run immediately after load, then every 60 seconds.
+  function startOverdueCheck() {
+    // Immediate check fires 1.5s after load (gives loadData time to finish)
+    setTimeout(checkOverdueTasks, 1500);
+    // Ongoing poll
+    setInterval(checkOverdueTasks, 60000);
+  }
+
+  // Claude: Shows a non-blocking toast notification for auto-reschedule events.
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'sp-toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // Auto-remove after animation completes
+    setTimeout(function() {
+      toast.remove();
+    }, 3000);
+  }
+
+  // ── Save/load — Firestore-backed (Claude / aa-firebase.js integration) ─────────
+  // Claude: BUG #1 FIX — timestamp-aware save to prevent last-write-wins from page refresh
+  function saveData() {
+    // Skip save during initial load to prevent overwriting remote data
+    if (isInitialLoad) {
+      console.log('[SpoonPal] Skipping save during initial load cycle');
+      return;
+    }
+
+    const incomingTimestamp = new Date();
+    const obj = {
+      timeline,
+      checkIn,
+      spoonDebtHistory,
+      dayStart,
+      dayEnd,
+      weather,
+      templates,
+      dateKey: getTodayKey(), // Fix #5: stale-data detection
+      savedAt: incomingTimestamp.toISOString()
+    };
+    if (window.AA && window.AA.db && currentUid) {
+      // FUNCTIONAL FIX 2026-03-07 by Claude: removed unnecessary pre-read before every write.
+      // incomingTimestamp = new Date() is always the current time, so it was always newer
+      // than any stored savedAt — the read never blocked the write but cost a full Firestore
+      // round-trip on every user interaction. Direct set() is correct here.
+      window.AA.db.collection('spoonPal').doc(currentUid).set(obj)
+        .catch(function(err) { console.error('[SpoonPal] Firestore save error:', err); });
+    }
+  }
+
+  // Claude: BUG #1 FIX — timestamp-aware load with isInitialLoad flag
+  // Claude: BUG #5 FIX — filter out individual task templates on load
+  function loadData(callback) {
+    if (window.AA && window.AA.db && currentUid) {
+      window.AA.db.collection('spoonPal').doc(currentUid).get()
+        .then(function(doc) {
+          if (doc.exists) {
+            const obj = doc.data();
+            // Claude 2026-03-06: strip any emoji baked into descriptions on load
+            // so old Firestore data with emoji in description fields is cleaned up
+            // automatically. Archive: timeline = obj.timeline || [];
+            timeline = (obj.timeline || []).map(function(t) {
+              return Object.assign({}, t, { description: stripLeadingEmoji(t.description || '') });
+            });
+            checkIn = obj.checkIn || checkIn;
+            spoonDebtHistory = obj.spoonDebtHistory || [];
+            dayStart = obj.dayStart || 8;
+            dayEnd = obj.dayEnd || 25;
+            weather = obj.weather || { desc: 'Loading...', impact: -1 };
+            // Claude: BUG #5 — only load day templates (type === 'day' or has tasks array)
+            const loadedTemplates = obj.templates || templates;
+            templates = {};
+            for (const key in loadedTemplates) {
+              const temp = loadedTemplates[key];
+              if (temp.type === 'day' || temp.tasks) {
+                templates[key] = temp;
+              }
+            }
+            // Fix #5: stale-data detection
+            // Claude: 2026-03-07 — replaced blocking confirm() with auto-rollover + toast. Cache bust #22.
+            //   Archive: if (confirm(`Old data detected from ...`)) { rolloverDay(); }
+            //   confirm() can be silently blocked by browsers; auto-rollover is the correct behavior
+            //   since data from a past day should always carry forward to today.
+            const storedDateKey = obj.dateKey || null;
+            const todayKey = getTodayKey();
+            if (storedDateKey && storedDateKey < todayKey) {
+              isInitialLoad = false;
+              if (callback) callback();
+              // Claude: 2026-03-07 — reuse rollover preview modal so user can choose.
+              //   Pass -1 so cancelRollover() skips the ZZ-status revert (no ZZ task here).
+              //   Archive: auto-rollover + toast removed — night owls past midnight
+              //   would lose their active session with no way to say "not yet".
+              setTimeout(() => { showRolloverPreview(-1); }, 800);
+              return;
+            }
+          }
+          // Mark end of initial load — saveData() can proceed from here on
+          isInitialLoad = false;
+          if (callback) callback();
+        })
+        .catch(function(err) {
+          console.error('[SpoonPal] Firestore load error:', err);
+          isInitialLoad = false;
+          if (callback) callback();
+        });
+    } else {
+      isInitialLoad = false;
+      if (callback) callback();
+    }
+  }
+
+  // Check-in update
+  function updateCheckIn() {
+    checkIn.pain = parseInt(document.getElementById('painLevel').value) || 7;
+    checkIn.fatigue = parseInt(document.getElementById('fatigueLevel').value) || 5;
+    checkIn.sleep = parseFloat(document.getElementById('sleepHours').value) || 8.33;
+    checkIn.mood = document.getElementById('moodLevel').value || 'poor';
+    calculateSpoons();
+    saveData();
+  }
+
+  // Weather fetch — Updated 2026-03-02 by Claude: uses browser geolocation instead of
+  // hardcoded Grand Junction, CO coords. Falls back to "unavailable" if permission denied.
+  async function fetchWeatherAt(lat, lon) {
+    const header = { 'User-Agent': 'SpoonPalApp (brinckmyster@gmail.com)' };
+    const pointsResp = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`, { headers: header });
+    if (!pointsResp.ok) throw new Error('NWS points API error');
+    const pointsData = await pointsResp.json();
+    const forecastUrl = pointsData.properties.forecast;
+    const forecastResp = await fetch(forecastUrl, { headers: header });
+    if (!forecastResp.ok) throw new Error('NWS forecast API error');
+    const forecastData = await forecastResp.json();
+    const currentPeriod = forecastData.properties.periods.find(p => p.isDaytime) || forecastData.properties.periods[0];
+    const temp = currentPeriod.temperature;
+    const desc = currentPeriod.shortForecast;
+    let impact = -1; // Communal cold penalty
+    if (temp < 50) impact -= 2;
+    else if (temp > 85) impact -= 1;
+    weather = { desc: `${temp}°F - ${desc}`, impact };
+    document.getElementById('weatherInfo').textContent = `Weather: ${weather.desc}`;
+    calculateSpoons();
+    saveData();
+  }
+
+  async function fetchWeather() {
+    const el = document.getElementById('weatherInfo');
+    el.textContent = 'Getting location…';
+    if (!navigator.geolocation) {
+      el.textContent = 'Geolocation not supported by this browser';
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async function(pos) {
+        try {
+          await fetchWeatherAt(pos.coords.latitude, pos.coords.longitude);
+        } catch (e) {
+          el.textContent = 'Weather data unavailable';
+        }
+      },
+      function(err) {
+        el.textContent = 'Location access denied — weather unavailable';
+      },
+      { timeout: 8000 }
+    );
+  }
+
+  // ── Quick-entry button logic — Updated 2026-03-02 by Claude ──────────────────
+  // Replaces 1-10 scale inputs. Tapping a button selects it, updates hidden input,
+  // and recalculates spoons. Pain and fatigue map to internal numbers silently.
+  function initQuickEntry() {
+    document.querySelectorAll('.qe-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var field = btn.getAttribute('data-field');
+        var val   = btn.getAttribute('data-val');
+        // Deselect siblings in the same group
+        btn.closest('.qe-btns').querySelectorAll('.qe-btn').forEach(function(b) {
+          b.classList.remove('selected');
+        });
+        btn.classList.add('selected');
+        // Update hidden input so updateCheckIn() still works
+        var hiddenId = field === 'mood' ? 'moodLevel' : field + 'Level';
+        document.getElementById(hiddenId).value = val;
+        updateCheckIn();
+      });
+    });
+  }
+
+  // Restore quick-entry button selection state from checkIn object
+  function restoreQuickEntry() {
+    var painVal    = String(checkIn.pain);
+    var fatigueVal = String(checkIn.fatigue);
+    var moodVal    = String(checkIn.mood);
+    document.querySelectorAll('.qe-btn').forEach(function(btn) {
+      var field = btn.getAttribute('data-field');
+      var val   = btn.getAttribute('data-val');
+      btn.classList.remove('selected');
+      if ((field === 'pain'    && val === painVal)    ||
+          (field === 'fatigue' && val === fatigueVal) ||
+          (field === 'mood'    && val === moodVal)) {
+        btn.classList.add('selected');
+      }
+    });
+  }
+
+  // Render legend
+  function renderLegend() {
+    let legendText = "Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon LMJ 🎯 Status ";
+    legendText += Object.values(STATUS_ICONS).join(' ') + "\nLMJ:";
+    LOCKED_LMJ_ORDER.forEach(lmj => {
+      legendText += ` ${lmj}${LOCKED_LMJ_META[lmj]?.emoji || ''}`;
+    });
+    document.getElementById('legend').textContent = legendText;
+  }
+
+  // Poll until window.AA (aa-firebase.js) is ready
+  function waitForAA(cb) {
+    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+    setTimeout(function() { waitForAA(cb); }, 100);
+  }
+
+  // ── Initialize ────────────────────────────────────────────────────────────────
+  // fetchWeather() is intentionally NOT called here at top-level anymore.
+  // Moved inside loadData() callback (2026-03-02 by Claude) to prevent a race
+  // condition where weather's saveData() call could overwrite Firestore data
+  // with blank defaults before loadData() had a chance to restore saved state.
+  window.onload = () => {
+    calculateSpoons();
+    renderTimeline();
+    renderLegend();
+    document.getElementById('timestamp').textContent = new Date().toLocaleString();
+    setInterval(() => document.getElementById('timestamp').textContent = new Date().toLocaleString(), 60000);
+
+    // Claude: Start auto-reschedule polling loop
+    startOverdueCheck();
+
+    // Claude 2026-03-06: close status picker on outside click
+    document.addEventListener('click', function(e) {
+      const picker = document.getElementById('statusPicker');
+      if (picker && picker.classList.contains('open') && !picker.contains(e.target)) {
+        closeStatusPicker();
+      }
+    });
+
+    // Event listeners
+    document.getElementById('addTaskBtn').onclick = addTask;
+    document.getElementById('loadDayBtn').onclick = openLoadDayModal;
+    document.getElementById('saveAsTemplateBtn').onclick = saveTimelineAsTemplate; // Claude 2026-03-06
+    document.getElementById('manageTemplatesBtn').onclick = openTemplateModal;
+    document.getElementById('refreshWeather').onclick = fetchWeather;
+    document.getElementById('taskModalClose').onclick = closeTaskModal;
+    document.getElementById('templateModalClose').onclick = closeTemplateModal;
+    document.getElementById('templateEditClose').onclick = closeTemplateEdit;
+    document.getElementById('loadDayModalClose').onclick = closeLoadDayModal;
+    document.getElementById('taskForm').onsubmit = saveTask;
+    document.getElementById('templateForm').onsubmit = saveTemplate;
+    // Claude: BUG #8 — "New Template" button now clones Normal Day instead of blank template
+    document.getElementById('addTemplateBtn').onclick = duplicateNormalDay;
+    document.getElementById('deleteTemplateBtn').onclick = deleteTemplate;
+    document.getElementById('deleteTaskBtn').onclick = () => deleteTask(selectedIndex);
+    // Claude 2026-03-06: taskTemplateSelect removed — individual task templates deprecated
+    // Archive: document.getElementById('taskTemplateSelect').onchange = (e) => applyTemplate(e.target.value);
+    document.getElementById('confirmLoadDayBtn').onclick = applyDayTemplate;
+    document.getElementById('startFreshDayBtn').onclick = startFreshDayTemplate;
+    document.getElementById('cancelLoadDayBtn').onclick = closeLoadDayModal;
+    // Fix #2: auto-emoji preview updates as user types description
+    document.getElementById('taskDescription').addEventListener('input', updateEmojiPreview);
+    document.getElementById('taskLmj').addEventListener('change', updateEmojiPreview);
+    // Sleep hours is the only remaining manual input — pain/fatigue/mood use qe-btn clicks
+    document.getElementById('sleepHours').addEventListener('change', updateCheckIn);
+
+    // Init quick-entry buttons (before auth — UI should be interactive immediately)
+    initQuickEntry();
+
+    // Boot Firestore — load saved data once user is confirmed
+    // Updated 2026-03-02 by Claude:
+    //   - currentUid always uses user.uid, NEVER AA_MIRROR_UID.
+    //     SpoonPal is the viewer's OWN personal planner; mirror must not bleed in.
+    //   - fetchWeather() moved inside callback to prevent race with saveData().
+    //   - autofillFromCheckin() removed — SpoonPal is not the student planner;
+    //     quick-entry buttons handle pain/fatigue/mood input directly.
+    waitForAA(function() {
+      window.AA.auth.onAuthStateChanged(function(user) {
+        if (!user) { currentUid = null; return; }
+        // Claude: 2026-03-07 — guard against token-refresh re-fires (cache bust #22).
+        // onAuthStateChanged fires on every ID token refresh (~every 45 min), not just
+        // on initial sign-in. Without this guard, loadData() + renderTimeline() ran
+        // again on each refresh, causing the visible "trying to load Firebase" flash.
+        // If uid hasn't changed it's a token refresh — skip the full reload.
+        if (user.uid === currentUid) return;
+        currentUid = user.uid; // always the signed-in user's own data — no mirror
+        loadData(function() {
+          calculateSpoons();
+          renderTimeline();
+          restoreQuickEntry(); // reflect loaded checkIn state in the buttons
+          fetchWeather();      // safe to fetch now — Firestore data already loaded
+          // Claude 2026-03-06: check for missed tasks immediately after data loads
+          checkOverdueTasks();
+        });
+      });
+    });
+  };
+})();
+</script>
+</body>
+</html>
+<!-- Cache bust #5: 2026-02-18 Bruise - Grok assisted - SpoonPal full recovery from backup -->
+<!-- Cache bust #6: 2026-02-20 Claude - localStorage → Firestore migration for spoonPal collection -->
+<!-- Cache bust #7: 2026-03-01 Claude - Audit fixes: full-day templates, auto-emoji, emoji field removal, Normal Day template, ZZ rollover -->
+<!-- Cache bust #8: 2026-03-05 Claude - Auto-reschedule fix: status stays 'incomplete' after reschedule so tasks are not lost -->
+<!-- Cache bust #9: 2026-03-06 Claude - Multiple emoji fix: stripLeadingEmoji applied at load, save, clone, modal open, and day template load; improved regex to handle variation selectors (U+FE0F) and ZWJ (U+200D) -->
+<!-- Cache bust #10: 2026-03-06 Claude - Native time picker: replaced text input with <input type="time"> + ±15/30 min bump buttons; to24h/from24h helpers convert between stored "8:30 AM" and picker's 24h format -->
+<!-- Cache bust #11: 2026-03-06 Claude - Status picker popup: replaced 7-step linear cycle with tap-to-open grid picker; setStatus() handles rescheduled + ZZ rollover; closes on outside tap -->
+<!-- Cache bust #12: 2026-03-06 Claude - Day template system fixed: removed dead task-template dropdown from task modal; template Edit now renames only; added Save as Template button to save current timeline as a named day template -->
+<!-- Cache bust #13: 2026-03-06 Claude - Auto-reschedule sequential queue: fixed slot collision for multiple overdue tasks; runs immediately on loadData + every 60s; fixed tasks never auto-rescheduled -->
+<!-- Cache bust #14: 2026-03-07 Claude - findNextAvailableSlot: always searches from now+15min, never the past; fixes infinite reschedule loop where tasks placed in past immediately became overdue again -->
+<!-- Cache bust #15: 2026-03-07 Claude - rolloverDay carry-forward: build new timeline progressively so tasks don't all land on same slot; forNewDay=true bypasses now+15min guard so tomorrow's tasks start at dayStart not tonight's time -->
+<!-- Cache bust #16: 2026-03-07 Claude - Visual budget bar replaces 7-number text wall; progress bar + color-coded remaining badge + baseline breakdown equation -->
+<!-- Cache bust #17: 2026-03-07 Claude - Pre-rollover summary modal: shows completed/partial/skipped/carrying-forward counts + color-coded spoon balance before committing; Cancel reverts ZZ to incomplete; replaces native confirm() -->
+<!-- Cache bust #18: 2026-03-07 Claude - Inline spoon-cost hints on check-in buttons: each pain/fatigue/mood button now shows its spoon delta (e.g. −4 🥄 for High pain) so users see the cost before tapping, not after; zero-cost options show faint ±0 for consistent button height -->
+<!-- Cache bust #19: 2026-03-07 Claude - Fixed-task visual accent: timeline rows for fixed-time tasks (🔒) get a teal left border (4px solid #6CA0A3) so fixed vs flexible layout is readable at a glance without squinting at the icon -->
+<!-- Cache bust #20: 2026-03-07 Claude - Next-up task indicator: first upcoming incomplete task gets warm amber background (#fffbec) + orange ▶ prefix in time cell so you can see your current task at a glance without hunting through the list -->
+<!-- Cache bust #21: 2026-03-07 Claude - FUNCTIONAL FIX: spoon debt carry-forward now actually reduces tomorrow's budget. borrowed was hardcoded to 0 in calculateSpoons() — rolloverDay() stored borrowedFromPrevDay in spoonDebtHistory but calculateSpoons() and calculateDailyBudget() never read it back. Fixed both functions. -->
+<!-- Cache bust #22: 2026-03-07 Claude - FUNCTIONAL FIX x3: (a) rolloverDay() debt entry stored under tomorrow's date so calculateSpoons() finds it next morning; (b) stale-data confirm() replaced with rollover preview modal — night owls past midnight can say Not Yet; (c) onAuthStateChanged guard prevents loadData() re-firing on every 45-min token refresh, fixing visible "loading Firebase" flash -->
+<!-- Cache bust #23: 2026-03-07 Claude - FUNCTIONAL FIX: saveData() was doing a Firestore read before every write — incomingTimestamp=new Date() is always current time so always newer than stored savedAt, meaning the pre-read never blocked the write but cost a full round-trip on every user interaction. Removed the pre-read; now writes directly with set(). -->
+<!-- Cache bust #24: 2026-03-08 Claude - DEBUG: added console.log in applyDayTemplate() to log timeline state before carry-forward — investigating why tasks are wiped instead of carried forward. Carry-forward reads from module-scoped `timeline` (not window.timeline, which doesn't exist). -->
