@@ -276,9 +276,28 @@
       { id: 'bg-beach',     cat: 'backgrounds', emoji: '🏖️', label: 'Beach',            unlock: 'random', pool: 21 },
       { id: 'bg-space',     cat: 'backgrounds', emoji: '🚀', label: 'Outer Space',      unlock: 'streak', at: 60 },
 
-      /* ── Bonus — 365-day legendary unlock ── */
-      { id: 'bonus-cat',    cat: 'bonus', emoji: '👑🐱', label: 'Duchess (Real Cat!)', unlock: 'streak', at: 365 }
+      /* ── Duchess Gallery — real photos of Duchess the ESA cat, unlocked at milestones ── */
+      /* Claude: 2026-03-21 — real unedited photos, no cropping/filtering/altering */
+      { id: 'duchess-01', cat: 'duchess', emoji: '😴', label: 'Couch Nap',           unlock: 'streak', at: 30,  photo: '20150129_210518.jpg' },
+      { id: 'duchess-02', cat: 'duchess', emoji: '🐾', label: 'Crate Curl',          unlock: 'streak', at: 45,  photo: '20150322_233711.jpg' },
+      { id: 'duchess-03', cat: 'duchess', emoji: '👀', label: 'Looking at You',      unlock: 'streak', at: 60,  photo: '20170802_221113.jpg' },
+      { id: 'duchess-04', cat: 'duchess', emoji: '🖤', label: 'Fluffy Close-Up',     unlock: 'streak', at: 90,  photo: '20170802_221127.jpg' },
+      { id: 'duchess-05', cat: 'duchess', emoji: '🤸', label: 'Kitchen Flop',        unlock: 'streak', at: 120, photo: '20240515_214924.jpg' },
+      { id: 'duchess-06', cat: 'duchess', emoji: '🌙', label: 'Windowsill Dreams',   unlock: 'streak', at: 150, photo: 'cfc61262-5cf1-48a0-b38a-def6c2a2d4d8.jpg' },
+      { id: 'duchess-07', cat: 'duchess', emoji: '🛏️', label: 'Bed Lounge',          unlock: 'streak', at: 200, photo: '8e6bf16f-43b7-4e14-bb5d-d4b372e9f608.jpg' },
+      { id: 'duchess-08', cat: 'duchess', emoji: '🏥', label: 'ESA on Duty',         unlock: 'streak', at: 250, photo: '20250725_130842.jpg' },
+      { id: 'duchess-09', cat: 'duchess', emoji: '👑', label: 'Queen Duchess',        unlock: 'streak', at: 300, photo: '20250827_093105.jpg' },
+      { id: 'duchess-10', cat: 'duchess', emoji: '💖', label: 'Emotional Support',   unlock: 'streak', at: 365, photo: '20240517_114542.jpg' }
     ];
+
+    /* Claude: 2026-03-21 — photo path helper for duchess items */
+    var DUCHESS_PHOTO_BASE = '/Academic-Allies/modular/components/streak-cat/duchess-photos/';
+    function getDuchessPhoto(itemId) {
+      for (var i = 0; i < ITEMS.length; i++) {
+        if (ITEMS[i].id === itemId && ITEMS[i].photo) return DUCHESS_PHOTO_BASE + ITEMS[i].photo;
+      }
+      return '';
+    }
 
     var CATEGORIES = [
       { id: 'hats',         label: '🎩 Hats' },
@@ -286,7 +305,7 @@
       { id: 'outfits',      label: '👗 Outfits' },
       { id: 'props',        label: '🎁 Props' },
       { id: 'backgrounds',  label: '🎨 Backgrounds' },
-      { id: 'bonus',        label: '👑 Bonus' }
+      { id: 'duchess',      label: '📸 Duchess' }
     ];
 
     /* Milestones sorted ascending */
@@ -389,9 +408,13 @@
         svg += '<ellipse cx="180" cy="330" rx="140" ry="30" fill="rgba(0,0,0,0.05)"/>';
       }
 
-      /* Claude: 2026-03-21 — When Duchess (bonus-cat) is equipped, she replaces
-         the orange cat entirely instead of overlapping */
-      if (!eq['bonus-cat']) {
+      /* Claude: 2026-03-21 — When any Duchess photo is equipped, she replaces
+         the orange cat entirely. Detect any duchess-XX item in equipped. */
+      var _duchessPhoto = null;
+      equipped.forEach(function(id) {
+        if (id.indexOf('duchess-') === 0) _duchessPhoto = id;
+      });
+      if (!_duchessPhoto) {
       /* ── Cape (behind cat) ── */
       if (eq['cape']) {
         svg += '<path d="M140,180 Q120,260 110,320 L250,320 Q240,260 220,180 Z" fill="#dc2626" opacity="0.85"/>';
@@ -617,20 +640,21 @@
         svg += '<circle cx="192" cy="236" r="2.5" fill="#c4b5fd"/>';
       }
 
-      } /* end if !bonus-cat — orange cat hidden when Duchess is active */
+      } /* end if !_duchessPhoto — orange cat hidden when a Duchess photo is shown */
 
-      /* ── Bonus cat (365-day unlock) ── */
-      /* Claude: 2026-03-21 — Duchess: real photo of user's ESA cat, unedited.
-         Fallback text if image fails to load. */
-      if (eq['bonus-cat']) {
-        /* Duchess takes the full stage — replaces orange cat with a real photo */
-        svg += '<image href="/Academic-Allies/modular/components/streak-cat/duchess.png" x="0" y="0" width="360" height="360">';
-        svg += '<title>Duchess — your ESA cat!</title>';
-        svg += '</image>';
-        /* Fallback text if image fails to load */
-        svg += '<text x="180" y="180" text-anchor="middle" font-size="48" fill="#6366f1" opacity="0.15">👑🐱</text>';
-        svg += '<text x="180" y="210" text-anchor="middle" font-size="14" fill="#888" opacity="0.3">Duchess</text>';
-        /* end Duchess */
+      /* ── Duchess photo gallery (real photos, unedited) ── */
+      /* Claude: 2026-03-21 — show the selected real photo of Duchess, no editing */
+      if (_duchessPhoto) {
+        var _photoUrl = getDuchessPhoto(_duchessPhoto);
+        if (_photoUrl) {
+          /* preserveAspectRatio="xMidYMid slice" fills the square, cropping edges naturally */
+          svg += '<image href="' + _photoUrl + '" x="0" y="0" width="360" height="360" preserveAspectRatio="xMidYMid slice">';
+          svg += '<title>Duchess — real ESA cat photo!</title>';
+          svg += '</image>';
+        }
+        /* Fallback if image fails to load */
+        svg += '<text x="180" y="170" text-anchor="middle" font-size="48" fill="#6366f1" opacity="0.15">📸🐱</text>';
+        svg += '<text x="180" y="200" text-anchor="middle" font-size="14" fill="#888" opacity="0.3">Duchess</text>';
       }
 
       svg += '</svg>';
@@ -824,7 +848,7 @@
       var msg;
       if (category) {
         msg = pickSpeech(category, state.streak);
-      } else if (state.equippedItems.indexOf('bonus-cat') !== -1) {
+      } else if (state.equippedItems.some(function(id) { return id.indexOf('duchess-') === 0; })) {
         msg = pickSpeech('duchess', state.streak);
       } else if (state.equippedItems.length > 0) {
         msg = pickSpeech('dressed', state.streak);
@@ -904,6 +928,10 @@
       if (item.cat === 'hats' && idx === -1) {
         var hatIds = ITEMS.filter(function(i) { return i.cat === 'hats'; }).map(function(i) { return i.id; });
         state.equippedItems = state.equippedItems.filter(function(id) { return hatIds.indexOf(id) === -1; });
+      }
+      /* Claude: 2026-03-21 — Duchess photos: only one at a time (replaces orange cat) */
+      if (item.cat === 'duchess' && idx === -1) {
+        state.equippedItems = state.equippedItems.filter(function(id) { return id.indexOf('duchess-') !== 0; });
       }
 
       if (idx !== -1) {
