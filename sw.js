@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-21 — bumped for real Duchess photos replacing chibi PNG */
-var CACHE   = 'aa-shell-20260321t';
+var CACHE   = 'aa-shell-20260321u';
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
