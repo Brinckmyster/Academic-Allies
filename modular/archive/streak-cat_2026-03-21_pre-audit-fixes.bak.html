@@ -620,16 +620,10 @@
       } /* end if !bonus-cat — orange cat hidden when Duchess is active */
 
       /* ── Bonus cat (365-day unlock) ── */
-      /* Claude: 2026-03-21 — Duchess: real photo of user's ESA cat, unedited.
-         Fallback text if image fails to load. */
+      /* Claude: 2026-03-21 — Duchess as cute cartoon PNG illustration instead of SVG shapes */
       if (eq['bonus-cat']) {
-        /* Duchess takes the full stage — replaces orange cat with a real photo */
-        svg += '<image href="/Academic-Allies/modular/components/streak-cat/duchess.png" x="0" y="0" width="360" height="360">';
-        svg += '<title>Duchess — your ESA cat!</title>';
-        svg += '</image>';
-        /* Fallback text if image fails to load */
-        svg += '<text x="180" y="180" text-anchor="middle" font-size="48" fill="#6366f1" opacity="0.15">👑🐱</text>';
-        svg += '<text x="180" y="210" text-anchor="middle" font-size="14" fill="#888" opacity="0.3">Duchess</text>';
+        /* Duchess takes the full stage — replaces orange cat with a proper illustration */
+        svg += '<image href="/Academic-Allies/modular/components/streak-cat/duchess.png" x="0" y="0" width="360" height="360" />';
         /* end Duchess */
       }
 
@@ -676,10 +670,7 @@
     /* ══════════════════════════════════════════════════════════
        STREAK CALCULATION FROM CHECK-IN DATA
        ══════════════════════════════════════════════════════════ */
-    /* Claude: 2026-03-21 — audit fix: O(1) date lookups via hash, retry on transient failure,
-       guard against malformed date doc IDs, and safety timeout */
-    function calculateStreak(uid, callback, _retries) {
-      _retries = _retries || 0;
+    function calculateStreak(uid, callback) {
       /* Read from checkins/{uid}/days, ordered by date desc */
       AA.db.collection('checkins').doc(uid).collection('days')
         .orderBy(firebase.firestore.FieldPath.documentId(), 'desc')
@@ -688,22 +679,16 @@
         .then(function(snap) {
           if (snap.empty) { callback(0, false); return; }
 
-          /* Build hash set for O(1) lookups instead of O(n) indexOf */
-          var dateSet = {};
-          snap.forEach(function(doc) {
-            /* Guard: only include properly formatted YYYY-MM-DD doc IDs */
-            if (/^\d{4}-\d{2}-\d{2}$/.test(doc.id)) {
-              dateSet[doc.id] = true;
-            }
-          });
+          var dates = [];
+          snap.forEach(function(doc) { dates.push(doc.id); });  /* doc IDs are YYYY-MM-DD */
 
           var today = todayStr();
           var yesterday = yesterdayStr();
-          var checkedInToday = !!dateSet[today];
+          var checkedInToday = dates.indexOf(today) !== -1;
 
           /* Count consecutive days back from today or yesterday */
           var startDate = checkedInToday ? today : yesterday;
-          if (!dateSet[startDate]) {
+          if (dates.indexOf(startDate) === -1) {
             /* No check-in today or yesterday = streak broken */
             callback(0, false);
             return;
@@ -711,41 +696,34 @@
 
           var streak = 0;
           var d = new Date(startDate + 'T12:00:00');  /* noon to avoid DST issues */
-          while (streak <= 400) {  /* safety cap */
+          while (true) {
             var ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-            if (dateSet[ds]) {
+            if (dates.indexOf(ds) !== -1) {
               streak++;
               d.setDate(d.getDate() - 1);
             } else {
               break;
             }
+            if (streak > 400) break;  /* safety cap */
           }
 
           callback(streak, checkedInToday);
         })
         .catch(function(err) {
-          console.warn('[StreakCat] checkin read failed (attempt ' + (_retries + 1) + '):', err.message);
-          /* Retry once on transient network failure */
-          if (_retries < 2) {
-            setTimeout(function() { calculateStreak(uid, callback, _retries + 1); }, 1500);
-          } else {
-            callback(0, false);
-          }
+          console.warn('[StreakCat] checkin read failed:', err.message);
+          callback(0, false);
         });
     }
 
     /* ══════════════════════════════════════════════════════════
        REWARD LOGIC
        ══════════════════════════════════════════════════════════ */
-    /* Claude: 2026-03-21 — audit fix: use hash set for O(1) lookups, dedup guard */
     function computeNewUnlocks(streak, existingUnlocked) {
       var newItems = [];
-      /* Build hash for O(1) membership check */
-      var has = {};
-      existingUnlocked.forEach(function(id) { has[id] = true; });
 
       ITEMS.forEach(function(item) {
-        if (has[item.id]) return;  /* already have it */
+        if (existingUnlocked.indexOf(item.id) !== -1) return;  /* already have it */
+
         if (item.unlock === 'streak' && streak >= item.at) {
           newItems.push(item);
         }
@@ -759,31 +737,16 @@
       if (lastRewardDate === todayStr()) return null;
       if (streak < 1) return null;
 
-      /* Build hash for O(1) membership check */
-      var has = {};
-      existingUnlocked.forEach(function(id) { has[id] = true; });
-
       /* Pool: random items whose pool requirement <= streak */
       var pool = ITEMS.filter(function(item) {
         if (item.unlock !== 'random') return false;
-        if (has[item.id]) return false;
+        if (existingUnlocked.indexOf(item.id) !== -1) return false;
         return streak >= item.pool;
       });
 
       if (pool.length === 0) return null;
 
       return pool[Math.floor(Math.random() * pool.length)];
-    }
-
-    /* Claude: 2026-03-21 — audit fix: dedup helper — prevents duplicates in
-       unlockedItems array on reload race or double-fire */
-    function dedup(arr) {
-      var seen = {};
-      return arr.filter(function(id) {
-        if (seen[id]) return false;
-        seen[id] = true;
-        return true;
-      });
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -934,18 +897,10 @@
        ══════════════════════════════════════════════════════════ */
     var _uid = null;
 
-    /* Claude: 2026-03-21 — audit fix: dedup before save, retry on save failure */
-    var _savePending = false;
     function saveState() {
       if (!_uid) return;
       /* Mirror mode guard — supporters cannot modify */
       if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
-      if (_savePending) return;  /* debounce rapid saves */
-      _savePending = true;
-
-      /* Dedup arrays before persisting */
-      state.unlockedItems = dedup(state.unlockedItems);
-      state.equippedItems = dedup(state.equippedItems);
 
       AA.db.collection('streakCat').doc(_uid).set({
         catName:         state.catName,
@@ -956,48 +911,25 @@
         unlockedItems:   state.unlockedItems,
         equippedItems:   state.equippedItems,
         updatedAt:       firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true }).then(function() {
-        _savePending = false;
-      }).catch(function(err) {
-        _savePending = false;
+      }, { merge: true }).catch(function(err) {
         console.warn('[StreakCat] save failed:', err.message);
-        /* Retry once after 2 seconds */
-        setTimeout(function() {
-          if (!_savePending) {
-            _savePending = true;
-            AA.db.collection('streakCat').doc(_uid).set({
-              catName: state.catName, streak: state.streak, bestStreak: state.bestStreak,
-              lastCheckinDate: state.lastCheckinDate, lastRewardDate: state.lastRewardDate,
-              unlockedItems: state.unlockedItems, equippedItems: state.equippedItems,
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }).then(function() { _savePending = false; })
-              .catch(function() { _savePending = false; });
-          }
-        }, 2000);
       });
     }
 
-    /* Claude: 2026-03-21 — audit fix: retry load, dedup on load, offline fallback */
-    function loadState(uid, callback, _retries) {
-      _retries = _retries || 0;
+    function loadState(uid, callback) {
       AA.db.collection('streakCat').doc(uid).get().then(function(doc) {
         if (doc.exists) {
           var d = doc.data();
           state.catName         = d.catName || '';
           state.bestStreak      = d.bestStreak || 0;
           state.lastRewardDate  = d.lastRewardDate || '';
-          state.unlockedItems   = dedup(d.unlockedItems || []);
-          state.equippedItems   = dedup(d.equippedItems || []);
+          state.unlockedItems   = d.unlockedItems || [];
+          state.equippedItems   = d.equippedItems || [];
         }
         callback();
       }).catch(function(err) {
-        console.warn('[StreakCat] load failed (attempt ' + (_retries + 1) + '):', err.message);
-        if (_retries < 2) {
-          setTimeout(function() { loadState(uid, callback, _retries + 1); }, 1500);
-        } else {
-          /* Give up — continue with default empty state */
-          callback();
-        }
+        console.warn('[StreakCat] load failed:', err.message);
+        callback();
       });
     }
 
@@ -1020,25 +952,6 @@
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 
-    /* Claude: 2026-03-21 — audit fix: user-facing error when AA fails, offline banner */
-
-    /* Offline detection — show banner if we lose connection */
-    window.addEventListener('offline', function() {
-      var banner = document.getElementById('offline-banner');
-      if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'offline-banner';
-        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ef4444;color:#fff;text-align:center;padding:8px;font-size:0.85rem;z-index:9999;';
-        banner.textContent = '⚠️ You appear to be offline. Changes may not save until reconnected.';
-        document.body.appendChild(banner);
-      }
-      banner.style.display = 'block';
-    });
-    window.addEventListener('online', function() {
-      var banner = document.getElementById('offline-banner');
-      if (banner) banner.style.display = 'none';
-    });
-
     /* Wait for AA (loaded by shared-header's SDK chain) before initializing */
     function _waitForAA(cb) {
       if (window.AA && window.AA.auth) { cb(); return; }
@@ -1046,40 +959,15 @@
       var iv = setInterval(function() {
         attempts++;
         if (window.AA && window.AA.auth) { clearInterval(iv); cb(); }
-        else if (attempts > 100) {
-          clearInterval(iv);
-          console.error('[StreakCat] AA never loaded');
-          /* Show user-facing error instead of silent failure */
-          var wrap = document.getElementById('main-content');
-          if (wrap) {
-            wrap.style.display = 'block';
-            wrap.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
-              '<div style="font-size:2rem;">😿</div>' +
-              '<h2 style="margin:12px 0;">Streak Cat couldn\'t load</h2>' +
-              '<p style="color:#888;font-size:0.9rem;">The app engine didn\'t start. Try refreshing the page.</p>' +
-              '<a href="javascript:location.reload()" style="display:inline-block;margin-top:12px;padding:10px 24px;background:#6366f1;color:#fff;border-radius:10px;text-decoration:none;">Refresh</a>' +
-              '</div>';
-          }
-        }
+        else if (attempts > 100) { clearInterval(iv); console.error('[StreakCat] AA never loaded'); }
       }, 100);
     }
 
     _waitForAA(function() {
     var _pReady = (window.AA && window.AA._persistenceReady) ? window.AA._persistenceReady : Promise.resolve();
     _pReady.then(function() {
-      /* Claude: 2026-03-21 — audit fix: guard for logout state, prevent double init */
-      var _initialized = false;
       AA.auth.onAuthStateChanged(function(user) {
-        if (!user) {
-          /* Logged out — hide content */
-          document.getElementById('main-content').style.display = 'none';
-          _uid = null;
-          _initialized = false;
-          return;
-        }
-        /* Prevent double-initialization on rapid auth state changes */
-        if (_initialized) return;
-        _initialized = true;
+        if (!user) { return; }
 
         /* Use mirror UID if in mirror mode, otherwise real UID */
         _uid = window.AA_MIRROR_UID || user.uid;
