@@ -1035,83 +1035,128 @@
       }).catch(function() { /* student doc read failed — banner stays hidden */ });
     }
 
-    /* ── Claude: 2026-03-23 — Quiet Alert ──────────────────────────────────
-       Detects when a student goes dark and nudges the support network.
-       Combines multiple signals: lastSeen gap, check-in flag trend,
-       check-in streak break. This is "she's been quiet" — not a diagnosis.
-       Writes a Firestore notification so ALL network members see it. */
+    /* ── Claude: 2026-03-23 — Quiet Alert (baseline-aware) ─────────────────
+       Detects when a student's behavior CHANGES from their personal normal.
+       NOT "she hasn't checked in = bad." Instead: "she usually opens the app
+       every 2 days but it's been 6" or "her flags are worse than her average."
+       Learns each student's baseline from their last 30 days, stores it in
+       Firestore, and only fires when the deviation is significant.
+       Writes a notification so ALL network members see it (24h dedup). */
+
     function checkQuietAlert(uid, name) {
       var banner = document.getElementById('quiet-alert-banner');
       if (!banner) return;
       banner.style.display = 'none';
       banner.innerHTML = '';
 
-      /* Gather signals in parallel */
+      /* Gather data: lastSeen, recent check-ins, and stored baseline */
       var lastSeenPromise = AA.getLastSeen ? AA.getLastSeen(uid) : Promise.resolve(null);
-      var checkinsPromise = AA.getRecentCheckins(uid, 7);
+      var checkinsPromise = AA.getRecentCheckins(uid, 30); /* 30 days for baseline */
+      var baselinePromise = AA.db.collection('quietBaseline').doc(uid).get();
 
-      Promise.all([lastSeenPromise, checkinsPromise]).then(function(results) {
+      Promise.all([lastSeenPromise, checkinsPromise, baselinePromise]).then(function(results) {
         var ls = results[0];
         var checkins = results[1] || [];
+        var baselineDoc = results[2];
+        var baseline = (baselineDoc.exists && baselineDoc.data()) || null;
 
+        /* ── Calculate current baseline from data ── */
+        var computed = _computeBaseline(checkins, ls);
+
+        /* ── Save/update baseline if we have enough data (5+ check-ins) ── */
+        if (computed.checkinCount >= 5 && (!baseline || _baselineStale(baseline))) {
+          AA.db.collection('quietBaseline').doc(uid).set({
+            avgCheckinGapDays: computed.avgCheckinGapDays,
+            avgFlag:           computed.avgFlag,
+            avgAppGapHours:    computed.avgAppGapHours,
+            checkinCount:      computed.checkinCount,
+            updatedAt:         firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true }).catch(function() {});
+          baseline = computed; /* use fresh computed values */
+        }
+
+        /* ── If no baseline yet, use conservative fixed thresholds ── */
+        if (!baseline || !baseline.avgCheckinGapDays) {
+          baseline = {
+            avgCheckinGapDays: 3,  /* assume every 3 days is normal */
+            avgFlag: 0.5,          /* assume mostly green/yellow */
+            avgAppGapHours: 48     /* assume every 2 days */
+          };
+        }
+
+        /* ── Compare current state against THEIR baseline ── */
         var signals = [];
-        var severity = 'none'; /* none, amber, red */
+        var severity = 'none';
 
-        /* ── Signal 1: How long since last app activity? ── */
-        var lastSeenHours = null;
+        /* Signal 1: App silence — is the gap 2x+ their normal? */
+        var currentAppGapHours = null;
         if (ls && ls.timestamp) {
           var ts = ls.timestamp.toDate ? ls.timestamp.toDate() : new Date(ls.timestamp);
-          lastSeenHours = Math.round((Date.now() - ts.getTime()) / (1000 * 60 * 60));
+          currentAppGapHours = Math.round((Date.now() - ts.getTime()) / (1000 * 60 * 60));
         }
 
-        if (lastSeenHours !== null && lastSeenHours >= 48) {
-          severity = 'red';
-          signals.push('No app activity in ' + (lastSeenHours >= 72 ? Math.round(lastSeenHours / 24) + ' days' : lastSeenHours + ' hours'));
-        } else if (lastSeenHours !== null && lastSeenHours >= 24) {
-          severity = 'amber';
-          signals.push('Last active ' + lastSeenHours + ' hours ago');
+        if (currentAppGapHours !== null) {
+          var normalGap = baseline.avgAppGapHours || 48;
+          var ratio = currentAppGapHours / Math.max(normalGap, 1);
+          if (ratio >= 3) {
+            severity = 'red';
+            signals.push('No app activity in ' + _friendlyDuration(currentAppGapHours) +
+              ' (normally active every ' + _friendlyDuration(Math.round(normalGap)) + ')');
+          } else if (ratio >= 2) {
+            severity = 'amber';
+            signals.push('Last active ' + _friendlyDuration(currentAppGapHours) +
+              ' ago (usually every ' + _friendlyDuration(Math.round(normalGap)) + ')');
+          }
         }
 
-        /* ── Signal 2: Last check-in flag color ── */
-        var lastFlag = null;
-        if (checkins.length > 0 && checkins[0].entries && checkins[0].entries.length > 0) {
-          var lastEntry = checkins[0].entries[checkins[0].entries.length - 1];
-          lastFlag = lastEntry.flag || checkins[0].latestFlag || null;
-        } else if (checkins.length > 0) {
-          lastFlag = checkins[0].latestFlag || null;
-        }
-
-        if (lastFlag === 'red') {
-          severity = 'red'; /* Upgrade to red if last flag was red */
-          signals.push('Last check-in was a red flag');
-        } else if (lastFlag === 'orange') {
-          if (severity !== 'red') severity = 'amber';
-          signals.push('Last check-in was an orange flag');
-        }
-
-        /* ── Signal 3: Check-in gap (days since last check-in) ── */
-        var checkinGapDays = null;
+        /* Signal 2: Check-in gap — is it 2x+ their normal spacing? */
+        var currentCheckinGapDays = null;
         if (checkins.length > 0 && checkins[0].date) {
           var lastDate = new Date(checkins[0].date + 'T00:00:00');
-          checkinGapDays = Math.round((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+          currentCheckinGapDays = Math.round((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
         }
 
-        if (checkinGapDays !== null && checkinGapDays >= 3) {
-          if (severity !== 'red') severity = 'amber';
-          signals.push(checkinGapDays + ' days without a check-in');
+        if (currentCheckinGapDays !== null) {
+          var normalCheckinGap = baseline.avgCheckinGapDays || 3;
+          var checkinRatio = currentCheckinGapDays / Math.max(normalCheckinGap, 1);
+          if (checkinRatio >= 3) {
+            if (severity !== 'red') severity = 'red';
+            signals.push(currentCheckinGapDays + ' days since last check-in' +
+              ' (normally every ' + Math.round(normalCheckinGap) + ' days)');
+          } else if (checkinRatio >= 2) {
+            if (severity === 'none') severity = 'amber';
+            signals.push(currentCheckinGapDays + ' days since last check-in' +
+              ' (usually every ' + Math.round(normalCheckinGap) + ' days)');
+          }
         }
 
-        /* ── Signal 4: Declining flag trend (last 3 check-ins getting worse) ── */
+        /* Signal 3: Last flag worse than their average */
+        var FLAG_SCORE = { green: 0, yellow: 1, orange: 2, red: 3 };
+        var lastFlag = null;
+        if (checkins.length > 0) {
+          lastFlag = checkins[0].latestFlag || 'green';
+        }
+        if (lastFlag) {
+          var lastFlagScore = FLAG_SCORE[lastFlag] || 0;
+          var avgFlag = baseline.avgFlag || 0.5;
+          /* Flag is significantly worse than their average */
+          if (lastFlagScore >= 2 && lastFlagScore > avgFlag + 1) {
+            if (severity !== 'red' && lastFlagScore >= 3) severity = 'red';
+            else if (severity === 'none') severity = 'amber';
+            var FLAG_NAMES = { green: 'green', yellow: 'yellow', orange: 'orange', red: 'red' };
+            signals.push('Last check-in was ' + FLAG_NAMES[lastFlag] +
+              ' (her average is closer to ' + _flagName(avgFlag) + ')');
+          }
+        }
+
+        /* Signal 4: Declining trend (3+ recent check-ins getting progressively worse) */
         if (checkins.length >= 3) {
-          var flagScore = { green: 0, yellow: 1, orange: 2, red: 3 };
           var scores = [];
           for (var c = 0; c < Math.min(checkins.length, 3); c++) {
-            var f = checkins[c].latestFlag || 'green';
-            scores.push(flagScore[f] || 0);
+            scores.push(FLAG_SCORE[checkins[c].latestFlag || 'green'] || 0);
           }
-          /* scores[0] = most recent, scores[2] = oldest */
           if (scores[0] > scores[1] && scores[1] > scores[2] && scores[0] >= 2) {
-            if (severity !== 'red') severity = 'amber';
+            if (severity === 'none') severity = 'amber';
             signals.push('Check-in flags are trending worse');
           }
         }
@@ -1123,7 +1168,7 @@
         var icon = severity === 'red' ? '🚨' : '🔔';
         var heading = severity === 'red'
           ? esc(name) + ' may need someone to reach out'
-          : esc(name) + ' has been quiet — worth checking in';
+          : esc(name) + ' seems different than usual';
 
         var signalHtml = '<ul class="qa-signals">';
         for (var s = 0; s < signals.length; s++) {
@@ -1138,29 +1183,88 @@
               '<strong>' + heading + '</strong>' +
               signalHtml +
               '<div style="margin-top:8px;font-size:0.82rem;font-style:italic;opacity:0.8;">' +
-                'This isn\'t a diagnosis — just the data saying she\'s been quieter than usual.' +
+                'This isn\'t a diagnosis — just the data saying her pattern has changed.' +
               '</div>' +
             '</div>' +
             '<button class="qa-dismiss" onclick="this.closest(\'.quiet-alert-bar\').remove()" title="Dismiss">✕</button>' +
           '</div>';
         banner.style.display = 'block';
 
-        /* ── Write a Firestore notification (24h dedup) ── */
         _writeQuietNotification(uid, name, severity, signals);
       }).catch(function(err) {
         console.warn('[AA] quiet alert check failed:', err.message);
       });
     }
 
-    /* Write quiet alert notification with 24-hour dedup.
-       Only creates one notification per 24h period per student. */
+    /* ── Compute personal baseline from 30 days of data ── */
+    function _computeBaseline(checkins, lastSeen) {
+      var result = { avgCheckinGapDays: null, avgFlag: null, avgAppGapHours: null, checkinCount: 0 };
+      if (!checkins || checkins.length === 0) return result;
+
+      result.checkinCount = checkins.length;
+
+      /* Average flag score */
+      var FLAG_SCORE = { green: 0, yellow: 1, orange: 2, red: 3 };
+      var flagSum = 0;
+      for (var i = 0; i < checkins.length; i++) {
+        flagSum += FLAG_SCORE[checkins[i].latestFlag || 'green'] || 0;
+      }
+      result.avgFlag = flagSum / checkins.length;
+
+      /* Average gap between check-ins (days) */
+      if (checkins.length >= 2) {
+        var gaps = [];
+        for (var g = 0; g < checkins.length - 1; g++) {
+          var d1 = new Date(checkins[g].date + 'T00:00:00');
+          var d2 = new Date(checkins[g + 1].date + 'T00:00:00');
+          var gapDays = Math.abs(d1 - d2) / (1000 * 60 * 60 * 24);
+          if (gapDays > 0) gaps.push(gapDays);
+        }
+        if (gaps.length > 0) {
+          var gapSum = 0;
+          for (var j = 0; j < gaps.length; j++) gapSum += gaps[j];
+          result.avgCheckinGapDays = gapSum / gaps.length;
+        }
+      }
+
+      /* Average app gap — estimate from check-in frequency as proxy.
+         Real app usage data would need lastSeen history, which we don't have.
+         Use check-in gap as a reasonable proxy since check-ins require app opens. */
+      if (result.avgCheckinGapDays) {
+        result.avgAppGapHours = result.avgCheckinGapDays * 24;
+      }
+
+      return result;
+    }
+
+    /* Check if stored baseline is stale (older than 7 days) */
+    function _baselineStale(baseline) {
+      if (!baseline || !baseline.updatedAt) return true;
+      var ts = baseline.updatedAt.toDate ? baseline.updatedAt.toDate() : new Date(baseline.updatedAt);
+      return (Date.now() - ts.getTime()) > (7 * 24 * 60 * 60 * 1000);
+    }
+
+    /* Friendly duration: "26 hours" or "3 days" */
+    function _friendlyDuration(hours) {
+      if (hours < 48) return hours + ' hours';
+      return Math.round(hours / 24) + ' days';
+    }
+
+    /* Map numeric flag average to friendly name */
+    function _flagName(avg) {
+      if (avg < 0.5) return 'green';
+      if (avg < 1.5) return 'green-yellow';
+      if (avg < 2.5) return 'yellow-orange';
+      return 'orange-red';
+    }
+
+    /* Write quiet alert notification with 24-hour dedup */
     function _writeQuietNotification(uid, name, severity, signals) {
       if (!AA.addNotification) return;
       var type = severity === 'red' ? 'quiet_alert_red' : 'quiet_alert_amber';
       var msg = (severity === 'red' ? '🚨' : '🔔') + ' ' +
-        (name || 'Student') + ' has been quiet — ' + signals[0];
+        (name || 'Student') + ' seems different than usual — ' + signals[0];
 
-      /* Check for existing quiet alert in last 24h */
       AA.db.collection('notifications').doc(uid).collection('entries')
         .where('type', 'in', ['quiet_alert_red', 'quiet_alert_amber'])
         .orderBy('createdAt', 'desc')
@@ -1171,14 +1275,12 @@
             var last = snap.docs[0].data();
             if (last.createdAt && last.createdAt.toDate) {
               var hoursSince = (Date.now() - last.createdAt.toDate().getTime()) / (1000 * 60 * 60);
-              if (hoursSince < 24) return; /* Already alerted within 24h */
+              if (hoursSince < 24) return;
             }
           }
-          /* No recent alert — write one */
           AA.addNotification(uid, type, msg).catch(function() {});
         })
         .catch(function() {
-          /* Query failed (maybe missing index) — write anyway to be safe */
           AA.addNotification(uid, type, msg).catch(function() {});
         });
     }
