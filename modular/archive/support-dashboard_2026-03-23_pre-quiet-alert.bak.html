@@ -162,33 +162,6 @@
     }
     .checkin-alert-bar .alert-view-btn:hover { background: #d97706; }
 
-    /* Claude: 2026-03-23 — Quiet Alert styling. Two levels:
-       .quiet-alert-amber = been quiet, worth checking
-       .quiet-alert-red = been very quiet AND last signals were bad */
-    .quiet-alert-bar {
-      display: flex; align-items: flex-start; gap: 12px;
-      padding: 14px 18px; margin-bottom: 16px;
-      border-radius: 0 8px 8px 0; font-size: 0.9rem;
-    }
-    .quiet-alert-bar.amber {
-      background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e;
-    }
-    .quiet-alert-bar.red {
-      background: #fef2f2; border-left: 4px solid #dc3545; color: #7f1d1d;
-    }
-    .quiet-alert-bar .qa-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; }
-    .quiet-alert-bar .qa-body { flex: 1; }
-    .quiet-alert-bar .qa-body strong { display: block; margin-bottom: 4px; font-size: 0.95rem; }
-    .quiet-alert-bar .qa-signals { margin: 6px 0 0; padding: 0; list-style: none; font-size: 0.85rem; }
-    .quiet-alert-bar .qa-signals li { padding: 2px 0; }
-    .quiet-alert-bar .qa-signals li::before { content: '• '; }
-    .quiet-alert-bar .qa-dismiss {
-      background: none; border: 1px solid currentColor; border-radius: 4px;
-      padding: 4px 10px; font-size: 0.78rem; color: inherit; cursor: pointer;
-      flex-shrink: 0; margin-top: 2px;
-    }
-    .quiet-alert-bar .qa-dismiss:hover { opacity: 0.7; }
-
     /* Claude: 2026-03-12 — notification items */
     .notif-item {
       display: flex; align-items: center; gap: 10px;
@@ -330,11 +303,6 @@
 
       <!-- Claude: 2026-03-11 — missing check-in alert banner -->
       <div id="checkin-alert-banner" style="display:none;"></div>
-
-      <!-- Claude: 2026-03-23 — Quiet Alert banner. Detects when a student goes
-           dark (no app activity + bad last signals) and nudges the support network
-           to reach out. Not a diagnosis — just "she's been quiet, maybe check in." -->
-      <div id="quiet-alert-banner" style="display:none;"></div>
 
       <!-- Claude: 2026-03-12 — real-time notification panel for active alerts -->
       <div id="notif-panel" style="display:none;margin-bottom:18px;">
@@ -697,7 +665,6 @@
       startNotificationListener(); /* Claude: 2026-03-12 — active alert notifications */
       loadLastSeen(uid); /* Claude: 2026-03-12 — last activity indicator */
       checkCheckinAlert(uid, name); /* Claude: 2026-03-11 — missing check-in alert */
-      checkQuietAlert(uid, name); /* Claude: 2026-03-23 — quiet alert: she's been dark */
     }
 
     /* ── ① Nope / Status real-time listener ───────────── */
@@ -1033,154 +1000,6 @@
           }).catch(function() { /* checkin read failed — banner stays hidden */ });
         }).catch(function() { /* viewer doc read failed — banner stays hidden */ });
       }).catch(function() { /* student doc read failed — banner stays hidden */ });
-    }
-
-    /* ── Claude: 2026-03-23 — Quiet Alert ──────────────────────────────────
-       Detects when a student goes dark and nudges the support network.
-       Combines multiple signals: lastSeen gap, check-in flag trend,
-       check-in streak break. This is "she's been quiet" — not a diagnosis.
-       Writes a Firestore notification so ALL network members see it. */
-    function checkQuietAlert(uid, name) {
-      var banner = document.getElementById('quiet-alert-banner');
-      if (!banner) return;
-      banner.style.display = 'none';
-      banner.innerHTML = '';
-
-      /* Gather signals in parallel */
-      var lastSeenPromise = AA.getLastSeen ? AA.getLastSeen(uid) : Promise.resolve(null);
-      var checkinsPromise = AA.getRecentCheckins(uid, 7);
-
-      Promise.all([lastSeenPromise, checkinsPromise]).then(function(results) {
-        var ls = results[0];
-        var checkins = results[1] || [];
-
-        var signals = [];
-        var severity = 'none'; /* none, amber, red */
-
-        /* ── Signal 1: How long since last app activity? ── */
-        var lastSeenHours = null;
-        if (ls && ls.timestamp) {
-          var ts = ls.timestamp.toDate ? ls.timestamp.toDate() : new Date(ls.timestamp);
-          lastSeenHours = Math.round((Date.now() - ts.getTime()) / (1000 * 60 * 60));
-        }
-
-        if (lastSeenHours !== null && lastSeenHours >= 48) {
-          severity = 'red';
-          signals.push('No app activity in ' + (lastSeenHours >= 72 ? Math.round(lastSeenHours / 24) + ' days' : lastSeenHours + ' hours'));
-        } else if (lastSeenHours !== null && lastSeenHours >= 24) {
-          severity = 'amber';
-          signals.push('Last active ' + lastSeenHours + ' hours ago');
-        }
-
-        /* ── Signal 2: Last check-in flag color ── */
-        var lastFlag = null;
-        if (checkins.length > 0 && checkins[0].entries && checkins[0].entries.length > 0) {
-          var lastEntry = checkins[0].entries[checkins[0].entries.length - 1];
-          lastFlag = lastEntry.flag || checkins[0].latestFlag || null;
-        } else if (checkins.length > 0) {
-          lastFlag = checkins[0].latestFlag || null;
-        }
-
-        if (lastFlag === 'red') {
-          severity = 'red'; /* Upgrade to red if last flag was red */
-          signals.push('Last check-in was a red flag');
-        } else if (lastFlag === 'orange') {
-          if (severity !== 'red') severity = 'amber';
-          signals.push('Last check-in was an orange flag');
-        }
-
-        /* ── Signal 3: Check-in gap (days since last check-in) ── */
-        var checkinGapDays = null;
-        if (checkins.length > 0 && checkins[0].date) {
-          var lastDate = new Date(checkins[0].date + 'T00:00:00');
-          checkinGapDays = Math.round((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-        }
-
-        if (checkinGapDays !== null && checkinGapDays >= 3) {
-          if (severity !== 'red') severity = 'amber';
-          signals.push(checkinGapDays + ' days without a check-in');
-        }
-
-        /* ── Signal 4: Declining flag trend (last 3 check-ins getting worse) ── */
-        if (checkins.length >= 3) {
-          var flagScore = { green: 0, yellow: 1, orange: 2, red: 3 };
-          var scores = [];
-          for (var c = 0; c < Math.min(checkins.length, 3); c++) {
-            var f = checkins[c].latestFlag || 'green';
-            scores.push(flagScore[f] || 0);
-          }
-          /* scores[0] = most recent, scores[2] = oldest */
-          if (scores[0] > scores[1] && scores[1] > scores[2] && scores[0] >= 2) {
-            if (severity !== 'red') severity = 'amber';
-            signals.push('Check-in flags are trending worse');
-          }
-        }
-
-        /* ── No signals? Nothing to show ── */
-        if (severity === 'none' || signals.length === 0) return;
-
-        /* ── Render the banner ── */
-        var icon = severity === 'red' ? '🚨' : '🔔';
-        var heading = severity === 'red'
-          ? esc(name) + ' may need someone to reach out'
-          : esc(name) + ' has been quiet — worth checking in';
-
-        var signalHtml = '<ul class="qa-signals">';
-        for (var s = 0; s < signals.length; s++) {
-          signalHtml += '<li>' + esc(signals[s]) + '</li>';
-        }
-        signalHtml += '</ul>';
-
-        banner.innerHTML =
-          '<div class="quiet-alert-bar ' + severity + '">' +
-            '<span class="qa-icon">' + icon + '</span>' +
-            '<div class="qa-body">' +
-              '<strong>' + heading + '</strong>' +
-              signalHtml +
-              '<div style="margin-top:8px;font-size:0.82rem;font-style:italic;opacity:0.8;">' +
-                'This isn\'t a diagnosis — just the data saying she\'s been quieter than usual.' +
-              '</div>' +
-            '</div>' +
-            '<button class="qa-dismiss" onclick="this.closest(\'.quiet-alert-bar\').remove()" title="Dismiss">✕</button>' +
-          '</div>';
-        banner.style.display = 'block';
-
-        /* ── Write a Firestore notification (24h dedup) ── */
-        _writeQuietNotification(uid, name, severity, signals);
-      }).catch(function(err) {
-        console.warn('[AA] quiet alert check failed:', err.message);
-      });
-    }
-
-    /* Write quiet alert notification with 24-hour dedup.
-       Only creates one notification per 24h period per student. */
-    function _writeQuietNotification(uid, name, severity, signals) {
-      if (!AA.addNotification) return;
-      var type = severity === 'red' ? 'quiet_alert_red' : 'quiet_alert_amber';
-      var msg = (severity === 'red' ? '🚨' : '🔔') + ' ' +
-        (name || 'Student') + ' has been quiet — ' + signals[0];
-
-      /* Check for existing quiet alert in last 24h */
-      AA.db.collection('notifications').doc(uid).collection('entries')
-        .where('type', 'in', ['quiet_alert_red', 'quiet_alert_amber'])
-        .orderBy('createdAt', 'desc')
-        .limit(1)
-        .get()
-        .then(function(snap) {
-          if (!snap.empty) {
-            var last = snap.docs[0].data();
-            if (last.createdAt && last.createdAt.toDate) {
-              var hoursSince = (Date.now() - last.createdAt.toDate().getTime()) / (1000 * 60 * 60);
-              if (hoursSince < 24) return; /* Already alerted within 24h */
-            }
-          }
-          /* No recent alert — write one */
-          AA.addNotification(uid, type, msg).catch(function() {});
-        })
-        .catch(function() {
-          /* Query failed (maybe missing index) — write anyway to be safe */
-          AA.addNotification(uid, type, msg).catch(function() {});
-        });
     }
 
     /* ── Claude: 2026-03-12 — Real-time notification listener ──────────────
