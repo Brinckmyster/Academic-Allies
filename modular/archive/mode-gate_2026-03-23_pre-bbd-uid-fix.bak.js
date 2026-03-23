@@ -52,39 +52,25 @@
   var GATE_TO_BBD = {};
   for (var bk in BBD_TO_GATE) { GATE_TO_BBD[BBD_TO_GATE[bk]] = bk; }
 
-  /* Claude: 2026-03-23 — Check if student opted-in via BBD "today" picker (localStorage).
-     MUST filter by the current user's UID to prevent one student's BBD choices
-     leaking to another student on a shared browser. */
-  function isBBDOptedIn(featureKey, uid) {
+  /* Check if student opted-in via BBD "today" picker (localStorage) */
+  function isBBDOptedIn(featureKey) {
     var bbdKey = GATE_TO_BBD[featureKey];
     if (!bbdKey) return false;
     try {
-      if (uid) {
-        /* Exact match for this user */
-        var data = JSON.parse(localStorage.getItem('AA_BBD_VISIBLE_' + uid) || '{}');
-        return !!data[bbdKey];
-      }
-      /* No UID yet (sync path) — check Firebase auth cache for uid */
-      var fbKey = null;
-      var keys = Object.keys(localStorage);
+      /* Try current user uid, then any uid suffix */
+      var keys = Object.keys(localStorage).filter(function(k) { return k.indexOf('AA_BBD_VISIBLE_') === 0; });
       for (var i = 0; i < keys.length; i++) {
-        if (keys[i].indexOf('firebase:authUser:') === 0) { fbKey = keys[i]; break; }
-      }
-      if (fbKey) {
-        var authData = JSON.parse(localStorage.getItem(fbKey) || '{}');
-        if (authData.uid) {
-          var d = JSON.parse(localStorage.getItem('AA_BBD_VISIBLE_' + authData.uid) || '{}');
-          return !!d[bbdKey];
-        }
+        var data = JSON.parse(localStorage.getItem(keys[i]) || '{}');
+        if (data[bbdKey]) return true;
       }
     } catch(e) {}
     return false;
   }
 
   /* ── Check if feature is allowed by defaults ── */
-  function isAllowed(mode, featureKey, customSettings, uid) {
+  function isAllowed(mode, featureKey, customSettings) {
     /* Claude: 2026-03-23 — If student opted-in via BBD picker, allow it */
-    if (isBBDOptedIn(featureKey, uid)) return true;
+    if (isBBDOptedIn(featureKey)) return true;
     var defaults = MODE_DEFAULTS[mode] || MODE_DEFAULTS['normal'];
     var custom = (customSettings && customSettings[mode]) || {};
     if (custom[featureKey] !== undefined) return !!custom[featureKey];
@@ -144,7 +130,7 @@
   var _isMirrorSession = false;
   try {
     var _mirrorCache = JSON.parse(sessionStorage.getItem('aa-mirror') || 'null');
-    if (_mirrorCache && typeof _mirrorCache.studentUid === 'string' && _mirrorCache.studentUid.length > 0) _isMirrorSession = true;
+    if (_mirrorCache && _mirrorCache.studentUid) _isMirrorSession = true;
   } catch (e) {}
 
   /* ── Immediate check with defaults (prevents content flash) ── */
@@ -215,7 +201,7 @@
           return;
         }
 
-        if (isAllowed(mode, gateKey, customSettings, uid)) {
+        if (isAllowed(mode, gateKey, customSettings)) {
           /* Custom settings say this feature IS allowed — unblock */
           unblockPage();
         } else if (!document.getElementById('mode-gate-blocked')) {
