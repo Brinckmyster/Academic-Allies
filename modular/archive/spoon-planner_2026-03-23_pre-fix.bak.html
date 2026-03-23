@@ -565,11 +565,6 @@
 
     <script>
         /* Claude-credit: Firebase sync added 2026-02-26 by Claude */
-        /* Claude: 2026-03-23 — XSS escape helper for Firestore data in innerHTML */
-        function _esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-        /* Safe ID escaper — strips anything that isn't alphanumeric/dash/underscore */
-        function _escId(s) { return String(s || '').replace(/[^a-zA-Z0-9_-]/g, ''); }
-
         // State Management
         let tasks = [];
         let totalSpoons = 10;
@@ -696,54 +691,19 @@
 
                 if (task.completed) li.classList.add('task-completed');
 
-                /* Claude: 2026-03-23 — build DOM nodes instead of innerHTML to prevent XSS
-                   from Firestore-sourced task.name (supporters can suggest plans with arbitrary
-                   task names). Archive: spoon-planner_2026-03-23_pre-fix.bak.html */
-                var dragHandle = document.createElement('span');
-                dragHandle.className = 'drag-handle';
-                dragHandle.textContent = '☰';
-                li.appendChild(dragHandle);
-
-                var checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.className = 'task-check';
-                checkbox.checked = !!task.completed;
-                checkbox.setAttribute('aria-label', 'Mark complete');
-                checkbox.onchange = (function(idx) { return function() { toggleComplete(idx); }; })(index);
-                li.appendChild(checkbox);
-
-                var contentDiv = document.createElement('div');
-                contentDiv.className = 'task-content';
-                var nameDiv = document.createElement('div');
-                nameDiv.className = 'task-name';
-                nameDiv.textContent = task.name;
-                contentDiv.appendChild(nameDiv);
-                var metaDiv = document.createElement('div');
-                metaDiv.className = 'task-meta';
-                metaDiv.textContent = (task.time ? task.time + ' \u2022 ' : '') + task.priority + ' Priority';
-                contentDiv.appendChild(metaDiv);
-                li.appendChild(contentDiv);
-
-                var spoonSpan = document.createElement('span');
-                spoonSpan.className = 'task-spoons';
-                spoonSpan.textContent = task.spoons + '🥄';
-                li.appendChild(spoonSpan);
-
-                var actionsDiv = document.createElement('div');
-                actionsDiv.className = 'task-actions';
-                var editBtn = document.createElement('button');
-                editBtn.className = 'btn-icon';
-                editBtn.textContent = '✏️';
-                editBtn.setAttribute('aria-label', 'Edit task');
-                editBtn.onclick = (function(idx) { return function() { editTask(idx); }; })(index);
-                actionsDiv.appendChild(editBtn);
-                var delBtn = document.createElement('button');
-                delBtn.className = 'btn-icon';
-                delBtn.textContent = '🗑️';
-                delBtn.setAttribute('aria-label', 'Delete task');
-                delBtn.onclick = (function(idx) { return function() { deleteTask(idx); }; })(index);
-                actionsDiv.appendChild(delBtn);
-                li.appendChild(actionsDiv);
+                li.innerHTML = `
+                    <span class="drag-handle">☰</span>
+                    <input type="checkbox" class="task-check" ${task.completed ? 'checked' : ''} onchange="toggleComplete(${index})" aria-label="Mark complete">
+                    <div class="task-content">
+                        <div class="task-name">${task.name}</div>
+                        <div class="task-meta">${task.time ? task.time + ' • ' : ''}${task.priority} Priority</div>
+                    </div>
+                    <span class="task-spoons">${task.spoons}🥄</span>
+                    <div class="task-actions">
+                        <button class="btn-icon" onclick="editTask(${index})" aria-label="Edit task">✏️</button>
+                        <button class="btn-icon" onclick="deleteTask(${index})" aria-label="Delete task">🗑️</button>
+                    </div>
+                `;
 
                 // Drag and drop handlers
                 li.addEventListener('dragstart', handleDragStart);
@@ -919,12 +879,8 @@
             return false;
         }
 
-        /* Claude: 2026-03-23 — added saveTasks() call so drag-reorder persists to
-           localStorage and Firestore. Without this, reordering was visual only and
-           lost on page refresh. Archive: spoon-planner_2026-03-23_pre-fix.bak.html */
         function handleDragEnd(e) {
             this.classList.remove('dragging');
-            saveTasks();
         }
 
         // Confirm plan
@@ -1082,35 +1038,31 @@
                 return;
             }
             var s = _pendingSuggestions[0]; // Show one at a time
-            /* Claude: 2026-03-23 — escaped all Firestore-sourced data to prevent XSS.
-               task names, supporter names, reasons, and doc IDs all come from user input.
-               Archive: spoon-planner_2026-03-23_pre-fix.bak.html */
             var taskList = (s.tasks || []).map(function(t) {
                 return '<li style="padding:8px 0;border-bottom:1px solid #eee;">' +
-                    '<strong>' + _esc(t.name || 'Task') + '</strong> — ' +
-                    (parseFloat(t.spoons) || 0) + ' spoon' + ((parseFloat(t.spoons) || 0) !== 1 ? 's' : '') +
-                    (t.time ? ' at ' + _esc(t.time) : '') +
+                    '<strong>' + (t.name || 'Task') + '</strong> — ' +
+                    (t.spoons || 0) + ' spoon' + ((t.spoons || 0) !== 1 ? 's' : '') +
+                    (t.time ? ' at ' + t.time : '') +
                     '</li>';
             }).join('');
             var when = s.createdAt && s.createdAt.toDate ? s.createdAt.toDate().toLocaleDateString() : 'recently';
-            var safeId = _escId(s.id);
             container.innerHTML =
                 '<h2>💡 Plan Suggestion</h2>' +
                 '<p style="font-size:14pt;color:#666;margin-bottom:10px;">From <strong>' +
-                    _esc(s.suggestedByName || 'a supporter') + '</strong> (' + _esc(when) + ')</p>' +
+                    (s.suggestedByName || 'a supporter') + '</strong> (' + when + ')</p>' +
                 '<div style="background:#f8f4ff;border:2px solid #a78bfa;border-radius:8px;padding:15px;margin-bottom:15px;">' +
                     '<p style="font-size:14pt;font-weight:600;color:#5b21b6;margin-bottom:8px;">Their reason:</p>' +
-                    '<p style="font-size:14pt;color:#333;">' + _esc(s.reason || 'No reason given') + '</p>' +
+                    '<p style="font-size:14pt;color:#333;">' + (s.reason || 'No reason given') + '</p>' +
                 '</div>' +
                 '<p style="font-size:14pt;font-weight:600;margin-bottom:8px;">Proposed tasks (' +
-                    (parseInt(s.dailySpoons) || 10) + ' spoons):</p>' +
+                    (s.dailySpoons || 10) + ' spoons):</p>' +
                 '<ul style="list-style:none;padding:0;max-height:200px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:8px;padding:10px;">' +
                     taskList +
                 '</ul>' +
                 '<p style="font-size:13pt;color:#666;margin-top:12px;font-style:italic;">You are in charge of your own plan. Accept only if this feels right for you.</p>' +
                 '<div class="modal-actions" style="margin-top:20px;">' +
-                    '<button class="btn" style="background:#22c55e;" onclick="acceptSuggestion(\'' + safeId + '\')">✅ Accept Plan</button>' +
-                    '<button class="btn" style="background:#ef4444;" onclick="rejectSuggestion(\'' + safeId + '\')">❌ No Thanks</button>' +
+                    '<button class="btn" style="background:#22c55e;" onclick="acceptSuggestion(\'' + s.id + '\')">✅ Accept Plan</button>' +
+                    '<button class="btn" style="background:#ef4444;" onclick="rejectSuggestion(\'' + s.id + '\')">❌ No Thanks</button>' +
                     '<button class="btn btn-cancel" onclick="closeReviewModal()">Decide Later</button>' +
                 '</div>';
             document.getElementById('review-modal').classList.add('show');

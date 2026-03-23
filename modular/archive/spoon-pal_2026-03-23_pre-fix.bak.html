@@ -770,10 +770,7 @@
     const _prevEntry = spoonDebtHistory.find(h => h.date === _todayStr);
     const borrowed = (_prevEntry && _prevEntry.borrowedFromPrevDay) || 0;
 
-    /* Claude: 2026-03-23 — use _configBaseBudget if set (was hardcoded 20, mismatched
-       calculateDailyBudget() which already used the config value).
-       Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
-    let base = _configBaseBudget || 20;
+    let base = 20;
     base -= painAdj;
     base -= fatigueAdj;
     base += sleepAdj;
@@ -837,8 +834,7 @@
     if (debtSpan) debtSpan.style.display = counter > 0 ? 'inline' : 'none';
 
     // Why-today equation (only show adjustments that are non-zero)
-    /* Claude: 2026-03-23 — use actual base value instead of hardcoded '20' */
-    let eq = (_configBaseBudget || 20) + ' base';
+    let eq = '20 base';
     if (painAdj)        eq += ` − pain(${painAdj})`;
     if (fatigueAdj)     eq += ` − fatigue(${fatigueAdj})`;
     if (sleepAdj < 0)   eq += ` − sleep(${Math.abs(sleepAdj).toFixed(1)})`;
@@ -1969,11 +1965,9 @@
   }
 
   // Check-in update
-  /* Claude: 2026-03-23 — fixed mirror guard to use standard AA_MIRROR_CAN_WRITE pattern
-     (was comparing UIDs which is the wrong check — should use the CAN_WRITE flag).
-     Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
+  /* Claude: 2026-03-14 — mirror guard added */
   function updateCheckIn() {
-    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+    if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== (window.AA && window.AA.auth && window.AA.auth.currentUser ? window.AA.auth.currentUser.uid : '')) return;
     checkIn.pain = parseInt(document.getElementById('painLevel').value) || 7;
     checkIn.fatigue = parseInt(document.getElementById('fatigueLevel').value) || 5;
     checkIn.sleep = parseFloat(document.getElementById('sleepHours').value) || 8.33;
@@ -2162,13 +2156,7 @@
         var _readUid = window.AA_MIRROR_UID || user.uid;
         window.AA_CONFIG.load(_readUid).then(function(config) {
           var configTasks = window.AA_CONFIG.get('spoonPlan.tasks', null);
-          /* Claude: 2026-03-23 — Only override LMJ globals if config tasks are LMJ format
-             (have `code` field). Default config tasks use SpoonPlanner format (name/spoons/time/
-             priority/completed) which does NOT have code/emoji/desc/cost fields. Applying
-             SpoonPlanner-format tasks here corrupted LOCKED_LMJ_ORDER with undefined values,
-             breaking the entire LMJ system, legend, and Normal Day template for ALL users.
-             Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
-          if (configTasks && configTasks.length > 0 && configTasks[0].code) {
+          if (configTasks && configTasks.length > 0) {
             // Override LOCKED_LMJ_META and LOCKED_LMJ_ORDER from config
             LOCKED_LMJ_ORDER = configTasks.map(function(t) { return t.code; });
             LOCKED_LMJ_META = {};
