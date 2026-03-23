@@ -123,18 +123,8 @@
     }
   }
 
-  /* Claude: 2026-03-23 — Check sessionStorage for mirror cache SYNCHRONOUSLY.
-     If the supporter already has a mirror session, skip the sync block entirely.
-     This prevents the "Module Unavailable" flash before the async mirror bypass
-     in waitForAuth() has a chance to run. The aa-mirror.js cache key is 'aa-mirror'. */
-  var _isMirrorSession = false;
-  try {
-    var _mirrorCache = JSON.parse(sessionStorage.getItem('aa-mirror') || 'null');
-    if (_mirrorCache && _mirrorCache.studentUid) _isMirrorSession = true;
-  } catch (e) {}
-
   /* ── Immediate check with defaults (prevents content flash) ── */
-  if (!_isMirrorSession && currentMode !== 'normal' && !isAllowed(currentMode, gateKey, null)) {
+  if (currentMode !== 'normal' && !isAllowed(currentMode, gateKey, null)) {
     /* Block as soon as DOM is minimally ready */
     if (document.body) {
       blockPage(currentMode);
