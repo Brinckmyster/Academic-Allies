@@ -40,37 +40,8 @@
   var currentMode = 'normal';
   try { currentMode = localStorage.getItem('appMode') || 'normal'; } catch (e) {}
 
-  /* Claude: 2026-03-23 — Map BBD "today" checkbox keys → mode-gate feature keys.
-     When a student is in Bad Brain Day (or Semi-Nope) and checks a feature in the
-     "What do you want today?" picker, that should override the mode default. */
-  var BBD_TO_GATE = {
-    checkin: 'checkin', messages: 'messages', meals: 'mealPlan',
-    spoons: 'spoonPlanner', calendar: 'calendar', study: 'flowerQuiz',
-    comfort: 'comfort'
-  };
-  /* Reverse lookup: gate key → BBD key */
-  var GATE_TO_BBD = {};
-  for (var bk in BBD_TO_GATE) { GATE_TO_BBD[BBD_TO_GATE[bk]] = bk; }
-
-  /* Check if student opted-in via BBD "today" picker (localStorage) */
-  function isBBDOptedIn(featureKey) {
-    var bbdKey = GATE_TO_BBD[featureKey];
-    if (!bbdKey) return false;
-    try {
-      /* Try current user uid, then any uid suffix */
-      var keys = Object.keys(localStorage).filter(function(k) { return k.indexOf('AA_BBD_VISIBLE_') === 0; });
-      for (var i = 0; i < keys.length; i++) {
-        var data = JSON.parse(localStorage.getItem(keys[i]) || '{}');
-        if (data[bbdKey]) return true;
-      }
-    } catch(e) {}
-    return false;
-  }
-
   /* ── Check if feature is allowed by defaults ── */
   function isAllowed(mode, featureKey, customSettings) {
-    /* Claude: 2026-03-23 — If student opted-in via BBD picker, allow it */
-    if (isBBDOptedIn(featureKey)) return true;
     var defaults = MODE_DEFAULTS[mode] || MODE_DEFAULTS['normal'];
     var custom = (customSettings && customSettings[mode]) || {};
     if (custom[featureKey] !== undefined) return !!custom[featureKey];
@@ -160,16 +131,7 @@
   waitForAuth(function() {
     window.AA.auth.onAuthStateChanged(function(user) {
       if (!user) return;
-
-      /* Claude: 2026-03-23 — Supporters in mirror mode should NEVER be blocked.
-         The mode gate protects students from being overwhelmed — not supporters
-         who need to see everything to help. */
-      if (window.AA_MIRROR_UID) {
-        unblockPage();
-        return;
-      }
-
-      var uid = user.uid;
+      var uid = window.AA_MIRROR_UID || user.uid;
       window.AA.db.collection('users').doc(uid).get().then(function(doc) {
         var data = (doc.exists && doc.data()) || {};
         var customSettings = data.modeSettings || null;
