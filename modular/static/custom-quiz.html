@@ -1338,11 +1338,12 @@
   window.toggleShuffleMode = toggleShuffleMode;
   window.loadSavedMissed = loadSavedMissed;
 
-  /* Claude: 2026-03-23 — Robust init: poll for AA + auth instead of fragile 1s timeout.
-     In mirror mode, aa-mirror.js loads async via shared-header fetch. The old setTimeout
-     could fire before AA_MIRROR_UID was set, loading the wrong user's quizzes. */
+  /* Claude: 2026-03-23 — Robust init: poll for AA + auth + mirror system.
+     aa-mirror.js loads async via shared-header fetch and sets AA_uid() + AA_MIRROR_UID.
+     We must wait for it before calling loadQuiz(), otherwise we load the wrong user's data. */
   var _initPoll = setInterval(function() {
     if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
+    if (typeof window.AA_uid !== 'function') return; /* wait for aa-mirror.js */
     clearInterval(_initPoll);
     _processRetryQueue(); /* Layer 3: flush any queued saves from previous sessions */
     loadQuiz();

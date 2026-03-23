@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260323c'; /* Claude: 2026-03-23 — quiz mirror-load fix + alsoAccept sanitizer */
+var CACHE   = 'aa-shell-20260323d'; /* Claude: 2026-03-23 — quiz init: wait for aa-mirror.js before loading */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
