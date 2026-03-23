@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260323h'; /* Claude: 2026-03-23 — mirror write guards + init poll guard + cache-bust bump */
+var CACHE   = 'aa-shell-20260323i'; /* Claude: 2026-03-23 — mode-enforcer mirror+BBD fix + mode-gate in NEVER_CACHE */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -27,6 +27,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/aa-firebase.js',
   '/Academic-Allies/modular/js/dark-mode.js',
   '/Academic-Allies/modular/js/mode-enforcer.js',
+  '/Academic-Allies/modular/js/mode-gate.js', /* Claude: 2026-03-23 — was missing; SW served stale mode-gate */
   '/Academic-Allies/modular/js/status-circle.js',
   '/Academic-Allies/modular/js/aa-mirror.js',
   '/Academic-Allies/modular/js/study-activity.js',

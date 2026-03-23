@@ -88,61 +88,13 @@
     var custom = (_modeSettings && _modeSettings[modeKey]) || {};
     var result = {};
     FEATURE_KEYS.forEach(function(key) {
-      /* Claude: 2026-03-23 — BBD opt-in overrides mode defaults */
-      if (_isBBDOptedIn(key)) {
-        result[key] = true;
-      } else {
-        result[key] = (custom[key] !== undefined) ? custom[key] : (defaults[key] !== undefined ? defaults[key] : true);
-      }
+      result[key] = (custom[key] !== undefined) ? custom[key] : (defaults[key] !== undefined ? defaults[key] : true);
     });
     return result;
   }
 
-  /* Claude: 2026-03-23 — BBD opt-in check, same logic as mode-gate.js.
-     Lets students who opted-in via the BBD "What do you want today?" picker
-     see the corresponding home-page cards. */
-  var BBD_TO_GATE = {
-    checkin: 'checkin', messages: 'messages', meals: 'mealPlan',
-    spoons: 'spoonPlanner', calendar: 'calendar', study: 'flowerQuiz',
-    comfort: 'comfort'
-  };
-  var GATE_TO_BBD = {};
-  for (var bk in BBD_TO_GATE) { GATE_TO_BBD[BBD_TO_GATE[bk]] = bk; }
-
-  function _isBBDOptedIn(featureKey) {
-    var bbdKey = GATE_TO_BBD[featureKey];
-    if (!bbdKey) return false;
-    try {
-      var uid = _uid;
-      if (!uid) {
-        /* No auth yet — try Firebase auth cache */
-        var keys = Object.keys(localStorage);
-        for (var i = 0; i < keys.length; i++) {
-          if (keys[i].indexOf('firebase:authUser:') === 0) {
-            var authData = JSON.parse(localStorage.getItem(keys[i]) || '{}');
-            uid = authData.uid;
-            break;
-          }
-        }
-      }
-      if (!uid) return false;
-      var data = JSON.parse(localStorage.getItem('AA_BBD_VISIBLE_' + uid) || '{}');
-      return !!data[bbdKey];
-    } catch(e) {}
-    return false;
-  }
-
   /* ── Apply mode to the DOM ── */
   function applyMode(modeKey) {
-    /* Claude: 2026-03-23 — Supporters in mirror mode see everything.
-       The mode-enforcer protects students from overwhelm, not supporters who
-       need full visibility to help. */
-    if (window.AA_MIRROR_UID) {
-      _showAll();
-      _applied = false;
-      return;
-    }
-
     if (!modeKey || modeKey === 'normal') {
       /* Normal mode: show everything — remove any previously hidden items */
       _showAll();
