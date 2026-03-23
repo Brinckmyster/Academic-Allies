@@ -796,12 +796,11 @@
         hints = [];
       }
 
-      /* Claude: 2026-03-23 — preserve alsoAccept for half-credit support */
-      var entry = { term: term, answer: answer, hints: hints };
-      if (Array.isArray(item.alsoAccept) && item.alsoAccept.length > 0) {
-        entry.alsoAccept = item.alsoAccept;
-      }
-      cleaned.push(entry);
+      cleaned.push({
+        term: term,
+        answer: answer,
+        hints: hints
+      });
     });
 
     if (invalidCount > 0) {
@@ -1338,17 +1337,20 @@
   window.toggleShuffleMode = toggleShuffleMode;
   window.loadSavedMissed = loadSavedMissed;
 
-  /* Claude: 2026-03-23 — Robust init: poll for AA + auth instead of fragile 1s timeout.
-     In mirror mode, aa-mirror.js loads async via shared-header fetch. The old setTimeout
-     could fire before AA_MIRROR_UID was set, loading the wrong user's quizzes. */
-  var _initPoll = setInterval(function() {
-    if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
-    clearInterval(_initPoll);
-    _processRetryQueue(); /* Layer 3: flush any queued saves from previous sessions */
-    loadQuiz();
-  }, 100);
-  /* Give up after 15s */
-  setTimeout(function() { clearInterval(_initPoll); }, 15000);
+  /* Initialize on auth state change */
+  if (window.AA && window.AA.auth) {
+    window.AA.auth.onAuthStateChanged(function(user) {
+      if (user) {
+        _processRetryQueue(); /* Layer 3: flush any queued saves from previous sessions */
+        loadQuiz();
+      } else {
+        showError('Not Signed In', 'Please sign in to access this quiz.');
+      }
+    });
+  } else {
+    /* Fallback: load immediately */
+    setTimeout(loadQuiz, 1000);
+  }
 })();
 </script>
 </body>
