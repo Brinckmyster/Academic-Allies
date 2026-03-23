@@ -145,7 +145,7 @@
 <script src="/Academic-Allies/modular/js/mode-gate.js"></script>
 <div id="site-header"></div>
 <script>
-  fetch('/Academic-Allies/modular/shared-header.html?v=20260323')
+  fetch('/Academic-Allies/modular/shared-header.html?v=20260322')
     .then(function(response) { return response.text(); })
     .then(function(html) {
       var container = document.getElementById('site-header');
@@ -208,12 +208,22 @@ var reportedFlowers = JSON.parse(localStorage.getItem('reportedFlowers') || '[]'
 document.getElementById('flower-count').textContent = flowerCount;
 document.getElementById('report-count').textContent = reportedFlowers.length;
 
-/* Claude: 2026-03-23 — REMOVED Firestore restore of flowerCount.
-   Bug: activity.sessions is todaySessions across ALL study tools, not just
-   flower-id. If Mary played 5 match-game rounds first, flower-id counter
-   started at 5. KISS fix: start at 0 each page visit. The count is purely
-   a fun "this session" counter; logSession('flower-id') still records
-   tool usage for the status circle. */
+/* Claude: 2026-03-20 — Load flowerCount from Firestore on auth ready */
+(function() {
+  function _checkAuth() {
+    if (window.AA && window.AA.auth && window.AA.auth.currentUser && window.AA.study) {
+      window.AA.study.wasActiveToday().then(function(activity) {
+        if (activity.tools.indexOf('flower-id') !== -1) {
+          flowerCount = activity.sessions || 0;
+          document.getElementById('flower-count').textContent = flowerCount;
+        }
+      });
+    } else {
+      setTimeout(_checkAuth, 100);
+    }
+  }
+  _checkAuth();
+})();
 
 function shuffleDeck(arr) {
   var a = arr.slice();
