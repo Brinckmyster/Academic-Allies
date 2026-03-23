@@ -480,7 +480,6 @@
   /* Fill-blank quiz state */
   var strictlyCorrect = 0;
   var knewIt = 0;
-  var halfCreditCount = 0; /* Claude: 2026-03-23 — tracks alsoAccept partial credit answers */
 
   /* Match quiz state */
   var matchPairs = {};
@@ -890,7 +889,6 @@
     score = 0;
     strictlyCorrect = 0;
     knewIt = 0;
-    halfCreditCount = 0;
     currentQuestion = 0;
     showFillBlankQuestion();
   }
@@ -928,9 +926,6 @@
     };
   }
 
-  /* Claude: 2026-03-23 — Added alsoAccept support for half-credit answers.
-     Question data can include: alsoAccept: [{answer: "word", credit: 0.5, note: "explanation"}]
-     Half-credit answers get 0.5 points and show the note to help the student learn. */
   function checkAnswer() {
     var userAnswer = document.getElementById('answerInput').value.trim();
     var item = quizData.data[currentQuestion];
@@ -946,19 +941,6 @@
     var isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
     var isClose = levenshteinDistance(userAnswer.toLowerCase(), correctAnswer.toLowerCase()) <= 2;
 
-    /* Check alsoAccept for half-credit answers */
-    var halfMatch = null;
-    if (!isCorrect && !isClose && item.alsoAccept && item.alsoAccept.length) {
-      for (var h = 0; h < item.alsoAccept.length; h++) {
-        var alt = item.alsoAccept[h];
-        var altLower = (alt.answer || '').toLowerCase();
-        if (userAnswer.toLowerCase() === altLower || levenshteinDistance(userAnswer.toLowerCase(), altLower) <= 2) {
-          halfMatch = alt;
-          break;
-        }
-      }
-    }
-
     var feedback = document.getElementById('feedback');
     if (isCorrect) {
       feedback.textContent = 'Correct! ✓';
@@ -972,14 +954,6 @@
       feedback.style.display = 'block';
       knewIt++;
       score++;
-    } else if (halfMatch) {
-      var creditVal = halfMatch.credit || 0.5;
-      var noteText = halfMatch.note ? ' — ' + halfMatch.note : '';
-      feedback.innerHTML = '½ Credit! ' + noteText + '<br><small>Full-credit answer: <strong>' + correctAnswer + '</strong></small>';
-      feedback.classList.remove('error');
-      feedback.style.cssText = 'display:block; background:#fff3cd; color:#856404; border:1px solid #ffc107; padding:10px; border-radius:8px;';
-      halfCreditCount++;
-      score += creditVal;
     } else {
       feedback.textContent = 'Not quite. Correct answer: ' + correctAnswer;
       feedback.classList.add('error');
@@ -988,8 +962,7 @@
       showHints(item);
     }
 
-    var wasRight = isCorrect || isClose || !!halfMatch;
-    answered.push({ term: getPrompt(item), answer: getAnswer(item), userAnswer: userAnswer, correct: wasRight });
+    answered.push({ term: getPrompt(item), answer: getAnswer(item), userAnswer: userAnswer, correct: isCorrect || isClose });
 
     document.getElementById('answerInput').disabled = true;
     document.querySelector('.btn-primary').disabled = true;
@@ -997,7 +970,7 @@
     setTimeout(function() {
       currentQuestion++;
       showFillBlankQuestion();
-    }, halfMatch ? 4000 : 2000);
+    }, 2000);
   }
 
   function showHints(item) {
@@ -1023,8 +996,8 @@
 
     var html = '<div class="results-container">' +
       '<h2>Quiz Complete!</h2>' +
-      '<div class="score">' + (score % 1 !== 0 ? score.toFixed(1) : score) + ' / ' + quizData.data.length + '</div>' +
-      '<p>Correct: ' + strictlyCorrect + ' | Close: ' + knewIt + (halfCreditCount > 0 ? ' | Half Credit: ' + halfCreditCount : '') + ' | Missed: ' + missed.length + '</p>';
+      '<div class="score">' + score + ' / ' + quizData.data.length + '</div>' +
+      '<p>Correct: ' + strictlyCorrect + ' | Close: ' + knewIt + ' | Missed: ' + missed.length + '</p>';
 
     if (missed.length > 0) {
       html += '<div><strong>Review Missed:</strong></div>' +
