@@ -269,12 +269,9 @@
   </style>
 </head>
 <body>
-<!-- Claude: 2026-03-23 — mode-gate: blocks page if spoonPlanner feature is off for current mode -->
-<script>var AA_MODE_GATE = 'spoonPlanner';</script>
-<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
 <div id="site-header"></div>
 <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260323')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260322')
       .then(response => response.text())
       .then(html => {
         const container = document.getElementById('site-header');
@@ -883,11 +880,7 @@
       const tr = document.createElement('tr');
       if (t.status === 'complete') tr.classList.add('completed');
       if (t.fixed) tr.classList.add('task-fixed'); // Claude: 2026-03-07 — teal left border for fixed-time tasks
-      /* Claude: 2026-03-23 — fix midnight wrap: if current time is before dayStart
-         (e.g. 1 AM when dayStart is 8), we're in the "overnight" portion of the day.
-         Adjust now the same way we adjust task times so 1 AM > 10 PM. */
-      let now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
-      if (now < dayStart * 60) now += 1440;
+      const now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
       let taskTime = parseTime(t.time);
       let adjTaskTime = taskTime;
       if (taskTime < dayStart * 60) adjTaskTime += 1440;
@@ -1756,9 +1749,7 @@
   // Scan timeline for overdue non-fixed incomplete tasks and queue them in time order.
   function checkOverdueTasks() {
     if (!timeline || timeline.length === 0) return;
-    /* Claude: 2026-03-23 — fix midnight wrap (same as renderTimeline) */
-    let now = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
-    if (now < dayStart * 60) now += 1440;
+    const now = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
     const overdue = [];
     for (let i = 0; i < timeline.length; i++) {
       const task = timeline[i];
