@@ -58,7 +58,9 @@
     comfort: [
       'a.module-card[href*="recovery-mode.html"]'
     ],
-    flowerQuiz: [],  /* no DOM element yet — ready for when it's added */
+    flowerQuiz: [
+      'a.module-card[href*="study-tools.html"]'  /* Claude: 2026-03-23 — Study Tools card added to home page */
+    ],
     /* Claude: 2026-03-12 — #supportDashCard removed from mode-enforcer.
        Support Dashboard is role-gated (shared-header controls visibility for
        backstage-manager, network-lead, support roles). Mode-enforcer was
