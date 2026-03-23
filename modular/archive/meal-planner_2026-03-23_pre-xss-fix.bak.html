@@ -540,10 +540,9 @@
         return;
       }
       if (sendBtn) sendBtn.style.display = '';
-      /* Claude: 2026-03-23 — escape user input to prevent XSS via Firestore suggestion data */
       list.innerHTML = _suggestedMeals.map(function(m, i) {
         return '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:white;border-radius:8px;margin-bottom:6px;">' +
-          '<span style="flex:1;font-size:0.95rem;">' + (m.type ? esc(m.type) + ': ' : '') + esc(m.name) + (m.time ? ' at ' + esc(m.time) : '') + '</span>' +
+          '<span style="flex:1;font-size:0.95rem;">' + (m.type ? m.type + ': ' : '') + m.name + (m.time ? ' at ' + m.time : '') + '</span>' +
           '<button onclick="_suggestedMeals.splice(' + i + ',1);_renderSugMeals();" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">✕</button>' +
         '</div>';
       }).join('');
@@ -570,17 +569,15 @@
         var banner = document.createElement('div');
         banner.id = 'meal-suggestion-banner';
         banner.style.cssText = 'background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:16px;';
-        /* Claude: 2026-03-23 — escape all Firestore data to prevent XSS */
         var mealList = (s.meals || []).map(function(m) {
-          return '<li style="padding:4px 0;">' + (m.type ? esc(m.type) + ': ' : '') + esc(m.name) + (m.time ? ' at ' + esc(m.time) : '') + '</li>';
+          return '<li style="padding:4px 0;">' + (m.type ? m.type + ': ' : '') + m.name + (m.time ? ' at ' + m.time : '') + '</li>';
         }).join('');
-        var safeId = esc(s.id).replace(/'/g, '&#39;');
         banner.innerHTML =
-          '<p style="font-weight:700;color:#92400e;margin-bottom:8px;">💡 Meal suggestion from ' + esc(s.suggestedByName || 'your supporter') + '</p>' +
+          '<p style="font-weight:700;color:#92400e;margin-bottom:8px;">💡 Meal suggestion from ' + (s.suggestedByName || 'your supporter') + '</p>' +
           '<ul style="list-style:none;padding:0;margin-bottom:12px;color:#78350f;">' + mealList + '</ul>' +
           '<div style="display:flex;gap:8px;">' +
-            '<button onclick="_acceptMealSug(\'' + safeId + '\')" style="background:#22c55e;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;cursor:pointer;font-weight:600;">Add to My Meals</button>' +
-            '<button onclick="_dismissMealSug(\'' + safeId + '\')" style="background:#999;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;cursor:pointer;font-weight:600;">No Thanks</button>' +
+            '<button onclick="_acceptMealSug(\'' + s.id + '\')" style="background:#22c55e;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;cursor:pointer;font-weight:600;">Add to My Meals</button>' +
+            '<button onclick="_dismissMealSug(\'' + s.id + '\')" style="background:#999;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;cursor:pointer;font-weight:600;">No Thanks</button>' +
           '</div>';
         var body = document.getElementById('planner-body');
         var title = document.getElementById('planner-title');

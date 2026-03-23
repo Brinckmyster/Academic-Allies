@@ -559,8 +559,6 @@ var _cfgPoll = setInterval(function() {
 
       /* Sort quizzes by trimester, then group by class within each */
       var byTrimester = {};  /* trimesterId → [{quiz, idx, shortTitle}] */
-      /* Claude: 2026-03-23 — escape helper for Firestore quiz data */
-      function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
       var orphans = [];       /* quizzes without a trimester field */
 
       customQuizzes.forEach(function(quiz, idx) {
@@ -608,11 +606,10 @@ var _cfgPoll = setInterval(function() {
             var itemCount = quiz.data ? quiz.data.length : 0;
 
             html += '<div class="tool-card" data-quiz-idx="' + entry.idx + '">';
-            /* Claude: 2026-03-23 — escape Firestore quiz data to prevent XSS */
-            html += '<h3>' + typeIcon + esc(entry.shortTitle);
+            html += '<h3>' + typeIcon + entry.shortTitle;
             html += ' <span class="score-dot" style="display:none;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-left:6px;"></span>';
             html += '</h3>';
-            html += '<p>' + esc(quiz.description || '') + '</p>';
+            html += '<p>' + (quiz.description || '') + '</p>';
             html += '<div class="tags">';
             html += '<span class="tag">' + typeLabel + '</span>';
             if (itemCount > 0) html += '<span class="tag">' + itemCount + ' items</span>';

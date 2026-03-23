@@ -1,6 +1,3 @@
-/* Claude: 2026-03-23 — DEAD CODE. This file is not loaded by any live page.
-   Auth is handled by aa-firebase.js + shared-header.html since 2026-02.
-   Archived to modular/archive/app_2026-03-23_dead-code.bak.js */
 // Edited by CAj for line-by-line verification test
 // js/app.js — Full Google One-Tap + Persistent Button + Status Circle
 import

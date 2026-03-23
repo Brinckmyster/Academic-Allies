@@ -1,6 +1,3 @@
-/* Claude: 2026-03-23 — DEAD CODE. This file is not loaded by any live page.
-   Dashboard navigation is handled inline in index.html via module-card links.
-   Archived to modular/archive/main_2026-03-23_dead-code.bak.js */
 // CAj fix: functional navigation for dashboard buttons.
 
 // Dashboard button navigation functionality

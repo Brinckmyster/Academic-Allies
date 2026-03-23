@@ -1,6 +1,3 @@
-/* Claude: 2026-03-23 — DEAD CODE. This file is not loaded by any live page.
-   Header loading is handled inline on each page via fetch() since 2026-02.
-   Archived to modular/archive/header-loader_2026-03-23_dead-code.bak.js */
 // header-loader.js - Loads the shared header into all pages and executes scripts
 (function() {
   // Calculate the correct path to shared-header.html based on current page location
