@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260323x'; /* Claude: 2026-03-23 — Fix false red alert on index.html (same missing nope.active check) */
+var CACHE   = 'aa-shell-20260323y'; /* Claude: 2026-03-23 — waitForAA 8s→30s + retry button; spoon-pal/planner in NEVER_CACHE */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -31,6 +31,9 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/js/status-circle.js',
   '/Academic-Allies/modular/js/aa-mirror.js',
   '/Academic-Allies/modular/js/study-activity.js',
+  '/Academic-Allies/modular/js/student-config.js', /* Claude: 2026-03-23 — frequently edited config system */
+  '/Academic-Allies/modular/components/spoon-planner/spoon-pal.html',    /* Claude: 2026-03-23 — was being cached, serving stale code */
+  '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html', /* Claude: 2026-03-23 */
   '/Academic-Allies/sw.js'
 ];
 
@@ -61,7 +64,7 @@ var SHELL = [
   /* Feature pages */
   '/Academic-Allies/modular/components/audio-notes/audio-notes.html',
   '/Academic-Allies/modular/components/meal-planner/meal-planner.html',
-  '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html',
+  /* Claude: 2026-03-23 — spoon-planner.html moved to NEVER_CACHE (was serving stale code) */
   '/Academic-Allies/modular/components/recovery-mode.html',
   '/Academic-Allies/modular/components/bad-brain-day.html',
   '/Academic-Allies/modular/components/message-system/message-system.html',

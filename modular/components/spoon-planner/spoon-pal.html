@@ -2077,13 +2077,30 @@
     document.getElementById('legend').textContent = legendText;
   }
 
-  /* Claude: 2026-03-14 — added max tries (80 × 100ms = 8s) to prevent infinite polling */
+  /* Claude: 2026-03-23 — increased from 80×100ms (8s) to 300×100ms (30s).
+     8 seconds was too short — Firebase CDN can take 10-15s on slow connections,
+     causing a premature "Could not connect" error. Also added a retry button
+     so users don't have to fully reload the page.
+     Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
+  var _waitForAACb = null;
   function waitForAA(cb, n) {
+    _waitForAACb = cb;
     n = n || 0;
     if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-    if (n > 80) {
+    if (n > 300) {
       var wi = document.getElementById('weatherInfo');
-      if (wi) wi.textContent = 'Could not connect — please refresh.';
+      if (wi) wi.innerHTML = '';
+      if (wi) {
+        wi.textContent = 'Could not connect. ';
+        var retryBtn = document.createElement('button');
+        retryBtn.textContent = 'Retry';
+        retryBtn.style.cssText = 'background:#6CA0A3;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:14px;margin-left:8px;';
+        retryBtn.onclick = function() {
+          wi.textContent = 'Reconnecting...';
+          waitForAA(_waitForAACb, 0);
+        };
+        wi.appendChild(retryBtn);
+      }
       return;
     }
     setTimeout(function() { waitForAA(cb, n + 1); }, 100);
