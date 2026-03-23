@@ -1836,8 +1836,28 @@
       };
     });
 
+    /* Claude: 2026-03-23 — save the FULL timeline so edits (time changes, new tasks,
+       spoon cost tweaks, description edits) survive page reload. Previously only the
+       tracking overlay was saved, so every reload rebuilt from SpoonPlanner and lost
+       all in-SpoonPal edits. The saved timeline is keyed by dateKey so tomorrow starts
+       fresh from SpoonPlanner again.
+       Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
+    var savedTimeline = timeline.map(function(t) {
+      return {
+        time: t.time || '',
+        lmj: t.lmj || '',
+        description: t.description || '',
+        spoon: t.spoon || 0,
+        priority: t.priority || 'Medium',
+        fixed: t.fixed || false,
+        status: t.status || 'incomplete',
+        notes: t.notes || ''
+      };
+    });
+
     var obj = {
       taskTracking: taskTracking,
+      savedTimeline: savedTimeline,
       checkIn: checkIn,
       spoonDebtHistory: spoonDebtHistory,
       dayStart: dayStart,
@@ -1883,52 +1903,91 @@
         var plannerDoc = results[0];
         var trackingDoc = results[1];
 
-        // 1. Build timeline from SpoonPlanner tasks
-        var plannerTasks = [];
-        if (plannerDoc.exists) {
-          var plannerData = plannerDoc.data();
-          plannerTasks = plannerData.tasks || [];
+        /* Claude: 2026-03-23 — Check for savedTimeline first.
+           If SpoonPal already has a full saved timeline for TODAY,
+           use it directly instead of rebuilding from SpoonPlanner.
+           This preserves in-SpoonPal edits (time bumps, reorders, etc.)
+           across page reloads. Fresh day = fresh rebuild from SpoonPlanner.
+           Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
+        var usedSavedTimeline = false;
+        if (trackingDoc.exists) {
+          var tracking = trackingDoc.data();
+          var todayKey = getTodayKey();
+          if (tracking.savedTimeline && tracking.savedTimeline.length > 0 &&
+              tracking.dateKey === todayKey) {
+            // Restore full timeline from saved data
+            timeline = tracking.savedTimeline.map(function(st) {
+              return {
+                time: st.time || '',
+                lmj: st.lmj || '',
+                description: st.description || '',
+                spoon: st.spoon || 0,
+                priority: st.priority || 'Medium',
+                fixed: st.fixed || false,
+                status: st.status || 'incomplete',
+                notes: st.notes || ''
+              };
+            });
+            usedSavedTimeline = true;
+            console.log('[SpoonPal] Restored savedTimeline for today (' + todayKey + '), ' + timeline.length + ' tasks');
+          }
         }
 
-        timeline = plannerTasks.map(function(pt) {
-          // Map SpoonPlanner format → SpoonPal timeline format
-          var timeStr = (pt.time || '');
-          // SpoonPlanner may store as HH:MM (24h) or "8:30 AM" — handle both
-          if (timeStr && /^\d{2}:\d{2}$/.test(timeStr)) {
-            timeStr = from24h(timeStr);
+        // If no savedTimeline for today, rebuild from SpoonPlanner tasks
+        if (!usedSavedTimeline) {
+          // 1. Build timeline from SpoonPlanner tasks
+          var plannerTasks = [];
+          if (plannerDoc.exists) {
+            var plannerData = plannerDoc.data();
+            plannerTasks = plannerData.tasks || [];
           }
-          return {
-            time: timeStr,
-            lmj: '',
-            description: stripLeadingEmoji(pt.name || ''),
-            spoon: pt.spoons || 0,
-            priority: pt.priority || 'Medium',
-            fixed: false,
-            status: pt.completed ? 'complete' : 'incomplete',
-            notes: ''
-          };
-        });
+
+          timeline = plannerTasks.map(function(pt) {
+            // Map SpoonPlanner format → SpoonPal timeline format
+            var timeStr = (pt.time || '');
+            // SpoonPlanner may store as HH:MM (24h) or "8:30 AM" — handle both
+            if (timeStr && /^\d{2}:\d{2}$/.test(timeStr)) {
+              timeStr = from24h(timeStr);
+            }
+            return {
+              time: timeStr,
+              lmj: '',
+              description: stripLeadingEmoji(pt.name || ''),
+              spoon: pt.spoons || 0,
+              priority: pt.priority || 'Medium',
+              fixed: false,
+              status: pt.completed ? 'complete' : 'incomplete',
+              notes: ''
+            };
+          });
+          console.log('[SpoonPal] Built fresh timeline from SpoonPlanner, ' + timeline.length + ' tasks');
+        }
 
         // 2. Overlay tracking data from SpoonPal
         if (trackingDoc.exists) {
           var tracking = trackingDoc.data();
-          var taskTracking = tracking.taskTracking || [];
 
-          // Merge per-task tracking by index, verified by matchName
-          timeline.forEach(function(t, i) {
-            if (taskTracking[i]) {
-              var tr = taskTracking[i];
-              // If matchName matches (or no matchName stored), overlay tracking
-              if (!tr.matchName || tr.matchName === t.description) {
-                t.lmj = tr.lmj || '';
-                t.fixed = tr.fixed || false;
-                t.status = tr.status || t.status;
-                t.notes = tr.notes || '';
+          // Only overlay per-task tracking if we rebuilt from SpoonPlanner
+          // (savedTimeline already includes lmj/status/notes)
+          if (!usedSavedTimeline) {
+            var taskTracking = tracking.taskTracking || [];
+
+            // Merge per-task tracking by index, verified by matchName
+            timeline.forEach(function(t, i) {
+              if (taskTracking[i]) {
+                var tr = taskTracking[i];
+                // If matchName matches (or no matchName stored), overlay tracking
+                if (!tr.matchName || tr.matchName === t.description) {
+                  t.lmj = tr.lmj || '';
+                  t.fixed = tr.fixed || false;
+                  t.status = tr.status || t.status;
+                  t.notes = tr.notes || '';
+                }
               }
-            }
-          });
+            });
+          }
 
-          // Load non-task tracking data
+          // Load non-task tracking data (always, regardless of savedTimeline)
           checkIn = tracking.checkIn || checkIn;
           spoonDebtHistory = tracking.spoonDebtHistory || [];
           dayStart = tracking.dayStart || 8;
@@ -1945,14 +2004,16 @@
             }
           }
 
-          // Stale-data / day rollover check
-          var storedDateKey = tracking.dateKey || null;
-          var todayKey = getTodayKey();
-          if (storedDateKey && storedDateKey < todayKey) {
-            isInitialLoad = false;
-            if (callback) callback();
-            setTimeout(function() { showRolloverPreview(-1); }, 800);
-            return;
+          // Stale-data / day rollover check (skip if we already validated dateKey above)
+          if (!usedSavedTimeline) {
+            var storedDateKey = tracking.dateKey || null;
+            var todayKey = getTodayKey();
+            if (storedDateKey && storedDateKey < todayKey) {
+              isInitialLoad = false;
+              if (callback) callback();
+              setTimeout(function() { showRolloverPreview(-1); }, 800);
+              return;
+            }
           }
         }
 

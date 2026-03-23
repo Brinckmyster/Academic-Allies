@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260323y'; /* Claude: 2026-03-23 — waitForAA 8s→30s + retry button; spoon-pal/planner in NEVER_CACHE */
+var CACHE   = 'aa-shell-20260323z'; /* Claude: 2026-03-23 — SpoonPal savedTimeline persistence; quiet alert requires 3+ check-ins for baseline */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -34,6 +34,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/js/student-config.js', /* Claude: 2026-03-23 — frequently edited config system */
   '/Academic-Allies/modular/components/spoon-planner/spoon-pal.html',    /* Claude: 2026-03-23 — was being cached, serving stale code */
   '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html', /* Claude: 2026-03-23 */
+  '/Academic-Allies/modular/components/support-dashboard/support-dashboard.html', /* Claude: 2026-03-23 — quiet alert fix */
   '/Academic-Allies/sw.js'
 ];
 
