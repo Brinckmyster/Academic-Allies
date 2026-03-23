@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260323u'; /* Claude: 2026-03-23 — Fix SpoonPal config format mismatch, budget bug, mirror guard; SpoonPlanner drag-save + XSS */
+var CACHE   = 'aa-shell-20260323v'; /* Claude: 2026-03-23 — Fix support dashboard false red alert (missing nope.active check) */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
