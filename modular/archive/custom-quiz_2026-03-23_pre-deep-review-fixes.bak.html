@@ -1340,12 +1340,9 @@
   /* Claude: 2026-03-23 — Robust init: poll for AA + auth + mirror system.
      aa-mirror.js loads async via shared-header fetch and sets AA_uid() + AA_MIRROR_UID.
      We must wait for it before calling loadQuiz(), otherwise we load the wrong user's data. */
-  var _initDone = false; /* Claude: 2026-03-23 — guard against double-fire between poll intervals */
   var _initPoll = setInterval(function() {
-    if (_initDone) return;
     if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
     if (typeof window.AA_uid !== 'function') return; /* wait for aa-mirror.js */
-    _initDone = true;
     clearInterval(_initPoll);
     _processRetryQueue(); /* Layer 3: flush any queued saves from previous sessions */
     loadQuiz();

@@ -612,16 +612,8 @@
       });
   };
 
-  /* Claude: 2026-03-23 — Mirror guard helper. Supporters in read-only mirror mode
-     must not directly write student data — they should suggest instead.
-     Network-leads (AA_MIRROR_CAN_WRITE) are allowed through. */
-  function _mirrorWriteBlocked() {
-    return window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE;
-  }
-
   /* Write (merge) nope status */
   window.AA.setNopeMode = function (uid, mode, semiVisible, activatedAt) {
-    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     var data = {
       mode:              mode,
       semi_nope_visible: semiVisible || {},
@@ -634,7 +626,6 @@
   /* Clear nope — set everything to null/empty */
   /* Claude: 2026-03-16 — merge:true so future fields on nope doc aren't wiped */
   window.AA.clearNope = function (uid) {
-    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     return db.collection('nope').doc(uid).set({
       mode:              null,
       activatedAt:       null,
@@ -648,7 +639,6 @@
      'nope', 'semi', 'recovery', 'bad-brain', 'migraine', or null (normal).
      Archive: modular/archive/aa-firebase_2026-03-21_pre-setActiveMode.bak.js */
   window.AA.setActiveMode = function (uid, mode) {
-    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     return db.collection('nope').doc(uid).set({
       mode:        mode || null,
       activatedAt: mode ? firebase.firestore.FieldValue.serverTimestamp() : null,
@@ -658,7 +648,6 @@
 
   /* Append to nope activity log (sub-collection) */
   window.AA.addNopeLog = function (uid, event) {
-    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     return db.collection('nope').doc(uid).collection('logs').add({
       event:     event,
       flag:      'red',
@@ -740,7 +729,6 @@
      tier        = 'network-lead' | 'family' | 'support' | 'nearby-help'  */
   /* Claude: 2026-03-16 — added network-lead cap check before assignment */
   window.AA.setNetworkMember = function (studentUid, memberUid, tier) {
-    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     /* If assigning network-lead, enforce the per-student cap first */
     var capCheck = (tier === 'network-lead')
       ? window.AA.checkNetworkLeadCap(studentUid, memberUid)
@@ -759,7 +747,6 @@
 
   /* Remove someone from a student's support network */
   window.AA.removeNetworkMember = function (studentUid, memberUid) {
-    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     var update = {};
     update['supportNetwork.' + memberUid] = firebase.firestore.FieldValue.delete();
     // Clear the isSupporter flag from the member's doc
