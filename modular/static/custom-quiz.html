@@ -723,32 +723,30 @@
     });
   }
 
+  /* Claude: 2026-03-23 — Fixed broken brace structure. Had orphaned }).catch() from
+     a prior refactor that crashed the entire script block as a SyntaxError. */
   function _useMissedData(prev) {
     if (!prev || !prev.missedItems || prev.missedItems.length === 0) {
       alert('No missed items from your last attempt — you got them all!');
       return;
     }
 
-      /* Build quiz data from saved missed items */
-      var missedTerms = {};
-      prev.missedItems.forEach(function(m) { missedTerms[m.term] = true; });
-      var filteredData = originalData.filter(function(item) {
-        return missedTerms[item.term] || missedTerms[item.answer];
-      });
-
-      if (filteredData.length === 0) {
-        alert('Could not match saved missed items to current quiz data.');
-        return;
-      }
-
-      quizData.data = shuffleMode ? shuffleArray(filteredData) : filteredData;
-      if (quizType === 'fill-blank') { renderFillBlankQuiz(); }
-      else if (quizType === 'match') { renderMatchQuiz(); }
-      else if (quizType === 'flashcards') { renderFlashcardQuiz(); }
-    }).catch(function(e) {
-      console.warn('[Quiz] Failed to load missed items:', e);
-      alert('Could not load saved progress.');
+    /* Build quiz data from saved missed items */
+    var missedTerms = {};
+    prev.missedItems.forEach(function(m) { missedTerms[m.term] = true; });
+    var filteredData = originalData.filter(function(item) {
+      return missedTerms[item.term] || missedTerms[item.answer];
     });
+
+    if (filteredData.length === 0) {
+      alert('Could not match saved missed items to current quiz data.');
+      return;
+    }
+
+    quizData.data = shuffleMode ? shuffleArray(filteredData) : filteredData;
+    if (quizType === 'fill-blank') { renderFillBlankQuiz(); }
+    else if (quizType === 'match') { renderMatchQuiz(); }
+    else if (quizType === 'flashcards') { renderFlashcardQuiz(); }
   }
 
   function getUrlParam(name) {
