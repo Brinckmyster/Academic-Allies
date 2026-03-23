@@ -634,7 +634,12 @@
 
   // Variables
   let timeline = [];
-  let checkIn = {pain: 7, fatigue: 5, sleep: 8.33, mood: 'poor'};
+  /* Claude: 2026-03-23 — changed default pain/fatigue to match actual button values.
+     Old defaults (pain:7, fatigue:5) didn't correspond to any check-in button,
+     so no button was highlighted on fresh load but budget showed mystery deductions.
+     Now defaults to Medium (6) for pain, Low (3) for fatigue — visible in UI.
+     Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
+  let checkIn = {pain: 6, fatigue: 3, sleep: 8.33, mood: 'poor'};
   let spoonDebtHistory = [];
   let dayStart = 8;
   let dayEnd = 25;
@@ -1106,10 +1111,14 @@
       // Skip individual task templates (type === 'task'), show only day templates
       if (!isDay) continue;
 
+      /* Claude: 2026-03-23 — XSS fix: template names are user-controlled,
+         so use textContent instead of innerHTML to prevent injection.
+         Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
       const item = document.createElement('div');
       item.classList.add('template-item');
-      const label = `📅 ${key} — Day template (${(temp.tasks || []).length} tasks)`;
-      item.innerHTML = `<span>${label}</span>`;
+      const span = document.createElement('span');
+      span.textContent = '📅 ' + key + ' — Day template (' + (temp.tasks || []).length + ' tasks)';
+      item.appendChild(span);
 
       // Edit button (for user templates, not locked templates)
       const editBtn = document.createElement('button');

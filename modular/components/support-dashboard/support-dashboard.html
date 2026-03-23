@@ -591,7 +591,11 @@
       }
       Promise.all(studentsInNetwork.map(function(s) {
         return AA.db.collection('nope').doc(s.uid).get().then(function(doc) {
-          var mode = doc.exists ? doc.data().mode : null;
+          /* Claude: 2026-03-23 — must check .active before reading mode.
+             Deactivated modes (active:false) should not affect priority.
+             Same fix applied to grid rendering (line 1527) and quiet alert. */
+          var data = doc.exists ? doc.data() : null;
+          var mode = (data && data.active) ? data.mode : null;
           var priority = (mode && _MODE_PRIORITY[mode] !== undefined) ? _MODE_PRIORITY[mode] : 10;
           return { uid: s.uid, name: s.name, priority: priority, mode: mode };
         }).catch(function() {
@@ -628,7 +632,9 @@
       /* Step 2: async upgrade — add mode emojis once Firestore responds */
       Promise.all(studentsInNetwork.map(function(s) {
         return AA.db.collection('nope').doc(s.uid).get().then(function(doc) {
-          var mode = doc.exists ? doc.data().mode : null;
+          /* Claude: 2026-03-23 — check .active before reading mode (same pattern as grid + auto-select) */
+          var data = doc.exists ? doc.data() : null;
+          var mode = (data && data.active) ? data.mode : null;
           var opt = document.getElementById('picker-opt-' + s.uid);
           if (opt) opt.textContent = (_PICKER_MODE_EMOJI[mode] || '🟢 ') + s.name;
         }).catch(function() {});
