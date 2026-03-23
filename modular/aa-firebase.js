@@ -865,7 +865,9 @@
   };
 
   /* Save / merge a student's meal plan base plan */
+  /* Claude: 2026-03-23 — added mirror guard; supporters must suggest, not write directly */
   window.AA.saveMealBasePlan = function (uid, plan) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     return db.collection('mealPlans').doc(uid).set(
       Object.assign({}, plan, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() }),
       { merge: true }
@@ -879,7 +881,9 @@
      Added 2026-02-19 by Claude */
 
   /* Save a check-in entry (merges into that day's doc) */
+  /* Claude: 2026-03-23 — added mirror guard */
   window.AA.saveCheckin = function (uid, dateKey, entry) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     return db.collection('checkins').doc(uid)
       .collection('days').doc(dateKey)
       .set({
@@ -933,7 +937,9 @@
 
   /* Save/overwrite today's meal list */
   /* Claude: 2026-03-16 — merge:true to protect any future metadata on meal docs */
+  /* Claude: 2026-03-23 — added mirror guard */
   window.AA.saveMealLog = function (uid, dateKey, meals) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     return db.collection('mealLogs').doc(uid)
       .collection('days').doc(dateKey)
       .set({
@@ -973,7 +979,9 @@
 
   // ── SpoonPal ────────────────────────────────────────────────────
   /* Claude: 2026-03-16 — merge:true to protect SpoonPal data from overwrites */
+  /* Claude: 2026-03-23 — added mirror guard (defense-in-depth; spoon-pal.html also guards) */
   window.AA.saveSpoonPal = function (uid, obj) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     return db.collection('spoonPal').doc(uid).set(obj, { merge: true });
   };
 
@@ -1188,7 +1196,9 @@
      Added 2026-02-26 by Claude.
   ─────────────────────────────────────────────────────────── */
 
+  /* Claude: 2026-03-23 — added mirror guard; NLs (CAN_WRITE) can still update profiles */
   window.AA.saveStudentProfile = function (studentUid, profile) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     var user = auth.currentUser;
     if (!user) return Promise.reject(new Error('Must be signed in'));
     return db.collection('users').doc(studentUid).update({
@@ -1296,7 +1306,9 @@
      Schema: { tasks[], dailySpoons, yesterdayTasks[], updatedAt }
      Added 2026-02-26 by Claude.
   ─────────────────────────────────────────────────────────── */
+  /* Claude: 2026-03-23 — added mirror guard; supporters must use suggestSpoonPlan() instead */
   window.AA.saveSpoonPlan = function (uid, data) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     return db.collection('spoonPlans').doc(uid).set(
       Object.assign({}, data, {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
