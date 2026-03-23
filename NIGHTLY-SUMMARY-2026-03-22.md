@@ -1,14 +1,15 @@
-# Nightly Deep Audit — 2026-03-22
+# Nightly Deep Audit — 2026-03-22 (Rev 2 — post-housekeeping)
 
 **Audited by:** Claude
 **Scope:** Full audit — Broken Resources, Auth & Security, Cache Consistency, Code Quality, Archive Hygiene, Redundancy (7 sub-checks), Misplaced Files & Branches
 **Previous audit:** 2026-03-21
+**Note:** This replaces the earlier 2026-03-22 draft written before today's housekeeping commit (bd80f2b) and Paw Points feature additions (325570b, fe43e5e).
 
 ---
 
-## Overall Status: HEALTHY
+## Overall Status: HEALTHY with HOUSEKEEPING NEEDED
 
-No critical bugs. No broken file references. No unguarded Firestore writes on active user-facing pages. The main items this cycle are housekeeping carryovers from yesterday that haven't been actioned yet, one new cache version inconsistency from the streak-cat feature added yesterday, and a persistent ES5 style note on spoon-pal.html.
+No critical bugs. No broken file references. No unguarded Firestore writes on active user-facing pages. The Paw Points / Streak Shields economy added today is clean. Main outstanding item is **37 misplaced archive files** that the housekeeping commit did not fully address. Git commands to fix are provided in §5.
 
 ---
 
@@ -16,227 +17,291 @@ No critical bugs. No broken file references. No unguarded Firestore writes on ac
 
 **Status: CLEAN**
 
-All `<script src>`, `<link href>`, and `<img src>` references across all active HTML files resolve to files that exist on disk. All JS modules, icons, CSS, and HTML components are correctly in place. The `streak-cat.html` page (added 2026-03-21) is wired up correctly.
+- All `<script src>`, `<img src>`, and `<link href>` references across all active HTML files resolve to files that exist on disk.
+- All icons referenced in `shared-header.html` (`home.png`, `mode-*.png`) exist in `modular/icons/`.
+- All JS modules listed in `sw.js` NEVER_CACHE exist: `study-activity.js`, `mode-enforcer.js`, `status-circle.js`, `aa-mirror.js`, `dark-mode.js`, `aa-firebase.js`, `shared-header.html`, `shared-footer.html` — all confirmed present.
+- All pages in sw.js SHELL pre-cache list resolve correctly. (`/Academic-Allies/` root and `/Academic-Allies/index.html` are the same entry — minor cosmetic duplicate, not a bug.)
+- One dynamic icon path (`/Academic-Allies/modular/icons/' + src + '`) is a JavaScript template — not a broken reference, just a flagged pattern in the grep. Expected.
+- `streak-cat.html` added 2026-03-21 is NOT in the SHELL pre-cache list. Since it's not a crisis page, this is acceptable for now. Worth adding if offline play becomes a goal.
 
-No broken references found.
+**No broken references found.**
 
 ---
 
 ## 2. Auth & Security
 
-**Status: CLEAN on active user pages — context notes on utility pages**
+**Status: CLEAN — no regressions from today's commits**
 
 Core auth is solid:
-- `aa-firebase.js` correctly uses `_persistenceReady` promise with 8s/15s timeout before any auth-dependent operations.
-- All primary user-facing pages (`checkin.html`, `admin.html`, `nope-mode.html`, `semi-nope.html`, `spoon-pal.html`, `audio-notes.html`, `message-system.html`, `calendar.html` via shared-header, `streak-cat.html`) gate on auth via `onAuthStateChanged` or the shared header.
-- Mirror guard pattern (`if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;`) is consistently applied on all active user-facing writes (verified in previous audit; no regressions found in new code added 2026-03-21).
+- `aa-firebase.js` correctly uses `_persistenceReady` promise with 8s/15s timeout serializing auth-dependent operations.
+- Mirror guard pattern (`if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;`) is consistently applied on all active user-facing writes.
+- **New this cycle — Paw Points / Streak Shields (streak-cat.html):** The save function at line 1366 checks the mirror guard before any Firestore write. `state.pawPoints` defaults to `|| 0` on all reads from Firestore. Purchase functions (`repairStreak`, `purchaseItem`) check `state.pawPoints >= cost` before deducting. No unsafe writes found.
 
-**Context notes (not bugs — utility/static pages):**
+**Utility/static pages without auth check (intentional — no personal data writes):**
+- `audio-converter.html`, `bedroom-planner.html`, `status-circle.html` — tools/demos
+- `mary-crossword-floral.html`, `mary-wordsearch-cooking.html` — static study tools
+- `accommodation-request.html`, `counselor-outreach.html`, `templates.html` — printable templates
 
-The following pages have no `onAuthStateChanged` and/or Firestore writes without mirror guards. These appear to be intentionally public static or admin seeder pages, not user-facing features:
-
-- `floral-flashcards.html`, `floral-match-game.html`, `floral-study-sheet.html`, `floral-flower-id.html`, `floral-genus-practice.html`, `floral-speed-round.html`, `floral-missed-tracker.html` — Static study tools, no auth needed
-- `templates.html`, `accommodation-request.html`, `counselor-outreach.html` — Template/printable pages, no write ops on personal data
-- `seed-mary-contacts.html`, `network-invite.html` — Admin seeder tools, intentionally unguarded
-- `resources.html`, `network-lead-guide.html` — Public info pages
-- `bedroom-planner.html` — Static planner tool
-
-If any of these pages are intended to write personal user data in the future, mirror guards will need to be added at that time.
+No regressions. No auth bypasses found.
 
 ---
 
 ## 3. Cache Consistency
 
-**Status: WARNING — streak-cat.html on a different version than all other pages**
+**Status: CLEAN — fully synced to 20260322 after housekeeping commit**
 
-- `sw.js` cache name: `aa-shell-20260321u` — current, no issues.
-- `NEVER_CACHE` list covers: `shared-header.html`, `shared-footer.html`, `aa-firebase.js`, `dark-mode.js`, `mode-enforcer.js`, `status-circle.js`, `aa-mirror.js`, `study-activity.js`, `sw.js` — comprehensive, no gaps found.
-- `shared-footer.html` is fetched from `shared-header.html` at `v=20260316c` — older but footer hasn't changed since, so no user impact. Bump when footer next changes.
+Today's housekeeping commit (bd80f2b) synced all cache-bust strings:
 
-**Version split:**
-- 42 active pages load `shared-header.html?v=20260320`
-- **`streak-cat.html` (added 2026-03-21) loads `shared-header.html?v=20260321`** — this page was created after the others, so it got a newer version string. Since all 43 pages point to the same actual file, this is cosmetically inconsistent but has no functional impact. Recommend aligning all pages to `v=20260321` at the next shared-header edit to re-sync the fleet.
+- `sw.js` cache name: `aa-shell-20260322a` — current ✓
+- All active pages: `shared-header.html?v=20260322` — confirmed consistent across all 43+ pages ✓
+- `aa-firebase.js?v=20260322` — consistent ✓
+- `aa-mirror.js?v=20260322` — consistent ✓ (previously stale in nope-mode/semi-nope — **fixed**)
+- Script tags in shared-header: `draggable.js`, `aa-mirror.js`, `study-activity.js`, `status-circle.js`, `migraine-mode.js`, `dark-mode.js`, `mode-enforcer.js` — all at `v=20260322` ✓
+- `shared-footer.html?v=20260322` — consistent ✓
 
-**Stale version strings on nope-mode and semi-nope:**
-- Both pages load `aa-firebase.js?v=20260316a` — the actual file was last modified 2026-03-21. Since `aa-firebase.js` is in NEVER_CACHE for the service worker, the SW always serves the latest version. However, browsers may still cache based on URL query string for direct page loads. Low risk, but worth bumping these version strings on the next edit to those pages.
-- Both pages load `aa-mirror.js?v=20260319a` — shared-header uses `v=20260320b`. Same reasoning as above. Low risk but worth aligning.
+**NEVER_CACHE list is comprehensive** (9 entries): `shared-header.html`, `shared-footer.html`, `aa-firebase.js`, `dark-mode.js`, `mode-enforcer.js`, `status-circle.js`, `aa-mirror.js`, `study-activity.js`, `sw.js` — no gaps.
+
+**No cache version inconsistencies found this cycle.**
 
 ---
 
 ## 4. Code Quality
 
-**Status: LOW-LEVEL WARNING — ES5 style violations in a few files**
+**Status: LOW-LEVEL NOTES — no regressions, same standing items as previous audits**
 
-CLAUDE.md specifies ES5-compatible `var/function` style (no `let`/`const`/arrow functions) for production code.
+Key JS files (`aa-firebase.js`, `aa-mirror.js`, `mode-enforcer.js`, `status-circle.js`, `study-activity.js`, `migraine-mode.js`) — **zero arrow functions, zero `const`/`let`** — fully ES5-compliant ✓
 
-**Violations found:**
+**Persistent ES6+ style violations (same as previous audits, not new):**
 
-| File | `let` | `const` | Arrows | Notes |
-|------|-------|---------|--------|-------|
-| `modular/js/main.js` | 0 | 3 | 0 | Lines 6, 15, 24 |
-| `modular/js/app.js` | 0 | 0 | 2 | Lines 40, 147 |
-| `modular/js/aa-mirror.js` | 0 | 0 | 0 | "let" appears only in a comment — false alarm, no actual violation |
-| `modular/components/spoon-planner/spoon-pal.html` | 47 | 179 | 0 | Heavy ES6+; async/await also used |
+| File | `let`/`const` | Arrows | Notes |
+|------|---------------|--------|-------|
+| `modular/js/header-loader.js` | Several `const` | Several `=>` | Not used in production pages — no impact |
+| `modular/js/main.js` | 3 `const` | 0 | Lines 6, 15, 24 — very minor |
+| `modular/js/app.js` | 0 | 2 | Lines 40, 147 — very minor |
+| `modular/components/spoon-planner/spoon-pal.html` | 226 `let`/`const` | 0 | Heavy ES6+; async/await throughout |
+| `modular/components/bedroom-planner/bedroom-planner.html` | Many `const`/`let` | Many `=>` | Isolated tool, no Firebase writes |
 
-`spoon-pal.html` is the most significant — it's written in modern ES6+ style throughout (226 declarations, async/await). This works fine on modern browsers but technically breaks the KISS/ES5 rule. If the app must support older Android browsers, this could become a problem. Flag for discussion.
+`spoon-pal.html` is the most significant — written in modern ES6+ throughout. Works on all modern browsers. If older Android support is ever required, this would need rewriting.
 
-**No deprecated patterns, no stale event listener stacks, no duplicate `onAuthStateChanged` registrations, no duplicate `onSnapshot` listeners found.**
+**No deprecated Firebase SDK patterns.** No duplicate `onAuthStateChanged` registrations. `status-circle.js` properly cleans up `onSnapshot` listeners with `_unsubNope`/`_unsubDay` before re-subscribing — good pattern.
 
-`status-circle.js` properly cleans up `onSnapshot` listeners via `_unsubNope` / `_unsubDay` before re-subscribing — good pattern.
+**onSnapshot cleanup:** 28 `onSnapshot` calls across the codebase; only 3 explicitly store the unsubscribe function. Most are in single-auth-event contexts (page-level listeners that don't re-subscribe), so stacking is low risk. `status-circle.js` is the high-frequency case and handles it correctly.
 
 ---
 
 ## 5. Archive Hygiene
 
-**Status: WARNING — 17 misplaced archive files (carryover + new)**
+**Status: WARNING — 37 misplaced archive files remain**
 
-These are backup files sitting outside `modular/archive/` in violation of the archiving rule. The 7 files flagged in the 2026-03-21 audit were not moved; additional ones are now counted.
+Today's housekeeping commit (bd80f2b) moved 26 archives into `modular/archive/` but **37 archive files remain outside that directory** in `modular/components/` subdirectories and `modular/static/`. These are all in git.
 
-**`modular/components/` root level (13 files):**
+**Complete list of files needing to move:**
+
 ```
-bad-brain-day.html.archive-20260226-firebase
-recovery-mode.html.archive-20260226-spoonplan
-recovery-mode.html.archive-20260227-clearplan
-recovery-mode.html.archive-20260227-completed-class
-recovery-mode.html.archive-20260227-fbclear
-recovery-mode.html.archive-20260227-journal
-recovery-mode.html.archive-20260227-journal-auth
-recovery-mode.html.archive-20260227-journal-autosave
-recovery-mode.html.archive-20260227-localsave
-recovery-mode.html.archive-20260227-newday
-recovery-mode.html.archive-20260227-newday2
-recovery-mode.html.archive-20260227-newday3
-recovery-mode.html.archive-20260227-nowatch
+# audio-notes/
+modular/components/audio-notes/audio-notes.html.archive-20260307-pre-refresh-safety
+
+# bad-brain-day/
+modular/components/bad-brain-day.html.archive-20260226-firebase
+
+# message-system/ (3 files)
+modular/components/message-system/message-system.html.archive-20260226
+modular/components/message-system/message-system.html.archive-20260226-rename
+modular/components/message-system/message-system.html.archive-20260227-draft-save
+
+# recovery-mode/ (11 files)
+modular/components/recovery-mode.html.archive-20260226-spoonplan
+modular/components/recovery-mode.html.archive-20260227-clearplan
+modular/components/recovery-mode.html.archive-20260227-completed-class
+modular/components/recovery-mode.html.archive-20260227-fbclear
+modular/components/recovery-mode.html.archive-20260227-journal
+modular/components/recovery-mode.html.archive-20260227-journal-auth
+modular/components/recovery-mode.html.archive-20260227-journal-autosave
+modular/components/recovery-mode.html.archive-20260227-localsave
+modular/components/recovery-mode.html.archive-20260227-newday
+modular/components/recovery-mode.html.archive-20260227-newday2
+modular/components/recovery-mode.html.archive-20260227-newday3
+modular/components/recovery-mode.html.archive-20260227-nowatch
+
+# spoon-planner/ (7 files)
+modular/components/spoon-planner/spoon-pal.html.archive-20260302-pre-emoji-strip
+modular/components/spoon-planner/spoon-pal.html.archive-20260302-pre-quickentry
+modular/components/spoon-planner/spoon-planner.html.archive-20260226-firebase
+modular/components/spoon-planner/spoon-planner.html.archive-20260226b-scriptfix
+modular/components/spoon-planner/spoon-planner.html.archive-20260227-completed-class
+modular/components/spoon-planner/spoon-planner.html.archive-20260227-newday
+modular/components/spoon-planner/spoon-planner.html.archive-20260227-spoonfix
+
+# user-tiers/ (14 files)
+modular/components/user-tiers/user-tiers.html.archive-20260226
+modular/components/user-tiers/user-tiers.html.archive-20260226-ai-widget
+modular/components/user-tiers/user-tiers.html.archive-20260226-modules
+modular/components/user-tiers/user-tiers.html.archive-20260226-profile
+modular/components/user-tiers/user-tiers.html.archive-20260226-rename
+modular/components/user-tiers/user-tiers.html.archive-20260226b
+modular/components/user-tiers/user-tiers.html.archive-20260226c
+modular/components/user-tiers/user-tiers.html.archive-20260227-ai-dropdown
+modular/components/user-tiers/user-tiers.html.archive-20260227-open-btn
+modular/components/user-tiers/user-tiers.html.archive-20260227-open-delay
+modular/components/user-tiers/user-tiers.html.archive-20260227-open-delay2500
+modular/components/user-tiers/user-tiers.html.archive-20260227-paste-notify
+
+# static/
+modular/static/utc-converter.html.archive-20260227-12hr
 ```
 
-**`modular/components/message-system/` (3 files):**
-```
-message-system.html.archive-20260226
-message-system.html.archive-20260226-rename
-message-system.html.archive-20260227-draft-save
-```
+**Git commands to move all 37 (Bruise runs these in Git Bash — do NOT run automatically):**
 
-**`modular/static/` (1 file):**
-```
-utc-converter.html.archive-20260227-12hr
-```
-
-**Note:** `modular/js/archive/` contains 2 files (`mode-enforcer_2026-03-10_pre-audio-nav-fix.js`, `status-circle_2026-03-03_pre-rollingavg.js`). This is a local archive subfolder within js/ and is acceptable as a pattern, though ideally these would be in `modular/archive/` per the SOP.
-
-**Git commands to move the misplaced archives (run in Git Bash — do NOT run automatically):**
 ```bash
-# Move 13 component root archives
-git mv modular/components/bad-brain-day.html.archive-20260226-firebase "modular/archive/bad-brain-day_2026-02-26_firebase.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260226-spoonplan "modular/archive/recovery-mode_2026-02-26_spoonplan.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-clearplan "modular/archive/recovery-mode_2026-02-27_clearplan.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-completed-class "modular/archive/recovery-mode_2026-02-27_completed-class.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-fbclear "modular/archive/recovery-mode_2026-02-27_fbclear.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-journal "modular/archive/recovery-mode_2026-02-27_journal.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-journal-auth "modular/archive/recovery-mode_2026-02-27_journal-auth.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-journal-autosave "modular/archive/recovery-mode_2026-02-27_journal-autosave.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-localsave "modular/archive/recovery-mode_2026-02-27_localsave.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-newday "modular/archive/recovery-mode_2026-02-27_newday.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-newday2 "modular/archive/recovery-mode_2026-02-27_newday2.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-newday3 "modular/archive/recovery-mode_2026-02-27_newday3.bak.html"
-git mv modular/components/recovery-mode.html.archive-20260227-nowatch "modular/archive/recovery-mode_2026-02-27_nowatch.bak.html"
-# Move 3 message-system archives
+git mv "modular/components/audio-notes/audio-notes.html.archive-20260307-pre-refresh-safety" "modular/archive/audio-notes_2026-03-07_pre-refresh-safety.bak.html"
+git mv "modular/components/bad-brain-day.html.archive-20260226-firebase" "modular/archive/bad-brain-day_2026-02-26_firebase.bak.html"
 git mv "modular/components/message-system/message-system.html.archive-20260226" "modular/archive/message-system_2026-02-26.bak.html"
 git mv "modular/components/message-system/message-system.html.archive-20260226-rename" "modular/archive/message-system_2026-02-26_rename.bak.html"
 git mv "modular/components/message-system/message-system.html.archive-20260227-draft-save" "modular/archive/message-system_2026-02-27_draft-save.bak.html"
-# Move 1 static archive
+git mv "modular/components/recovery-mode.html.archive-20260226-spoonplan" "modular/archive/recovery-mode_2026-02-26_spoonplan.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-clearplan" "modular/archive/recovery-mode_2026-02-27_clearplan.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-completed-class" "modular/archive/recovery-mode_2026-02-27_completed-class.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-fbclear" "modular/archive/recovery-mode_2026-02-27_fbclear.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-journal" "modular/archive/recovery-mode_2026-02-27_journal.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-journal-auth" "modular/archive/recovery-mode_2026-02-27_journal-auth.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-journal-autosave" "modular/archive/recovery-mode_2026-02-27_journal-autosave.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-localsave" "modular/archive/recovery-mode_2026-02-27_localsave.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-newday" "modular/archive/recovery-mode_2026-02-27_newday.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-newday2" "modular/archive/recovery-mode_2026-02-27_newday2.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-newday3" "modular/archive/recovery-mode_2026-02-27_newday3.bak.html"
+git mv "modular/components/recovery-mode.html.archive-20260227-nowatch" "modular/archive/recovery-mode_2026-02-27_nowatch.bak.html"
+git mv "modular/components/spoon-planner/spoon-pal.html.archive-20260302-pre-emoji-strip" "modular/archive/spoon-pal_2026-03-02_pre-emoji-strip.bak.html"
+git mv "modular/components/spoon-planner/spoon-pal.html.archive-20260302-pre-quickentry" "modular/archive/spoon-pal_2026-03-02_pre-quickentry.bak.html"
+git mv "modular/components/spoon-planner/spoon-planner.html.archive-20260226-firebase" "modular/archive/spoon-planner_2026-02-26_firebase.bak.html"
+git mv "modular/components/spoon-planner/spoon-planner.html.archive-20260226b-scriptfix" "modular/archive/spoon-planner_2026-02-26b_scriptfix.bak.html"
+git mv "modular/components/spoon-planner/spoon-planner.html.archive-20260227-completed-class" "modular/archive/spoon-planner_2026-02-27_completed-class.bak.html"
+git mv "modular/components/spoon-planner/spoon-planner.html.archive-20260227-newday" "modular/archive/spoon-planner_2026-02-27_newday.bak.html"
+git mv "modular/components/spoon-planner/spoon-planner.html.archive-20260227-spoonfix" "modular/archive/spoon-planner_2026-02-27_spoonfix.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260226" "modular/archive/user-tiers_2026-02-26.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260226-ai-widget" "modular/archive/user-tiers_2026-02-26_ai-widget.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260226-modules" "modular/archive/user-tiers_2026-02-26_modules.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260226-profile" "modular/archive/user-tiers_2026-02-26_profile.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260226-rename" "modular/archive/user-tiers_2026-02-26_rename.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260226b" "modular/archive/user-tiers_2026-02-26b.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260226c" "modular/archive/user-tiers_2026-02-26c.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260227-ai-dropdown" "modular/archive/user-tiers_2026-02-27_ai-dropdown.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260227-open-btn" "modular/archive/user-tiers_2026-02-27_open-btn.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260227-open-delay" "modular/archive/user-tiers_2026-02-27_open-delay.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260227-open-delay2500" "modular/archive/user-tiers_2026-02-27_open-delay2500.bak.html"
+git mv "modular/components/user-tiers/user-tiers.html.archive-20260227-paste-notify" "modular/archive/user-tiers_2026-02-27_paste-notify.bak.html"
 git mv "modular/static/utc-converter.html.archive-20260227-12hr" "modular/archive/utc-converter_2026-02-27_12hr.bak.html"
-# Commit
-git commit -m "Claude: Move 17 misplaced archive files to modular/archive/ per SOP"
+git commit -m "Claude: Move 37 remaining misplaced archive files to modular/archive/ per SOP"
 git push
 ```
+
+**Note:** `modular/js/archive/` contains 2 files (`mode-enforcer_2026-03-10_pre-audio-nav-fix.js`, `status-circle_2026-03-03_pre-rollingavg.js`). This is a local subfolder pattern — acceptable but ideally these would be in `modular/archive/` per the strict SOP.
 
 ---
 
 ## 6. Redundancy Checks
 
-**Status: SOLID — minor low-priority notes only**
+**Status: SOLID — Paw Points additions follow all redundancy patterns correctly**
 
 ### Error Handling Coverage
-- `aa-firebase.js`: All Firestore writes either return their promise (allowing callers to `.catch()`) or have explicit `.catch(function() {})` best-effort wrappers. No unhandled promise explosions found.
-- `checkin.html`: 1 fetch call (for shared-header), 5 `.catch()` blocks — covered.
-- `audio-notes.html`: 8 fetch calls, 16 `.catch()` blocks — well covered.
-- `spoon-pal.html`: Weather API calls are wrapped in `async function fetchWeather()` with a `try/catch` inside `getCurrentPosition()` callback and graceful "Weather data unavailable" fallback — GOOD.
-- No unhandled promise chains detected on critical paths.
+- `aa-firebase.js`: All Firestore writes return their promise or have explicit `.catch()` wrappers. No unhandled promise explosions.
+- `streak-cat.html` Paw Points economy: Save function has `.catch()` with retry logic (lines 1397–1406). `purchaseItem()` and `repairStreak()` validate balance before deducting — no negative-balance writes possible. ✓
+- `audio-notes.html`: 8+ fetch calls with catch blocks — well covered. ✓
+- No unhandled critical promise chains found.
 
 ### Offline Fallbacks
-- `checkin.html`: localStorage backup for check-in data is in place with quota-exceeded warning logged.
-- `spoon-pal.html`: localStorage/session fallback in place.
-- `aa-firebase.js`: Auth persistence uses IndexedDB with localStorage fallback documented.
-- No pages identified that read from Firestore without any fallback.
+- `checkin.html`: localStorage backup in place with quota-exceeded warning ✓
+- `emergency.html`: localStorage fallback in place ✓
+- `streak-cat.html`: localStorage crash-recovery backup (lines 997–1039), falls back on Firestore failure (line 1441) ✓
+- `spoon-pal.html`: localStorage fallback in place ✓
+- No pages identified as reading Firestore without any fallback.
 
 ### Retry Logic
-- `_persistenceReady` has a built-in timeout retry (8s desktop / 15s mobile) — GOOD.
-- `AA_REAUTH_COUNT` caps GIS re-auth retries at 3 per page load — GOOD.
-- Critical auth operations have retry caps.
+- `_persistenceReady` has built-in timeout retry (8s desktop / 15s mobile) ✓
+- `AA_REAUTH_COUNT` caps GIS re-auth retries at 3 per page load ✓
+- `streak-cat.html` save retry at lines 1404–1406 ✓
 
 ### Null/Undefined Guards
-- All `doc.data().property` accesses in `aa-firebase.js` are inside `if (doc.exists)` blocks — GOOD.
-- `doc.data().supportNetwork || {}` fallback pattern used consistently — GOOD.
-- No unguarded property access on Firestore documents found.
+- All `doc.data()` accesses guarded by `doc.exists` checks across the codebase ✓
+- Paw Points load: `d.pawPoints || 0` and `d.shields || []` fallback patterns ✓
+- `supportNetwork || {}` fallback used consistently in message-system and user-tiers ✓
+- `message-system.html` line 1084: `doc.exists` checked at line 1080 before `doc.data()` access ✓
 
 ### Race Condition Checks
-- `onAuthStateChanged` is called 8 times in `shared-header.html` — this is a known multi-layered auth system (persistence, UI state, GIS, idle timeout). The `_persistenceReady` promise serializes them correctly. No race condition introduced.
-- `status-circle.js` properly unsubscribes existing `onSnapshot` listeners before re-subscribing on auth change — GOOD.
-- No race conditions identified in the new `streak-cat.html` (added 2026-03-21).
+- `onAuthStateChanged` layered via `_persistenceReady` promise in `shared-header.html` — no race ✓
+- `status-circle.js` unsubscribes existing `onSnapshot` listeners before re-subscribing ✓
+- `streak-cat.html` uses `_uid` guard (`if (!_uid) return;`) before all save calls ✓
+- Paw Points state mutations are synchronous (in-memory) before the async Firestore save — no race between PP deduction and save ✓
 
 ### Duplicate Listener Prevention
-- `status-circle.js` uses `_unsubNope` / `_unsubDay` variables to track and cancel existing listeners before creating new ones — GOOD.
-- No stacked event listeners found.
+- `status-circle.js` uses `_unsubNope`/`_unsubDay` cleanup variables ✓
+- 28 `onSnapshot` calls total; most are in single-auth-state contexts (no re-subscription risk)
+- No stacked event listeners found in new Paw Points code ✓
 
 ### Graceful Degradation
-- Weather failure in spoon-pal fails gracefully with user-visible message.
-- Audio Notes has 43 try/catch blocks — comprehensive coverage.
-- Check-in has 6 try/catch blocks covering the main submission flow.
+- Paw Points Shop: affordability check per item; insufficient funds shows inline message (line 1152) ✓
+- Weather failure in spoon-pal fails gracefully with user-visible message ✓
+- Audio Notes: 43 try/catch blocks — comprehensive ✓
+- `streak-cat.html` shows toast messages for all user-visible errors ✓
 
 ### Data Validation on Write
-- `parseFloat()`, `parseInt()` with `|| 0` fallbacks used consistently before numeric Firestore writes in spoon-pal.
-- Pain/fatigue values are validated before write: `parseInt(...) || 7`, `parseInt(...) || 5`.
-- No `NaN` or `undefined` values likely to reach Firestore on active paths.
+- `state.pawPoints` initialized from `d.pawPoints || 0` — no NaN possible from Firestore ✓
+- `state.pawPoints -= item.price` only runs after `state.pawPoints >= item.price` check ✓
+- `Math.max(0, val)` at test slider (line 1805) prevents negative values ✓
+- No undefined or NaN values likely to reach Firestore on active paths ✓
 
 ### Service Worker Staleness
-- `sw.js` CACHE name `aa-shell-20260321u` is current.
-- NEVER_CACHE list is comprehensive (9 entries covering all frequently-changing files).
-- SW is registered only from `shared-header.html` — no duplicate registrations.
+- `sw.js` CACHE name `aa-shell-20260322a` — current ✓
+- NEVER_CACHE list covers 9 frequently-changing files — comprehensive ✓
+- `streak-cat.html` is NOT in the SW SHELL pre-cache list — acceptable for a game feature, but first load requires network ✓
+- SW registered only from `shared-header.html` — no duplicate registrations ✓
 
 ---
 
 ## 7. Misplaced Files & Stale Branches
 
-**Status: HOUSEKEEPING NEEDED**
+**Status: HOUSEKEEPING NEEDED (same carryover items)**
 
 **Stale remote branch:**
-- `origin/Brinckmyster-Aestas` — still present, last commit was a CAj SOP commit (not Claude work). This was flagged in the 2026-03-21 audit and is still not removed. **This branch is OFF-LIMITS to AI** per the task rules — Bruise must delete it manually if desired:
+- `origin/Brinckmyster-Aestas` — still present. **OFF-LIMITS to AI** per task rules. Bruise must manually delete if desired:
   ```bash
   git push origin --delete Brinckmyster-Aestas
   ```
 
-**Root-level files of note (not blocking, informational):**
-- `.fuse_hidden0000077f00000001` (3.2KB, modified 2026-03-20) — Linux FUSE filesystem artifact from a file that was open when the session ended. Not tracked by git, harmless, will disappear on next clean mount.
-- `.claude.json.backup` (4KB, from 2026-02-21) — old backup of Claude config, not tracked by git. Harmless.
+**Root-level files of note (informational, not blocking):**
+- `.fuse_hidden0000077f00000001` — Linux FUSE filesystem artifact, not git-tracked, harmless
+- `.claude.json.backup` — old Claude config backup, not git-tracked, harmless
 
-**No stale worktrees.** Only the main worktree at `[main]` exists.
+**No stale local worktrees.** Only the main worktree at `[main]` exists. ✓
+
+---
+
+## New Features Validated This Cycle
+
+**Paw Points Economy (streak-cat.html — commit 325570b)**
+- PP earned per check-in: 5 base + 2 daily bonus + milestone bonuses
+- Streak Shields: consumable items purchased via Paw Shop; protect broken streak
+- Streak Repair: costs 50 PP to restore a broken streak
+- Mirror guard applied ✓ | localStorage backup ✓ | Firestore retry ✓ | Balance validation before deduct ✓
+
+**Redundancy fixes for streak-cat (commit fe43e5e):**
+- localStorage backup for all streak state ✓
+- Photo fallback for Duchess photos ✓
+- Stale ID cleanup on auth change ✓
+- Visibility handler for tab-switch refresh ✓
 
 ---
 
 ## Action Items Summary
 
-| Priority | Item | Status | Details |
-|----------|------|--------|---------|
-| **Medium** | Move 17 misplaced archive files | Carryover (3rd day) | See §5 — git commands provided |
-| Low | Delete `origin/Brinckmyster-Aestas` branch | Carryover | Manual action by Bruise only |
-| Low | Align all pages to `v=20260321` header | New | 42 pages on 20260320, streak-cat on 20260321 |
-| Low | Bump aa-firebase.js + aa-mirror.js cache strings in nope-mode/semi-nope | New | Currently v=20260316a / v=20260319a; stale |
-| Info | spoon-pal.html uses ES6+ style | Ongoing | 226 let/const, async/await — not ES5 |
-| Info | main.js has 3 `const` | Low | ES5 spec says `var` only |
-| Info | app.js has 2 arrow functions | Low | ES5 spec says `function` only |
-| Info | Bump footer version string | Ongoing | When shared-footer.html is next edited |
-| Info | 2 known TODOs from previous audits | Carryover | aa-firebase.js: Play Store role + transcription upgrade |
+| Priority | Item | Status | Action |
+|----------|------|--------|--------|
+| **Medium** | Move 37 misplaced archive files | 4th+ day carryover | Bruise runs git commands in §5 |
+| Low | Add `streak-cat.html` to SW SHELL pre-cache | New low-priority | Claude can do next session |
+| Low | Delete `origin/Brinckmyster-Aestas` branch | Ongoing carryover | Bruise manual action only |
+| Info | `spoon-pal.html` uses ES6+ style | Ongoing | 226 let/const, async/await |
+| Info | `main.js` 3 `const`, `app.js` 2 arrow functions | Ongoing | Very minor ES5 spec drift |
+| Info | `modular/js/archive/` holds 2 files outside `modular/archive/` | Ongoing | Optional cleanup |
 
 ---
 
-*Report generated by Claude — 2026-03-22*
+*Report generated by Claude — 2026-03-22 (automated nightly audit, Rev 2 — post-housekeeping)*
