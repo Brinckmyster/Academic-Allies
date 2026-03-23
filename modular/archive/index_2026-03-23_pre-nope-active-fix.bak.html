@@ -664,14 +664,11 @@
       AA.db.collection('users').doc(uid).get().then(function (doc) {
         if (!doc.exists) return;
         var d = doc.data();
-        /* Claude: 2026-03-23 — added nopeMode.active check. Without it, deactivated
-           modes still showed as active on the dashboard snapshot card.
-           Archive: index_2026-03-23_pre-nope-active-fix.bak.html */
-        if (d.nopeMode && d.nopeMode.active && d.nopeMode.mode === 'nope') {
+        if (d.nopeMode && d.nopeMode.mode === 'nope') {
           if (modeEl) modeEl.textContent = '🔴 Nope Day';
           var card = document.getElementById('snapModeCard');
           if (card) card.className = 'flag-card red';
-        } else if (d.nopeMode && d.nopeMode.active && d.nopeMode.mode === 'semi-nope') {
+        } else if (d.nopeMode && d.nopeMode.mode === 'semi-nope') {
           if (modeEl) modeEl.textContent = '⚡ Semi-Nope';
           var card = document.getElementById('snapModeCard');
           if (card) card.className = 'flag-card yellow';
@@ -1114,12 +1111,7 @@
                 window.AA.shouldSuppressCaution(s.uid)
               ]).then(function (res) {
                 var nopeData = res[0].exists ? res[0].data() : null;
-                /* Claude: 2026-03-23 — MUST check nopeData.active before reading mode.
-                   Same bug as support-dashboard: was treating ANY nope doc with a mode field
-                   as active crisis, even when active=false (deactivated). This caused false
-                   red dots for students like Mary who once had a mode set.
-                   Archive: index_2026-03-23_pre-nope-active-fix.bak.html */
-                var isNope   = nopeData && nopeData.active && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope');
+                var isNope   = nopeData && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope');
 
                 if (isNope) {
                   return { uid: s.uid, name: s.name, dot: 'nope', urgency: URGENCY.nope };
