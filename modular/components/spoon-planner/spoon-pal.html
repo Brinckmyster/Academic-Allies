@@ -421,10 +421,12 @@
         </div>
         <!-- Claude: 2026-03-13 — added aria-labels to time bump buttons -->
         <div class="time-bump-row" aria-label="Adjust time" role="group">
-          <button type="button" onclick="bumpTime(-30)" aria-label="Move 30 minutes earlier">−30m</button>
-          <button type="button" onclick="bumpTime(-15)" aria-label="Move 15 minutes earlier">−15m</button>
-          <button type="button" onclick="bumpTime(+15)" aria-label="Move 15 minutes later">+15m</button>
-          <button type="button" onclick="bumpTime(+30)" aria-label="Move 30 minutes later">+30m</button>
+          <!-- Claude: 2026-03-23 — removed onclick attrs; bumpTime is inside IIFE so
+               onclick couldn't reach it (ReferenceError). Wired via addEventListener below. -->
+          <button type="button" id="bump-m30" aria-label="Move 30 minutes earlier">−30m</button>
+          <button type="button" id="bump-m15" aria-label="Move 15 minutes earlier">−15m</button>
+          <button type="button" id="bump-p15" aria-label="Move 15 minutes later">+15m</button>
+          <button type="button" id="bump-p30" aria-label="Move 30 minutes later">+30m</button>
         </div>
         <label for="taskLmj">LMJ Code</label>
         <input type="text" id="taskLmj" name="taskLmj" readonly aria-readonly="true" />
@@ -2136,6 +2138,12 @@
     document.getElementById('taskLmj').addEventListener('change', updateEmojiPreview);
     // Sleep hours is the only remaining manual input — pain/fatigue/mood use qe-btn clicks
     document.getElementById('sleepHours').addEventListener('change', updateCheckIn);
+
+    // Claude: 2026-03-23 — wire time bump buttons (were broken: onclick couldn't reach IIFE scope)
+    document.getElementById('bump-m30').addEventListener('click', function() { bumpTime(-30); });
+    document.getElementById('bump-m15').addEventListener('click', function() { bumpTime(-15); });
+    document.getElementById('bump-p15').addEventListener('click', function() { bumpTime(+15); });
+    document.getElementById('bump-p30').addEventListener('click', function() { bumpTime(+30); });
 
     // Init quick-entry buttons (before auth — UI should be interactive immediately)
     initQuickEntry();
