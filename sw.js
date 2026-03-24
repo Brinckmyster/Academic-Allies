@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260324g'; /* Claude: 2026-03-24 — SpoonPal modal flexbox fix: content wraps tight instead of stretching on mobile */
+var CACHE   = 'aa-shell-20260324h'; /* Claude: 2026-03-24 — SpoonPal full mobile responsiveness overhaul: card layout, touch targets, no horizontal scroll */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
