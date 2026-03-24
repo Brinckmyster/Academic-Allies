@@ -1051,6 +1051,17 @@
 
             if (diffDays < threshold) return;
 
+            /* Claude: 2026-03-24 — If the student used the app within the last 24h,
+               skipping a check-in is a choice, not a crisis. Suppress the alert.
+               Same logic as the quiet alert system.
+               Archive: support-dashboard_2026-03-23_pre-quiet-alert-fix.bak.html */
+            var lsData = data.lastSeen || null;
+            if (lsData && lsData.timestamp) {
+              var lsTs = lsData.timestamp.toDate ? lsData.timestamp.toDate() : new Date(lsData.timestamp);
+              var hoursSince = Math.round((Date.now() - lsTs.getTime()) / (1000 * 60 * 60));
+              if (hoursSince < 24) return; /* active on app — not missing, just skipping check-in */
+            }
+
             banner.innerHTML =
               '<div class="checkin-alert-bar">' +
                 '<span class="alert-icon">⚠️</span>' +
