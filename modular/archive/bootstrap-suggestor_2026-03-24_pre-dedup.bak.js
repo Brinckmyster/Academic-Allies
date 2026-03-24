@@ -83,7 +83,54 @@ window.components = window.components || (window.modular && window.modular.compo
     }, false);
   });
 })();
-/* Claude: 2026-03-24 — removed duplicate enhancePlanner IIFE that was stacking click handlers */
+// Enhancement: allow time override on add and ensure up to 3 options per slot
+(function enhancePlanner(){
+  function onReady(fn){
+    if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', fn, {once:true}); } else { fn(); }
+  }
+  onReady(function(){
+    // If suggestor created suggestion buttons, delegate click handling for time override
+    document.body.addEventListener('click', function(e){
+      const btn = e.target;
+      if(!btn || !btn.textContent) return;
+      // Match both "Add: X" and "Add to Plan" patterns
+      if(/^Add: /.test(btn.textContent) || btn.classList.contains('add-suggestion-btn')){
+        // Try to infer the surrounding slot kind/time if present in DOM near the button
+        let container = btn.closest('div');
+        let inferredTime = '';
+        let inferredKind = '';
+        if(container){
+          const timeEl = container.querySelector('.suggestion-time');
+          const nameEl = container.querySelector('b, .suggestion-name');
+          if(timeEl && timeEl.textContent){
+            const m = timeEl.textContent.match(/\b(\d{1,2}:\d{2})\b/);
+            if(m) inferredTime = m[1];
+          }
+          if(nameEl && nameEl.textContent){
+            const k = nameEl.textContent.replace(/\d{1,2}:\d{2}\s*[·\-–]\s*/,'').trim();
+            if(k) inferredKind = k;
+          }
+        }
+        // Prompt for a time override
+        const chosenTime = prompt('Enter time for this meal (HH:MM) or leave blank to use suggested time:', inferredTime || '');
+        // Try to extract label text for the meal
+        let label = btn.textContent.replace(/^Add:\s*/,'').trim();
+        if(!label && container){
+          const name = container.querySelector('.suggestion-name');
+          if(name) label = name.textContent.trim();
+        }
+        // Fallback kind
+        const kind = inferredKind || 'Meal';
+        // Use addPlannedMeal if present
+        try{
+          if(typeof addPlannedMeal === 'function'){
+            addPlannedMeal(kind, (chosenTime || inferredTime || ''), label || 'Meal');
+          }
+        }catch(_){}
+      }
+    }, false);
+  });
+})();
 // Compatibility shims for legacy globals used by older suggestor builds
 window.components = window.components || (window.modular && window.modular.components) || {};
 window.meal = window.meal || {};
@@ -99,7 +146,7 @@ window.meal = window.meal || {};
   }
   function normalizeKind(text){
     if(!text) return '';
-    // Strip leading time prefix (e.g., "8:00 AM · Breakfast")
+    // Strip leading time prefix (e.g., "08:00 · Breakfast")
     return text.replace(/\b\d{1,2}:\d{2}\s*[·\-–]\s*/,'').trim();
   }
   function ensureThreePerKind(){
@@ -247,64 +294,6 @@ window.meal = window.meal || {};
 window.planner = window.planner || {};
 window.universal = window.universal || {};
 window.suggestor = window.suggestor || {};
-try{ localStorage.setItem('aa_active_studentId','mary'); }catch(_){ }
-// Mary's strict profile integration (catalog + timing + texture rules)
-(function maryProfileIntegration(){
-  function onReady(fn){
-    if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fn,{once:true});} else { fn(); }
-  }
-  function setIfMissing(obj, key, arr){ obj[key] = Array.isArray(obj[key]) ? Array.from(new Set(obj[key].concat(arr))) : arr.slice(); }
-
-  onReady(function(){
-    try{
-      // Base timing: solids at 10:30, 1:30 PM, 4:30 PM; liquids only after 5:00 PM
-      window.maryTiming = { solids: ['10:30','1:30 PM','4:30 PM'], liquidsAfter: '5:00 PM' };
-
-      // Build catalog from Mary’s constraints (refined/white, soft/cooked, no corn, no tofu, no wheat/whole grain)
-      var Breakfast = [
-        'Thin cream of wheat', 'Oatmeal (thin, lactose-free milk or water)', 'Yogurt (lactose-free) with applesauce',
-        'Soft scrambled egg (use sparingly, egg-limited)', 'Plain toast (white, soft) with a little butter'
-      ];
-      var Lunch = [
-        'Mashed potatoes (smooth) with soft chicken', 'White rice with steamed green beans (soft)',
-        'Turkey & rice soup (strained, no corn, no tomato)', 'Soft pasta with olive oil (plain)',
-        'Deli roast beef (corn-free) with soft white bread'
-      ];
-      var Dinner = [
-        'Chicken and rice (very soft)', 'Mashed potatoes with soft turkey and gravy',
-        'Soft pasta with lactose-free butter', 'White rice with soft-cooked squash'
-      ];
-      var Snack = [
-        'Applesauce', 'Banana (firm ripe, no spots)', 'Yogurt (lactose-free)', 'Plain crackers (no corn/whole grain)',
-        'Peeled baked apple slices'
-      ];
-
-      window.cat = window.cat || {};
-      setIfMissing(window.cat, 'Breakfast', Breakfast);
-      setIfMissing(window.cat, 'Lunch', Lunch);
-      setIfMissing(window.cat, 'Dinner', Dinner);
-      setIfMissing(window.cat, 'Snack', Snack);
-
-      // Enforce liquids-only after 5:00 PM on Add
-      document.body.addEventListener('click', function(e){
-        var t = e.target;
-        if(!t) return;
-        if(/^Add: /.test(t.textContent||'') || t.classList.contains('add-suggestion-btn')){
-          // infer chosen time from prompt override enhancer if present
-          var chosen = window.prompt && window.prompt.name ? '' : ''; // no-op: prompt logic exists elsewhere
-          // If we captured a time in earlier enhancer, rely on that; otherwise let addPlannedMeal handle.
-        }
-      }, false);
-
-      // Visual cue (small, non-intrusive)
-      var anchor = document.getElementById('suggest-meals') || document.body;
-      var note = document.createElement('div');
-      note.textContent = "Mary’s profile active: solids 10:30/1:30 PM/4:30 PM; liquids only after 5:00 PM; soft/corn-free/limited eggs.";
-      note.style.fontSize='0.85em'; note.style.opacity='0.75'; note.style.margin='0.5em 0';
-      anchor.parentNode && anchor.parentNode.insertBefore(note, anchor.nextSibling);
-    }catch(_){}
-  });
-})();
 // Path sanitizer: fix accidental double /Academic-Allies/ segments at runtime
 (function fixDoubledAcademicAllies(){
   function onReady(f){ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',f,{once:true});} else { f(); } }
@@ -312,6 +301,7 @@ try{ localStorage.setItem('aa_active_studentId','mary'); }catch(_){ }
     try{
       var bad='/Academic-Allies/Academic-Allies/';
       var good='/Academic-Allies/';
+      // Fix <script>, <link>, <img>, <a>
       ['script','link','img','a'].forEach(function(tag){
         document.querySelectorAll(tag).forEach(function(el){
           ['src','href'].forEach(function(attr){
@@ -325,24 +315,124 @@ try{ localStorage.setItem('aa_active_studentId','mary'); }catch(_){ }
     }catch(_){}
   });
 })();
-// Mary UI badge/banner after shared header
-(function maryUiBannerAfterHeader(){
-  function onReady(fn){ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fn,{once:true});} else { fn(); } }
+// Enforce standard catalog on main planner (avoid any Mary-specific gentle merges)
+(function enforceStandardCatalogMain(){
+  function onReady(f){ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',f,{once:true});} else { f(); } }
   onReady(function(){
     try{
-      // Title badge
-      if(document.title && document.title.indexOf("Mary")===-1){
-        document.title = "Mary’s " + document.title.replace(/^Mary’s\s*/,'');
+      if(window.location.pathname.indexOf('/meal-planner/')!==-1){
+        // If a 'gentle' marker exists from Mary logic, strip it
+        if(window.maryTiming){ try{ delete window.maryTiming; }catch(_){ window.maryTiming = undefined; } }
+        // If cat looks overridden, lightly normalize: keep existing entries, but prefer standard list if provided globally
+        if(window.standardCat && typeof window.standardCat === 'object'){
+          ['Breakfast','Lunch','Dinner','Snack'].forEach(function(k){
+            if(Array.isArray(window.standardCat[k])) window.cat[k] = window.standardCat[k].slice();
+          });
+        }
       }
-      var header = document.querySelector('#shared-header, header, .shared-header, nav') || document.body.firstElementChild || document.body;
-      var banner = document.createElement('div');
-      banner.textContent = "Mary’s Meal Planner — solids at 10:30/1:30/4:30, liquids only after 5pm; soft textures; strict corn/wheat rules.";
-      banner.style.cssText = "background:#5b8; color:#fff; padding:8px 12px; font-weight:600; border-radius:6px; margin:8px 0;";
-      if(header && header.parentNode){
-        header.parentNode.insertBefore(banner, header.nextSibling);
-      } else {
-        document.body.insertBefore(banner, document.body.firstChild);
+    }catch(_){}
+  });
+})();
+// Time formatting: display 12-hour instead of 24-hour
+(function twelveHourDisplay(){
+  function onReady(f){ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',f,{once:true});} else { f(); } }
+  function to12h(hhmm){
+    var m = (hhmm||'').match(/^(\d{1,2}):(\d{2})$/); if(!m) return hhmm;
+    var h = (+m[1])%24, mi = m, ampm = h>=12?'PM':'AM', h12 = h%12; if(h12===0) h12 = 12;
+    return h12 + ':' + mi + ' ' + ampm;
+  }
+  // Expose globally for other modules
+  window.to12h = window.to12h || to12h;
+
+  onReady(function(){
+    try{
+      // Rewrite visible times in common locations
+      // 1) Any element with class .suggestion-time
+      document.querySelectorAll('.suggestion-time').forEach(function(el){
+        var t = (el.textContent||'').trim(); var m = t.match(/(\d{1,2}:\d{2})/);
+        if(m){ el.textContent = t.replace(m[1], to12h(m[2])); }
+      });
+      // 2) Common time labels inside planner rows
+      document.querySelectorAll('[data-time], .time-label, .meal-time').forEach(function(el){
+        var t = el.getAttribute('data-time') || (el.textContent||'').trim();
+        var m = (t||'').match(/^(\d{1,2}):(\d{2})$/);
+        if(m){
+          el.setAttribute && el.setAttribute('data-time-12', to12h(m[0]));
+          // If text looks like just HH:MM, replace it
+          if(/^\d{1,2}:\d{2}$/.test(t)) el.textContent = to12h(t);
+        }
+      });
+    }catch(_){}
+  });
+})();
+// Main Planner: standard base (seed only if empty) + 12-hour time display; ensure no Mary bleed
+(function mainStandardBase(){
+  function onReady(f){ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',f,{once:true});} else { f(); } }
+  function to12h(hhmm){
+    var m=(hhmm||'').match(/^(\d{1,2}):(\d{2})$/); if(!m) return hhmm;
+    var h=(+m[1])%24, mi=m, ampm=h>=12?'PM':'AM', h12=h%12||12; return h12+':'+mi+' '+ampm;
+  }
+  onReady(function(){
+    try{
+      // Remove any Mary-only markers just in case
+      if (window.maryTiming) { try{ delete window.maryTiming; } catch(_){ window.maryTiming=undefined; } }
+
+      // Seed a standard plan only if none exists
+      var hasPlan = false;
+      try { hasPlan = !!JSON.parse(localStorage.getItem('simpleMealPlan') || 'null'); } catch(_){}
+      if(!hasPlan){
+        var plan = {
+          date: null,
+          meals: [
+            { name:'Breakfast', time:'08:00', text:'Oatmeal with fruit' },
+            { name:'Lunch',     time:'12:00', text:'Turkey sandwich + veggies' },
+            { name:'Dinner',    time:'18:00', text:'Chicken, rice, and vegetables' }
+          ],
+          snacks: { times:['10:30','15:30'], text:'Fruit; yogurt; nuts; crackers + cheese; hummus + pita' },
+          restrictions: ''
+        };
+        localStorage.setItem('simpleMealPlan', JSON.stringify(plan));
       }
+
+      // Provide a mainstream catalog (non-gentle, varied, pantry-friendly)
+      var Standard = {
+        Breakfast: [
+          'Oatmeal with fruit','Eggs and toast','Yogurt with granola','Smoothie (fruit + yogurt)','Pancakes (weekend)'
+        ],
+        Lunch: [
+          'Turkey sandwich + veggies','Rice bowl (chicken or beans)','Pasta marinara','Chicken salad wrap','Leftovers'
+        ],
+        Dinner: [
+          'Chicken, rice, and vegetables','Taco night (beef or beans)','Baked pasta','Stir-fry + rice','Sheet pan chicken + potatoes'
+        ],
+        Snack: [
+          'Fruit','Yogurt','Nuts','Crackers + cheese','Hummus + pita','Popcorn'
+        ]
+      };
+      // Initialize or merge without duplicates
+      window.cat = window.cat || {};
+      ['Breakfast','Lunch','Dinner','Snack'].forEach(function(k){
+        var base = Array.isArray(window.cat[k]) ? window.cat[k] : [];
+        var merged = Array.from(new Set([].concat(base, Standard[k]||[])));
+        window.cat[k] = merged;
+      });
+
+      // Convert visible times to 12-hour
+      (function to12hourUi(){
+        try{
+          document.querySelectorAll('.suggestion-time').forEach(function(el){
+            var t=(el.textContent||'').trim(), m=t.match(/(\d{1,2}:\d{2})/); if(m) el.textContent=t.replace(m[1], to12h(m[2]));
+          });
+          document.querySelectorAll('[data-time], .time-label, .meal-time').forEach(function(el){
+            var t=el.getAttribute('data-time') || (el.textContent||'').trim();
+            var m=(t||'').match(/^(\d{1,2}):(\d{2})$/);
+            if(m){ el.setAttribute('data-time-12', to12h(m)); if(/^\d{1,2}:\d{2}$/.test(t)) el.textContent = to12h(t); }
+          });
+        }catch(_){}
+      })();
+
+      // Console tag for clarity
+      try{ console.info('[Planner] Standard profile active'); }catch(_){}
     }catch(_){}
   });
 })();

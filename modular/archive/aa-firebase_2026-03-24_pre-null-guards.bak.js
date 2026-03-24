@@ -1072,9 +1072,7 @@
       if (!isNL) throw new Error('Not authorized');
       return db.collection('users').doc(studentUid).get();
     }).then(function (doc) {
-      /* Claude: 2026-03-24 — null guard: single .data() call with safe fallback */
-      var d = doc.exists ? doc.data() : null;
-      var sName = d ? (d.displayName || d.email || 'Student') : 'Student';
+      var sName = doc.exists ? (doc.data().displayName || doc.data().email) : 'Student';
       return _doCreateInvite(studentUid, sName, role);
     });
   };
@@ -1645,11 +1643,9 @@
 
     /* Read student's alert config (default: alert after 2 PM / 14:00) */
     return db.collection('users').doc(uid).get().then(function (userDoc) {
-      /* Claude: 2026-03-24 — null guard: single .data() call */
       var alertHour = 14; /* default 2 PM */
-      var ud = userDoc.exists ? userDoc.data() : null;
-      if (ud && ud.mealAlertHour !== undefined) {
-        alertHour = ud.mealAlertHour;
+      if (userDoc.exists && userDoc.data().mealAlertHour !== undefined) {
+        alertHour = userDoc.data().mealAlertHour;
       }
       if (hour < alertHour) return false; /* too early to alert */
 

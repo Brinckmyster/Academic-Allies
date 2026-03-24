@@ -1,13 +1,9 @@
-/* Claude: 2026-03-24 — added .catch() error handling for fetch */
 function showBasePlan() {
   fetch('base-meal-plan-mary.json')
-    .then(r => {
-      if (!r.ok) throw new Error('Failed to load meal plan: ' + r.status);
-      return r.json();
-    })
+    .then(r => r.json())
     .then(plan => {
       const planText = JSON.stringify(plan, null, 2);
-
+      
       const container = document.createElement('div');
       container.innerHTML = `
         <h3>Edit Base Meal Plan</h3>
@@ -19,18 +15,14 @@ function showBasePlan() {
       `;
       container.id = 'edit-modal';
       container.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; max-width: 600px; width: 90%;';
-
+      
       const overlay = document.createElement('div');
       overlay.id = 'edit-overlay';
       overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;';
       overlay.onclick = closeEditModal;
-
+      
       document.body.appendChild(overlay);
       document.body.appendChild(container);
-    })
-    .catch(err => {
-      console.error('[MealPlanner] Edit modal load failed:', err);
-      alert('Could not load meal plan — ' + err.message);
     });
 }
 
