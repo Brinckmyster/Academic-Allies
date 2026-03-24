@@ -306,12 +306,11 @@
   function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
   /* ── Google Drive auth ─────────────────────────────────────── */
-  /* Claude: 2026-03-24 — added timeout + error_callback for better debugging */
   function getDriveToken() {
     return new Promise(function(resolve, reject) {
       if (driveToken) { resolve(driveToken); return; }
       if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-        reject(new Error('Google Identity Services not loaded — check your connection'));
+        reject(new Error('Google Identity Services not loaded'));
         return;
       }
       if (!driveTokenClient) {
@@ -321,20 +320,10 @@
           client_id: GOOGLE_CLIENT_ID,
           scope: DRIVE_SCOPE,
           hint: email,
-          callback: function() {},
-          error_callback: function(err) {
-            console.error('[StudyNotes] GIS error:', err);
-            reject(new Error(err.type || 'Google sign-in failed — pop-up may be blocked'));
-          }
+          callback: function() {}
         });
       }
-      /* Timeout: if auth takes more than 60s, assume popup was blocked/closed */
-      var timeout = setTimeout(function() {
-        reject(new Error('Google sign-in timed out — pop-up may have been blocked'));
-      }, 60000);
-
       driveTokenClient.callback = function(resp) {
-        clearTimeout(timeout);
         if (resp.error) { reject(new Error('Drive auth: ' + resp.error)); return; }
         driveToken = resp.access_token;
         resolve(driveToken);
@@ -475,19 +464,7 @@
       html += '<div class="class-header" onclick="window._toggleClass(\'' + safeId + '\')">';
       html += '<h2>📚 ' + esc(cls.name) + '</h2>';
       html += '<div class="class-meta">';
-      /* Claude: 2026-03-24 — count notes added in the last 24h for "new" badge */
-      var now = new Date();
-      var recentCount = 0;
-      clsNotes.forEach(function(n) {
-        if (n.date && n.date.toDate) {
-          var age = now - n.date.toDate();
-          if (age < 86400000) recentCount++; /* 24 hours in ms */
-        }
-      });
       html += '<span class="class-badge">' + clsNotes.length + ' note' + (clsNotes.length !== 1 ? 's' : '') + '</span>';
-      if (recentCount > 0) {
-        html += '<span class="class-badge" style="background:#34a853;color:#fff;">' + recentCount + ' new</span>';
-      }
       html += '<span class="class-arrow" id="arrow-' + safeId + '">▼</span>';
       html += '</div></div>';
 
@@ -497,11 +474,8 @@
       if (clsNotes.length > 0) {
         clsNotes.forEach(function(n) {
           var dateStr = n.date && n.date.toDate ? n.date.toDate().toLocaleDateString() : '';
-          var isNew = n.date && n.date.toDate && (now - n.date.toDate() < 86400000);
           html += '<div class="note-item">';
-          html += '<span class="note-name">' + esc(n.title || n.fileName);
-          if (isNew) html += ' <span style="background:#34a853;color:#fff;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:700;vertical-align:middle;">NEW</span>';
-          html += '</span>';
+          html += '<span class="note-name">' + esc(n.title || n.fileName) + '</span>';
           html += '<span class="note-date">' + dateStr + '</span>';
           if (n.driveLink) {
             html += '<a href="' + esc(n.driveLink) + '" target="_blank" class="note-link">Open ↗</a>';
@@ -610,54 +584,42 @@
   }
 
   /* ── Handle file upload ────────────────────────────────────── */
-  /* Claude: 2026-03-24 — improved error handling + progress feedback */
   function handleFileUpload(e) {
     var files = e.target.files;
     if (!files || files.length === 0) return;
     var className = _fileTargetClass;
-    if (!className) { toast('Error: no class selected'); return; }
+    if (!className) return;
 
-    var fileList = Array.prototype.slice.call(files); /* snapshot before reset */
-    e.target.value = ''; /* Reset input so same file can be re-uploaded */
-
-    toast('Connecting to Google Drive...');
+    toast('Uploading ' + files.length + ' file(s)...');
 
     getDriveToken()
       .then(function(token) {
-        toast('Uploading ' + fileList.length + ' file(s)...');
         return getClassFolder(token, className).then(function(fId) {
           var uploads = [];
-          fileList.forEach(function(file) {
-            uploads.push(
-              uploadToDrive(token, fId, file, file.name, file.type || 'application/octet-stream')
-                .then(function(result) {
-                  console.log('[StudyNotes] Uploaded: ' + file.name, result);
-                  return saveNoteMeta(className, file.name, file.name, result.id, result.webViewLink);
-                })
-                .then(function() {
-                  console.log('[StudyNotes] Saved metadata for: ' + file.name);
-                })
-            );
-          });
+          for (var i = 0; i < files.length; i++) {
+            (function(file) {
+              uploads.push(
+                uploadToDrive(token, fId, file, file.name, file.type || 'application/octet-stream')
+                  .then(function(result) {
+                    return saveNoteMeta(className, file.name, file.name, result.id, result.webViewLink);
+                  })
+              );
+            })(files[i]);
+          }
           return Promise.all(uploads);
         });
       })
       .then(function() {
-        toast('Uploaded ' + fileList.length + ' file(s) to ' + className + '!');
+        toast('Uploaded!');
         return loadNotes().then(render);
       })
       .catch(function(err) {
         console.error('[StudyNotes] File upload failed:', err);
-        if (err.message && err.message.indexOf('not loaded') !== -1) {
-          toast('Google sign-in not ready — try again in a moment');
-        } else if (err.message && err.message.indexOf('popup') !== -1) {
-          toast('Pop-up blocked — allow pop-ups for this site and try again');
-        } else if (err.message && err.message.indexOf('Token expired') !== -1) {
-          toast('Session expired — tap Upload again to reconnect');
-        } else {
-          toast('Upload failed — ' + (err.message || 'unknown error'));
-        }
+        toast('Upload failed — ' + err.message);
       });
+
+    /* Reset input so same file can be re-uploaded */
+    e.target.value = '';
   }
 
   /* ── Create Drive Folders for all classes ──────────────────── */
