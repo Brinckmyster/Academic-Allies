@@ -182,22 +182,6 @@
     .modal-actions { margin-top: 1.25rem; display: flex; gap: 1rem; }
     .modal-actions button { flex: 1; padding: 0.65rem 0; }
     #templateList { max-height: 300px; overflow-y: auto; margin-top: 1rem; }
-    /* Claude: 2026-03-24 — tappable day-type buttons for Load Day modal (replaces <select>).
-       Mobile-friendly: no native picker, compact touch targets, full layout control.
-       Archive: spoon-pal_2026-03-24_pre-mobile-day-select.bak.html */
-    .day-option-list { display: flex; flex-direction: column; gap: 6px; margin-top: 0.5rem; max-height: 45vh; overflow-y: auto; }
-    .day-option-btn {
-      display: block; width: 100%; text-align: left; padding: 10px 14px;
-      border: 2px solid #dde3f0; border-radius: 8px; background: #f8f9fa;
-      font-size: 15px; font-weight: 500; color: #333; cursor: pointer;
-      transition: all .15s;
-    }
-    .day-option-btn:hover { border-color: #aac4f7; background: #e8f0fe; }
-    .day-option-btn.selected { border-color: #1a73e8; background: #d2e3fc; color: #0d47a1; font-weight: 700; }
-    @media (max-width: 600px) {
-      .day-option-btn { padding: 8px 12px; font-size: 14px; }
-      .day-option-list { max-height: 35vh; }
-    }
 
     /* Claude: 2026-03-07 — pre-rollover summary modal */
     #rolloverSummaryRows { margin: 1rem 0; display: flex; flex-direction: column; gap: 8px; }
@@ -535,14 +519,9 @@
     <div class="modal-content">
       <button class="modal-close" id="loadDayModalClose" aria-label="Close modal">&times;</button>
       <h2 id="loadDayModalTitle">Load Day Template</h2>
-      <label style="font-weight:600;margin-bottom:4px;display:block;">Choose a Day Template</label>
-      <!-- Claude: 2026-03-24 — replaced <select> with tappable button list.
-           Native <select> on Android opens a picker that can be too tall with
-           excessive blank space on small screens. Buttons give full layout control.
-           Archive: spoon-pal_2026-03-24_pre-mobile-day-select.bak.html -->
-      <div id="dayTemplateOptions" class="day-option-list" role="listbox" aria-label="Day template options"></div>
-      <input type="hidden" id="dayTemplateSelect" />
-      <p style="margin-top: 0.5rem; font-size: 0.85em; color: #666;">Incomplete tasks carry forward automatically.</p>
+      <label for="dayTemplateSelect">Choose a Day Template</label>
+      <select id="dayTemplateSelect" aria-label="Select day template to load"></select>
+      <p style="margin-top: 0.75rem; font-size: 0.9em; color: #666;">Incomplete tasks will carry forward automatically.</p>
       <div class="modal-actions">
         <button type="button" id="confirmLoadDayBtn">Load Day</button>
         <button type="button" id="startFreshDayBtn" style="background: #d9534f;">Start Fresh</button>
@@ -1370,37 +1349,21 @@
   }
 
   // ── Fix #1: Load Day Modal ────────────────────────────────────────────────────
-  /* Claude: 2026-03-24 — replaced <select> with tappable button list.
-     The native Android picker rendered too tall with blank space on small screens.
-     Archive: spoon-pal_2026-03-24_pre-mobile-day-select.bak.html */
   function openLoadDayModal() {
-    var container = document.getElementById('dayTemplateOptions');
-    var hiddenInput = document.getElementById('dayTemplateSelect');
-    container.innerHTML = '';
-    hiddenInput.value = '__NORMAL_DAY__';
-
-    function makeBtn(value, label) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'day-option-btn' + (value === '__NORMAL_DAY__' ? ' selected' : '');
-      btn.textContent = label;
-      btn.setAttribute('role', 'option');
-      btn.setAttribute('data-value', value);
-      btn.onclick = function() {
-        var all = container.querySelectorAll('.day-option-btn');
-        for (var i = 0; i < all.length; i++) all[i].classList.remove('selected');
-        btn.classList.add('selected');
-        hiddenInput.value = value;
-      };
-      container.appendChild(btn);
-    }
-
+    const select = document.getElementById('dayTemplateSelect');
+    select.innerHTML = '';
     // Normal Day always first
-    makeBtn('__NORMAL_DAY__', '📋 Normal Day (Standard Protocol)');
+    const ndOpt = document.createElement('option');
+    ndOpt.value = '__NORMAL_DAY__';
+    ndOpt.textContent = 'Normal Day (Standard Protocol)';
+    select.appendChild(ndOpt);
     // User day templates
-    for (var key in templates) {
+    for (const key in templates) {
       if (templates[key].type === 'day' || templates[key].tasks) {
-        makeBtn(key, '📅 ' + key);
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = key;
+        select.appendChild(opt);
       }
     }
     document.getElementById('loadDayModal').style.display = 'block';
