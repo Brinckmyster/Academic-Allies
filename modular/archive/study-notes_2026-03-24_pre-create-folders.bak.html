@@ -36,8 +36,6 @@
   .sn-btn-nlm:hover { background: #3367d6; }
   .sn-btn-custom { background: #7c4dff; color: #fff; }
   .sn-btn-custom:hover { background: #651fff; }
-  .sn-btn-folders { background: #34a853; color: #fff; }
-  .sn-btn-folders:hover { background: #2d8f47; }
 
   /* ── Class cards ─────────────────────────────── */
   .class-card {
@@ -186,7 +184,6 @@
   <div class="sn-actions">
     <button class="sn-btn-add" id="addClassBtn">+ Add Class</button>
     <button class="sn-btn-nlm" id="openNlmBtn">🧠 Open NotebookLM</button>
-    <button class="sn-btn-folders" id="createFoldersBtn">📁 Create Drive Folders</button>
     <button class="sn-btn-custom" id="customizeBtn">⚙️ Customize</button>
   </div>
 
@@ -622,40 +619,6 @@
     e.target.value = '';
   }
 
-  /* ── Create Drive Folders for all classes ──────────────────── */
-  /* Claude: 2026-03-24 — pre-create Drive folder structure so NotebookLM can find them */
-  function createAllDriveFolders() {
-    if (classes.length === 0) {
-      toast('Add some classes first!');
-      return;
-    }
-
-    var btn = document.getElementById('createFoldersBtn');
-    btn.textContent = 'Creating...';
-    btn.disabled = true;
-
-    getDriveToken()
-      .then(function(token) {
-        return getRootFolder(token).then(function(rootId) {
-          var folderPromises = classes.map(function(cls) {
-            return getClassFolder(token, cls.name);
-          });
-          return Promise.all(folderPromises);
-        });
-      })
-      .then(function() {
-        toast('All ' + classes.length + ' folders created in Google Drive!');
-      })
-      .catch(function(err) {
-        console.error('[StudyNotes] Folder creation failed:', err);
-        toast('Failed — ' + err.message);
-      })
-      .then(function() {
-        btn.textContent = '📁 Create Drive Folders';
-        btn.disabled = false;
-      });
-  }
-
   /* ── Customize: JSON import ─────────────────────────────────── */
   /* Claude: 2026-03-24 — Bulk class setup via JSON upload */
   var _pendingClasses = []; /* classes parsed from JSON, awaiting confirm */
@@ -801,15 +764,6 @@
     document.getElementById('cancelPasteBtn').onclick = function() { closeModal('pasteModal'); };
     document.getElementById('pasteClose').onclick = function() { closeModal('pasteModal'); };
     document.getElementById('fileInput').onchange = handleFileUpload;
-
-    /* Claude: 2026-03-24 — Create Drive Folders button */
-    document.getElementById('createFoldersBtn').onclick = function() {
-      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
-        toast('Mirror mode — view only');
-        return;
-      }
-      createAllDriveFolders();
-    };
 
     /* Claude: 2026-03-24 — Customize button wiring */
     document.getElementById('customizeBtn').onclick = function() {
