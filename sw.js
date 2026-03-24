@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260324a'; /* Claude: 2026-03-23 — nope.active in auto-select+picker; XSS template list; checkIn defaults; localStorage try-catch */
+var CACHE   = 'aa-shell-20260324b'; /* Claude: 2026-03-23 — suppress check-in gap alert when student is app-active within 24h */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
