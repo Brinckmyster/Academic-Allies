@@ -34,8 +34,6 @@
   .sn-btn-add:hover { background: #4a7f82; }
   .sn-btn-nlm { background: #4285f4; color: #fff; }
   .sn-btn-nlm:hover { background: #3367d6; }
-  .sn-btn-custom { background: #7c4dff; color: #fff; }
-  .sn-btn-custom:hover { background: #651fff; }
 
   /* ── Class cards ─────────────────────────────── */
   .class-card {
@@ -132,9 +130,6 @@
   .sn-btn-cancel:hover { background: #dee2e6; }
   html.aa-dark .sn-btn-cancel { background: #333; color: #ccc; }
 
-  html.aa-dark .customize-hint { background: #2a2033 !important; border-color: #4a3860 !important; }
-  html.aa-dark .customize-hint pre { color: #ccc !important; }
-
   .sn-empty { text-align: center; color: #aaa; font-style: italic; padding: 40px 20px; font-size: 14px; }
   .sn-toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -184,7 +179,6 @@
   <div class="sn-actions">
     <button class="sn-btn-add" id="addClassBtn">+ Add Class</button>
     <button class="sn-btn-nlm" id="openNlmBtn">🧠 Open NotebookLM</button>
-    <button class="sn-btn-custom" id="customizeBtn">⚙️ Customize</button>
   </div>
 
   <div id="classesContainer">
@@ -223,43 +217,6 @@
     </div>
   </div>
 </div>
-
-<!-- Claude: 2026-03-24 — Customize modal: upload JSON to bulk-create classes -->
-<div class="sn-modal" id="customizeModal">
-  <div class="sn-modal-content">
-    <button class="sn-modal-close" id="customizeClose">&times;</button>
-    <h2>⚙️ Customize Study Notes</h2>
-    <p style="font-size:13px;color:#888;margin-bottom:12px;">
-      Upload a JSON file to set up your classes in bulk. You can ask Grok (or any AI)
-      to generate this for you!
-    </p>
-    <div class="customize-hint" style="background:#f5f0ff;border:1px solid #d1c4e9;border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;">
-      <strong>JSON format:</strong>
-      <pre style="margin:6px 0 0;white-space:pre-wrap;font-family:monospace;font-size:11px;color:#555;">{ "classes": [
-  "FCS 240 — Floral Design",
-  "MATH 101 — College Algebra",
-  "ENG 201 — Technical Writing"
-] }</pre>
-    </div>
-    <div class="upload-btns" style="margin-bottom:12px;">
-      <button class="btn-file" id="customizeFileBtn" style="flex:1;">📎 Upload JSON File</button>
-      <button class="btn-paste" id="customizePasteToggle" style="flex:1;">📋 Paste JSON</button>
-    </div>
-    <div id="customizePasteArea" style="display:none;">
-      <label for="customizeJson">Paste your JSON here</label>
-      <textarea id="customizeJson" style="min-height:120px;font-family:monospace;font-size:12px;" placeholder='{ "classes": ["Class 1", "Class 2"] }'></textarea>
-    </div>
-    <div id="customizePreview" style="display:none;margin-top:10px;">
-      <strong style="font-size:13px;">Preview — classes to add:</strong>
-      <div id="customizePreviewList" style="margin-top:6px;"></div>
-    </div>
-    <div class="sn-modal-actions">
-      <button class="sn-btn-save" id="customizeSaveBtn" style="display:none;">Add These Classes</button>
-      <button class="sn-btn-cancel" id="customizeCancelBtn">Cancel</button>
-    </div>
-  </div>
-</div>
-<input type="file" id="customizeFileInput" style="display:none" accept=".json,.txt" />
 
 <!-- Hidden file input -->
 <input type="file" id="fileInput" style="display:none" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.pptx,.xlsx,.csv" multiple />
@@ -619,99 +576,6 @@
     e.target.value = '';
   }
 
-  /* ── Customize: JSON import ─────────────────────────────────── */
-  /* Claude: 2026-03-24 — Bulk class setup via JSON upload */
-  var _pendingClasses = []; /* classes parsed from JSON, awaiting confirm */
-
-  function parseCustomizeJson(raw) {
-    try {
-      var data = JSON.parse(raw);
-      if (!data.classes || !Array.isArray(data.classes)) {
-        toast('JSON must have a "classes" array');
-        return null;
-      }
-      /* Filter to non-empty strings, trim whitespace */
-      var parsed = [];
-      for (var i = 0; i < data.classes.length; i++) {
-        var name = String(data.classes[i] || '').trim();
-        if (name) parsed.push(name);
-      }
-      if (parsed.length === 0) {
-        toast('No class names found in JSON');
-        return null;
-      }
-      return parsed;
-    } catch (e) {
-      toast('Invalid JSON — check format');
-      return null;
-    }
-  }
-
-  function showCustomizePreview(newClasses) {
-    /* Check for duplicates against existing classes */
-    var existingNames = {};
-    classes.forEach(function(c) { existingNames[c.name.toLowerCase()] = true; });
-
-    var previewHtml = '';
-    var addable = [];
-    newClasses.forEach(function(name) {
-      var isDupe = existingNames[name.toLowerCase()];
-      if (isDupe) {
-        previewHtml += '<div style="padding:4px 8px;font-size:13px;color:#888;text-decoration:line-through;">'
-          + esc(name) + ' <span style="font-size:11px;">(already exists)</span></div>';
-      } else {
-        previewHtml += '<div style="padding:4px 8px;font-size:13px;color:#4a7f82;font-weight:600;">✓ '
-          + esc(name) + '</div>';
-        addable.push(name);
-      }
-    });
-
-    document.getElementById('customizePreviewList').innerHTML = previewHtml;
-    document.getElementById('customizePreview').style.display = 'block';
-
-    if (addable.length > 0) {
-      _pendingClasses = addable;
-      document.getElementById('customizeSaveBtn').style.display = '';
-      document.getElementById('customizeSaveBtn').textContent = 'Add ' + addable.length + ' Class' + (addable.length > 1 ? 'es' : '');
-    } else {
-      _pendingClasses = [];
-      document.getElementById('customizeSaveBtn').style.display = 'none';
-      toast('All classes already exist!');
-    }
-  }
-
-  function applyCustomizeClasses() {
-    if (_pendingClasses.length === 0) return;
-    var btn = document.getElementById('customizeSaveBtn');
-    btn.textContent = 'Adding...';
-    btn.disabled = true;
-
-    var promises = _pendingClasses.map(function(name) { return saveClass(name); });
-    Promise.all(promises)
-      .then(function() {
-        toast(_pendingClasses.length + ' class' + (_pendingClasses.length > 1 ? 'es' : '') + ' added!');
-        _pendingClasses = [];
-        closeModal('customizeModal');
-        return loadClasses().then(render);
-      })
-      .catch(function(err) {
-        console.error('[StudyNotes] Customize save failed:', err);
-        toast('Failed to add classes — ' + err.message);
-      })
-      .then(function() {
-        btn.textContent = 'Add These Classes';
-        btn.disabled = false;
-      });
-  }
-
-  function resetCustomizeModal() {
-    document.getElementById('customizeJson').value = '';
-    document.getElementById('customizePasteArea').style.display = 'none';
-    document.getElementById('customizePreview').style.display = 'none';
-    document.getElementById('customizeSaveBtn').style.display = 'none';
-    _pendingClasses = [];
-  }
-
   /* ── Init ───────────────────────────────────────────────────── */
   function init() {
     /* Wait for Firebase */
@@ -764,56 +628,6 @@
     document.getElementById('cancelPasteBtn').onclick = function() { closeModal('pasteModal'); };
     document.getElementById('pasteClose').onclick = function() { closeModal('pasteModal'); };
     document.getElementById('fileInput').onchange = handleFileUpload;
-
-    /* Claude: 2026-03-24 — Customize button wiring */
-    document.getElementById('customizeBtn').onclick = function() {
-      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
-        toast('Mirror mode — view only');
-        return;
-      }
-      resetCustomizeModal();
-      openModal('customizeModal');
-    };
-    document.getElementById('customizeClose').onclick = function() { closeModal('customizeModal'); };
-    document.getElementById('customizeCancelBtn').onclick = function() { closeModal('customizeModal'); };
-    document.getElementById('customizeSaveBtn').onclick = applyCustomizeClasses;
-
-    /* Toggle paste area */
-    document.getElementById('customizePasteToggle').onclick = function() {
-      var area = document.getElementById('customizePasteArea');
-      area.style.display = area.style.display === 'none' ? 'block' : 'none';
-    };
-
-    /* Parse pasted JSON on blur or Enter */
-    document.getElementById('customizeJson').onblur = function() {
-      var raw = this.value.trim();
-      if (!raw) return;
-      var parsed = parseCustomizeJson(raw);
-      if (parsed) showCustomizePreview(parsed);
-    };
-    document.getElementById('customizeJson').onkeydown = function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        this.blur();
-      }
-    };
-
-    /* JSON file upload */
-    document.getElementById('customizeFileBtn').onclick = function() {
-      document.getElementById('customizeFileInput').click();
-    };
-    document.getElementById('customizeFileInput').onchange = function(e) {
-      var file = e.target.files && e.target.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        var raw = ev.target.result;
-        var parsed = parseCustomizeJson(raw);
-        if (parsed) showCustomizePreview(parsed);
-      };
-      reader.readAsText(file);
-      e.target.value = '';
-    };
   }
 
   init();
