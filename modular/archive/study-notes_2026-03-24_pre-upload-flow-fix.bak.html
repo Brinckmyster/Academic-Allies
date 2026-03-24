@@ -563,39 +563,14 @@
     openModal('pasteModal');
   };
 
-  /* Claude: 2026-03-24 — FIXED: get Drive token FIRST, then open file picker.
-     Chrome blocks popups that open while a file chooser is active/closing.
-     Old flow: click → file picker → pick file → auth popup → BLOCKED.
-     New flow: click → auth popup → got token → file picker → upload. */
   var _fileTargetClass = null;
-  var _cachedDriveToken = null;
   window._uploadFile = function(className) {
     if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
       toast('Mirror mode — view only');
       return;
     }
     _fileTargetClass = className;
-
-    /* If we already have a token, skip straight to file picker */
-    if (driveToken) {
-      document.getElementById('fileInput').click();
-      return;
-    }
-
-    /* Get token first (this opens the Google auth popup) */
-    toast('Connecting to Google Drive...');
-    getDriveToken()
-      .then(function() {
-        toast('Connected! Pick your file(s)...');
-        /* Small delay so the auth popup fully closes before file picker opens */
-        setTimeout(function() {
-          document.getElementById('fileInput').click();
-        }, 300);
-      })
-      .catch(function(err) {
-        console.error('[StudyNotes] Drive auth failed:', err);
-        toast('Google Drive sign-in failed — ' + err.message);
-      });
+    document.getElementById('fileInput').click();
   };
 
   /* ── Save pasted text to Drive ─────────────────────────────── */
