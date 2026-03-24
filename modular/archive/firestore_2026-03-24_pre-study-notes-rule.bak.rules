@@ -435,28 +435,6 @@ service cloud.firestore {
       allow write: if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
     }
 
-    // ── Study Notes — per-student class organizer + note metadata ────
-    // Path: /studyNotes/{uid}/classes/{classId} and /studyNotes/{uid}/notes/{noteId}
-    // Students read/write their own. Network members + admin can read (mirror).
-    // Network leads can also write (manage student's study setup).
-    // Added 2026-03-24 by Claude.
-    match /studyNotes/{uid} {
-      allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
-      allow write: if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
-
-      match /classes/{classId} {
-        allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
-        allow create, update: if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
-        allow delete: if isOwner(uid) || isBackstageManager();
-      }
-
-      match /notes/{noteId} {
-        allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
-        allow create, update: if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
-        allow delete: if isOwner(uid) || isBackstageManager();
-      }
-    }
-
     // ── Study Activity — per-student study session tracking ────────
     // Path: /studyActivity/{uid}
     // Students read/write their own. Network members + admin can read.
