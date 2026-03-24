@@ -602,8 +602,30 @@
           return { uid: s.uid, name: s.name, priority: 10, mode: null };
         });
       })).then(function(results) {
-        results.sort(function(a, b) { return a.priority - b.priority; });
-        callback(results[0]);
+        /* Claude: 2026-03-24 — When priorities are equal (both students have no active
+           mode), fetch the latest check-in flag to break the tie. A student with a
+           yellow/orange/red flag should be shown before a green one.
+           Archive: support-dashboard_2026-03-23_pre-quiet-alert-fix.bak.html */
+        var FLAG_SCORE = { green: 0, yellow: 1, orange: 2, red: 3 };
+        return Promise.all(results.map(function(r) {
+          return AA.db.collection('checkins').doc(r.uid).collection('days')
+            .orderBy('date', 'desc').limit(1).get()
+            .then(function(snap) {
+              if (!snap.empty) {
+                var d = snap.docs[0].data();
+                r.flagScore = FLAG_SCORE[d.latestFlag || 'green'] || 0;
+              } else {
+                r.flagScore = 0;
+              }
+              return r;
+            }).catch(function() { r.flagScore = 0; return r; });
+        })).then(function(scored) {
+          scored.sort(function(a, b) {
+            if (a.priority !== b.priority) return a.priority - b.priority;
+            return b.flagScore - a.flagScore; // higher flag score = more urgent
+          });
+          callback(scored[0]);
+        });
       }).catch(function() {
         callback(studentsInNetwork[0]);
       });
