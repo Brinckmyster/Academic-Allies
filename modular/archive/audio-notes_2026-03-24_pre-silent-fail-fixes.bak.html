@@ -463,12 +463,7 @@
       return fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)', {
         headers: { 'Authorization': 'Bearer ' + token }
       })
-      /* Claude: 2026-03-24 — add r.ok check so 401/403/500 doesn't silently return garbage */
-      .then(function(r) {
-        if (r.status === 401) { driveToken = null; throw new Error('Drive token expired'); }
-        if (!r.ok) throw new Error('Drive folder search HTTP ' + r.status);
-        return r.json();
-      })
+      .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.files && data.files.length > 0) {
           driveFolderId = data.files[0].id;
@@ -486,12 +481,7 @@
             mimeType: 'application/vnd.google-apps.folder'
           })
         })
-        /* Claude: 2026-03-24 — add r.ok check on folder creation */
-        .then(function(r) {
-          if (r.status === 401) { driveToken = null; throw new Error('Drive token expired'); }
-          if (!r.ok) throw new Error('Drive folder create HTTP ' + r.status);
-          return r.json();
-        })
+        .then(function(r) { return r.json(); })
         .then(function(f) { driveFolderId = f.id; return driveFolderId; });
       });
     }
@@ -1283,25 +1273,13 @@
       // TODO: future — integrate Otter.ai or OpenAI Whisper API for higher-quality
       //   transcription as a fallback/upgrade from Web Speech API.
 
-      /* Claude: 2026-03-24 — wrap blob construction in try/catch (corrupted chunks → crash) */
-      var audioBlob;
-      try {
-        audioBlob = new Blob(audioChunks, { type: recordingMimeType });
-      } catch (blobErr) {
-        console.error('[AudioNotes] Blob construction failed:', blobErr);
-        showToast('⚠️ Audio data error — saving transcript only.', 6000);
-        audioBlob = null;
-      }
+      // Claude: build audio blob for Google Drive upload
+      var audioBlob = new Blob(audioChunks, { type: recordingMimeType });
 
-      recordStatus.textContent = audioBlob ? 'Uploading to Drive…' : 'Saving transcript…';
-
-      /* Claude: 2026-03-24 — if blob failed, skip Drive entirely but still save to Firebase */
-      var drivePromise = audioBlob
-        ? attemptDriveUpload(audioBlob)
-        : Promise.resolve(null);
+      recordStatus.textContent = 'Uploading to Drive…';
 
       // Claude: attempt Drive upload first, then save to Firebase (with or without Drive link)
-      drivePromise.then(function(driveResult) {
+      attemptDriveUpload(audioBlob).then(function(driveResult) {
         recordStatus.textContent = driveResult ? 'Saving note…' : 'Saving (no Drive link)…';
 
         var noteData = {
@@ -1374,30 +1352,6 @@
             console.error('[AudioNotes] Firestore save error:', err);
             console.error('[AudioNotes] writeUid:', writeUid, 'noteData:', noteData);
           });
-      })
-      /* Claude: 2026-03-24 — CRITICAL: catch outer promise so Drive failure doesn't silently
-         kill the entire save chain. If we get here, Drive failed AND something else went wrong.
-         Redundancy layer 1: attemptDriveUpload already returns null on failure.
-         Redundancy layer 2: this .catch() catches anything else that slips through.
-         Redundancy layer 3: emergency draft is still in IndexedDB from periodic backup. */
-      .catch(function(outerErr) {
-        console.error('[AudioNotes] Outer save chain failed:', outerErr);
-        recordStatus.textContent = 'Save error — trying emergency backup…';
-        showToast('⚠️ Save failed — attempting emergency backup. Do NOT close this page!', 10000);
-        /* Emergency: try to save transcript + audio to IndexedDB so it can be recovered */
-        try { _saveEmergencyDraft(audioBlob); } catch(e2) {}
-        /* Also try localStorage transcript backup as last resort */
-        try {
-          localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
-            transcript: (transcript || '').trim(),
-            title: noteTitle || '',
-            hasAudio: !!(audioChunks && audioChunks.length),
-            savedAt: new Date().toISOString()
-          }));
-        } catch(e3) {}
-        setTimeout(function() {
-          recordStatus.textContent = '⚠️ Recording backed up locally — try saving again or reload the page.';
-        }, 3000);
       });
     }
 
@@ -1713,8 +1667,6 @@
        This keeps memory flat and ensures even 1-hour class recordings are fully recoverable.
        The 'drafts' store still holds transcript + metadata (no audio blob). */
     var _DB_VERSION = 2;
-    /* Claude: 2026-03-24 — track IndexedDB availability so we only warn once */
-    var _idbUnavailableWarned = false;
     function _openDraftDB(cb) {
       if (_draftDB) { cb(_draftDB); return; }
       try {
@@ -1731,21 +1683,8 @@
           }
         };
         req.onsuccess = function(e) { _draftDB = e.target.result; cb(_draftDB); };
-        req.onerror   = function()  {
-          /* Claude: 2026-03-24 — warn user that audio backup is degraded */
-          console.warn('[AA] IndexedDB open failed — audio backup degraded to localStorage-only');
-          if (!_idbUnavailableWarned && typeof showToast === 'function') {
-            _idbUnavailableWarned = true;
-            showToast('⚠️ Audio backup storage unavailable — transcript will be saved, but audio may not survive a crash. Save often!', 8000);
-          }
-          cb(null);
-        };
+        req.onerror   = function()  { cb(null); };
       } catch(e) {
-        console.warn('[AA] IndexedDB not available:', e.message);
-        if (!_idbUnavailableWarned && typeof showToast === 'function') {
-          _idbUnavailableWarned = true;
-          showToast('⚠️ Audio backup storage unavailable — save your recording frequently!', 8000);
-        }
         cb(null);
       }
     }
@@ -1797,43 +1736,19 @@
             chunkCount: newChunks.length,
             savedAt: new Date().toISOString()
           });
-          /* Claude: 2026-03-24 — warn user on FIRST failure, not 3rd.
-             Redundancy: 1) user sees warning immediately 2) sync checkpoint to localStorage
-             3) transcript backup to localStorage as last resort */
           tx.onerror = function(evt) {
             console.warn('[AA] Incremental chunk save failed:', evt.target.error);
             _chunkSaveFailCount++;
             _lastBackedUpIndex -= newChunks.length; // roll back so next attempt retries these chunks
-            /* Warn on first failure — Mary's devices don't get second chances */
-            if (!_chunkSaveFailShown) {
+            if (_chunkSaveFailCount >= 3 && !_chunkSaveFailShown) {
               _chunkSaveFailShown = true;
               var warn = document.getElementById('recordStatus') || document.getElementById('record-status');
-              if (warn) warn.textContent = '⚠️ Storage issue — save your recording soon!';
-              if (typeof showToast === 'function') {
-                showToast('⚠️ Audio backup had a hiccup — your recording is still going, but save it when you can.', 8000);
-              }
-            }
-            /* Emergency: sync checkpoint + transcript to localStorage */
-            _syncCheckpoint();
-            try {
-              var t = (document.getElementById('transcriptContent') || {}).textContent || (document.getElementById('liveTranscript') || {}).textContent || '';
-              if (t) localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
-                transcript: t,
-                title: (document.getElementById('noteTitleInput') || {}).value || '',
-                hasAudio: true,
-                savedAt: new Date().toISOString()
-              }));
-            } catch(e) {}
-          };
-          /* Claude: 2026-03-24 — confirm success so we know the write actually landed */
-          tx.oncomplete = function() {
-            if (_chunkSaveFailCount > 0) {
-              _chunkSaveFailCount = 0; // reset on success — storage recovered
-              _chunkSaveFailShown = false;
-              var warn = document.getElementById('recordStatus') || document.getElementById('record-status');
-              if (warn && warn.textContent.indexOf('Storage') !== -1) {
-                warn.textContent = '🔴 Recording…';
-              }
+              if (warn) warn.textContent = '⚠️ Storage running low — save your recording soon to avoid losing audio!';
+              // Also try to save transcript to localStorage as emergency backup
+              try {
+                var t = (document.getElementById('transcriptContent') || {}).textContent || (document.getElementById('liveTranscript') || {}).textContent || '';
+                if (t) localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', t);
+              } catch(e) {}
             }
           };
         } catch(e) {
@@ -1888,8 +1803,6 @@
     function _saveEmergencyDraft(audioBlob) {
       /* Claude: 2026-03-16 — save any remaining un-backed-up chunks incrementally first */
       _saveIncrementalChunks();
-      /* Claude: 2026-03-24 — sync checkpoint FIRST (survives even if IndexedDB doesn't finish) */
-      _syncCheckpoint();
       var draft = {
         id: 'pending',
         uid: writeUid || '',
@@ -1902,28 +1815,20 @@
         duration: recordStartTime ? Math.round((Date.now() - recordStartTime) / 1000) : 0,
         savedAt: new Date().toISOString()
       };
-      /* Claude: 2026-03-24 — ALWAYS save transcript to localStorage first (synchronous, reliable).
-         Redundancy layer 1: localStorage transcript (sync, always completes)
-         Redundancy layer 2: IndexedDB draft metadata (async, may not complete on unload)
-         Redundancy layer 3: IndexedDB incremental chunks (already saved above) */
-      try { localStorage.setItem('AA_AUDIO_DRAFT_TEXT', draft.transcript); } catch(e) {}
       _openDraftDB(function(db) {
         if (!db) {
-          /* IndexedDB unavailable — localStorage already saved above */
-          console.warn('[AA] IndexedDB unavailable for emergency draft — localStorage fallback active');
+          /* IndexedDB unavailable — fall back to transcript-only via localStorage */
+          try { localStorage.setItem('AA_AUDIO_DRAFT_TEXT', draft.transcript); } catch(e) {}
           return;
         }
         var tx = db.transaction('drafts', 'readwrite');
         var store = tx.objectStore('drafts');
         var req = store.put(draft);
-        /* Claude: 2026-03-24 — onsuccess confirms the write actually landed */
-        req.onsuccess = function() {
-          console.log('[AA] Emergency draft saved to IndexedDB');
-        };
         /* Claude: 2026-03-16 — detect IndexedDB quota exceeded and warn user */
         req.onerror = function(evt) {
           console.error('[AA] Emergency draft save failed:', evt.target.error);
-          /* localStorage transcript already saved above — just warn */
+          /* Fall back to transcript-only localStorage save */
+          try { localStorage.setItem('AA_AUDIO_DRAFT_TEXT', draft.transcript); } catch(e2) {}
           /* Only show toast if page is visible (not during pagehide) */
           if (!document.hidden && typeof showToast === 'function') {
             showToast('⚠️ Storage full — transcript saved but audio backup may be lost. Save to Drive now!', 8000);
@@ -2123,12 +2028,6 @@
           } else {
             showToast('Could not save to Docs. Check your Google permissions.', 5000);
           }
-          if (btn) { btn.disabled = false; btn.textContent = '📄 Save transcript to Docs'; }
-        })
-        /* Claude: 2026-03-24 — catch createGoogleDoc rejection so it doesn't silently fail */
-        .catch(function(err) {
-          console.error('[AudioNotes] Save to Docs failed:', err);
-          showToast('⚠️ Could not save to Docs — ' + (err.message || 'check your connection'), 8000);
           if (btn) { btn.disabled = false; btn.textContent = '📄 Save transcript to Docs'; }
         });
       };
@@ -2356,15 +2255,7 @@
               chunkCount: audioChunks ? audioChunks.length : 0,
               savedAt:    new Date().toISOString()
             }));
-          } catch (e) {
-            /* Claude: 2026-03-24 — warn user if localStorage quota exceeded instead of silent swallow */
-            console.warn('[AA] localStorage backup failed:', e.name);
-            if (e.name === 'QuotaExceededError' && typeof showToast === 'function') {
-              showToast('⚠️ Phone storage is low — save your recording to Drive soon!', 6000);
-            }
-          }
-          /* Claude: 2026-03-24 — sync checkpoint alongside transcript backup */
-          _syncCheckpoint();
+          } catch (e) {}
         }
 
         /* Claude: 2026-03-16 — incremental chunk save: only NEW chunks since last backup.
