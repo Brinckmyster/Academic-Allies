@@ -396,23 +396,10 @@
           _wakeLock.addEventListener('release', function() {
             console.log('[AA] Wake Lock released');
             _wakeLock = null;
-            /* Claude: 2026-03-24 — re-acquire wake lock if still recording.
-               Android releases the lock when switching apps (e.g. opening Camera).
-               Without re-acquisition, the screen can lock and kill the recording.
-               Redundancy: 1) re-acquire on release 2) re-acquire on visibilitychange
-               3) track.onended catches stream death if re-acquire fails */
-            if (window.AA_isRecording) {
-              console.log('[AA] Wake Lock lost during recording — re-acquiring…');
-              _acquireWakeLock();
-            }
           });
           console.log('[AA] Wake Lock acquired — screen will stay on during recording');
         }).catch(function(err) {
           console.warn('[AA] Wake Lock failed:', err.message);
-          /* Claude: 2026-03-24 — warn user on Android that screen lock may interrupt recording */
-          if (/Android/i.test(navigator.userAgent) && typeof showToast === 'function') {
-            showToast('Keep your screen on while recording — Android may stop it if the screen locks.', 5000);
-          }
         });
       }
     }
@@ -1036,36 +1023,6 @@
             console.error('[AudioNotes] MediaRecorder error:', evt.error || evt);
             _recoverFromRecorderDeath('The recorder encountered an error.');
           };
-          /* Claude: 2026-03-24 — listen for track death on EVERY track (audio + video).
-             Android aggressively kills camera streams when the app backgrounds, screen locks,
-             or another app grabs the camera. Without this, chunks silently stop accumulating
-             and the user thinks they're still recording.
-             Redundancy: 1) track.onended fires immediately when OS kills stream
-                         2) mediaRecorder.onerror catches recorder-level failures
-                         3) visibilitychange health check catches anything else on page restore */
-          stream.getTracks().forEach(function(track) {
-            track.onended = function() {
-              console.warn('[AA] Track ended:', track.kind, track.label);
-              /* If we're still supposed to be recording, this is an unexpected death */
-              if (window.AA_isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
-                /* For VIDEO track death: audio may still be fine. Don't kill the recording,
-                   but warn the user and remove the dead preview. */
-                if (track.kind === 'video') {
-                  if (_videoPreview) {
-                    _videoPreview.remove();
-                    _videoPreview = null;
-                  }
-                  showToast('⚠️ Camera was disconnected — audio is still recording!', 6000);
-                  var statusEl = document.getElementById('recordStatus');
-                  if (statusEl) statusEl.textContent = '🔴 Recording (camera lost, audio continues)…';
-                } else {
-                  /* AUDIO track death = recording is truly dead */
-                  showToast('⚠️ Microphone disconnected — saving your recording!', 6000);
-                  _recoverFromRecorderDeath('Microphone stream was interrupted by your device.');
-                }
-              }
-            };
-          });
           /* Claude 2026-03-07: 10s timeslice — ondataavailable fires every 10s so
              audioChunks fills DURING recording, not only on stop. This means
              pagehide/beforeunload saves contain real audio instead of empty blob.
@@ -1105,40 +1062,8 @@
           }
         })
         .catch(function(err) {
-          /* Claude: 2026-03-24 — specific error messages for video mode on Android.
-             Common failures: NotAllowedError (permission denied), NotFoundError (no camera),
-             NotReadableError (camera in use by another app), OverconstrainedError (resolution unsupported).
-             Redundancy: 1) descriptive toast 2) console error 3) recordStatus text */
-          var msg = 'Microphone access denied';
-          if (_videoMode) {
-            if (err.name === 'NotAllowedError') {
-              msg = '📹 Camera + microphone permission denied — check your browser settings';
-            } else if (err.name === 'NotFoundError') {
-              msg = '📹 No camera found — try switching to audio-only mode';
-            } else if (err.name === 'NotReadableError') {
-              msg = '📹 Camera is busy — close other apps using the camera and try again';
-            } else if (err.name === 'OverconstrainedError') {
-              msg = '📹 Camera doesn\'t support requested resolution — trying audio-only…';
-              /* Auto-fallback: retry with audio only */
-              _videoMode = false;
-              if (videoToggleBtn) {
-                videoToggleBtn.style.color = '#aaa';
-                videoToggleBtn.style.borderColor = '#555';
-              }
-              startRecording(); /* retry audio-only */
-              return;
-            } else {
-              msg = '📹 Camera/mic error: ' + (err.message || err.name);
-            }
-          } else if (err.name === 'NotAllowedError') {
-            msg = 'Microphone permission denied — check your browser settings';
-          } else if (err.name === 'NotReadableError') {
-            msg = 'Microphone is busy — close other apps using the mic';
-          }
-          showToast(msg, 6000);
-          var statusEl = document.getElementById('recordStatus');
-          if (statusEl) statusEl.textContent = msg;
-          console.error('[AudioNotes] getUserMedia error:', err.name, err.message, err);
+          showToast('Microphone access denied');
+          console.error('[AudioNotes] getUserMedia error:', err);
         });
     }
 
