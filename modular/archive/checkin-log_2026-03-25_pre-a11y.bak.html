@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<!-- ============================================================
+     checkin-log.html — Academic Allies Check-In History Log
+     Created: 2026-02-28 by Claude
+     Updated: 2026-02-28 by Claude — backstage-manager now auto-scans
+       for student UID so admin sees student log, not their own.
+     Shows the last 30 days of check-in entries for the signed-in
+     student (or the mirrored student in mirror/boss mode).
+     Support network members see the student's log via AA_MIRROR_UID.
+     Backstage-manager sees the student's log via Firestore scan.
+     ============================================================ -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Check-In Log — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --green:   #28a745;
+      --yellow:  #ffc107;
+      --orange:  #fd7e14;
+      --red:     #dc3545;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 3rem;
+    }
+    #site-header { min-height: 56px; }
+    .page-wrap { max-width: 760px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+
+    /* ── Page header ── */
+    .log-header { margin: 1rem 0 1.5rem; }
+    .log-header h1 { font-size: 1.5rem; color: var(--teal-dk); }
+    .log-header .subtitle { color: var(--muted); font-size: .9rem; margin-top: .25rem; }
+    #log-student-name { font-weight: 700; }
+
+    /* ── Controls ── */
+    .log-controls {
+      display: flex; gap: .6rem; align-items: center;
+      margin-bottom: 1.25rem; flex-wrap: wrap;
+    }
+    .log-controls label { font-size: .85rem; color: var(--muted); }
+    /* Claude: 2026-03-13 — WCAG 44px min touch targets for mobile */
+    .log-controls select {
+      padding: .5rem .7rem; border-radius: 6px;
+      border: 1px solid var(--border); font-size: .9rem;
+      background: var(--card); color: var(--text); cursor: pointer;
+      min-height: 44px;
+    }
+    #refresh-btn, #export-btn {
+      margin-left: auto; padding: .5rem .9rem; font-size: .85rem;
+      background: var(--teal); color: #fff; border: none;
+      border-radius: 6px; cursor: pointer; min-height: 44px;
+    }
+    #export-btn { background: #28a745; margin-left: 0; }
+    #refresh-btn:hover { background: var(--teal-dk); }
+    #export-btn:hover { background: #218838; }
+
+    /* ── Day cards ── */
+    .day-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      margin-bottom: .85rem; overflow: hidden;
+    }
+    .day-header {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .75rem 1rem; cursor: pointer;
+      user-select: none; min-height: 48px; /* Claude: 2026-03-13 — WCAG touch target */
+    }
+    .day-header:hover { background: #f4f9f9; }
+    .flag-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .flag-dot.green  { background: var(--green); }
+    .flag-dot.yellow { background: var(--yellow); }
+    .flag-dot.orange { background: var(--orange); }
+    .flag-dot.red    { background: var(--red); }
+    .flag-dot.none   { background: #ccc; }
+    .day-date { font-weight: 700; font-size: 1rem; color: var(--teal-dk); }
+    .day-summary { font-size: .85rem; color: var(--muted); margin-left: .25rem; }
+    .day-chevron { margin-left: auto; color: var(--muted); font-size: .8rem; transition: transform .2s; }
+    .day-card.open .day-chevron { transform: rotate(180deg); }
+
+    /* ── Entry detail ── */
+    .day-detail { display: none; padding: .75rem 1rem 1rem; border-top: 1px solid var(--border); }
+    .day-card.open .day-detail { display: block; }
+
+    .entry-block { margin-bottom: 1rem; }
+    .entry-block:last-child { margin-bottom: 0; }
+    .entry-time { font-size: .78rem; color: var(--muted); margin-bottom: .4rem; }
+
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: .4rem; margin-bottom: .5rem;
+    }
+    .cat-pill {
+      display: flex; align-items: center; gap: .4rem;
+      background: #f0f7f4; border-radius: 6px;
+      padding: .3rem .6rem; font-size: .82rem;
+    }
+    .cat-pill .cpflag { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .cat-pill .cpflag.green  { background: var(--green); }
+    .cat-pill .cpflag.yellow { background: var(--yellow); }
+    .cat-pill .cpflag.orange { background: var(--orange); }
+    .cat-pill .cpflag.red    { background: var(--red); }
+    .cat-pill .cpflag.skip   { background: #ccc; }
+
+    .entry-note {
+      font-size: .85rem; color: #444; background: #fafafa;
+      border-left: 3px solid var(--border);
+      padding: .4rem .7rem; border-radius: 0 6px 6px 0;
+      margin-top: .35rem;
+    }
+    .thumping-badge {
+      display: inline-block; font-size: .75rem; background: #fff3e0;
+      color: #7a3e00; border-radius: 5px; padding: .15rem .5rem;
+      margin-left: .4rem;
+    }
+    .emergency-badge {
+      display: inline-block; font-size: .75rem; background: #fde8ea;
+      color: #721c24; border-radius: 5px; padding: .15rem .5rem;
+      margin-left: .4rem;
+    }
+
+    /* ── States ── */
+    #log-loading, #log-empty, #log-error, #auth-gate {
+      text-align: center; padding: 3rem 1rem; color: var(--muted);
+    }
+    #auth-gate { display: none; }
+    #auth-gate button {
+      margin-top: 1rem; padding: .6rem 1.4rem;
+      background: var(--teal); color: #fff; border: none;
+      border-radius: 8px; font-size: 1rem; cursor: pointer;
+    }
+
+    /* ── Mirror banner ── */
+    #mirror-notice {
+      display: none; background: #e8f2f3; border: 1px solid var(--teal);
+      border-radius: 8px; padding: .6rem 1rem; margin-bottom: 1rem;
+      font-size: .88rem; color: var(--teal-dk);
+    }
+
+    /* Claude: 2026-03-13 — print-friendly styles for disability services reports */
+    @media print {
+      body { background: #fff; padding: 0; font-size: 11pt; }
+      #site-header, .log-controls, #mirror-notice, #auth-gate,
+      #log-loading, #log-empty, #log-error { display: none !important; }
+      .page-wrap { max-width: 100%; padding: 0; margin: 0; }
+      .log-header { margin: 0 0 .5rem; }
+      .log-header h1 { font-size: 14pt; }
+      .day-card { break-inside: avoid; border: 1px solid #999; box-shadow: none; margin-bottom: .5rem; }
+      .day-detail { display: block !important; } /* expand all days */
+      .day-chevron { display: none; }
+      .day-header { padding: .4rem .6rem; }
+      .flag-dot { width: 10px; height: 10px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .cat-pill .cpflag { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .cat-pill { background: #f0f0f0 !important; }
+      .entry-note { border-left-color: #999; }
+      @page { margin: 0.75in; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<div class="page-wrap">
+
+  <div class="log-header">
+    <h1>📋 Check-In Log</h1>
+    <p class="subtitle">Showing check-ins for <span id="log-student-name">…</span></p>
+  </div>
+
+  <div id="mirror-notice">👁 Viewing in read-only mirror mode — you're seeing <strong id="mirror-name">a student</strong>'s log.</div>
+
+  <div id="auth-gate">
+    <p>Sign in to see check-in history.</p>
+    <button onclick="AA.signInWithGoogle()">Sign in with Google</button>
+  </div>
+
+  <div class="log-controls" id="log-controls" style="display:none">
+    <label for="days-select">Show:</label>
+    <!-- Updated 2026-02-28 by Claude: extended to full-semester and all-time options -->
+    <!-- Claude: 2026-03-13 — added custom date range option -->
+    <select id="days-select" onchange="onRangeChange()">
+      <option value="7">Last 7 days</option>
+      <option value="14">Last 14 days</option>
+      <option value="30" selected>Last 30 days</option>
+      <option value="60">Last 60 days</option>
+      <option value="90">Last 90 days (semester)</option>
+      <option value="120">Last 120 days</option>
+      <option value="180">Last 180 days (6 months)</option>
+      <option value="365">Last year</option>
+      <option value="9999">All time</option>
+      <option value="custom">Custom range…</option>
+    </select>
+    <span id="custom-range" style="display:none; gap:.4rem; align-items:center; flex-wrap:wrap;">
+      <label for="date-from" style="font-size:.82rem;color:var(--muted)">From:</label>
+      <input type="date" id="date-from" style="padding:.35rem .5rem;border-radius:6px;border:1px solid var(--border);font-size:.85rem;" />
+      <label for="date-to" style="font-size:.82rem;color:var(--muted)">To:</label>
+      <input type="date" id="date-to" style="padding:.35rem .5rem;border-radius:6px;border:1px solid var(--border);font-size:.85rem;" />
+      <button onclick="loadLog()" style="padding:.35rem .7rem;font-size:.82rem;background:var(--teal);color:#fff;border:none;border-radius:6px;cursor:pointer;">Go</button>
+    </span>
+    <button id="refresh-btn" onclick="loadLog()">↻ Refresh</button>
+    <!-- Claude: 2026-03-13 — export check-in data as CSV -->
+    <button id="export-btn" onclick="exportCSV()" style="padding:.4rem .9rem;font-size:.85rem;background:#28a745;color:#fff;border:none;border-radius:6px;cursor:pointer;" title="Download check-in history as CSV">📥 Export</button>
+  </div>
+
+  <div id="log-loading">Loading check-in history…</div>
+  <div id="log-empty"   style="display:none">No check-ins found for this period.</div>
+  <div id="log-error"   style="display:none">Could not load check-in history. Please try again.</div>
+  <div id="log-list"></div>
+
+</div><!-- /page-wrap -->
+
+<!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. -->
+<!-- Claude: 2026-03-14 — removed duplicate aa-mirror.js; shared-header loads it -->
+
+<script>
+/* ── Constants ──────────────────────────────────────────────────────────── */
+var CAT_LABELS = {
+  mental:   '🧠 Mental',
+  physical: '💪 Physical',
+  school:   '📚 School',
+  spiritual:'✨ Spiritual',
+  social:   '💬 Social'
+};
+
+var FLAG_COLORS = { green: 'green', yellow: 'yellow', orange: 'orange', red: 'red' };
+
+/* Derive a single color from a category object (mirrors status-circle.js logic) */
+function catColor(cat, data) {
+  if (!data || !data.gateway || data.gateway === 'skip') return 'skip';
+  var v = data.emojiV || 0;
+  if (v >= 8) return 'red';
+  if (v >= 6) return 'orange';
+  if (v >= 5) return 'yellow';
+  if (v >  0) return 'green';
+  if (data.gateway === 'yes')  return 'green';
+  if (data.gateway === 'no')   return 'yellow';
+  return 'skip';
+}
+
+/* ── Rendering ──────────────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderEntry(entry, idx) {
+  var cats = entry.categories || {};
+  var ts   = '';
+  if (entry.timestamp) {
+    var d = typeof entry.timestamp.toDate === 'function'
+      ? entry.timestamp.toDate() : new Date(entry.timestamp);
+    ts = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  var badges = '';
+  if (entry.emergency === true || entry.emergency === 'yes') {
+    badges += '<span class="emergency-badge">🆘 Emergency flagged</span>';
+  }
+  if (entry.thumping) {
+    badges += '<span class="thumping-badge">🔔 Thumping voices</span>';
+  }
+
+  var catPills = Object.keys(CAT_LABELS).map(function(k) {
+    var data  = cats[k];
+    var color = catColor(k, data);
+    var label = CAT_LABELS[k];
+    var gwLabel = data && data.gateway ? data.gateway : '—';
+    return '<div class="cat-pill">' +
+      '<span class="cpflag ' + color + '"></span>' +
+      '<span>' + label + ' <span style="color:#888;font-size:.75rem">(' + esc(gwLabel) + ')</span></span>' +
+    '</div>';
+  }).join('');
+
+  var noteHtml = '';
+  if (entry.finalNote && entry.finalNote.trim()) {
+    noteHtml = '<div class="entry-note">' + esc(entry.finalNote) + '</div>';
+  }
+
+  return '<div class="entry-block">' +
+    '<div class="entry-time">' +
+      (ts ? '🕐 ' + ts : 'Time unknown') + badges +
+    '</div>' +
+    '<div class="cat-grid">' + catPills + '</div>' +
+    noteHtml +
+  '</div>';
+}
+
+function renderDayCard(dayData) {
+  var flag     = dayData.latestFlag || 'none';
+  var entries  = Array.isArray(dayData.entries) ? dayData.entries : [];
+  var date     = dayData.date || '';
+
+  /* Format date nicely */
+  var dateLabel = date;
+  try {
+    var d = new Date(date + 'T12:00:00'); /* noon avoids TZ day-shift */
+    dateLabel = d.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
+  } catch(e) {}
+
+  var flagLabels = {
+    green:  'All clear',
+    yellow: 'Some concerns',
+    orange: 'Worth checking in',
+    red:    'Red flag',
+    none:   'No data'
+  };
+  var summary = entries.length + ' check-in' + (entries.length === 1 ? '' : 's') +
+                ' · ' + (flagLabels[flag] || flag);
+
+  var entriesHtml = entries.length
+    ? entries.map(renderEntry).join('<hr style="border:none;border-top:1px solid #eee;margin:.75rem 0">')
+    : '<p style="color:#999;font-size:.85rem">No entries recorded.</p>';
+
+  return '<div class="day-card" onclick="toggleDay(this)">' +
+    '<div class="day-header">' +
+      '<span class="flag-dot ' + esc(flag) + '"></span>' +
+      '<span class="day-date">' + esc(dateLabel) + '</span>' +
+      '<span class="day-summary">' + esc(summary) + '</span>' +
+      '<span class="day-chevron">▼</span>' +
+    '</div>' +
+    '<div class="day-detail">' + entriesHtml + '</div>' +
+  '</div>';
+}
+
+function toggleDay(card) {
+  card.classList.toggle('open');
+}
+
+/* Claude: 2026-03-13 — export visible check-in data as CSV file download */
+var _lastSnapDocs = null; /* stash snapshot docs for export */
+
+function exportCSV() {
+  if (!_lastSnapDocs || _lastSnapDocs.length === 0) {
+    alert('No check-in data to export. Load some data first.');
+    return;
+  }
+
+  var rows = [['Date', 'Time', 'Flag', 'Mood', 'Mental', 'Physical', 'School', 'Spiritual', 'Social', 'Note']];
+
+  _lastSnapDocs.forEach(function (doc) {
+    var d = doc.data();
+    var date = d.date || '';
+    var entries = Array.isArray(d.entries) ? d.entries : [];
+    entries.forEach(function (entry) {
+      var ts = '';
+      if (entry.timestamp) {
+        var dt = typeof entry.timestamp.toDate === 'function'
+          ? entry.timestamp.toDate() : new Date(entry.timestamp);
+        ts = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      var cats = entry.categories || {};
+      function catVal(k) {
+        if (!cats[k]) return '';
+        var gw = cats[k].gateway || '';
+        var v = cats[k].emojiV || '';
+        return gw + (v ? ' (' + v + '/10)' : '');
+      }
+      var note = (entry.finalNote || '').replace(/"/g, '""');
+      rows.push([
+        date, ts, entry.flag || '', entry.mood || '',
+        catVal('mental'), catVal('physical'), catVal('school'),
+        catVal('spiritual'), catVal('social'),
+        '"' + note + '"'
+      ]);
+    });
+  });
+
+  var csv = rows.map(function (r) { return r.join(','); }).join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'checkin-log-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ── Data loading ───────────────────────────────────────────────────────── */
+var _currentUid = null;
+var _clUid = null; // UID guard — prevents log reload on 45-min token refresh. Claude, 2026-03-07.
+var _unsubLog   = null;
+
+function show(id) {
+  ['log-loading','log-empty','log-error','log-list'].forEach(function(i) {
+    document.getElementById(i).style.display = (i === id ? 'block' : 'none');
+  });
+}
+
+/* Claude: 2026-03-13 — show/hide custom date range inputs */
+function onRangeChange() {
+  var sel = document.getElementById('days-select');
+  var custom = document.getElementById('custom-range');
+  if (sel.value === 'custom') {
+    custom.style.display = 'flex';
+    /* Default: last 30 days range pre-filled */
+    var today = new Date();
+    var from  = new Date(today);
+    from.setDate(from.getDate() - 30);
+    var toEl   = document.getElementById('date-to');
+    var fromEl = document.getElementById('date-from');
+    if (!toEl.value)   toEl.value   = today.toISOString().split('T')[0];
+    if (!fromEl.value) fromEl.value = from.toISOString().split('T')[0];
+  } else {
+    custom.style.display = 'none';
+    loadLog();
+  }
+}
+
+/* Updated 2026-02-28 by Claude: supports unlimited "all time" option */
+/* Claude: 2026-03-13 — added custom date range support */
+function loadLog() {
+  if (!_currentUid) return;
+  var sel  = document.getElementById('days-select').value;
+
+  if (_unsubLog) { _unsubLog(); _unsubLog = null; }
+  show('log-loading');
+
+  var query = AA.db.collection('checkins').doc(_currentUid)
+    .collection('days')
+    .orderBy('date', 'desc');
+
+  if (sel === 'custom') {
+    /* Custom date range: filter by date field */
+    /* Claude: 2026-03-16 — added .limit(365) to cap custom range queries and prevent fetching huge datasets */
+    var fromVal = document.getElementById('date-from').value;
+    var toVal   = document.getElementById('date-to').value;
+    if (fromVal) query = query.where('date', '>=', fromVal);
+    if (toVal)   query = query.where('date', '<=', toVal);
+    query = query.limit(365);
+  } else {
+    var days = parseInt(sel, 10) || 30;
+    /* "All time" (9999) = no limit; otherwise cap to selected days */
+    if (days < 9999) { query = query.limit(days); }
+  }
+
+  _unsubLog = query
+    .onSnapshot(function(snap) {
+      if (snap.empty) { _lastSnapDocs = []; show('log-empty'); return; }
+      _lastSnapDocs = snap.docs; /* Claude: 2026-03-13 — stash for CSV export */
+      var html = snap.docs.map(function(d) { return renderDayCard(d.data()); }).join('');
+      document.getElementById('log-list').innerHTML = html;
+      show('log-list');
+    }, function(err) {
+      console.error('[AA] checkin-log error:', err);
+      show('log-error');
+    });
+}
+
+/* ── Helpers ────────────────────────────────────────────────────────────── */
+function waitForAA(cb, n) {
+  n = n || 0;
+  if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+  /* Claude: 2026-03-14 — show error message on timeout instead of silently giving up */
+  if (n > 40) {
+    var el = document.getElementById('log-loading');
+    if (el) el.textContent = 'Could not connect — please refresh.';
+    return;
+  }
+  setTimeout(function() { waitForAA(cb, n + 1); }, 200);
+}
+
+function showMirrorBanner(name) {
+  var notice = document.getElementById('mirror-notice');
+  var mname  = document.getElementById('mirror-name');
+  if (notice) notice.style.display = 'block';
+  if (mname)  mname.textContent = name || 'student';
+  document.getElementById('log-student-name').textContent = name || 'student';
+}
+
+/* Scan all users for the first student doc (admin fallback) */
+/* Updated 2026-02-28 by Claude — gives backstage-manager a student target */
+function findFirstStudent(cb) {
+  AA.db.collection('users').get()
+    .then(function(snap) {
+      var found = null;
+      snap.forEach(function(doc) {
+        if (found) return;
+        var d = doc.data();
+        if (d.role === 'student') {
+          found = { uid: doc.id, name: d.displayName || d.name || d.email || 'Student' };
+        }
+      });
+      cb(found ? found.uid : null, found ? found.name : null);
+    })
+    .catch(function(e) {
+      console.warn('[AA] checkin-log findFirstStudent:', e);
+      cb(null, null);
+    });
+}
+
+/* ── Auth boot ──────────────────────────────────────────────────────────── */
+/* Updated 2026-02-28 by Claude — backstage-manager now auto-scans for
+   student so admin sees student log, not their own empty log.              */
+waitForAA(function() {
+  AA.auth.onAuthStateChanged(function(user) {
+    var authGate = document.getElementById('auth-gate');
+    var controls = document.getElementById('log-controls');
+
+    if (!user) {
+      authGate.style.display = 'block';
+      show('log-loading');
+      document.getElementById('log-student-name').textContent = '—';
+      return;
+    }
+
+    authGate.style.display = 'none';
+    controls.style.display = 'flex';
+
+    if (user.uid === _clUid) return; // token refresh — skip log reload
+    _clUid = user.uid;
+
+    /* Case 1: support-role mirror already set by aa-mirror.js */
+    if (window.AA_MIRROR_UID) {
+      _currentUid = window.AA_MIRROR_UID;
+      AA.db.collection('users').doc(window.AA_MIRROR_UID).get()
+        .then(function(doc) {
+          var name = (doc.exists && (doc.data().displayName || doc.data().name)) || 'student';
+          showMirrorBanner(name);
+        }).catch(function() { showMirrorBanner('student'); });
+      loadLog();
+      return;
+    }
+
+    /* Case 2: read own role to determine display target */
+    AA.db.collection('users').doc(user.uid).get()
+      .then(function(myDoc) {
+        var myRole = myDoc.exists ? (myDoc.data().role || 'student') : 'student';
+
+        if (myRole === 'backstage-manager') {
+          /* Admin: scan for the student and show their log */
+          findFirstStudent(function(studentUid, studentName) {
+            if (studentUid) {
+              _currentUid = studentUid;
+              showMirrorBanner(studentName);
+            } else {
+              /* No student found — fall back to own UID */
+              _currentUid = user.uid;
+              var fn = (user.displayName || user.email || '').split(/[\s@]/)[0];
+              document.getElementById('log-student-name').textContent = fn || 'you';
+            }
+            loadLog();
+          });
+        } else {
+          /* Regular student — own log */
+          _currentUid = user.uid;
+          var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
+          document.getElementById('log-student-name').textContent = firstName || 'you';
+          loadLog();
+        }
+      })
+      .catch(function(err) {
+        console.error('[AA] checkin-log auth role read:', err);
+        _currentUid = user.uid;
+        loadLog();
+      });
+  });
+});
+</script>
+
+<!-- Shared header loader (full script re-execution so Firebase/auth initialise) -->
+<script>
+fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
+  .then(function(r){ return r.text(); })
+  .then(function(html){
+    var container = document.getElementById('site-header');
+    container.innerHTML = html;
+    container.querySelectorAll('script').forEach(function(old) {
+      var s = document.createElement('script');
+      Array.from(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      s.textContent = old.textContent;
+      old.replaceWith(s);
+    });
+    var drag = document.createElement('script');
+    drag.src = '/Academic-Allies/modular/js/draggable.js';
+    drag.onload = function(){ if (typeof initDrag === 'function') initDrag(); };
+    document.body.appendChild(drag);
+  })
+  .catch(function(){})
+  .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+</body>
+</html>

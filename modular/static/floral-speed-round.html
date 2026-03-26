@@ -202,9 +202,9 @@
         var scripts = container.querySelectorAll('script');
         scripts.forEach(function(oldScript) {
           var newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
           newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
+          oldScript.parentNode.replaceChild(newScript, oldScript);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -247,7 +247,8 @@
     <div class="choices" id="srChoices"></div>
   </div>
 
-  <div class="results" id="srResults">
+  <!-- Claude: 2026-03-25 — aria-live for screen reader results announcement -->
+  <div class="results" id="srResults" role="alert" aria-live="polite">
     <h2 id="srResultTitle">Round Complete!</h2>
     <div class="stat" id="srResultScore"></div>
     <div class="stat" id="srResultTime"></div>
@@ -547,7 +548,8 @@ function endRound() {
     /* Graceful fallback to localStorage */
     try {
       var bestKey = 'AA_SPEED_BEST_' + quizSuffix + (askGenus ? '' : '_REV');
-      var best = JSON.parse(localStorage.getItem(bestKey));
+      /* Claude: 2026-03-25 — added null fallback to prevent JSON.parse(null) */
+      var best = JSON.parse(localStorage.getItem(bestKey) || 'null');
       if (!best || pct > best.pct || (pct === best.pct && timerSeconds < best.time)) {
         localStorage.setItem(bestKey, JSON.stringify(scoreData));
         isNew = true;

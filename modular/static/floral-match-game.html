@@ -350,9 +350,9 @@
         var scripts = container.querySelectorAll('script');
         scripts.forEach(function(oldScript) {
           var newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
           newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
+          oldScript.parentNode.replaceChild(newScript, oldScript);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -395,7 +395,8 @@
 
   <div class="best-score" id="bestScoreDisplay"></div>
 
-  <p class="instructions" id="instrText">Tap a common name, then tap its genus to match!</p>
+  <!-- Claude: 2026-03-25 — aria-live for match feedback -->
+  <p class="instructions" id="instrText" aria-live="polite">Tap a common name, then tap its genus to match!</p>
 
   <div class="game-area" id="gameArea">
     <div class="column col-left" id="colLeft">
@@ -406,7 +407,8 @@
     </div>
   </div>
 
-  <div class="complete-banner" id="completeBanner">
+  <!-- Claude: 2026-03-25 — aria-live for screen reader results announcement -->
+  <div class="complete-banner" id="completeBanner" role="alert" aria-live="polite">
     <h2 id="completeTitle">Round Complete!</h2>
     <div class="stats" id="completeStats"></div>
     <div class="time-stat" id="completeTime"></div>

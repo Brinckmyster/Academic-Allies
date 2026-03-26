@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Access Log — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <!-- Claude: 2026-03-08 — reworked audit log UI: added Detail column, mirror context,
+       richer action badges (suggest/accept/reject/mirror-view/mode-change), role fix -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: #FAFAF9;
+      color: #333;
+      padding: 20px 16px 60px;
+    }
+    .page-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.8rem;
+      color: #4a7f82;
+      margin: 0 0 4px;
+    }
+    .subtitle {
+      color: #888;
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+    }
+    #student-picker-wrap {
+      background: #e8f2f3;
+      border: 1px solid #b2d4d7;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      display: none;
+    }
+    #student-picker-wrap label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #4a7f82;
+      display: block;
+      margin-bottom: 8px;
+    }
+    #student-picker {
+      padding: 8px 12px;
+      border: 1px solid #b2d4d7;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+      width: 100%;
+      max-width: 400px;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn {
+      padding: 8px 16px;
+      background: #4a7f82;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { background: #3d6e71; }
+    .btn:disabled { background: #aaa; cursor: not-allowed; }
+    /* Claude: 2026-03-13 — 44px touch targets + focus-visible */
+    .btn { min-height: 44px; }
+    .btn:focus-visible { outline: 3px solid #4a7f82; outline-offset: 2px; }
+    .filter-wrap {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .filter-wrap label { font-size: 0.85rem; color: #666; font-weight: 600; }
+    .filter-wrap select {
+      padding: 6px 10px;
+      border: 1px solid #d0d5dd;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      background: #fff;
+      min-height: 44px;
+    }
+    .filter-wrap select:focus-visible { outline: 3px solid #4a7f82; outline-offset: 2px; }
+    .entry-count {
+      font-size: 0.85rem;
+      color: #888;
+      margin-left: auto;
+    }
+    #loading { text-align: center; padding: 40px; color: #aaa; display: none; }
+    #no-logs {
+      text-align: center;
+      padding: 40px;
+      color: #aaa;
+      font-size: 1rem;
+      display: none;
+    }
+    .audit-table-wrap {
+      background: #fff;
+      border: 1px solid #e1e5e9;
+      border-radius: 10px;
+      overflow-x: auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      background: #f8fafc;
+      border-bottom: 2px solid #e1e5e9;
+      padding: 12px 14px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.88rem;
+    }
+    tr:hover { background: #fafbfc; }
+    .timestamp-col { color: #666; white-space: nowrap; font-size: 0.82rem; }
+    .who-col { font-weight: 600; color: #4a7f82; }
+
+    /* Role badges */
+    .role-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .role-backstage-manager { background: #e8e8ff; color: #6366f1; }
+    .role-network-lead { background: #e0e7ff; color: #4f46e5; }
+    .role-student { background: #e0f8f8; color: #4a7f82; }
+    .role-support { background: #d1f5e8; color: #10b981; }
+    .role-family { background: #fef3c7; color: #d97706; }
+    .role-nearby-help { background: #ffedd5; color: #f97316; }
+    .role-unknown { background: #f3f4f6; color: #6b7280; }
+    .role-pending { background: #f3f4f6; color: #6b7280; }
+
+    /* Data type label */
+    .data-type {
+      font-family: 'Courier New', monospace;
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+    }
+
+    /* Action badges — richer set for new action types */
+    .action-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .action-read         { background: #d1f5e8; color: #10b981; }
+    .action-write        { background: #fce7f3; color: #ec4899; }
+    .action-suggest      { background: #e0e7ff; color: #6366f1; }
+    .action-accept       { background: #d1fae5; color: #059669; }
+    .action-reject       { background: #fee2e2; color: #dc2626; }
+    .action-mirror-view  { background: #fef3c7; color: #d97706; }
+    .action-mode-change  { background: #fce7f3; color: #be185d; }
+    .action-unknown      { background: #f3f4f6; color: #6b7280; }
+
+    /* Detail column */
+    .detail-col {
+      font-size: 0.82rem;
+      color: #555;
+      max-width: 260px;
+    }
+    .detail-col .mirror-tag {
+      display: inline-block;
+      background: #fef3c7;
+      color: #92400e;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    @media (max-width: 768px) {
+      h1 { font-size: 1.4rem; }
+      th, td { padding: 8px 6px; font-size: 0.8rem; }
+      .role-badge, .action-badge { font-size: 0.65rem; padding: 2px 5px; }
+      .detail-col { max-width: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="page-wrap">
+    <h1>🔍 Data Access Log</h1>
+    <p class="subtitle">A FERPA-compliant record of who has accessed your data and what they did</p>
+
+    <!-- Student picker (backstage manager only) -->
+    <div id="student-picker-wrap">
+      <label for="student-picker">Select a student:</label>
+      <select id="student-picker">
+        <option value="">Loading students…</option>
+      </select>
+    </div>
+
+    <!-- Loading & empty states -->
+    <div id="loading">Loading audit log…</div>
+    <div id="no-logs">No access records yet — they'll appear here as your data is viewed</div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <!-- Claude: 2026-03-13 — aria-labels for a11y -->
+      <button class="btn" id="refresh-btn" onclick="refreshLog()" aria-label="Refresh audit log entries">Refresh</button>
+      <div class="filter-wrap">
+        <label for="action-filter">Filter:</label>
+        <select id="action-filter" onchange="applyFilters()" aria-label="Filter audit log by action type">
+          <option value="">All actions</option>
+          <option value="read">Reads</option>
+          <option value="write">Writes</option>
+          <option value="mirror-view">Mirror views</option>
+          <option value="suggest">Suggestions</option>
+          <option value="accept">Accepted</option>
+          <option value="reject">Rejected</option>
+        </select>
+      </div>
+      <span class="entry-count" id="entry-count"></span>
+    </div>
+
+    <!-- Audit log table -->
+    <div class="audit-table-wrap" id="audit-table-wrap" style="display:none;">
+      <table id="audit-table">
+        <thead>
+          <tr>
+            <th>Date &amp; Time</th>
+            <th>Who</th>
+            <th>Role</th>
+            <th>Action</th>
+            <th>What Data</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tbody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Claude: standard fetch loader for shared header with script re-execution -->
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+
+  <script>
+  (function() {
+    'use strict';
+
+    /* ── Wait for window.AA AND auth.currentUser to be ready ────── */
+    function waitForAA(callback) {
+      if (window.AA && window.AA.auth && window.AA.db) {
+        if (window.AA.auth.currentUser) {
+          callback();
+        } else {
+          var unsub = window.AA.auth.onAuthStateChanged(function(user) {
+            unsub();
+            callback();
+          });
+        }
+      } else {
+        setTimeout(function() { waitForAA(callback); }, 100);
+      }
+    }
+
+    /* ── Data type friendly names ──────────────────────────────── */
+    var DATA_TYPE_MAP = {
+      'checkin':    'Daily Check-In',
+      'mealLog':   'Meal Log',
+      'mealPlan':  'Meal Plan',
+      'spoonPal':  'SpoonPal',
+      'spoonPlan': 'Spoon Plan',
+      'nope':      'Crisis Mode',
+      'flowerQuiz':'Flower Quiz',
+      'audioNote': 'Audio Note',
+      'emergency': 'Emergency Contacts',
+      'calendar':  'Calendar'
+    };
+
+    /* Claude: 2026-03-08 — human-readable action labels */
+    var ACTION_LABEL_MAP = {
+      'read':        'viewed',
+      'write':       'edited',
+      'suggest':     'suggested',
+      'accept':      'accepted',
+      'reject':      'rejected',
+      'mirror-view': 'mirrored',
+      'mode-change': 'mode change'
+    };
+
+    function getDataTypeLabel(type) {
+      return DATA_TYPE_MAP[type] || type;
+    }
+
+    function getActionLabel(action) {
+      return ACTION_LABEL_MAP[action] || action || 'unknown';
+    }
+
+    /* ── Format timestamp as "Mar 3, 2026 at 10:42 PM" ─────────── */
+    function formatTimestamp(ts) {
+      if (!ts) return '—';
+      var date;
+      if (ts.toDate && typeof ts.toDate === 'function') {
+        date = ts.toDate();
+      } else {
+        date = new Date(ts);
+      }
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var m = months[date.getMonth()];
+      var d = date.getDate();
+      var y = date.getFullYear();
+      var timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      return m + ' ' + d + ', ' + y + ' at ' + timeStr;
+    }
+
+    /* ── State: keep full entries for filtering ───────────────── */
+    var _allEntries = [];
+    var _currentUid = null;
+    /* Claude: 2026-03-14 — pagination state */
+    var _lastDoc = null;
+    var _hasMore = false;
+    var _loadingUid = null;
+
+    /* ── Render audit log entries ──────────────────────────────── */
+    /* Claude: 2026-03-08 — reworked to show Detail column with mirror context */
+    function renderLog(entries, currentUid) {
+      /* Claude: 2026-03-14 — _allEntries is now managed by loadAuditLog for pagination */
+      if (entries) _allEntries = entries;
+      _currentUid = currentUid;
+      applyFilters();
+    }
+
+    window.applyFilters = function() {
+      var actionFilter = document.getElementById('action-filter').value;
+      var filtered = _allEntries;
+      if (actionFilter) {
+        filtered = _allEntries.filter(function(e) { return e.action === actionFilter; });
+      }
+
+      var tbody = document.getElementById('audit-tbody');
+      tbody.innerHTML = '';
+
+      if (!filtered || filtered.length === 0) {
+        document.getElementById('audit-table-wrap').style.display = _allEntries.length ? 'block' : 'none';
+        document.getElementById('no-logs').style.display = _allEntries.length ? 'none' : 'block';
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('entry-count').textContent = actionFilter
+          ? '0 of ' + _allEntries.length + ' entries match'
+          : '';
+        if (_allEntries.length && actionFilter) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px;">No entries match this filter</td></tr>';
+          document.getElementById('audit-table-wrap').style.display = 'block';
+        }
+        return;
+      }
+
+      document.getElementById('entry-count').textContent =
+        (actionFilter ? filtered.length + ' of ' : '') + _allEntries.length + ' entries';
+
+      filtered.forEach(function(entry) {
+        var row = document.createElement('tr');
+
+        // Date/Time
+        var tsCell = document.createElement('td');
+        tsCell.className = 'timestamp-col';
+        tsCell.textContent = formatTimestamp(entry.timestamp);
+        row.appendChild(tsCell);
+
+        // Who
+        var whoCell = document.createElement('td');
+        whoCell.className = 'who-col';
+        whoCell.textContent = (entry.actorUid === _currentUid) ? 'You' : (entry.actorEmail || 'Unknown');
+        row.appendChild(whoCell);
+
+        // Role
+        var roleCell = document.createElement('td');
+        var roleBadge = document.createElement('span');
+        var roleKey = (entry.actorRole || 'unknown').replace(/\s+/g, '-');
+        roleBadge.className = 'role-badge role-' + roleKey;
+        roleBadge.textContent = entry.actorRole || 'unknown';
+        roleCell.appendChild(roleBadge);
+        row.appendChild(roleCell);
+
+        // Action
+        var actionCell = document.createElement('td');
+        var actionBadge = document.createElement('span');
+        var actionKey = (entry.action || 'unknown').replace(/\s+/g, '-');
+        actionBadge.className = 'action-badge action-' + actionKey;
+        actionBadge.textContent = getActionLabel(entry.action);
+        actionCell.appendChild(actionBadge);
+        row.appendChild(actionCell);
+
+        // What Data
+        var dataCell = document.createElement('td');
+        var dataType = document.createElement('span');
+        dataType.className = 'data-type';
+        dataType.textContent = getDataTypeLabel(entry.dataType);
+        dataCell.appendChild(dataType);
+        row.appendChild(dataCell);
+
+        // Detail (new column)
+        var detailCell = document.createElement('td');
+        detailCell.className = 'detail-col';
+        var detailParts = [];
+        if (entry.detail) {
+          detailParts.push(entry.detail);
+        }
+        detailCell.textContent = detailParts.join(' ');
+        // Mirror tag
+        if (entry.mirrorOf && entry.mirrorOf !== entry.actorUid) {
+          if (detailCell.textContent) {
+            detailCell.appendChild(document.createElement('br'));
+          }
+          var mirrorTag = document.createElement('span');
+          mirrorTag.className = 'mirror-tag';
+          mirrorTag.textContent = '🪞 via mirror mode';
+          detailCell.appendChild(mirrorTag);
+        }
+        if (!detailCell.textContent && !entry.mirrorOf) {
+          detailCell.textContent = '—';
+          detailCell.style.color = '#ccc';
+        }
+        row.appendChild(detailCell);
+
+        tbody.appendChild(row);
+      });
+
+      document.getElementById('audit-table-wrap').style.display = 'block';
+      document.getElementById('no-logs').style.display = 'none';
+      document.getElementById('loading').style.display = 'none';
+    };
+
+    /* ── Load audit log for a student ──────────────────────────── */
+    /* Claude: 2026-03-14 — paginated: first load resets state; append=true adds to existing */
+    function loadAuditLog(uid, append) {
+      if (!append) {
+        _allEntries = [];
+        _lastDoc = null;
+        _hasMore = false;
+        _loadingUid = uid;
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('audit-table-wrap').style.display = 'none';
+        document.getElementById('no-logs').style.display = 'none';
+        document.getElementById('entry-count').textContent = '';
+      }
+
+      var opts = { limit: 100 };
+      if (append && _lastDoc) opts.startAfter = _lastDoc;
+
+      window.AA.getAuditLog(uid, opts)
+        .then(function(result) {
+          _lastDoc = result.lastDoc;
+          _hasMore = result.hasMore;
+          _allEntries = _allEntries.concat(result.entries);
+          var currentUser = window.AA.auth.currentUser;
+          renderLog(_allEntries, currentUser ? currentUser.uid : null);
+          updateLoadMoreBtn();
+        })
+        .catch(function(err) {
+          console.error('[audit-log] Error loading audit log:', err);
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('no-logs').style.display = 'block';
+          document.getElementById('no-logs').textContent = 'Error loading audit log: ' + err.message;
+        });
+    }
+
+    /* Claude: 2026-03-14 — "Load More" button management */
+    function updateLoadMoreBtn() {
+      var existing = document.getElementById('load-more-btn');
+      if (existing) existing.remove();
+      if (!_hasMore) return;
+      var btn = document.createElement('button');
+      btn.id = 'load-more-btn';
+      btn.textContent = 'Load more entries…';
+      btn.style.cssText = 'display:block;margin:18px auto;padding:10px 24px;background:#4a7f82;color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;min-height:44px;';
+      btn.onclick = function() {
+        btn.textContent = 'Loading…';
+        btn.disabled = true;
+        loadAuditLog(_loadingUid, true);
+      };
+      var tableWrap = document.getElementById('audit-table-wrap');
+      if (tableWrap) tableWrap.parentNode.insertBefore(btn, tableWrap.nextSibling);
+    }
+
+    /* ── Refresh button handler ───────────────────────────────── */
+    window.refreshLog = function() {
+      var pickerWrap = document.getElementById('student-picker-wrap');
+      var picker = document.getElementById('student-picker');
+      var currentUser = window.AA.auth.currentUser;
+
+      if (!currentUser) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('no-logs').textContent = 'Not signed in';
+        document.getElementById('no-logs').style.display = 'block';
+        return;
+      }
+
+      if (pickerWrap.style.display === 'block') {
+        var selectedUid = picker.value;
+        if (!selectedUid) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('no-logs').textContent = '← Select a student above to view their log';
+          document.getElementById('no-logs').style.display = 'block';
+          return;
+        }
+        loadAuditLog(selectedUid);
+      } else {
+        loadAuditLog(currentUser.uid);
+      }
+    };
+
+    /* ── Start ──────────────────────────────────────────────────── */
+    waitForAA(function() {
+      var currentUser = window.AA.auth.currentUser;
+      if (!currentUser) {
+        document.getElementById('no-logs').textContent = 'Please sign in to view your audit log';
+        document.getElementById('no-logs').style.display = 'block';
+        return;
+      }
+
+      window.AA.getUserDoc(currentUser.uid).then(function(doc) {
+        var role = doc.exists ? (doc.data().role || 'student') : 'student';
+
+        if (role === 'backstage-manager') {
+          document.getElementById('student-picker-wrap').style.display = 'block';
+
+          window.AA.getAllStudents().then(function(students) {
+            var picker = document.getElementById('student-picker');
+            picker.innerHTML = '<option value="">Select a student…</option>';
+            students.forEach(function(student) {
+              var opt = document.createElement('option');
+              opt.value = student.uid;
+              opt.textContent = student.data.displayName || student.data.email;
+              picker.appendChild(opt);
+            });
+
+            if (students.length === 1) {
+              picker.value = students[0].uid;
+              loadAuditLog(students[0].uid);
+            }
+
+            picker.addEventListener('change', function() {
+              if (this.value) loadAuditLog(this.value);
+            });
+          }).catch(function(err) {
+            console.error('[audit-log] Error loading students:', err);
+          });
+        } else {
+          loadAuditLog(currentUser.uid);
+        }
+      }).catch(function(err) {
+        console.error('[audit-log] Error fetching user doc:', err);
+        loadAuditLog(currentUser.uid);
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -447,8 +447,8 @@
 </head>
 <body>
 
-  <!-- Auth gate -->
-  <div id="auth-gate">
+  <!-- Claude: 2026-03-25 — added role="dialog" + aria-label for a11y -->
+  <div id="auth-gate" role="dialog" aria-label="Sign in required">
     <h2>🔐 Admin Dashboard</h2>
     <p>Sign in with your admin Google account to continue.</p>
     <button class="sign-in-btn" onclick="AA.signInWithGoogle()">Sign in with Google</button>
@@ -458,7 +458,7 @@
   <div id="access-denied">
     <h2>⛔ Access Denied</h2>
     <p>This page requires an admin account.</p>
-    <button class="btn btn-secondary" style="margin-top:12px" onclick="AA.signOut().then(()=>location.reload())">Sign Out</button>
+    <button class="btn btn-secondary" style="margin-top:12px" onclick="AA.signOut().then(function(){location.reload();})">Sign Out</button>
   </div>
 
   <!-- Main content -->
@@ -474,7 +474,7 @@
       <div class="header-actions">
         <span id="admin-email" style="font-size:0.8rem;color:#666;"></span>
         <button class="btn btn-secondary" onclick="refreshQuizData()">↻ Reload</button>
-        <button class="btn btn-danger" onclick="AA.signOut().then(()=>location.reload())">Sign Out</button>
+        <button class="btn btn-danger" onclick="AA.signOut().then(function(){location.reload();})">Sign Out</button>
       </div>
     </div>
 
@@ -537,9 +537,11 @@
           Enter their Google email. When they first sign in, they'll automatically get the role you pick here.
         </p>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input type="email" id="invite-email" placeholder="amanda@example.com"
+          <!-- Claude: 2026-03-25 — added aria-label for a11y -->
+          <input type="email" id="invite-email" placeholder="amanda@example.com" aria-label="Email address to invite"
             style="flex:1;min-width:200px;padding:9px 12px;background:#0f1117;border:1px solid #444;border-radius:6px;color:#e0e0e0;font-size:14px;">
-          <select id="invite-role"
+          <!-- Claude: 2026-03-25 — added aria-label for a11y -->
+          <select id="invite-role" aria-label="Role for new user"
             style="padding:9px 12px;background:#0f1117;border:1px solid #444;border-radius:6px;color:#e0e0e0;font-size:14px;">
             <option value="student">Student</option>
             <option value="nearby-help">Nearby Help</option>
@@ -547,7 +549,8 @@
             <option value="support">Support</option>
             <option value="backstage-manager">Backstage Manager (Platform)</option>
           </select>
-          <button onclick="inviteUser()"
+          <!-- Claude: 2026-03-25 — improved button label for a11y -->
+          <button onclick="inviteUser()" aria-label="Send user invitation"
             style="padding:9px 18px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px;">
             Add
           </button>
@@ -567,9 +570,9 @@
         container.innerHTML = html;
         container.querySelectorAll('script').forEach(function(old) {
           var s = document.createElement('script');
-          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
           s.textContent = old.textContent;
-          old.replaceWith(s);
+          old.parentNode.replaceChild(s, old);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -621,7 +624,8 @@
       /* Claude: 2026-03-16 — double-click protection on invite button */
       var invBtn = document.querySelector('[onclick*="inviteUser"]') || document.getElementById('invite-btn');
 
-      if (!email || !email.includes('@')) {
+      /* Claude: 2026-03-25 — upgraded email validation from basic @ check to proper regex */
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
         status.style.color   = '#ffc107';
         status.textContent   = '⚠️ Please enter a valid email address.';
         return;
@@ -668,8 +672,9 @@
 
           if (alreadySignedIn) {
             // Already signed in — show warning row and auto-cancel button
+            /* Claude: 2026-03-25 — XSS: escape Firestore-sourced email in innerHTML */
             return '<tr style="background:#3a1a1a;">' +
-              '<td style="padding:6px 10px;color:#ff6b6b;">⚠️ ' + email + '</td>' +
+              '<td style="padding:6px 10px;color:#ff6b6b;">⚠️ ' + escHtml(email) + '</td>' +
               '<td style="padding:6px 10px;color:#ff9999;font-style:italic;">already signed in</td>' +
               '<td style="padding:6px 10px;">' +
                 '<button onclick="cancelInvite(\'' + d.id.replace(/'/g,"\\'") + '\')" ' +
@@ -677,9 +682,10 @@
                 'Remove</button></td>' +
               '</tr>';
           }
+          /* Claude: 2026-03-25 — XSS: escape Firestore-sourced email and role in innerHTML */
           return '<tr>' +
-            '<td style="padding:6px 10px;color:#ccc;">' + email + '</td>' +
-            '<td style="padding:6px 10px;color:#6CA0A3;">' + (data.role || 'student') + '</td>' +
+            '<td style="padding:6px 10px;color:#ccc;">' + escHtml(email) + '</td>' +
+            '<td style="padding:6px 10px;color:#6CA0A3;">' + escHtml(data.role || 'student') + '</td>' +
             '<td style="padding:6px 10px;">' +
               '<button onclick="cancelInvite(\'' + d.id.replace(/'/g,"\\'") + '\')" ' +
               'style="padding:3px 10px;background:#c0392b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">' +
@@ -939,7 +945,7 @@
         try {
           if (d.createdAt) {
             var t = d.createdAt.toDate ? d.createdAt.toDate() : new Date(d.createdAt);
-            since = t.toLocaleDateString();
+            since = t.toLocaleDateString('en-US'); /* Claude: 2026-03-25 — added explicit locale to prevent regional format inconsistency */
           }
         } catch(e) { since = ''; }
 
@@ -1083,8 +1089,8 @@
       var b = _allUsers.find(function(x) { return x.id === ids[1]; });
       if (!a || !b) return;
 
-      var labelA = (a.data.displayName || '—') + '\n' + (a.data.email || '') + '\nSince: ' + (a.data.createdAt ? (a.data.createdAt.toDate ? a.data.createdAt.toDate().toLocaleDateString() : new Date(a.data.createdAt).toLocaleDateString()) : '?');
-      var labelB = (b.data.displayName || '—') + '\n' + (b.data.email || '') + '\nSince: ' + (b.data.createdAt ? (b.data.createdAt.toDate ? b.data.createdAt.toDate().toLocaleDateString() : new Date(b.data.createdAt).toLocaleDateString()) : '?');
+      var labelA = (a.data.displayName || '—') + '\n' + (a.data.email || '') + '\nSince: ' + (a.data.createdAt ? (a.data.createdAt.toDate ? a.data.createdAt.toDate().toLocaleDateString('en-US') : new Date(a.data.createdAt).toLocaleDateString('en-US')) : '?'); /* Claude: 2026-03-25 — added explicit locale to prevent regional format inconsistency */
+      var labelB = (b.data.displayName || '—') + '\n' + (b.data.email || '') + '\nSince: ' + (b.data.createdAt ? (b.data.createdAt.toDate ? b.data.createdAt.toDate().toLocaleDateString('en-US') : new Date(b.data.createdAt).toLocaleDateString('en-US')) : '?'); /* Claude: 2026-03-25 — added explicit locale to prevent regional format inconsistency */
 
       var choice = confirm(
         'KEEP which record?\n\n' +
@@ -1115,7 +1121,7 @@
       if (diff < 60)  return 'Just now';
       if (diff < 3600) return Math.floor(diff/60) + 'm ago';
       if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
-      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      return date.toLocaleDateString('en-US') + ' ' + date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }); /* Claude: 2026-03-25 — added explicit locale to prevent regional format inconsistency */
     }
 
     function escHtml(s) {

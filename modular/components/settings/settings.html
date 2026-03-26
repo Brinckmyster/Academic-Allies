@@ -148,7 +148,38 @@
       .settings-wrap { padding: 16px 14px 40px; }
       .settings-section { padding: 16px 16px; }
       .setting-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+      /* Claude: 2026-03-25 — I9 fix: full-width inputs on mobile instead of fixed 110px */
+      .setting-input { width: 100% !important; min-width: 0; }
+      select.setting-input { width: 100% !important; }
+      .btn-save, .btn-danger, .btn-secondary { width: 100%; text-align: center; }
     }
+
+    /* Claude: 2026-03-25 — dark mode overrides for settings page */
+    html.aa-dark body { background: #121212; color: #e0e0e0; }
+    html.aa-dark h1 { color: #7abfc2; }
+    html.aa-dark .settings-subtitle { color: #999; }
+    html.aa-dark .settings-section { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .settings-section h2 { color: #7abfc2; }
+    html.aa-dark .settings-section .sec-desc { color: #888; }
+    html.aa-dark .setting-row { border-bottom-color: #2a2a3e; }
+    html.aa-dark .setting-label { color: #e0e0e0; }
+    html.aa-dark .setting-hint { color: #888; }
+    html.aa-dark .setting-input { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark select.setting-input { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .checkbox-group label { background: #2a2a3e; border-color: #444; color: #ccc; }
+    html.aa-dark .toggle-slider { background: #555; }
+    html.aa-dark .account-avatar { border-color: #444; }
+    html.aa-dark .account-name { color: #e0e0e0; }
+    html.aa-dark .account-email { color: #999; }
+    html.aa-dark .account-role { background: #3d6a6d; }
+    html.aa-dark .settings-toast { background: #2a2a3e; color: #e0e0e0; }
+    html.aa-dark #settingsAuthGate { color: #999; }
+    html.aa-dark .btn-save { background: #2e7d32; }
+    html.aa-dark .btn-save:hover { background: #388e3c; }
+    html.aa-dark .btn-danger { background: #8b2030; }
+    html.aa-dark .btn-danger:hover { background: #a02535; }
+    html.aa-dark .btn-secondary { background: #3d6a6d; }
+    html.aa-dark .btn-secondary:hover { background: #4a7a7d; }
   </style>
 </head>
 <body>
@@ -163,9 +194,9 @@
       c.innerHTML = html;
       c.querySelectorAll('script').forEach(function(old) {
         var s = document.createElement('script');
-        Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+        [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
         s.textContent = old.textContent;
-        old.replaceWith(s);
+        old.parentNode.replaceChild(s, old);
       });
       var d = document.createElement('script');
       d.src = '/Academic-Allies/modular/js/draggable.js';
@@ -628,9 +659,13 @@ function saveSettings() {
   /* Gather values */
   var mealTimeVal = document.getElementById('setMealAlertHour').value;
   var mealHour = mealTimeVal ? parseInt(mealTimeVal.split(':')[0], 10) : 14;
+  /* Claude: 2026-03-25 — bounds-check numeric settings before Firestore write */
+  if (isNaN(mealHour) || mealHour < 0 || mealHour > 23) mealHour = 14;
 
   var lowSpoonPct = parseInt(document.getElementById('setLowSpoonPct').value, 10) || 20;
+  if (isNaN(lowSpoonPct) || lowSpoonPct < 1 || lowSpoonPct > 100) lowSpoonPct = 20;
   var alertThreshold = parseInt(document.getElementById('setAlertThreshold').value, 10) || 5;
+  if (isNaN(alertThreshold) || alertThreshold < 1 || alertThreshold > 50) alertThreshold = 5;
 
   var recipients = [];
   document.querySelectorAll('#setAlertRecipients input[type="checkbox"]').forEach(function(box) {
@@ -663,7 +698,7 @@ function saveSettings() {
      Layer 3: Auto-retry (up to 3 attempts) */
   try {
     localStorage.setItem('AA_SETTINGS_BACKUP_' + _settingsUid, JSON.stringify(updates));
-    console.log('[Settings] Layer 1 — localStorage backup saved');
+    if (window.AA_DEBUG) console.log('[Settings] Layer 1 — localStorage backup saved');
   } catch(e) {
     try { sessionStorage.setItem('AA_SETTINGS_BACKUP_' + _settingsUid, JSON.stringify(updates)); } catch(e2) {}
   }

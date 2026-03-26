@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<!-- Claude: 2026-03-09 — Audio Converter tool for Academic Allies
+     Converts mp3, mp4/m4a, ogg, webm, flac → WAV using Web Audio API.
+     Runs 100% client-side — no uploads, no server, no tracking.
+     Designed for use with NotebookLM and other tools that need WAV input. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Audio Converter — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Claude: 2026-03-09 — AA-consistent styling + migraine/dyslexia friendly */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f7f8fa; color: #333; line-height: 1.6;
+      padding: 0; margin: 0;
+    }
+    #shared-header-slot { min-height: 50px; }
+
+    .converter-wrap {
+      max-width: 700px; margin: 30px auto; padding: 0 20px;
+    }
+    h1 {
+      font-size: 1.6rem; color: #4a7f82; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .subtitle {
+      font-size: 0.9rem; color: #888; margin-bottom: 28px;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 3px dashed #b2d8db; border-radius: 16px;
+      background: #fff; padding: 50px 30px; text-align: center;
+      cursor: pointer; transition: all 0.2s ease;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: #4a7f82; background: #e8f4f5;
+    }
+    .drop-zone-icon { font-size: 48px; margin-bottom: 12px; display: block; }
+    .drop-zone-text { font-size: 1rem; color: #555; }
+    .drop-zone-hint { font-size: 0.82rem; color: #aaa; margin-top: 8px; }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+
+    /* File info card */
+    .file-card {
+      display: none; background: #fff; border: 1px solid #e1e5e9;
+      border-radius: 12px; padding: 18px 22px; margin-top: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .file-card.show { display: block; }
+    .file-info {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+    }
+    .file-icon { font-size: 32px; flex-shrink: 0; }
+    .file-details { flex: 1; min-width: 0; }
+    .file-name {
+      font-weight: 600; font-size: 0.95rem; color: #222;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .file-meta { font-size: 0.82rem; color: #888; margin-top: 2px; }
+
+    /* Output format selector */
+    .format-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .format-label { font-size: 0.88rem; font-weight: 600; color: #444; }
+    .format-btn {
+      padding: 8px 18px; border: 2px solid #e1e5e9; border-radius: 8px;
+      background: #fff; font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s ease; color: #555;
+    }
+    .format-btn:hover { border-color: #4a7f82; color: #4a7f82; }
+    .format-btn.active {
+      border-color: #4a7f82; background: #4a7f82; color: #fff;
+    }
+
+    /* Sample rate selector */
+    .sample-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .sample-select {
+      padding: 7px 12px; border: 1px solid #ccc; border-radius: 6px;
+      font-size: 0.88rem; background: #fff;
+    }
+
+    /* Convert button */
+    .btn-convert {
+      display: block; width: 100%; padding: 14px; border: none;
+      border-radius: 10px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s ease;
+      background: #4a7f82; color: #fff;
+    }
+    .btn-convert:hover { background: #3d6e71; }
+    .btn-convert:disabled {
+      background: #ccc; cursor: not-allowed; color: #999;
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      display: none; margin-top: 16px;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-bar-outer {
+      height: 8px; background: #e8ecef; border-radius: 4px; overflow: hidden;
+    }
+    .progress-bar-inner {
+      height: 100%; background: #4a7f82; border-radius: 4px;
+      transition: width 0.3s ease; width: 0%;
+    }
+    .progress-text {
+      font-size: 0.82rem; color: #888; margin-top: 6px; text-align: center;
+    }
+
+    /* Result */
+    .result-card {
+      display: none; background: #f0faf2; border: 2px solid #10b981;
+      border-radius: 12px; padding: 18px 22px; margin-top: 20px;
+      text-align: center;
+    }
+    .result-card.show { display: block; }
+    .result-icon { font-size: 36px; margin-bottom: 8px; }
+    .result-text { font-size: 0.95rem; color: #065f46; font-weight: 600; margin-bottom: 4px; }
+    .result-meta { font-size: 0.82rem; color: #888; margin-bottom: 14px; }
+    .btn-download {
+      display: inline-block; padding: 12px 28px; border: none;
+      border-radius: 8px; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; background: #10b981; color: #fff;
+      text-decoration: none; transition: background 0.15s;
+    }
+    .btn-download:hover { background: #059669; }
+    .btn-reset {
+      display: inline-block; padding: 10px 20px; border: 1px solid #ccc;
+      border-radius: 8px; font-size: 0.88rem; cursor: pointer;
+      background: #fff; color: #555; margin-left: 10px; transition: background 0.15s;
+    }
+    .btn-reset:hover { background: #f5f5f5; }
+
+    /* Error */
+    .error-msg {
+      display: none; background: #fef2f2; border: 1px solid #fca5a5;
+      border-radius: 10px; padding: 14px 18px; margin-top: 16px;
+      font-size: 0.88rem; color: #991b1b;
+    }
+    .error-msg.show { display: block; }
+
+    /* Supported formats hint */
+    .formats-hint {
+      background: #fff; border: 1px solid #e1e5e9; border-radius: 10px;
+      padding: 16px 20px; margin-top: 24px; font-size: 0.85rem; color: #666;
+    }
+    .formats-hint strong { color: #4a7f82; }
+
+    /* Back link */
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.88rem; color: #4a7f82; text-decoration: none;
+      margin-bottom: 16px;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .converter-wrap { padding: 0 14px; margin: 16px auto; }
+      h1 { font-size: 1.3rem; }
+      .drop-zone { padding: 35px 20px; }
+      .drop-zone-icon { font-size: 36px; }
+      .format-btn { padding: 6px 14px; font-size: 0.82rem; }
+      .btn-download, .btn-reset { display: block; margin: 8px auto 0; }
+    }
+
+    /* Dark mode support */
+    body.dark-mode { background: #1a1a2e; color: #e0e0e0; }
+    body.dark-mode .drop-zone { background: #222; border-color: #444; }
+    body.dark-mode .drop-zone:hover, body.dark-mode .drop-zone.drag-over { background: #2a3a3c; border-color: #4a7f82; }
+    body.dark-mode .file-card, body.dark-mode .formats-hint { background: #222; border-color: #444; }
+    body.dark-mode .file-name { color: #eee; }
+    body.dark-mode .format-btn { background: #222; border-color: #444; color: #ccc; }
+    body.dark-mode .format-btn.active { background: #4a7f82; color: #fff; }
+    body.dark-mode .result-card { background: #1a2e1a; border-color: #10b981; }
+    body.dark-mode .error-msg { background: #2e1a1a; border-color: #f87171; }
+  </style>
+</head>
+<body>
+  <!-- Claude: 2026-03-19 — mode-gate: blocks page if feature is off for current mode -->
+  <script>var AA_MODE_GATE = 'audioNotes';</script>
+  <script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+  <!-- Shared Header -->
+  <div id="shared-header-slot"></div>
+
+  <div class="converter-wrap">
+    <a href="/Academic-Allies/modular/components/audio-notes/audio-notes.html" class="back-link">
+      ← Back to Audio Notes
+    </a>
+
+    <h1>🔊 Audio Converter</h1>
+    <p class="subtitle">Convert audio files to WAV for NotebookLM, transcription tools, and more. Runs entirely in your browser — nothing is uploaded.</p>
+
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="audio/*,video/mp4,.mp4,.m4a,.mp3,.ogg,.webm,.flac,.aac,.wav,.wma">
+      <span class="drop-zone-icon">📂</span>
+      <div class="drop-zone-text">Drop an audio file here or tap to browse</div>
+      <div class="drop-zone-hint">MP3, MP4, M4A, OGG, WebM, FLAC, AAC, WAV</div>
+    </div>
+
+    <!-- File Info -->
+    <div class="file-card" id="fileCard">
+      <div class="file-info">
+        <span class="file-icon">🎵</span>
+        <div class="file-details">
+          <div class="file-name" id="fileName">—</div>
+          <div class="file-meta" id="fileMeta">—</div>
+        </div>
+      </div>
+
+      <!-- Output Format -->
+      <div class="format-row">
+        <span class="format-label">Convert to:</span>
+        <button class="format-btn active" data-format="wav" onclick="setFormat(this)">WAV</button>
+        <button class="format-btn" data-format="mp3" onclick="setFormat(this)" style="display:none;">MP3</button>
+      </div>
+
+      <!-- Sample Rate -->
+      <div class="sample-row">
+        <span class="format-label">Sample rate:</span>
+        <select class="sample-select" id="sampleRate">
+          <!-- Claude: 2026-03-09 — default to 16kHz for NotebookLM/speech -->
+          <option value="44100">44,100 Hz (CD quality)</option>
+          <option value="48000">48,000 Hz (video standard)</option>
+          <option value="22050">22,050 Hz (smaller file)</option>
+          <option value="16000" selected>16,000 Hz (speech/transcription)</option>
+        </select>
+      </div>
+
+      <!-- Channels -->
+      <div class="sample-row">
+        <span class="format-label">Channels:</span>
+        <select class="sample-select" id="channelSelect">
+          <!-- Claude: 2026-03-09 — default to mono; keeps files under 200MB for NotebookLM -->
+          <option value="1" selected>Mono (1 channel — best for speech)</option>
+          <option value="2">Stereo (2 channels)</option>
+        </select>
+      </div>
+
+      <!-- Convert Button -->
+      <button class="btn-convert" id="btnConvert" onclick="convertAudio()">
+        🔄 Convert to WAV
+      </button>
+
+      <!-- Progress -->
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar-outer">
+          <div class="progress-bar-inner" id="progressBar"></div>
+        </div>
+        <div class="progress-text" id="progressText">Decoding audio…</div>
+      </div>
+
+      <!-- Error -->
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+    <!-- Result -->
+    <div class="result-card" id="resultCard">
+      <div class="result-icon">✅</div>
+      <div class="result-text">Conversion complete!</div>
+      <div class="result-meta" id="resultMeta">—</div>
+      <a class="btn-download" id="btnDownload" download>⬇ Download WAV</a>
+      <button class="btn-reset" onclick="resetConverter()">Convert Another</button>
+    </div>
+
+    <!-- Supported formats info -->
+    <div class="formats-hint">
+      <strong>Supported input formats:</strong> MP3, MP4 (audio), M4A, OGG, WebM, FLAC, AAC, WAV.
+      Your file never leaves your device — all conversion happens in the browser using the Web Audio API.
+      <br><br>
+      <strong>Tip for NotebookLM:</strong> Use 16,000 Hz mono for the smallest file size that still works great for speech recognition.
+    </div>
+  </div>
+
+  <!-- Footer credit -->
+  <div style="text-align:center;padding:20px;font-size:0.75rem;color:#bbb;">
+    Originally scaffolded by <a href="https://www.perplexity.ai" style="color:#999;">Perplexity AI</a> · Continued development with <strong style="color:#999;">Claude</strong> — Anthropic
+  </div>
+
+  <!-- Shared Header Loader -->
+  <script>
+    /* Claude: 2026-03-09 — load shared header */
+    (function() {
+      var slot = document.getElementById('shared-header-slot');
+      fetch('/Academic-Allies/modular/shared-header.html?v=20260324') /* Claude: 2026-03-12 — added cache-bust, matched to all other pages */
+        .then(function(r) { return r.text(); })
+        .then(function(html) { slot.innerHTML = html; })
+        .catch(function() { /* header optional for converter */ });
+    })();
+  </script>
+
+  <script>
+    /* Claude: 2026-03-09 — Audio Converter engine
+       Uses Web Audio API to decode any browser-supported audio format,
+       then encodes to WAV (PCM 16-bit) at the selected sample rate/channels.
+       Everything runs client-side — zero network requests. */
+
+    var _selectedFile = null;
+    var _outputFormat = 'wav';
+    var _convertedBlob = null;
+
+    /* ── Format selector ── */
+    function setFormat(btn) {
+      var buttons = document.querySelectorAll('.format-btn');
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].classList.remove('active');
+      }
+      btn.classList.add('active');
+      _outputFormat = btn.getAttribute('data-format');
+    }
+
+    /* ── File selection ── */
+    var dropZone = document.getElementById('dropZone');
+    var fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', function() {
+      dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+    fileInput.addEventListener('change', function() {
+      if (fileInput.files.length > 0) {
+        handleFile(fileInput.files[0]);
+      }
+    });
+
+    function handleFile(file) {
+      _selectedFile = file;
+      _convertedBlob = null;
+
+      /* Show file card */
+      document.getElementById('fileCard').classList.add('show');
+      document.getElementById('resultCard').classList.remove('show');
+      document.getElementById('errorMsg').classList.remove('show');
+      document.getElementById('progressWrap').classList.remove('show');
+
+      document.getElementById('fileName').textContent = file.name;
+      var sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      var ext = file.name.split('.').pop().toUpperCase();
+      document.getElementById('fileMeta').textContent = ext + ' · ' + sizeMB + ' MB';
+
+      document.getElementById('btnConvert').disabled = false;
+    }
+
+    /* ── Conversion ── */
+    function convertAudio() {
+      if (!_selectedFile) return;
+
+      var btn = document.getElementById('btnConvert');
+      var progressWrap = document.getElementById('progressWrap');
+      var progressBar = document.getElementById('progressBar');
+      var progressText = document.getElementById('progressText');
+      var errorMsg = document.getElementById('errorMsg');
+      var resultCard = document.getElementById('resultCard');
+
+      btn.disabled = true;
+      errorMsg.classList.remove('show');
+      resultCard.classList.remove('show');
+      progressWrap.classList.add('show');
+      progressBar.style.width = '10%';
+      progressText.textContent = 'Reading file…';
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        progressBar.style.width = '30%';
+        progressText.textContent = 'Decoding audio… (this may take a moment for large files)';
+
+        var targetRate = parseInt(document.getElementById('sampleRate').value) || 44100;
+        var targetChannels = parseInt(document.getElementById('channelSelect').value) || 2;
+
+        /* Create offline context at target sample rate for resampling */
+        var tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        tempCtx.decodeAudioData(e.target.result, function(audioBuffer) {
+          progressBar.style.width = '60%';
+          progressText.textContent = 'Converting to WAV…';
+
+          /* Resample if needed using OfflineAudioContext */
+          var duration = audioBuffer.duration;
+          var offlineLength = Math.ceil(duration * targetRate);
+          var offlineCtx = new OfflineAudioContext(targetChannels, offlineLength, targetRate);
+
+          var source = offlineCtx.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(offlineCtx.destination);
+          source.start(0);
+
+          offlineCtx.startRendering().then(function(renderedBuffer) {
+            progressBar.style.width = '85%';
+            progressText.textContent = 'Encoding WAV…';
+
+            /* Encode to WAV */
+            var wavBlob = encodeWAV(renderedBuffer);
+            _convertedBlob = wavBlob;
+
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Done!';
+
+            /* Show result */
+            var outSizeMB = (wavBlob.size / (1024 * 1024)).toFixed(2);
+            document.getElementById('resultMeta').textContent =
+              'WAV · ' + outSizeMB + ' MB · ' + targetRate + ' Hz · ' +
+              (targetChannels === 1 ? 'Mono' : 'Stereo') + ' · ' +
+              formatDuration(renderedBuffer.duration);
+
+            var url = URL.createObjectURL(wavBlob);
+            var dlBtn = document.getElementById('btnDownload');
+            dlBtn.href = url;
+
+            /* Build output filename */
+            var baseName = _selectedFile.name.replace(/\.[^.]+$/, '');
+            dlBtn.download = baseName + '.wav';
+
+            resultCard.classList.add('show');
+
+            setTimeout(function() {
+              progressWrap.classList.remove('show');
+            }, 800);
+
+            tempCtx.close();
+          }).catch(function(err) {
+            showError('Rendering failed: ' + err.message);
+            tempCtx.close();
+          });
+        }, function(err) {
+          showError('Could not decode this audio file. Your browser may not support this format. Try converting with Audacity first.');
+          tempCtx.close();
+        });
+      };
+      reader.onerror = function() {
+        showError('Could not read the file. It may be corrupted.');
+      };
+      reader.readAsArrayBuffer(_selectedFile);
+    }
+
+    /* ── WAV encoder (PCM 16-bit) ── */
+    function encodeWAV(audioBuffer) {
+      var numChannels = audioBuffer.numberOfChannels;
+      var sampleRate = audioBuffer.sampleRate;
+      var length = audioBuffer.length;
+
+      /* Interleave channels */
+      var interleaved;
+      if (numChannels === 1) {
+        interleaved = audioBuffer.getChannelData(0);
+      } else {
+        interleaved = new Float32Array(length * numChannels);
+        for (var ch = 0; ch < numChannels; ch++) {
+          var channelData = audioBuffer.getChannelData(ch);
+          for (var i = 0; i < length; i++) {
+            interleaved[i * numChannels + ch] = channelData[i];
+          }
+        }
+      }
+
+      /* Convert float32 → int16 */
+      var dataLength = interleaved.length * 2; /* 16-bit = 2 bytes */
+      var buffer = new ArrayBuffer(44 + dataLength);
+      var view = new DataView(buffer);
+
+      /* WAV header */
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + dataLength, true);
+      writeString(view, 8, 'WAVE');
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);              /* chunk size */
+      view.setUint16(20, 1, true);               /* PCM format */
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * numChannels * 2, true); /* byte rate */
+      view.setUint16(32, numChannels * 2, true);  /* block align */
+      view.setUint16(34, 16, true);               /* bits per sample */
+      writeString(view, 36, 'data');
+      view.setUint32(40, dataLength, true);
+
+      /* Write PCM samples */
+      var offset = 44;
+      for (var s = 0; s < interleaved.length; s++) {
+        var sample = Math.max(-1, Math.min(1, interleaved[s]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    function writeString(view, offset, str) {
+      for (var i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    }
+
+    /* ── Helpers ── */
+    function formatDuration(secs) {
+      var m = Math.floor(secs / 60);
+      var s = Math.floor(secs % 60);
+      return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function showError(msg) {
+      var el = document.getElementById('errorMsg');
+      el.textContent = '⚠️ ' + msg;
+      el.classList.add('show');
+      document.getElementById('progressWrap').classList.remove('show');
+      document.getElementById('btnConvert').disabled = false;
+    }
+
+    function resetConverter() {
+      _selectedFile = null;
+      _convertedBlob = null;
+      document.getElementById('fileCard').classList.remove('show');
+      document.getElementById('resultCard').classList.remove('show');
+      document.getElementById('errorMsg').classList.remove('show');
+      document.getElementById('progressWrap').classList.remove('show');
+      document.getElementById('fileInput').value = '';
+    }
+
+    /* Claude: 2026-03-09 — dark mode sync from shared header */
+    var _darkObs = new MutationObserver(function() {
+      if (document.body.classList.contains('dark-mode')) {
+        document.body.style.background = '#1a1a2e';
+      } else {
+        document.body.style.background = '#f7f8fa';
+      }
+    });
+    _darkObs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  </script>
+</body>
+</html>

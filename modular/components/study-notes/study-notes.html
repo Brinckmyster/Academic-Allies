@@ -171,9 +171,9 @@
       c.innerHTML = html;
       c.querySelectorAll('script').forEach(function(old) {
         var s = document.createElement('script');
-        Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+        [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
         s.textContent = old.textContent;
-        old.replaceWith(s);
+        old.parentNode.replaceChild(s, old);
       });
     })
     .catch(function(e) { console.warn('[AA] shared-header fetch failed:', e); });
@@ -198,7 +198,8 @@
 <p class="credit">Built by Claude for Bruise — March 2026</p>
 
 <!-- Add Class modal -->
-<div class="sn-modal" id="addClassModal">
+<!-- Claude: 2026-03-25 — added role="dialog" + aria-label for a11y -->
+<div class="sn-modal" id="addClassModal" role="dialog" aria-label="Add a class">
   <div class="sn-modal-content">
     <button class="sn-modal-close" id="addClassClose">&times;</button>
     <h2>Add a Class</h2>
@@ -212,7 +213,8 @@
 </div>
 
 <!-- Paste Notes modal -->
-<div class="sn-modal" id="pasteModal">
+<!-- Claude: 2026-03-25 — added role="dialog" + aria-label for a11y -->
+<div class="sn-modal" id="pasteModal" role="dialog" aria-label="Paste notes">
   <div class="sn-modal-content">
     <button class="sn-modal-close" id="pasteClose">&times;</button>
     <h2 id="pasteTitle">Paste Notes</h2>
@@ -228,7 +230,8 @@
 </div>
 
 <!-- Claude: 2026-03-24 — Customize modal: upload JSON to bulk-create classes -->
-<div class="sn-modal" id="customizeModal">
+<!-- Claude: 2026-03-25 — added role="dialog" + aria-label for a11y -->
+<div class="sn-modal" id="customizeModal" role="dialog" aria-label="Customize study notes">
   <div class="sn-modal-content">
     <button class="sn-modal-close" id="customizeClose">&times;</button>
     <h2>⚙️ Customize Study Notes</h2>
@@ -299,11 +302,41 @@
     el.className = 'sn-toast';
     el.textContent = msg;
     document.body.appendChild(el);
-    setTimeout(function() { el.remove(); }, 3200);
+    /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3200);
   }
 
-  function openModal(id) { document.getElementById(id).classList.add('open'); }
-  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  /* Claude: 2026-03-25 — focus trap + Escape + focus restore for modals */
+  var _snPrevFocus = null;
+  var _snTrapHandler = null;
+  var _snEscHandler = null;
+  function openModal(id) {
+    var m = document.getElementById(id);
+    if (!m) return;
+    _snPrevFocus = document.activeElement;
+    m.classList.add('open');
+    var focusable = m.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length) { setTimeout(function() { focusable[0].focus(); }, 50); }
+    _snTrapHandler = function(e) {
+      if (e.key !== 'Tab') return;
+      var els = m.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (!els.length) return;
+      var first = els[0]; var last = els[els.length - 1];
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+      else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+    };
+    _snEscHandler = function(e) { if (e.key === 'Escape') closeModal(id); };
+    document.addEventListener('keydown', _snTrapHandler);
+    document.addEventListener('keydown', _snEscHandler);
+  }
+  function closeModal(id) {
+    var m = document.getElementById(id);
+    if (!m) return;
+    m.classList.remove('open');
+    if (_snTrapHandler) { document.removeEventListener('keydown', _snTrapHandler); _snTrapHandler = null; }
+    if (_snEscHandler) { document.removeEventListener('keydown', _snEscHandler); _snEscHandler = null; }
+    if (_snPrevFocus) { try { _snPrevFocus.focus(); } catch(e) {} _snPrevFocus = null; }
+  }
 
   /* ── Google Drive auth ─────────────────────────────────────── */
   /* Claude: 2026-03-24 — added timeout + error_callback for better debugging */
@@ -441,6 +474,8 @@
   }
 
   function saveClass(name) {
+    /* Claude: 2026-03-25 — mirror mode write guard */
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) { alert('View-only mode — cannot add classes.'); return Promise.resolve(); }
     return AA.db.collection('studyNotes').doc(currentUid).collection('classes').add({
       name: name,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -448,6 +483,8 @@
   }
 
   function saveNoteMeta(className, title, fileName, driveId, driveLink) {
+    /* Claude: 2026-03-25 — mirror mode write guard */
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) { alert('View-only mode — cannot save notes.'); return Promise.resolve(); }
     return AA.db.collection('studyNotes').doc(currentUid).collection('notes').add({
       className: className,
       title: title,
@@ -472,7 +509,8 @@
       var safeId = cls.id.replace(/[^a-zA-Z0-9_-]/g, '');
 
       html += '<div class="class-card">';
-      html += '<div class="class-header" onclick="window._toggleClass(\'' + safeId + '\')">';
+      /* Claude: 2026-03-25 — added role, tabindex, keyboard handler for a11y */
+      html += '<div class="class-header" role="button" tabindex="0" onclick="window._toggleClass(\'' + safeId + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._toggleClass(\'' + safeId + '\')}">';
       html += '<h2>📚 ' + esc(cls.name) + '</h2>';
       html += '<div class="class-meta">';
       /* Claude: 2026-03-24 — count notes added in the last 24h for "new" badge */
@@ -496,7 +534,7 @@
       /* Notes list */
       if (clsNotes.length > 0) {
         clsNotes.forEach(function(n) {
-          var dateStr = n.date && n.date.toDate ? n.date.toDate().toLocaleDateString() : '';
+          var dateStr = n.date && n.date.toDate ? n.date.toDate().toLocaleDateString('en-US') : ''; /* Claude: 2026-03-25 — added explicit locale to prevent regional format inconsistency */
           var isNew = n.date && n.date.toDate && (now - n.date.toDate() < 86400000);
           html += '<div class="note-item">';
           html += '<span class="note-name">' + esc(n.title || n.fileName);
@@ -656,11 +694,11 @@
             uploads.push(
               uploadToDrive(token, fId, file, file.name, file.type || 'application/octet-stream')
                 .then(function(result) {
-                  console.log('[StudyNotes] Uploaded: ' + file.name, result);
+                  if (window.AA_DEBUG) console.log('[StudyNotes] Uploaded: ' + file.name, result);
                   return saveNoteMeta(className, file.name, file.name, result.id, result.webViewLink);
                 })
                 .then(function() {
-                  console.log('[StudyNotes] Saved metadata for: ' + file.name);
+                  if (window.AA_DEBUG) console.log('[StudyNotes] Saved metadata for: ' + file.name);
                 })
             );
           });

@@ -86,11 +86,12 @@
   }
 
   /* Claude: local date key — avoids UTC-day mismatch for users behind UTC — 2026-02-28 */
+  /* Claude: 2026-03-25 — replaced .padStart() (ES2017) with ES5-safe pattern */
   function _localDateKey() {
     var d = new Date();
     return d.getFullYear() + '-' +
-           String(d.getMonth() + 1).padStart(2, '0') + '-' +
-           String(d.getDate()).padStart(2, '0');
+           ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+           ('0' + d.getDate()).slice(-2);
   }
 
   /* ── Segment color from one check-in entry ─────────────── */
@@ -309,10 +310,11 @@
   var ROLLING_COUNT  = 7;   /* number of actual check-in entries for scenario 3 */
   var MAX_LOOKBACK   = 30;  /* max calendar days to search back for scenario 3 */
 
+  /* Claude: 2026-03-25 — replaced .padStart() (ES2017) with ES5-safe pattern */
   function _makeDateKey(d) {
     return d.getFullYear() + '-' +
-           String(d.getMonth() + 1).padStart(2, '0') + '-' +
-           String(d.getDate()).padStart(2, '0');
+           ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+           ('0' + d.getDate()).slice(-2);
   }
 
   /* Fetch up to MAX_LOOKBACK days of check-in data from Firestore.
@@ -797,9 +799,10 @@
       for (i = 1; i <= MAX_LOOKBACK; i++) {
         var d = new Date(now);
         d.setDate(d.getDate() - i);
+        /* Claude: 2026-03-25 — replaced .padStart() (ES2017) with ES5-safe pattern */
         var dateKey = d.getFullYear() + '-' +
-                      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                      String(d.getDate()).padStart(2, '0');
+                      ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+                      ('0' + d.getDate()).slice(-2);
         /* Claude: 2026-03-16 — safe storage read */
         var dayRaw = null;
         try {
@@ -860,9 +863,10 @@
     /* Claude: 2026-03-20 — fetch study tool activity for this user.
        Runs in parallel with check-in listener setup. When it completes,
        re-renders to inject Academic segment if tools were used today. */
+    /* Claude: 2026-03-25 — added .catch() for unhandled rejection */
     _fetchStudyActivity(uid).then(function () {
       render(); /* re-render with study data merged in */
-    });
+    }).catch(function (err) { console.warn('[StatusCircle] study activity fetch failed:', err); });
 
     /* Claude: hide sc-banner for student role — support/admin see it, student doesn't — 2026-02-28 */
     /* Claude: 2026-03-12 — also load alertThreshold for configurable caution days */
@@ -881,15 +885,17 @@
       var role     = (doc.exists && doc.data().role) || 'student';
       var bannerEl = document.getElementById('sc-banner');
       if (bannerEl) bannerEl.style.display = (role === 'student') ? 'none' : '';
-    }).catch(function() {});
+    /* Claude: 2026-03-25 — added console.warn to role-check catch */
+    }).catch(function(e) { console.warn('[StatusCircle] role check failed:', e.message || e); });
 
     /* Claude: 2026-03-20 — call centralized caution suppression (aa-firebase.js).
        Single source of truth — same logic used by dashboard + home page dots. */
     if (window.AA && window.AA.shouldSuppressCaution) {
+      /* Claude: 2026-03-25 — added .catch() for unhandled rejection */
       window.AA.shouldSuppressCaution(uid, CAUTION_DAYS).then(function (result) {
         _suppressCaution = result.suppress;
         render();
-      });
+      }).catch(function (err) { console.warn('[StatusCircle] caution check failed:', err); });
     }
 
     // Claude: 2026-03-08 — audit log with mirror context
@@ -1068,14 +1074,15 @@
   };
 
   /* Auto-detect mirror UID changes (e.g. student switcher on support dashboard) */
+  /* Claude: 2026-03-25 — store interval ID to allow cleanup; reduced from 1s→3s (less CPU) */
   var _mirrorPollUid = null;
-  setInterval(function () {
+  var _mirrorPollInterval = setInterval(function () {
     var cur = window.AA_MIRROR_UID || null;
     if (cur !== _mirrorPollUid) {
       _mirrorPollUid = cur;
       if (window.AA_refreshStatusCircle) window.AA_refreshStatusCircle();
     }
-  }, 1000);
+  }, 3000);
 
   /* ── Inject CSS once ─────────────────────────────────────── */
   function injectCSS() {

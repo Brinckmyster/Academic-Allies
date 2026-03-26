@@ -397,6 +397,48 @@
       .modal-content { width: 98%; padding: 0.8rem 1rem 1.2rem; }
       .modal-content h2 { font-size: 18px; }
     }
+
+    /* Claude: 2026-03-25 — dark mode overrides for SpoonPal page */
+    html.aa-dark body { background: #121212; color: #e0e0e0; }
+    html.aa-dark h1 { color: #7abfc2; }
+    html.aa-dark #timestamp { color: #777; }
+    html.aa-dark #debtWarning { background: #2a1a1a; border-color: #6b2a2a; color: #ff8a8a; }
+    html.aa-dark .section { background: #1e1e2e; border-color: #333; }
+    html.aa-dark #spoonBudgetBar { background: #2a2a3e; }
+    html.aa-dark #spoonStatsRow { color: #999; }
+    html.aa-dark #spoonBreakdown { color: #777; }
+    html.aa-dark .qe-label { color: #ccc; }
+    html.aa-dark .qe-btn { background: #0f1117; border-color: #444; color: #ccc; }
+    html.aa-dark .qe-btn:hover { border-color: #666; background: #1e1e2e; }
+    html.aa-dark .qe-btn.selected[data-color="green"] { background: #1a3a2a; border-color: #2a6b4a; color: #6ecf9a; }
+    html.aa-dark .qe-btn.selected[data-color="yellow"] { background: #3a3520; border-color: #6b6030; color: #e0c860; }
+    html.aa-dark .qe-btn.selected[data-color="orange"] { background: #3a2a10; border-color: #6b5020; color: #e0a050; }
+    html.aa-dark .qe-btn.selected[data-color="red"] { background: #3a1a1a; border-color: #6b2a2a; color: #e07070; }
+    html.aa-dark #legend { color: #999; }
+    html.aa-dark table { border-color: #333; }
+    html.aa-dark th { background: #1a1a2e; color: #ccc; border-color: #333; }
+    html.aa-dark td { border-color: #333; color: #ccc; }
+    html.aa-dark tr.overdue { background: #2a1a1a; }
+    html.aa-dark tr.completed { background: #1a2a1a; }
+    html.aa-dark tr.outoforder { background: #2a2510; border-left-color: #b8860b; }
+    html.aa-dark tr.task-nextup { background: #2a2510; }
+    html.aa-dark .modal-content { background: #1e1e2e; color: #e0e0e0; }
+    html.aa-dark .modal-content input, html.aa-dark .modal-content select, html.aa-dark .modal-content textarea { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .modal-close { color: #999; }
+    html.aa-dark .modal-close:hover { color: #fff; }
+    html.aa-dark #statusPicker { background: #1e1e2e; border-color: #444; }
+    html.aa-dark .day-option-btn { background: #0f1117; border-color: #444; color: #ccc; }
+    html.aa-dark .day-option-btn:hover { border-color: #6fa8fc; background: #1a2040; }
+    html.aa-dark .day-option-btn.selected { border-color: #4285f4; background: #1a2a50; color: #6fa8fc; }
+    html.aa-dark .ro-row { background: #1e1e2e; }
+    html.aa-dark .ro-ok { background: #1a2e1a; color: #6ecf9a; }
+    html.aa-dark .ro-low { background: #2e2a10; color: #e0c860; }
+    html.aa-dark .ro-debt { background: #2a1a1a; color: #ff8a8a; }
+    html.aa-dark .template-item { border-bottom-color: #333; }
+    html.aa-dark .section.weather { color: #ccc; }
+    html.aa-dark #taskBudgetImpact.tbi-ok { background: #1a2e1a; color: #6ecf9a; }
+    html.aa-dark #taskBudgetImpact.tbi-low { background: #2e2a10; color: #e0c860; }
+    html.aa-dark #taskBudgetImpact.tbi-debt { background: #2a1a1a; color: #ff8a8a; }
   </style>
 </head>
 <body>
@@ -406,20 +448,20 @@
 <div id="site-header"></div>
 <script>
     fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
-      .then(response => response.text())
-      .then(html => {
-        const container = document.getElementById('site-header');
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
         container.innerHTML = html;
-        const scripts = container.querySelectorAll('script');
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
           newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
+          oldScript.parentNode.replaceChild(newScript, oldScript);
         });
-        const dragScript = document.createElement('script');
+        var dragScript = document.createElement('script');
         dragScript.src = '/Academic-Allies/modular/js/draggable.js';
-        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
+        dragScript.onload = function() { if(typeof initDrag === 'function') initDrag(); };
         document.body.appendChild(dragScript);
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -563,7 +605,8 @@
         <input type="text" id="taskLmj" name="taskLmj" readonly aria-readonly="true" />
         <!-- Claude: Emoji input field removed (Fix #3) — emoji derived at render time -->
         <label for="taskDescription">Description</label>
-        <input type="text" id="taskDescription" name="taskDescription" required />
+        <!-- Claude: 2026-03-25 — added maxlength -->
+        <input type="text" id="taskDescription" name="taskDescription" required maxlength="200" />
         <!-- Fix #2: Auto-emoji preview (read-only, updates on description input) -->
         <div class="emoji-preview" id="emojiPreview" aria-label="Auto-detected emoji" title="Emoji auto-detected from description"></div>
         <label for="taskSpoon">Spoon Cost</label>
@@ -593,7 +636,8 @@
           <option value="rescheduled">🔄 Rescheduled</option>
         </select>
         <label for="taskNotes">Area Notes</label>
-        <textarea id="taskNotes" name="taskNotes"></textarea>
+        <!-- Claude: 2026-03-25 — added maxlength -->
+        <textarea id="taskNotes" name="taskNotes" maxlength="500"></textarea>
         <div class="modal-actions">
           <button type="submit">Save</button>
           <button type="button" id="deleteTaskBtn" style="background:#d9534f; color:#fff;">Delete</button>
@@ -667,21 +711,52 @@
   </div>
 
 <script>
-(() => {
+(function() {
   'use strict';
 
   /* Claude: 2026-03-24 — modal open/close helpers using CSS class instead of display.
      .modal.open uses flexbox centering so content wraps tightly on mobile.
      Archive: spoon-pal_2026-03-24_pre-modal-height-fix.bak.html */
-  function openModal(id) { document.getElementById(id).classList.add('open'); }
-  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  /* Claude: 2026-03-25 — focus trap for modal accessibility */
+  var _modalPrevFocus = null;
+  var _modalTrapHandler = null;
+  function openModal(id) {
+    var m = document.getElementById(id);
+    if (!m) return;
+    _modalPrevFocus = document.activeElement;
+    m.classList.add('open');
+    /* Move focus to first focusable element inside modal */
+    var focusable = m.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length) { setTimeout(function() { focusable[0].focus(); }, 50); }
+    /* Trap Tab within modal */
+    _modalTrapHandler = function(e) {
+      if (e.key !== 'Tab') return;
+      var els = m.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (!els.length) return;
+      var first = els[0]; var last = els[els.length - 1];
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+      else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+    };
+    document.addEventListener('keydown', _modalTrapHandler);
+    /* Escape to close */
+    m._escHandler = function(e) { if (e.key === 'Escape') closeModal(id); };
+    document.addEventListener('keydown', m._escHandler);
+  }
+  function closeModal(id) {
+    var m = document.getElementById(id);
+    if (!m) return;
+    m.classList.remove('open');
+    if (_modalTrapHandler) { document.removeEventListener('keydown', _modalTrapHandler); _modalTrapHandler = null; }
+    if (m._escHandler) { document.removeEventListener('keydown', m._escHandler); m._escHandler = null; }
+    if (_modalPrevFocus) { try { _modalPrevFocus.focus(); } catch(e) {} _modalPrevFocus = null; }
+  }
 
   // Claude: Audit fixes applied — full-day templates, auto-emoji, emoji field removal,
   // Normal Day template, ZZ rollover + stale-data detection. Archive: spoon-pal_2026-03-01_pre-audit.html
 
   // ── Fix #2: Keyword→Emoji map ─────────────────────────────────────────────────
   // Claude: BUG #3 FIX — Expanded KEYWORD_EMOJI_MAP with comprehensive task keywords
-  const KEYWORD_EMOJI_MAP = {
+  var KEYWORD_EMOJI_MAP = {
     lunch: '🍽️', eat: '🍽️', food: '🍽️', meal: '🍽️', breakfast: '🍽️', dinner: '🍽️',
     jobs: '💼', apply: '💼', work: '💼', career: '💼', resume: '💼',
     news: '📰', read: '📰', article: '📰', blog: '📰',
@@ -748,11 +823,11 @@
     name: 'Normal Day',
     type: 'day',
     locked: true,
-    tasks: LOCKED_LMJ_ORDER.map(lmj => {
-      const meta = LOCKED_LMJ_META[lmj];
+    tasks: LOCKED_LMJ_ORDER.map(function(lmj) {
+      var meta = LOCKED_LMJ_META[lmj];
       return {
         time: NORMAL_DAY_TIMES[lmj] || '8:30 AM',
-        lmj,
+        lmj: lmj,
         description: meta.desc,
         spoon: meta.defaultCost,
         priority: 'High',
@@ -763,8 +838,8 @@
     })
   };
 
-  const STATUS_ORDER = ['incomplete', 'partial', 'progress', 'complete', 'interrupted', 'skipped', 'rescheduled'];
-  const STATUS_ICONS = {
+  var STATUS_ORDER = ['incomplete', 'partial', 'progress', 'complete', 'interrupted', 'skipped', 'rescheduled'];
+  var STATUS_ICONS = {
     incomplete: '⬜', partial: '⏳', progress: '🛠️', complete: '✅',
     interrupted: '🚧', skipped: '❌', rescheduled: '🔄'
   };
@@ -772,27 +847,27 @@
   // Claude 2026-03-06: RESCHEDULE_GRACE_SECONDS replaced by sequential queue — see checkOverdueTasks()
   // Archive: const RESCHEDULE_GRACE_SECONDS = 5;
   // rescheduleTimers kept for cancelAutoReschedule/rolloverDay backward compat
-  const rescheduleTimers = {};
+  var rescheduleTimers = {};
 
   // Variables
-  let timeline = [];
+  var timeline = [];
   /* Claude: 2026-03-23 — changed default pain/fatigue to match actual button values.
      Old defaults (pain:7, fatigue:5) didn't correspond to any check-in button,
      so no button was highlighted on fresh load but budget showed mystery deductions.
      Now defaults to Medium (6) for pain, Low (3) for fatigue — visible in UI.
      Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
-  let checkIn = {pain: 6, fatigue: 3, sleep: 8.33, mood: 'poor'};
-  let spoonDebtHistory = [];
-  let dayStart = 8;
-  let dayEnd = 25;
-  let weather = {desc: 'Loading...', impact: -1}; // Communal cold penalty
-  let selectedIndex = null;
-  let currentUid = null;  // set by Firebase auth
+  var checkIn = {pain: 6, fatigue: 3, sleep: 8.33, mood: 'poor'};
+  var spoonDebtHistory = [];
+  var dayStart = 8;
+  var dayEnd = 25;
+  var weather = {desc: 'Loading...', impact: -1}; // Communal cold penalty
+  var selectedIndex = null;
+  var currentUid = null;  // set by Firebase auth
   // Claude: BUG #1 FIX — flag to prevent auto-save during initial load cycle
-  let isInitialLoad = true;
+  var isInitialLoad = true;
   // Claude: BUG #8 FIX — Day templates only; individual task templates removed
   // All task quick-add functionality moved to LMJ Code buttons in Normal Day
-  let templates = {
+  var templates = {
     'Monday': {type: 'day', tasks: [
       {time: '8:30 AM', lmj: 'A',  description: 'Bathroom/CPAP cleaning',      spoon: 1, priority: 'High', fixed: true,  status: 'incomplete', notes: 'Essential start, sanitize CPAP'},
       {time: '9:00 AM', lmj: 'B',  description: 'Family scriptures & breakfast', spoon: 1, priority: 'High', fixed: true,  status: 'incomplete', notes: 'PB/fruit, hydrate with meal'},
@@ -801,21 +876,22 @@
       {time: '10:00 PM',lmj: 'ZZ', description: 'Device off, crash',            spoon: 0, priority: 'High', fixed: true,  status: 'incomplete', notes: 'Sleep initiation'}
     ]}
   };
-  let selectedTemplateKey = null;
+  var selectedTemplateKey = null;
 
   // ── Utilities ─────────────────────────────────────────────────────────────────
-  function pad(n) { return n.toString().padStart(2, '0'); }
+  /* Claude: 2026-03-25 — ES5-safe pad (replaced .padStart) */
+  function pad(n) { return ('0' + n).slice(-2); }
 
   // Fix #5: Get today's date key (YYYY-MM-DD)
   function getTodayKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    var d = new Date();
+    return '' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '';
   }
 
   function parseTime(tstr) {
-    const m = tstr.match(/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/i);
+    var m = tstr.match(/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/i);
     if (!m) return null;
-    let h = parseInt(m[1]), mns = parseInt(m[2] || '0');
+    var h = parseInt(m[1]), mns = parseInt(m[2] || '0');
     if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
     if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
     return h * 60 + mns;
@@ -823,47 +899,51 @@
 
   function formatTime(minutes) {
     if (minutes < 0) minutes += 1440;
-    const h = Math.floor(minutes / 60) % 24;
-    const m = minutes % 60;
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const hr12 = h % 12 || 12;
-    return `${hr12}:${pad(m)} ${ampm}`;
+    var h = Math.floor(minutes / 60) % 24;
+    var m = minutes % 60;
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    var hr12 = h % 12 || 12;
+    return '' + hr12 + ':' + pad(m) + ' ' + ampm + '';
   }
 
   // Claude 2026-03-06: helpers for native <input type="time"> ↔ stored "8:30 AM" format
   // to24h("8:30 AM") → "08:30"  |  from24h("08:30") → "8:30 AM"
   function to24h(str) {
-    const mins = parseTime(str);
+    var mins = parseTime(str);
     if (mins === null) return '';
-    return `${pad(Math.floor(mins / 60) % 24)}:${pad(mins % 60)}`;
+    return '' + pad(Math.floor(mins / 60) % 24) + ':' + pad(mins % 60) + '';
   }
   function from24h(str) {
-    const parts = (str || '').match(/^(\d{2}):(\d{2})$/);
+    var parts = (str || '').match(/^(\d{2}):(\d{2})$/);
     if (!parts) return '';
     return formatTime(parseInt(parts[1]) * 60 + parseInt(parts[2]));
   }
   // Bump the time picker value by ±deltaMins and wrap around midnight
   function bumpTime(deltaMins) {
-    const input = document.getElementById('taskTime');
-    const parts = (input.value || '').match(/^(\d{2}):(\d{2})$/);
+    var input = document.getElementById('taskTime');
+    var parts = (input.value || '').match(/^(\d{2}):(\d{2})$/);
     if (!parts) return;
-    const newMins = (parseInt(parts[1]) * 60 + parseInt(parts[2]) + deltaMins + 1440) % 1440;
-    input.value = `${pad(Math.floor(newMins / 60))}:${pad(newMins % 60)}`;
+    var newMins = (parseInt(parts[1]) * 60 + parseInt(parts[2]) + deltaMins + 1440) % 1440;
+    input.value = '' + pad(Math.floor(newMins / 60)) + ':' + pad(newMins % 60) + '';
   }
 
   function uniqueLMJ() {
-    const taken = new Set(timeline.map(t => t.lmj));
-    for (const lmj of LOCKED_LMJ_ORDER) {
-      if (!taken.has(lmj)) return lmj;
+    /* Claude: 2026-03-25 — replaced new Set() (ES2015) with object lookup for ES5 compat */
+    var taken = {};
+    for (var _ts = 0; _ts < timeline.length; _ts++) { taken[timeline[_ts].lmj] = true; }
+    /* Claude: 2026-03-25 — converted for...of to ES5 for loops */
+    for (var _li = 0; _li < LOCKED_LMJ_ORDER.length; _li++) {
+      var lmj = LOCKED_LMJ_ORDER[_li];
+      if (!taken[lmj]) return lmj;
     }
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    for (let i = 0; i < letters.length; i++) {
-      if (!taken.has(letters[i])) return letters[i];
+    var letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (var i = 0; i < letters.length; i++) {
+      if (!taken[letters[i]]) return letters[i];
     }
-    for (let l1 of letters) {
-      for (let l2 of letters) {
-        const c = l1 + l2;
-        if (!taken.has(c)) return c;
+    for (var _a = 0; _a < letters.length; _a++) {
+      for (var _b = 0; _b < letters.length; _b++) {
+        var c = letters[_a] + letters[_b];
+        if (!taken[c]) return c;
       }
     }
     return 'XX';
@@ -876,8 +956,8 @@
     // 1. LOCKED_LMJ_META emoji if task has a known LMJ code
     if (LOCKED_LMJ_META[task.lmj]) return LOCKED_LMJ_META[task.lmj].emoji;
     // 2. Whole-word keyword match from KEYWORD_EMOJI_MAP (case-insensitive)
-    const words = (task.description || '').toLowerCase().split(/\W+/);
-    for (const kw in KEYWORD_EMOJI_MAP) {
+    var words = (task.description || '').toLowerCase().split(/\W+/);
+    for (var kw in KEYWORD_EMOJI_MAP) {
       if (words.indexOf(kw) !== -1) return KEYWORD_EMOJI_MAP[kw];
     }
     // 3. Fallback
@@ -890,39 +970,41 @@
   // Claude 2026-03-06: Added \uFE0F (variation selector) and \u200D (ZWJ) to prevent
   // stray combining chars being left behind for emoji sequences like 🍽️.
   // Archive of prior regex: /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u
+  /* Claude: 2026-03-25 — replaced Unicode property escapes with ES5-safe emoji strip.
+     Covers surrogates (U+D800..DFFF pairs), variation selectors, ZWJ, and common emoji ranges. */
   function stripLeadingEmoji(str) {
-    return (str || '').replace(/^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D\s]+/u, '').trim();
+    return (str || '').replace(/^[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\u2B50\u2764\uFE0F\u200D\s]*/g, '').trim();
   }
 
   // ── Fix #2: Update emoji preview in task modal ────────────────────────────────
   function updateEmojiPreview() {
-    const lmj = document.getElementById('taskLmj').value;
-    const desc = document.getElementById('taskDescription').value;
-    const emoji = deriveEmoji({ lmj, description: desc });
+    var lmj = document.getElementById('taskLmj').value;
+    var desc = document.getElementById('taskDescription').value;
+    var emoji = deriveEmoji({ lmj: lmj, description: desc });
     document.getElementById('emojiPreview').textContent = emoji;
   }
 
   // ── Spoon calculations ────────────────────────────────────────────────────────
   function calculateSpoons() {
     /* Claude: 2026-03-07 — track each adjustment separately for breakdown display */
-    const painAdj    = Math.max(0, checkIn.pain - 5);
-    const fatigueAdj = Math.max(0, checkIn.fatigue - 5);
-    const sleepHrs   = checkIn.sleep;
-    const sleepAdj   = sleepHrs < 7 ? -(2 * (7 - sleepHrs))
+    var painAdj    = Math.max(0, checkIn.pain - 5);
+    var fatigueAdj = Math.max(0, checkIn.fatigue - 5);
+    var sleepHrs   = checkIn.sleep;
+    var sleepAdj   = sleepHrs < 7 ? -(2 * (7 - sleepHrs))
                      : sleepHrs > 9 ? Math.min(3, sleepHrs - 9) : 0;
-    const moodAdj    = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
-    const moodAdjVal = moodAdj[checkIn.mood] || 0;
-    const weatherAdj = weather.impact || 0;
+    var moodAdj    = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
+    var moodAdjVal = moodAdj[checkIn.mood] || 0;
+    var weatherAdj = weather.impact || 0;
 
     // Claude: 2026-03-07 — read borrowedFromPrevDay BEFORE filter wipes today's entry (cache bust #21)
-    const _todayStr = new Date().toDateString();
-    const _prevEntry = spoonDebtHistory.find(h => h.date === _todayStr);
-    const borrowed = (_prevEntry && _prevEntry.borrowedFromPrevDay) || 0;
+    var _todayStr = new Date().toDateString();
+    var _prevEntry = spoonDebtHistory.find(function(h) { return h.date === _todayStr; });
+    var borrowed = (_prevEntry && _prevEntry.borrowedFromPrevDay) || 0;
 
     /* Claude: 2026-03-23 — use _configBaseBudget if set (was hardcoded 20, mismatched
        calculateDailyBudget() which already used the config value).
        Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
-    let base = _configBaseBudget || 20;
+    var base = _configBaseBudget || 20;
     base -= painAdj;
     base -= fatigueAdj;
     base += sleepAdj;
@@ -931,23 +1013,23 @@
     base -= borrowed; // repay yesterday's debt — was hardcoded 0, now functional
     base = Math.max(1, base);
 
-    let planned = timeline.reduce((acc, t) => acc + (t.spoon || 0), 0);
-    let spent = timeline.reduce((acc, t) => {
+    var planned = timeline.reduce(function(acc, t) { return acc + (t.spoon || 0); }, 0);
+    var spent = timeline.reducefunction((acc, t) {
       if (t.status === 'complete') return acc + (t.spoon || 0);
       else if (t.status === 'partial') return acc + (t.spoon || 0) / 2;
       else return acc;
     }, 0);
 
-    const start = base;
-    const remaining = start - spent;
-    const depletion = remaining - (planned - spent);
+    var start = base;
+    var remaining = start - spent;
+    var depletion = remaining - (planned - spent);
 
     // Preserve borrowedFromPrevDay in the new entry so it survives subsequent calculateSpoons() calls
-    spoonDebtHistory = spoonDebtHistory.filter(h => h.date !== _todayStr);
-    spoonDebtHistory.push({ date: _todayStr, base, spent, depletion, borrowedFromPrevDay: borrowed });
+    spoonDebtHistory = spoonDebtHistory.filter(function(h) { return h.date !== _todayStr; });
+    spoonDebtHistory.push({ date: _todayStr, base: base, spent: spent, depletion: depletion, borrowedFromPrevDay: borrowed });
 
-    let counter = 0;
-    for (let i = spoonDebtHistory.length - 1; i >= 0; i--) {
+    var counter = 0;
+    for (var i = spoonDebtHistory.length - 1; i >= 0; i--) {
       if (spoonDebtHistory[i].depletion < 0) counter++;
       else break;
     }
@@ -961,43 +1043,43 @@
     document.getElementById('consecutiveDebt').textContent = counter;
 
     if (counter >= _alertDebtWarning) {
-      let text = counter >= _alertDebtCritical ? '🚨 CRITICAL SPOON DEBT PERIOD 🚨' : '⚠️ SPOON DEBT WARNING ⚠️';
-      let debtDiv = document.getElementById('debtWarning');
-      debtDiv.textContent = `${text} (${counter} days)`;
+      var text = counter >= _alertDebtCritical ? '🚨 CRITICAL SPOON DEBT PERIOD 🚨' : '⚠️ SPOON DEBT WARNING ⚠️';
+      var debtDiv = document.getElementById('debtWarning');
+      debtDiv.textContent = '' + text + ' (' + counter + ' days)';
       debtDiv.style.display = 'block';
     } else {
       document.getElementById('debtWarning').style.display = 'none';
     }
 
     /* Claude: 2026-03-07 — update visual budget bar + breakdown equation */
-    const safeStart  = Math.max(start, 0.1);
-    const spentPct   = Math.min(100, (spent / safeStart) * 100);
-    const pendingPct = Math.max(0, Math.min(100 - spentPct, ((planned - spent) / safeStart) * 100));
+    var safeStart  = Math.max(start, 0.1);
+    var spentPct   = Math.min(100, (spent / safeStart) * 100);
+    var pendingPct = Math.max(0, Math.min(100 - spentPct, ((planned - spent) / safeStart) * 100));
     document.getElementById('spoonBarSpent').style.width   = spentPct + '%';
     document.getElementById('spoonBarPlanned').style.width = pendingPct + '%';
 
     // Remaining badge — color coded
-    const badge = document.getElementById('spoonRemainingBadge');
+    var badge = document.getElementById('spoonRemainingBadge');
     badge.textContent = remaining.toFixed(1) + ' left';
     badge.className = remaining > 2 ? 'spoon-ok' : remaining > 0 ? 'spoon-low' : 'spoon-debt';
 
     // Debt days row
-    const debtSpan = document.getElementById('debtDaysSpan');
+    var debtSpan = document.getElementById('debtDaysSpan');
     if (debtSpan) debtSpan.style.display = counter > 0 ? 'inline' : 'none';
 
     // Why-today equation (only show adjustments that are non-zero)
     /* Claude: 2026-03-23 — use actual base value instead of hardcoded '20' */
-    let eq = (_configBaseBudget || 20) + ' base';
-    if (painAdj)        eq += ` − pain(${painAdj})`;
-    if (fatigueAdj)     eq += ` − fatigue(${fatigueAdj})`;
-    if (sleepAdj < 0)   eq += ` − sleep(${Math.abs(sleepAdj).toFixed(1)})`;
-    if (sleepAdj > 0)   eq += ` + sleep(+${sleepAdj.toFixed(1)})`;
-    if (moodAdjVal < 0) eq += ` − mood(${Math.abs(moodAdjVal)})`;
-    if (moodAdjVal > 0) eq += ` + mood(+${moodAdjVal})`;
-    if (weatherAdj < 0) eq += ` − weather(${Math.abs(weatherAdj)})`;
-    if (weatherAdj > 0) eq += ` + weather(+${weatherAdj})`;
-    if (borrowed > 0)   eq += ` − borrowed(${borrowed})`;
-    eq += ` = ${base} today`;
+    var eq = (_configBaseBudget || 20) + ' base';
+    if (painAdj)        eq += ' − pain(' + painAdj + ')';
+    if (fatigueAdj)     eq += ' − fatigue(' + fatigueAdj + ')';
+    if (sleepAdj < 0)   eq += ' − sleep(' + Math.abs(sleepAdj).toFixed(1) + ')';
+    if (sleepAdj > 0)   eq += ' + sleep(+' + sleepAdj.toFixed(1) + ')';
+    if (moodAdjVal < 0) eq += ' − mood(' + Math.abs(moodAdjVal) + ')';
+    if (moodAdjVal > 0) eq += ' + mood(+' + moodAdjVal + ')';
+    if (weatherAdj < 0) eq += ' − weather(' + Math.abs(weatherAdj) + ')';
+    if (weatherAdj > 0) eq += ' + weather(+' + weatherAdj + ')';
+    if (borrowed > 0)   eq += ' − borrowed(' + borrowed + ')';
+    eq += ' = ' + base + ' today';
     document.getElementById('spoonBreakdown').textContent = eq;
 
     /* Claude: 2026-03-12 — low spoon budget alert. When remaining drops to 20% or below,
@@ -1012,37 +1094,38 @@
 
   // ── Timeline rendering ────────────────────────────────────────────────────────
   function renderTimeline() {
-    const tbody = document.getElementById('timelineBody');
+    var tbody = document.getElementById('timelineBody');
     tbody.innerHTML = '';
-    timeline.sort((a, b) => {
-      let aM = parseTime(a.time);
-      let bM = parseTime(b.time);
+    timeline.sortfunction((a, b) {
+      var aM = parseTime(a.time);
+      var bM = parseTime(b.time);
       if (aM < dayStart * 60) aM += 1440;
       if (bM < dayStart * 60) bM += 1440;
       return aM - bM;
     });
     // Enforce H after ME
-    const idxME = timeline.findIndex(t => t.lmj === 'ME');
-    const idxH  = timeline.findIndex(t => t.lmj === 'H');
+    /* Claude: 2026-03-25 — replaced .findIndex() (ES2015) with manual loop for ES5 compat */
+    var idxME = -1; for (var _fi1 = 0; _fi1 < timeline.length; _fi1++) { if (timeline[_fi1].lmj === 'ME') { idxME = _fi1; break; } }
+    var idxH  = -1; for (var _fi2 = 0; _fi2 < timeline.length; _fi2++) { if (timeline[_fi2].lmj === 'H') { idxH = _fi2; break; } }
     if (idxME !== -1 && idxH !== -1) {
       if (parseTime(timeline[idxH].time) <= parseTime(timeline[idxME].time)) {
         timeline[idxH].time = formatTime(parseTime(timeline[idxME].time) + 30);
       }
     }
     // Claude: 2026-03-07 — track whether we've marked the next-up task yet (cache bust #20)
-    let nextUpMarked = false;
-    for (let i = 0; i < timeline.length; i++) {
-      const t = timeline[i];
-      const tr = document.createElement('tr');
+    var nextUpMarked = false;
+    for (var i = 0; i < timeline.length; i++) {
+      var t = timeline[i];
+      var tr = document.createElement('tr');
       if (t.status === 'complete') tr.classList.add('completed');
       if (t.fixed) tr.classList.add('task-fixed'); // Claude: 2026-03-07 — teal left border for fixed-time tasks
       /* Claude: 2026-03-23 — fix midnight wrap: if current time is before dayStart
          (e.g. 1 AM when dayStart is 8), we're in the "overnight" portion of the day.
          Adjust now the same way we adjust task times so 1 AM > 10 PM. */
-      let now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
+      var now = parseTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "numeric", hour12: true }));
       if (now < dayStart * 60) now += 1440;
-      let taskTime = parseTime(t.time);
-      let adjTaskTime = taskTime;
+      var taskTime = parseTime(t.time);
+      var adjTaskTime = taskTime;
       if (taskTime < dayStart * 60) adjTaskTime += 1440;
       if (t.status === 'incomplete' && adjTaskTime < now - 15) tr.classList.add('overdue');
       // Amber highlight on the first upcoming incomplete task — your "do this now" signal
@@ -1051,57 +1134,57 @@
         nextUpMarked = true;
       }
 
-      const timeTd = document.createElement('td');
-      timeTd.textContent = `${t.time} ${taskTime >= 720 ? '🌙' : '☀️'} ${t.fixed ? '🔒' : '↕️'}`;
+      var timeTd = document.createElement('td');
+      timeTd.textContent = t.time + ' ' + (taskTime >= 720 ? '🌙' : '☀️') + ' ' + (t.fixed ? '🔒' : '↕️');
       tr.appendChild(timeTd);
 
-      const lmjTd = document.createElement('td');
+      var lmjTd = document.createElement('td');
       // Fix #3: Use deriveEmoji — no stored emoji
-      lmjTd.textContent = `${t.lmj}${deriveEmoji(t)}`;
+      lmjTd.textContent = t.lmj + deriveEmoji(t);
       tr.appendChild(lmjTd);
 
-      const descTd = document.createElement('td');
+      var descTd = document.createElement('td');
       // stripLeadingEmoji: old Firestore data may have emoji baked into description;
       // deriveEmoji() already adds the emoji in the LMJ column, so strip it here. (2026-03-02 by Claude)
-      descTd.textContent = `${stripLeadingEmoji(t.description)} (${t.priority})`;
+      descTd.textContent = stripLeadingEmoji(t.description) + ' (' + t.priority + ')';
       descTd.classList.add('clickable');
-      descTd.onclick = () => openTaskModal(i);
+      descTd.onclick = function() { openTaskModal(i); };
       tr.appendChild(descTd);
 
-      const spoonTd = document.createElement('td');
+      var spoonTd = document.createElement('td');
       spoonTd.textContent = t.spoon.toFixed(1);
       spoonTd.classList.add('clickable');
-      spoonTd.onclick = () => openTaskModal(i);
+      spoonTd.onclick = function() { openTaskModal(i); };
       tr.appendChild(spoonTd);
 
-      const statusTd = document.createElement('td');
+      var statusTd = document.createElement('td');
       statusTd.textContent = STATUS_ICONS[t.status] || STATUS_ICONS['incomplete'];
       statusTd.classList.add('clickable');
       statusTd.title = 'Tap to change status';
       // Claude 2026-03-06: open picker instead of cycling
-      statusTd.onclick = (e) => { e.stopPropagation(); openStatusPicker(i, statusTd); };
+      statusTd.onclick = function(e) { e.stopPropagation(); openStatusPicker(i, statusTd); };
       tr.appendChild(statusTd);
 
-      const noteTd = document.createElement('td');
+      var noteTd = document.createElement('td');
       noteTd.textContent = t.notes || '';
       noteTd.classList.add('clickable');
-      noteTd.onclick = () => openTaskModal(i);
+      noteTd.onclick = function() { openTaskModal(i); };
       tr.appendChild(noteTd);
 
-      const actionTd = document.createElement('td');
-      const editBtn = document.createElement('button');
+      var actionTd = document.createElement('td');
+      var editBtn = document.createElement('button');
       editBtn.textContent = 'Edit';
-      editBtn.onclick = (e) => { e.stopPropagation(); openTaskModal(i); };
+      editBtn.onclick = function(e) { e.stopPropagation(); openTaskModal(i); };
       actionTd.appendChild(editBtn);
-      const cloneBtn = document.createElement('button');
+      var cloneBtn = document.createElement('button');
       cloneBtn.textContent = 'Clone';
       cloneBtn.style.background = '#28a745';
-      cloneBtn.onclick = (e) => { e.stopPropagation(); addFromTemplate(t); };
+      cloneBtn.onclick = function(e) { e.stopPropagation(); addFromTemplate(t); };
       actionTd.appendChild(cloneBtn);
-      const delBtn = document.createElement('button');
+      var delBtn = document.createElement('button');
       delBtn.textContent = 'Delete';
       delBtn.style.background = '#d9534f';
-      delBtn.onclick = (e) => { e.stopPropagation(); deleteTask(i); };
+      delBtn.onclick = function(e) { e.stopPropagation(); deleteTask(i); };
       actionTd.appendChild(delBtn);
       tr.appendChild(actionTd);
 
@@ -1113,29 +1196,29 @@
      Shows remaining spoons after this task, color-coded green/yellow/red.
      Called on modal open and on every change to the spoon cost input. */
   function updateTaskBudgetImpact() {
-    const div = document.getElementById('taskBudgetImpact');
+    var div = document.getElementById('taskBudgetImpact');
     if (!div) return;
-    const newCost = parseFloat(document.getElementById('taskSpoon').value) || 0;
-    const budget  = calculateDailyBudget();
+    var newCost = parseFloat(document.getElementById('taskSpoon').value) || 0;
+    var budget  = calculateDailyBudget();
     // Sum all tasks EXCEPT the one being edited (so edit doesn't double-count)
-    const otherPlanned = timeline.reduce(function(acc, t, i) {
+    var otherPlanned = timeline.reduce(function(acc, t, i) {
       if (i === selectedIndex) return acc; // exclude current task
       return acc + (t.spoon || 0);
     }, 0);
-    const after = budget - (otherPlanned + newCost);
+    var after = budget - (otherPlanned + newCost);
     div.style.display = 'block';
     div.className = after > 2 ? 'tbi-ok' : after >= 0 ? 'tbi-low' : 'tbi-debt';
     div.textContent = after > 0
-      ? `✅ After saving: ${after.toFixed(1)} spoons remaining`
+      ? '✅ After saving: ' + after.toFixed(1) + ' spoons remaining'
       : after === 0
-      ? `⚖️ After saving: exactly even — nothing left`
-      : `⚠️ After saving: ${Math.abs(after).toFixed(1)} spoons into debt`;
+      ? '⚖️ After saving: exactly even — nothing left'
+      : '⚠️ After saving: ' + Math.abs(after).toFixed(1) + ' spoons into debt';
   }
 
   // ── Task Modal functions ──────────────────────────────────────────────────────
   function openTaskModal(index) {
     selectedIndex = index;
-    const task = timeline[index];
+    var task = timeline[index];
     // Claude: Cancel pending auto-reschedule on user interaction
     cancelAutoReschedule(index);
     // Claude 2026-03-06: convert stored "8:30 AM" to "08:30" for native time picker
@@ -1160,7 +1243,7 @@
   function closeTaskModal() {
     closeModal('taskModal');
     document.getElementById('taskSpoon').oninput = null; // cleanup listener
-    const div = document.getElementById('taskBudgetImpact');
+    var div = document.getElementById('taskBudgetImpact');
     if (div) div.style.display = 'none';
     selectedIndex = null;
   }
@@ -1168,14 +1251,14 @@
   function saveTask(e) {
     e.preventDefault();
     if (selectedIndex === null) return;
-    const t = timeline[selectedIndex];
+    var t = timeline[selectedIndex];
     // Claude 2026-03-06: read native time picker (24h "HH:MM"), convert back to "8:30 AM"
     // Archive of old text-input validation:
     //   const timeVal = document.getElementById('taskTime').value.trim().toUpperCase();
     //   if (!/^(\d{1,2}):?(\d{0,2})\s*(AM|PM)$/.test(timeVal)) { alert(...); return; }
     //   t.time = timeVal;
-    const raw24 = document.getElementById('taskTime').value;
-    const timeVal = from24h(raw24);
+    var raw24 = document.getElementById('taskTime').value;
+    var timeVal = from24h(raw24);
     if (!timeVal) { alert('Please set a time.'); return; }
     t.time = timeVal;
     // Claude 2026-03-06: strip emoji before saving — ensures descriptions stay clean in Firestore
@@ -1196,13 +1279,13 @@
   // ── Template functions ────────────────────────────────────────────────────────
   // Fix #1: Only show task-type templates (not day templates) in task modal select
   function populateTemplateSelect(selectId) {
-    const select = document.getElementById(selectId);
+    var select = document.getElementById(selectId);
     select.innerHTML = '<option value="">None</option>';
-    for (const key in templates) {
-      const temp = templates[key];
+    for (var key in templates) {
+      var temp = templates[key];
       // Skip day templates
       if (temp.type === 'day' || temp.tasks) continue;
-      const opt = document.createElement('option');
+      var opt = document.createElement('option');
       opt.value = key;
       opt.textContent = key;
       select.appendChild(opt);
@@ -1210,7 +1293,7 @@
   }
 
   function applyTemplate(key) {
-    const temp = templates[key];
+    var temp = templates[key];
     if (!temp || temp.tasks || temp.type === 'day') return; // skip day templates
     document.getElementById('taskDescription').value = temp.desc;
     document.getElementById('taskSpoon').value = temp.defaultCost;
@@ -1231,24 +1314,24 @@
   // Claude: BUG #5 FIX — template picker now shows ONLY day templates
   // Claude: BUG #8 FIX — renderTemplateList shows day templates only, Normal Day protected
   function renderTemplateList() {
-    const list = document.getElementById('templateList');
+    var list = document.getElementById('templateList');
     list.innerHTML = '';
 
     // BUG #8: Show protected Normal Day template first (copy button only, no edit/delete)
-    const ndItem = document.createElement('div');
+    var ndItem = document.createElement('div');
     ndItem.classList.add('template-item');
-    ndItem.innerHTML = `<span>🔒 <strong>Normal Day</strong> — Day template<br><small>Protected — copy to customize</small></span>`;
-    const ndCopyBtn = document.createElement('button');
+    ndItem.innerHTML = '<span>🔒 <strong>Normal Day</strong> — Day template<br><small>Protected — copy to customize</small></span>';
+    var ndCopyBtn = document.createElement('button');
     ndCopyBtn.textContent = 'Copy';
     ndCopyBtn.style.background = '#28a745';
-    ndCopyBtn.onclick = () => duplicateNormalDay();
+    ndCopyBtn.onclick = function() { duplicateNormalDay(); };
     ndItem.appendChild(ndCopyBtn);
     list.appendChild(ndItem);
 
     // BUG #8: User day templates only (filter out any individual task templates)
-    for (const key in templates) {
-      const temp = templates[key];
-      const isDay = temp.type === 'day' || !!temp.tasks;
+    for (var key in templates) {
+      var temp = templates[key];
+      var isDay = temp.type === 'day' || !!temp.tasks;
 
       // Skip individual task templates (type === 'task'), show only day templates
       if (!isDay) continue;
@@ -1256,25 +1339,25 @@
       /* Claude: 2026-03-23 — XSS fix: template names are user-controlled,
          so use textContent instead of innerHTML to prevent injection.
          Archive: spoon-pal_2026-03-23_pre-fix.bak.html */
-      const item = document.createElement('div');
+      var item = document.createElement('div');
       item.classList.add('template-item');
-      const span = document.createElement('span');
+      var span = document.createElement('span');
       span.textContent = '📅 ' + key + ' — Day template (' + (temp.tasks || []).length + ' tasks)';
       item.appendChild(span);
 
       // Edit button (for user templates, not locked templates)
-      const editBtn = document.createElement('button');
+      var editBtn = document.createElement('button');
       editBtn.textContent = 'Edit';
       editBtn.style.background = '#007bff';
-      editBtn.onclick = () => openTemplateEdit(key); // Claude: fix — was calling openLoadDayModal(), now opens editor
+      editBtn.onclick = function() { openTemplateEdit(key); }; // Claude: fix — was calling openLoadDayModal(), now opens editor
       item.appendChild(editBtn);
 
       // Delete button
-      const delBtn = document.createElement('button');
+      var delBtn = document.createElement('button');
       delBtn.textContent = 'Delete';
       delBtn.style.background = '#d9534f';
-      delBtn.onclick = () => {
-        if (confirm(`Delete "${key}"?`)) {
+      delBtn.onclick = function() {
+        if (confirm('Delete "' + key + '"?')) {
           delete templates[key];
           saveData();
           renderTemplateList();
@@ -1288,16 +1371,17 @@
 
   // Fix #4: Duplicate Normal Day into user-editable copy
   function duplicateNormalDay() {
-    let newKey = 'Normal Day (Copy)';
-    let i = 2;
-    while (templates[newKey]) { newKey = `Normal Day (Copy ${i++})`; }
+    var newKey = 'Normal Day (Copy)';
+    var i = 2;
+    while (templates[newKey]) { newKey = 'Normal Day (Copy ' + i++ + ')'; }
     templates[newKey] = {
       type: 'day',
-      tasks: NORMAL_DAY_TEMPLATE.tasks.map(t => ({ ...t, status: 'incomplete' }))
+      /* Claude: 2026-03-25 — replaced spread with Object.assign for ES5 compat */
+      tasks: NORMAL_DAY_TEMPLATE.tasks.map(function(t) { return Object.assign({}, t, { status: 'incomplete' }); })
     };
     saveData();
     renderTemplateList();
-    alert(`"${newKey}" created — you can now edit it in the timeline.`);
+    alert('"' + newKey + '" created — you can now edit it in the timeline.');
   }
 
   // Claude 2026-03-06: simplified to rename-only — task-level fields removed
@@ -1317,11 +1401,11 @@
   // Archive of old behavior: showed alert "Individual task templates are no longer supported."
   function saveTemplate(e) {
     e.preventDefault();
-    const newName = document.getElementById('templateName').value.trim();
+    var newName = document.getElementById('templateName').value.trim();
     if (!newName) { alert('Template name required.'); return; }
     if (!selectedTemplateKey || !templates[selectedTemplateKey]) { closeTemplateEdit(); return; }
     if (newName !== selectedTemplateKey) {
-      if (templates[newName]) { alert(`A template named "${newName}" already exists.`); return; }
+      if (templates[newName]) { alert('A template named "' + newName + '" already exists.'); return; }
       templates[newName] = templates[selectedTemplateKey];
       delete templates[selectedTemplateKey];
     }
@@ -1333,12 +1417,12 @@
   // Claude 2026-03-06: save current timeline as a named day template
   function saveTimelineAsTemplate() {
     if (!timeline.length) { alert('Your timeline is empty — add some tasks first.'); return; }
-    let name = prompt('Name this day template:', 'My Day');
+    var name = prompt('Name this day template:', 'My Day');
     if (!name) return;
     name = name.trim();
     if (!name) return;
     if (templates[name]) {
-      if (!confirm(`"${name}" already exists. Overwrite it?`)) return;
+      if (!confirm('"' + name + '" already exists. Overwrite it?')) return;
     }
     templates[name] = {
       type: 'day',
@@ -1352,11 +1436,11 @@
       })
     };
     saveData();
-    showToast(`✅ Saved as "${name}"`);
+    showToast('✅ Saved as "' + name + '"');
   }
 
   function deleteTemplate() {
-    if (selectedTemplateKey && confirm(`Delete template "${selectedTemplateKey}"?`)) {
+    if (selectedTemplateKey && confirm('Delete template "' + selectedTemplateKey + '"?')) {
       delete templates[selectedTemplateKey];
       saveData();
       renderTemplateList();
@@ -1365,7 +1449,7 @@
   }
 
   function addFromTemplate(task) {
-    const lmj = uniqueLMJ();
+    var lmj = uniqueLMJ();
     timeline.push({
       time: task.time,
       lmj,
@@ -1388,16 +1472,18 @@
   /* Claude: 2026-03-17 — standardized mirror guard */
   function addTask() {
     if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
-    const lmj = uniqueLMJ();
-    const startMinutes = dayStart * 60;
-    const time = formatTime(startMinutes);
+    var lmj = uniqueLMJ();
+    var startMinutes = dayStart * 60;
+    var time = formatTime(startMinutes);
+    /* Claude: 2026-03-25 — fixed shorthand props + optional chaining for ES5 */
+    var _meta = LOCKED_LMJ_META[lmj] || {};
     timeline.push({
-      time,
-      lmj,
-      description: LOCKED_LMJ_META[lmj]?.desc || '',
-      spoon: LOCKED_LMJ_META[lmj]?.defaultCost || 1,
+      time: time,
+      lmj: lmj,
+      description: _meta.desc || '',
+      spoon: _meta.defaultCost || 1,
       priority: 'High',
-      fixed: LOCKED_LMJ_META[lmj]?.fixed || false,
+      fixed: _meta.fixed || false,
       status: 'incomplete',
       notes: ''
       // Fix #3: emoji not stored
@@ -1442,32 +1528,32 @@
   function openStatusPicker(index, cell) {
     if (index < 0 || index >= timeline.length) return;
     _statusPickerIndex = index;
-    const current = timeline[index].status;
-    const picker = document.getElementById('statusPicker');
+    var current = timeline[index].status;
+    var picker = document.getElementById('statusPicker');
 
     // Build buttons
     picker.innerHTML = '';
     STATUS_ORDER.forEach(function(s) {
-      const btn = document.createElement('button');
+      var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'sp-status-btn' + (s === current ? ' active' : '');
-      btn.innerHTML = `<span>${STATUS_ICONS[s]}</span> ${STATUS_LABELS[s]}`;
+      btn.innerHTML = '<span>' + STATUS_ICONS[s] + '</span> ' + STATUS_LABELS[s] + '';
       btn.onclick = function(e) { e.stopPropagation(); setStatus(index, s); };
       picker.appendChild(btn);
     });
 
     // Position near the tapped cell
-    const rect = cell.getBoundingClientRect();
-    const pickerH = 220; // approx
-    let top = rect.bottom + 4;
+    var rect = cell.getBoundingClientRect();
+    var pickerH = 220; // approx
+    var top = rect.bottom + 4;
     if (top + pickerH > window.innerHeight) top = rect.top - pickerH - 4;
-    picker.style.top = `${Math.max(4, top)}px`;
-    picker.style.left = `${Math.min(rect.left, window.innerWidth - 220)}px`;
+    picker.style.top = '' + Math.max(4, top) + 'px';
+    picker.style.left = '' + Math.min(rect.left, window.innerWidth - 220) + 'px';
     picker.classList.add('open');
   }
 
   function closeStatusPicker() {
-    const picker = document.getElementById('statusPicker');
+    var picker = document.getElementById('statusPicker');
     if (picker) picker.classList.remove('open');
     _statusPickerIndex = null;
   }
@@ -1534,22 +1620,22 @@
   // Claude: applyDayTemplate — carry forward incomplete tasks, then load template (no confirm)
   // Archive: had confirm('This will replace your current timeline...') — removed per requirement
   function applyDayTemplate() {
-    const key = document.getElementById('dayTemplateSelect').value;
+    var key = document.getElementById('dayTemplateSelect').value;
     if (!key) return;
     /* Claude: 2026-03-14 — debug logs removed (were added 2026-03-08 to investigate carry-forward).
        Issue is resolved; keeping comment for context. timeline is module-scoped, not window.timeline. */
-    let sourceTasks;
+    var sourceTasks;
     if (key === '__NORMAL_DAY__') {
       sourceTasks = NORMAL_DAY_TEMPLATE.tasks;
     } else {
-      const temp = templates[key];
+      var temp = templates[key];
       if (!temp || !temp.tasks) { alert('Day template not found.'); return; }
       sourceTasks = temp.tasks;
     }
     // Carry forward incomplete/partial tasks from current timeline
-    const carryForward = timeline.filter(t => t.status !== 'complete' && t.status !== 'skipped');
+    var carryForward = timeline.filter(function(t) { return t.status !== 'complete' && t.status !== 'skipped'; });
     /* Claude: 2026-03-14 — debug log removed (carry-forward count) */
-    const newTasks = sourceTasks.map(t => ({
+    var newTasks = sourceTasks.map(function(t) { return {
       time: t.time,
       lmj: t.lmj,
       description: stripLeadingEmoji(t.description || ''),
@@ -1558,19 +1644,22 @@
       fixed: t.fixed,
       status: 'incomplete',
       notes: t.notes || ''
-    }));
+    }; });
     // Claude 2026-03-08: Deduplicate — skip carried tasks whose LMJ code
     // already exists in the template. Prevents daily events (breakfast, CPAP,
     // streak savers, dinner, etc.) from appearing twice after rollover.
-    const templateLmjCodes = new Set(newTasks.map(t => t.lmj).filter(Boolean));
-    const uniqueCarry = carryForward.filter(t => !t.lmj || !templateLmjCodes.has(t.lmj));
-    const skippedCount = carryForward.length - uniqueCarry.length;
+    /* Claude: 2026-03-25 — replaced new Set() (ES2015) with object lookup for ES5 compat */
+    var templateLmjCodes = {};
+    var _tlArr = newTasks.map(function(t) { return t.lmj; }).filter(Boolean);
+    for (var _tl = 0; _tl < _tlArr.length; _tl++) { templateLmjCodes[_tlArr[_tl]] = true; }
+    var uniqueCarry = carryForward.filter(function(t) { return !t.lmj || !templateLmjCodes[t.lmj]; });
+    var skippedCount = carryForward.length - uniqueCarry.length;
     /* Claude: 2026-03-14 — debug log removed (skipped duplicate count) */
     // Place carried tasks into available slots after the template tasks
-    const merged = [...newTasks];
+    var merged = newTasks.slice();
     uniqueCarry.forEach(function(t) {
-      const slot = findNextAvailableSlot(merged, 9, true);
-      merged.push({ ...t, time: slot, status: 'incomplete' });
+      var slot = findNextAvailableSlot(merged, 9, true);
+      merged.push(Object.assign({}, t, { time: slot, status: 'incomplete' }));
     });
     timeline = merged;
     calculateSpoons();
@@ -1578,7 +1667,7 @@
     saveData();
     closeLoadDayModal();
     if (uniqueCarry.length > 0 || skippedCount > 0) {
-      let msg = '📋 Loaded template';
+      var msg = '📋 Loaded template';
       if (uniqueCarry.length > 0) msg += ' + carried forward ' + uniqueCarry.length + ' task(s)';
       if (skippedCount > 0) msg += ' (skipped ' + skippedCount + ' daily repeat' + (skippedCount > 1 ? 's' : '') + ')';
       showToast(msg + '.', 3000);
@@ -1587,18 +1676,18 @@
 
   // Claude: startFreshDayTemplate — wipe timeline and load template (has confirm)
   function startFreshDayTemplate() {
-    const key = document.getElementById('dayTemplateSelect').value;
+    var key = document.getElementById('dayTemplateSelect').value;
     if (!key) return;
     if (!confirm('Start Fresh will discard ALL current tasks and load the template from scratch. Continue?')) return;
-    let sourceTasks;
+    var sourceTasks;
     if (key === '__NORMAL_DAY__') {
       sourceTasks = NORMAL_DAY_TEMPLATE.tasks;
     } else {
-      const temp = templates[key];
+      var temp = templates[key];
       if (!temp || !temp.tasks) { alert('Day template not found.'); return; }
       sourceTasks = temp.tasks;
     }
-    timeline = sourceTasks.map(t => ({
+    timeline = sourceTasks.map(function(t) { return {
       time: t.time,
       lmj: t.lmj,
       description: stripLeadingEmoji(t.description || ''),
@@ -1607,7 +1696,7 @@
       fixed: t.fixed,
       status: 'incomplete',
       notes: t.notes || ''
-    }));
+    }; });
     calculateSpoons();
     renderTimeline();
     saveData();
@@ -1626,11 +1715,11 @@
   function findNextAvailableSlot(existingTasks, startHour = 9, forNewDay = false) {
     // Convert time string "HH:MM AM/PM" to minutes since midnight
     function timeToMinutes(timeStr) {
-      const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      var match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
       if (!match) return null;
-      let h = parseInt(match[1]);
-      const m = parseInt(match[2]);
-      const period = match[3].toUpperCase();
+      var h = parseInt(match[1]);
+      var m = parseInt(match[2]);
+      var period = match[3].toUpperCase();
       if (period === 'PM' && h !== 12) h += 12;
       if (period === 'AM' && h === 12) h = 0;
       return h * 60 + m;
@@ -1638,37 +1727,39 @@
 
     // Convert minutes since midnight back to time string
     function minutesToTime(mins) {
-      const h = Math.floor(mins / 60) % 24;
-      const m = mins % 60;
-      const period = h >= 12 ? 'PM' : 'AM';
-      const displayH = h % 12 || 12;
-      return `${displayH}:${pad(m)} ${period}`;
+      var h = Math.floor(mins / 60) % 24;
+      var m = mins % 60;
+      var period = h >= 12 ? 'PM' : 'AM';
+      var displayH = h % 12 || 12;
+      return '' + displayH + ':' + pad(m) + ' ' + period + '';
     }
 
-    // Build set of occupied 30-min slots
-    const occupiedSlots = new Set();
-    for (const task of existingTasks) {
-      const mins = timeToMinutes(task.time);
-      if (mins !== null) occupiedSlots.add(mins);
+    /* Claude: 2026-03-25 — replaced new Set() (ES2015) with object lookup for ES5 compat */
+    // Build object of occupied 30-min slots
+    var occupiedSlots = {};
+    for (var _ti = 0; _ti < existingTasks.length; _ti++) {
+      var task = existingTasks[_ti];
+      var mins = timeToMinutes(task.time);
+      if (mins !== null) occupiedSlots[mins] = true;
     }
 
     // For today: start from max(startHour, now+15min) — never place in the past.
     // For new day rollover: start from startHour exactly (tomorrow hasn't happened yet).
-    let searchStart;
-    let fallback;
+    var searchStart;
+    var fallback;
     if (forNewDay) {
       searchStart = startHour * 60;
       fallback = minutesToTime(startHour * 60);
     } else {
-      const nowMins = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
-      const nowRounded = Math.ceil((nowMins + 15) / 30) * 30;
+      var nowMins = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
+      var nowRounded = Math.ceil((nowMins + 15) / 30) * 30;
       searchStart = Math.max(startHour * 60, nowRounded);
       fallback = minutesToTime(nowRounded);
     }
-    const searchEnd = (dayEnd || 25) * 60;
+    var searchEnd = (dayEnd || 25) * 60;
 
-    for (let mins = searchStart; mins <= searchEnd; mins += 30) {
-      if (!occupiedSlots.has(mins)) {
+    for (var mins = searchStart; mins <= searchEnd; mins += 30) {
+      if (!occupiedSlots[mins]) {
         return minutesToTime(mins);
       }
     }
@@ -1682,41 +1773,42 @@
      If user cancels, ZZ status reverts to incomplete. */
   function showRolloverPreview(zzIndex) {
     // Count task outcomes
-    const completed  = timeline.filter(t => t.status === 'complete');
-    const partial    = timeline.filter(t => t.status === 'partial');
-    const skipped    = timeline.filter(t => t.status === 'skipped' || t.status === 'interrupted');
-    const carrying   = timeline.filter(t => t.status !== 'complete' && t.lmj !== 'ZZ');
-    const spentTotal = completed.reduce((a, t) => a + (t.spoon || 0), 0)
-                     + partial.reduce((a, t) => a + (t.spoon || 0) / 2, 0);
-    const balance    = calculateEndOfDayBalance();
-    const borrowed   = Math.max(0, -balance);
+    var completed  = timeline.filter(function(t) { return t.status === 'complete'; });
+    var partial    = timeline.filter(function(t) { return t.status === 'partial'; });
+    var skipped    = timeline.filter(function(t) { return t.status === 'skipped' || t.status === 'interrupted'; });
+    var carrying   = timeline.filter(function(t) { return t.status !== 'complete' && t.lmj !== 'ZZ'; });
+    var spentTotal = completed.reduce(function(a, t) { return a + (t.spoon || 0); }, 0)
+                     + partial.reduce(function(a, t) { return a + (t.spoon || 0) / 2; }, 0);
+    var balance    = calculateEndOfDayBalance();
+    var borrowed   = Math.max(0, -balance);
 
     // Build rows
-    const rows = document.getElementById('rolloverSummaryRows');
+    var rows = document.getElementById('rolloverSummaryRows');
     rows.innerHTML = '';
     function addRow(icon, label, value) {
-      const div = document.createElement('div');
+      var div = document.createElement('div');
       div.className = 'ro-row';
-      div.innerHTML = `<span>${icon} ${label}</span><strong>${value}</strong>`;
+      div.innerHTML = '<span>' + icon + ' ' + label + '</span><strong>' + value + '</strong>';
       rows.appendChild(div);
     }
-    addRow('✅', 'Completed', `${completed.length} task${completed.length !== 1 ? 's' : ''} (${spentTotal.toFixed(1)} 🥄)`);
-    if (partial.length)  addRow('⚡', 'Partial',   `${partial.length} task${partial.length !== 1 ? 's' : ''}`);
-    if (skipped.length)  addRow('⏭️', 'Skipped',   `${skipped.length} task${skipped.length !== 1 ? 's' : ''}`);
-    addRow('🔄', 'Carrying forward', `${carrying.length} task${carrying.length !== 1 ? 's' : ''}`);
+    /* Claude: 2026-03-25 — fixed ternary precedence in string concatenation */
+    addRow('✅', 'Completed', completed.length + ' task' + (completed.length !== 1 ? 's' : '') + ' (' + spentTotal.toFixed(1) + ' 🥄)');
+    if (partial.length)  addRow('⚡', 'Partial',   partial.length + ' task' + (partial.length !== 1 ? 's' : ''));
+    if (skipped.length)  addRow('⏭️', 'Skipped',   skipped.length + ' task' + (skipped.length !== 1 ? 's' : ''));
+    addRow('🔄', 'Carrying forward', carrying.length + ' task' + (carrying.length !== 1 ? 's' : ''));
 
     // Balance row — color coded
-    const balDiv = document.createElement('div');
+    var balDiv = document.createElement('div');
     balDiv.id = 'rolloverBalanceRow';
     if (balance > 0) {
       balDiv.className = 'ro-ok';
-      balDiv.textContent = `💰 Balance: +${balance.toFixed(1)} spoons`;
+      balDiv.textContent = '💰 Balance: +' + balance.toFixed(1) + ' spoons';
     } else if (balance === 0) {
       balDiv.className = 'ro-low';
-      balDiv.textContent = `⚖️ Balance: exactly even`;
+      balDiv.textContent = '⚖️ Balance: exactly even';
     } else {
       balDiv.className = 'ro-debt';
-      balDiv.textContent = `⚠️ Balance: ${balance.toFixed(1)} spoons — ${borrowed.toFixed(1)} borrowed from tomorrow`;
+      balDiv.textContent = '⚠️ Balance: ' + balance.toFixed(1) + ' spoons — ' + borrowed.toFixed(1) + ' borrowed from tomorrow';
     }
     rows.appendChild(balDiv);
 
@@ -1741,35 +1833,40 @@
   // ── Claude: BUG #7 FIX — Day rollover with carry-forward and spoon debt tracking ──
   function rolloverDay() {
     // Claude: Clear all pending auto-reschedule timers on day rollover
-    for (const idx in rescheduleTimers) {
+    for (var idx in rescheduleTimers) {
       cancelAutoReschedule(parseInt(idx));
     }
 
-    const dateKey = getTodayKey();
+    var dateKey = getTodayKey();
 
     // A. ARCHIVE: Save current day to Firestore before clearing
     // Claude: 2026-03-08 — wrapped in try/catch so a permissions error doesn't block carry-forward.
     // Archive: was bare if-block; Firestore .set() is fire-and-forget but any sync error
     // (e.g. AA.db undefined during race) could throw and skip carry-forward below.
-    const endOfDayBalance = calculateEndOfDayBalance();
-    const borrowedSpoons = Math.max(0, -endOfDayBalance);
+    var endOfDayBalance = calculateEndOfDayBalance();
+    var borrowedSpoons = Math.max(0, -endOfDayBalance);
 
     try {
       /* Claude: 2026-03-17 — defense-in-depth mirror guard (page is in NO_MIRROR but guard anyway) */
       if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       if (window.AA && window.AA.db && currentUid) {
+        /* Claude: 2026-03-25 — validate all numeric values before Firestore write.
+           NaN in Firestore corrupts data and breaks reads on other pages. */
+        var _eodBal = isNaN(endOfDayBalance) ? 0 : endOfDayBalance;
+        var _borr = isNaN(borrowedSpoons) ? 0 : borrowedSpoons;
+        var _budget = calculateDailyBudget(); /* already NaN-guarded */
         // Claude: Archive full snapshot to subcollection spoonPal/{uid}/days/{dateKey}
         /* Claude: 2026-03-16 — merge:true for data safety */
         window.AA.db.collection('spoonPal').doc(currentUid).collection('days').doc(dateKey).set({
           timeline,
           checkIn,
           spoonDebtHistory,
-          endOfDayBalance,
-          borrowedSpoons,
-          dailyBudget: calculateDailyBudget(),
+          endOfDayBalance: _eodBal,
+          borrowedSpoons: _borr,
+          dailyBudget: _budget,
           dateKey,
           archivedAt: new Date().toISOString()
-        }, { merge: true }).catch(err => console.error('[SpoonPal] Rollover archive error:', err));
+        }, { merge: true }).catch(function(err) { console.error('[SpoonPal] Rollover archive error:', err); });
       }
     } catch (archiveErr) {
       console.error('[SpoonPal] Rollover archive threw:', archiveErr);
@@ -1777,17 +1874,17 @@
 
     // B. TASK CARRY-FORWARD: Only keep non-complete tasks, assign new times
     // Claude 2026-03-07: Fixed two bugs:
-    //   1. Was passing old `timeline` to findNextAvailableSlot inside the map —
+    //   1. Was passing old 'timeline' to findNextAvailableSlot inside the map —
     //      all tasks got the same slot because the new list wasn't visible yet.
     //      Fix: build newTimeline progressively so each task sees prior placements.
     //   2. Was using the live "now+15min" guard, so rollover at 10pm placed all
     //      tomorrow's tasks starting at 10:15pm. Fix: pass forNewDay=true.
     // Archive: timeline = carryForwardTasks.map(t => { const newTime = findNextAvailableSlot(timeline, 9); ... });
-    const carryForwardTasks = timeline.filter(t => t.status !== 'complete');
-    const newTimeline = [];
+    var carryForwardTasks = timeline.filter(function(t) { return t.status !== 'complete'; });
+    var newTimeline = [];
     carryForwardTasks.forEach(function(t) {
-      const newTime = findNextAvailableSlot(newTimeline, dayStart || 9, true); // forNewDay=true
-      newTimeline.push({ ...t, time: newTime, status: 'incomplete' });
+      var newTime = findNextAvailableSlot(newTimeline, dayStart || 9, true); // forNewDay=true
+      newTimeline.push(Object.assign({}, t, { time: newTime, status: 'incomplete' }));
     });
     timeline = newTimeline;
 
@@ -1796,7 +1893,7 @@
     //   the next morning. Cache bust #22.
     //   Archive: date: new Date().toDateString() — stored under today, invisible next morning.
     if (borrowedSpoons > 0) {
-      const _tomorrow = new Date();
+      var _tomorrow = new Date();
       _tomorrow.setDate(_tomorrow.getDate() + 1);
       spoonDebtHistory.push({
         date: _tomorrow.toDateString(),
@@ -1814,15 +1911,15 @@
 
     // D. PROMPT: Offer to load template — Claude: 2026-03-07 replaced native confirm()
     showToast('🎉 Day rolled over! ' + carryForwardTasks.length + ' task(s) carried forward.' +
-              (borrowedSpoons > 0 ? ` ⚠️ ${borrowedSpoons} spoon(s) borrowed.` : ''), 4000);
+              (borrowedSpoons > 0 ? ' ⚠️ ' + borrowedSpoons + ' spoon(s) borrowed.' : ''), 4000);
     // Open template loader after a short delay so toast is visible first
     setTimeout(function() { openLoadDayModal(); }, 600);
   }
 
   // Claude: Helper to calculate end-of-day spoon balance
   function calculateEndOfDayBalance() {
-    const dailyBudget = calculateDailyBudget();
-    const totalSpent = timeline.reduce((acc, t) => {
+    var dailyBudget = calculateDailyBudget();
+    var totalSpent = timeline.reducefunction((acc, t) {
       if (t.status === 'complete') return acc + (t.spoon || 0);
       else if (t.status === 'partial') return acc + (t.spoon || 0) / 2;
       return acc;
@@ -1833,19 +1930,29 @@
   // Claude: Helper to calculate daily budget (without borrowed deduction)
   function calculateDailyBudget() {
     // Claude: 2026-03-07 — also subtract borrowed spoons so task modal impact matches budget bar (cache bust #21)
-    const _todayEntry = spoonDebtHistory.find(h => h.date === new Date().toDateString());
-    const _borrowed = (_todayEntry && _todayEntry.borrowedFromPrevDay) || 0;
+    var _todayStr2 = new Date().toDateString();
+    var _todayEntry = spoonDebtHistory.find(function(h) { return h.date === _todayStr2; });
+    var _borrowed = (_todayEntry && _todayEntry.borrowedFromPrevDay) || 0;
     // Claude: 2026-03-18 — use config override if available
-    let base = _configBaseBudget || 20;
-    base -= Math.max(0, checkIn.pain - 5);
-    base -= Math.max(0, checkIn.fatigue - 5);
-    if (checkIn.sleep < 7) base -= 2 * (7 - checkIn.sleep);
-    else if (checkIn.sleep > 9) base += Math.min(3, checkIn.sleep - 9);
-    const moodAdj = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
+    var base = _configBaseBudget || 20;
+    /* Claude: 2026-03-25 — NaN guard: coerce all checkIn values to numbers.
+       If checkIn fields are undefined/null/NaN (e.g. no check-in done yet),
+       arithmetic produces NaN which then poisons every downstream calculation
+       AND gets written to Firestore, corrupting the archive. */
+    var pain = Number(checkIn.pain) || 0;
+    var fatigue = Number(checkIn.fatigue) || 0;
+    var sleep = Number(checkIn.sleep) || 8; /* default 8h if missing */
+    base -= Math.max(0, pain - 5);
+    base -= Math.max(0, fatigue - 5);
+    if (sleep < 7) base -= 2 * (7 - sleep);
+    else if (sleep > 9) base += Math.min(3, sleep - 9);
+    var moodAdj = { excellent: 2, good: 1, okay: 0, poor: -1, terrible: -3 };
     base += moodAdj[checkIn.mood] || 0;
-    base += weather.impact || 0;
-    base -= _borrowed;
-    return Math.max(1, base);
+    base += Number(weather.impact) || 0;
+    base -= Number(_borrowed) || 0;
+    var result = Math.max(1, base);
+    /* Claude: 2026-03-25 — final NaN trap: if ANYTHING above still produced NaN, return safe default */
+    return isNaN(result) ? 20 : result;
   }
 
   // ── Claude 2026-03-06: Auto-reschedule — sequential queue ──────────────────────
@@ -1875,7 +1982,7 @@
   function _drainRescheduleQueue() {
     if (_rescheduleQueue.length === 0) { _rescheduleRunning = false; return; }
     _rescheduleRunning = true;
-    const taskIndex = _rescheduleQueue.shift();
+    var taskIndex = _rescheduleQueue.shift();
 
     // Task may no longer exist or may have been completed while waiting
     if (taskIndex < 0 || taskIndex >= timeline.length || timeline[taskIndex].status !== 'incomplete') {
@@ -1883,15 +1990,15 @@
       return;
     }
 
-    const task = timeline[taskIndex];
-    const newTime = findNextAvailableSlot(timeline, 9);
+    var task = timeline[taskIndex];
+    var newTime = findNextAvailableSlot(timeline, 9);
     if (newTime !== task.time) {
       task.time = newTime;
       // status stays 'incomplete' — task is not done, just moved
       calculateSpoons();
       renderTimeline();
       saveData();
-      showToast(`⏰ ${stripLeadingEmoji(task.description)} → ${newTime}`);
+      showToast('⏰ ' + stripLeadingEmoji(task.description) + ' → ' + newTime + '');
     }
 
     setTimeout(_drainRescheduleQueue, 400); // gap keeps findNextAvailableSlot accurate
@@ -1900,23 +2007,23 @@
   // Claude: Manual reschedule — finds next open 30-min slot, updates task time, saves.
   function manualReschedule(index) {
     if (index < 0 || index >= timeline.length) return;
-    const task = timeline[index];
-    const newTime = findNextAvailableSlot(timeline, 9);
+    var task = timeline[index];
+    var newTime = findNextAvailableSlot(timeline, 9);
     if (newTime === task.time) { showToast('No open slot found'); return; }
     task.time = newTime;
     // Remove from queue if pending
-    const qi = _rescheduleQueue.indexOf(index);
+    var qi = _rescheduleQueue.indexOf(index);
     if (qi !== -1) _rescheduleQueue.splice(qi, 1);
     calculateSpoons();
     renderTimeline();
     saveData();
-    showToast(`🔄 ${stripLeadingEmoji(task.description)} → ${newTime}`);
+    showToast('🔄 ' + stripLeadingEmoji(task.description) + ' → ' + newTime + '');
   }
 
   // Claude: Cancels a pending reschedule for a task (e.g., user opened modal).
   function cancelAutoReschedule(taskIndex) {
     // Remove from sequential queue
-    const qi = _rescheduleQueue.indexOf(taskIndex);
+    var qi = _rescheduleQueue.indexOf(taskIndex);
     if (qi !== -1) _rescheduleQueue.splice(qi, 1);
     // Legacy timer cleanup (kept for rolloverDay compat)
     if (rescheduleTimers[taskIndex] !== undefined) {
@@ -1929,17 +2036,17 @@
   function checkOverdueTasks() {
     if (!timeline || timeline.length === 0) return;
     /* Claude: 2026-03-23 — fix midnight wrap (same as renderTimeline) */
-    let now = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
+    var now = parseTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }));
     if (now < dayStart * 60) now += 1440;
-    const overdue = [];
-    for (let i = 0; i < timeline.length; i++) {
-      const task = timeline[i];
+    var overdue = [];
+    for (var i = 0; i < timeline.length; i++) {
+      var task = timeline[i];
       if (task.status !== 'incomplete') continue;
       if (task.fixed) continue; // fixed tasks stay put — their time is intentional
-      let taskTime = parseTime(task.time);
+      var taskTime = parseTime(task.time);
       if (taskTime === null) continue;
       if (taskTime < dayStart * 60) taskTime += 1440;
-      if (taskTime < now) overdue.push({ index: i, taskTime });
+      if (taskTime < now) overdue.push({ index: i, taskTime: taskTime });
     }
     // Sort by original scheduled time so earlier tasks get rescheduled first
     overdue.sort(function(a, b) { return a.taskTime - b.taskTime; });
@@ -1955,15 +2062,19 @@
   }
 
   // Claude: Shows a non-blocking toast notification for auto-reschedule events.
+  /* Claude: 2026-03-25 — A8 fix: added role=alert + aria-live for screen reader announcement */
   function showToast(message) {
-    const toast = document.createElement('div');
+    var toast = document.createElement('div');
     toast.className = 'sp-toast';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
     toast.textContent = message;
     document.body.appendChild(toast);
 
     // Auto-remove after animation completes
     setTimeout(function() {
-      toast.remove();
+      /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
     }, 3000);
   }
 
@@ -2049,6 +2160,13 @@
           console.error('[SpoonPal] Firestore save error:', err);
           /* Claude: 2026-03-16 — clear flag on error to allow retries */
           _savePending = false;
+          /* Claude: 2026-03-25 — offline fallback: save to localStorage so data survives
+             network outages. On next successful load, Firestore will overwrite this.
+             Without this, a network blip during class = lost spoon tracking. */
+          try {
+            localStorage.setItem('AA_SPOONPAL_OFFLINE', JSON.stringify(obj));
+            if (window.AA_DEBUG) console.log('[SpoonPal] Offline fallback: saved to localStorage');
+          } catch(e) {}
         });
     }
   }
@@ -2095,7 +2213,7 @@
               };
             });
             usedSavedTimeline = true;
-            console.log('[SpoonPal] Restored savedTimeline for today (' + todayKey + '), ' + timeline.length + ' tasks');
+            if (window.AA_DEBUG) console.log('[SpoonPal] Restored savedTimeline for today (' + todayKey + '), ' + timeline.length + ' tasks');
           }
         }
 
@@ -2126,7 +2244,7 @@
               notes: ''
             };
           });
-          console.log('[SpoonPal] Built fresh timeline from SpoonPlanner, ' + timeline.length + ' tasks');
+          if (window.AA_DEBUG) console.log('[SpoonPal] Built fresh timeline from SpoonPlanner, ' + timeline.length + ' tasks');
         }
 
         // 2. Overlay tracking data from SpoonPal
@@ -2188,6 +2306,21 @@
         if (callback) callback();
       }).catch(function(err) {
         console.error('[SpoonPal] Load error:', err);
+        /* Claude: 2026-03-25 — offline fallback: restore from localStorage if Firestore is down.
+           This keeps SpoonPal functional during network outages (Mary in class with bad wifi). */
+        try {
+          var offlineData = localStorage.getItem('AA_SPOONPAL_OFFLINE');
+          if (offlineData) {
+            var cached = JSON.parse(offlineData);
+            if (cached.savedTimeline && cached.dateKey === getTodayKey()) {
+              timeline = cached.savedTimeline;
+              checkIn = cached.checkIn || checkIn;
+              spoonDebtHistory = cached.spoonDebtHistory || [];
+              weather = cached.weather || weather;
+              if (window.AA_DEBUG) console.log('[SpoonPal] Restored from offline cache (' + timeline.length + ' tasks)');
+            }
+          }
+        } catch(e) { console.warn('[SpoonPal] Offline restore failed:', e); }
         isInitialLoad = false;
         if (callback) callback();
       });
@@ -2213,41 +2346,47 @@
 
   // Weather fetch — Updated 2026-03-02 by Claude: uses browser geolocation instead of
   // hardcoded Grand Junction, CO coords. Falls back to "unavailable" if permission denied.
-  async function fetchWeatherAt(lat, lon) {
-    const header = { 'User-Agent': 'SpoonPalApp (brinckmyster@gmail.com)' };
-    const pointsResp = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`, { headers: header });
-    if (!pointsResp.ok) throw new Error('NWS points API error');
-    const pointsData = await pointsResp.json();
-    const forecastUrl = pointsData.properties.forecast;
-    const forecastResp = await fetch(forecastUrl, { headers: header });
-    if (!forecastResp.ok) throw new Error('NWS forecast API error');
-    const forecastData = await forecastResp.json();
-    const currentPeriod = forecastData.properties.periods.find(p => p.isDaytime) || forecastData.properties.periods[0];
-    const temp = currentPeriod.temperature;
-    const desc = currentPeriod.shortForecast;
-    let impact = -1; // Communal cold penalty
-    if (temp < 50) impact -= 2;
-    else if (temp > 85) impact -= 1;
-    weather = { desc: `${temp}°F - ${desc}`, impact };
-    document.getElementById('weatherInfo').textContent = `Weather: ${weather.desc}`;
-    calculateSpoons();
-    saveData();
+  /* Claude: 2026-03-25 — converted async/await to ES5-compatible promise chains */
+  function fetchWeatherAt(lat, lon) {
+    var header = { 'User-Agent': 'SpoonPalApp (brinckmyster@gmail.com)' };
+    return fetch('https://api.weather.gov/points/' + lat.toFixed(4) + ',' + lon.toFixed(4), { headers: header })
+      .then(function(pointsResp) {
+        if (!pointsResp.ok) throw new Error('NWS points API error');
+        return pointsResp.json();
+      })
+      .then(function(pointsData) {
+        var forecastUrl = pointsData.properties.forecast;
+        return fetch(forecastUrl, { headers: header });
+      })
+      .then(function(forecastResp) {
+        if (!forecastResp.ok) throw new Error('NWS forecast API error');
+        return forecastResp.json();
+      })
+      .then(function(forecastData) {
+        var currentPeriod = forecastData.properties.periods.find(function(p) { return p.isDaytime; }) || forecastData.properties.periods[0];
+        var temp = currentPeriod.temperature;
+        var desc = currentPeriod.shortForecast;
+        var impact = -1; // Communal cold penalty
+        if (temp < 50) impact -= 2;
+        else if (temp > 85) impact -= 1;
+        weather = { desc: '' + temp + '°F - ' + desc + '', impact: impact };
+        document.getElementById('weatherInfo').textContent = 'Weather: ' + weather.desc;
+        calculateSpoons();
+        saveData();
+      });
   }
 
-  async function fetchWeather() {
-    const el = document.getElementById('weatherInfo');
+  function fetchWeather() {
+    var el = document.getElementById('weatherInfo');
     el.textContent = 'Getting location…';
     if (!navigator.geolocation) {
       el.textContent = 'Geolocation not supported by this browser';
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      async function(pos) {
-        try {
-          await fetchWeatherAt(pos.coords.latitude, pos.coords.longitude);
-        } catch (e) {
-          el.textContent = 'Weather data unavailable';
-        }
+      function(pos) {
+        fetchWeatherAt(pos.coords.latitude, pos.coords.longitude)
+          .catch(function() { el.textContent = 'Weather data unavailable'; });
       },
       function(err) {
         el.textContent = 'Location access denied — weather unavailable';
@@ -2296,10 +2435,12 @@
 
   // Render legend
   function renderLegend() {
-    let legendText = "Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon LMJ 🎯 Status ";
-    legendText += Object.values(STATUS_ICONS).join(' ') + "\nLMJ:";
-    LOCKED_LMJ_ORDER.forEach(lmj => {
-      legendText += ` ${lmj}${LOCKED_LMJ_META[lmj]?.emoji || ''}`;
+    var legendText = "Fixed 🔒 Flexible ↕️ Urgent 🔥 AM ☀️ PM 🌙 🥄 Spoon LMJ 🎯 Status ";
+    /* Claude: 2026-03-25 — Object.values() is ES2017; use Object.keys map for ES5 */
+    legendText += Object.keys(STATUS_ICONS).map(function(k) { return STATUS_ICONS[k]; }).join(' ') + "\nLMJ:";
+    LOCKED_LMJ_ORDER.forEach(function(lmj) {
+      var meta = LOCKED_LMJ_META[lmj];
+      legendText += ' ' + lmj + '' + (meta && meta.emoji ? meta.emoji : '') + '';
     });
     document.getElementById('legend').textContent = legendText;
   }
@@ -2338,19 +2479,19 @@
   // Moved inside loadData() callback (2026-03-02 by Claude) to prevent a race
   // condition where weather's saveData() call could overwrite Firestore data
   // with blank defaults before loadData() had a chance to restore saved state.
-  window.onload = () => {
+  window.onload = function() {
     calculateSpoons();
     renderTimeline();
     renderLegend();
     document.getElementById('timestamp').textContent = new Date().toLocaleString();
-    setInterval(() => document.getElementById('timestamp').textContent = new Date().toLocaleString(), 60000);
+    setInterval(function() { document.getElementById('timestamp').textContent = new Date().toLocaleString(); }, 60000);
 
     // Claude: Start auto-reschedule polling loop
     startOverdueCheck();
 
     // Claude 2026-03-06: close status picker on outside click
     document.addEventListener('click', function(e) {
-      const picker = document.getElementById('statusPicker');
+      var picker = document.getElementById('statusPicker');
       if (picker && picker.classList.contains('open') && !picker.contains(e.target)) {
         closeStatusPicker();
       }
@@ -2371,7 +2512,7 @@
     // Claude: BUG #8 — "New Template" button now clones Normal Day instead of blank template
     document.getElementById('addTemplateBtn').onclick = duplicateNormalDay;
     document.getElementById('deleteTemplateBtn').onclick = deleteTemplate;
-    document.getElementById('deleteTaskBtn').onclick = () => deleteTask(selectedIndex);
+    document.getElementById('deleteTaskBtn').onclick = function() { deleteTask(selectedIndex); };
     // Claude 2026-03-06: taskTemplateSelect removed — individual task templates deprecated
     // Archive: document.getElementById('taskTemplateSelect').onchange = (e) => applyTemplate(e.target.value);
     document.getElementById('confirmLoadDayBtn').onclick = applyDayTemplate;
@@ -2415,7 +2556,7 @@
         window.AA_CONFIG.load(_readUid).then(function(config) {
           var configTasks = window.AA_CONFIG.get('spoonPlan.tasks', null);
           /* Claude: 2026-03-23 — Only override LMJ globals if config tasks are LMJ format
-             (have `code` field). Default config tasks use SpoonPlanner format (name/spoons/time/
+             (have 'code' field). Default config tasks use SpoonPlanner format (name/spoons/time/
              priority/completed) which does NOT have code/emoji/desc/cost fields. Applying
              SpoonPlanner-format tasks here corrupted LOCKED_LMJ_ORDER with undefined values,
              breaking the entire LMJ system, legend, and Normal Day template for ALL users.
@@ -2516,4 +2657,4 @@
 <!-- Cache bust #21: 2026-03-07 Claude - FUNCTIONAL FIX: spoon debt carry-forward now actually reduces tomorrow's budget. borrowed was hardcoded to 0 in calculateSpoons() — rolloverDay() stored borrowedFromPrevDay in spoonDebtHistory but calculateSpoons() and calculateDailyBudget() never read it back. Fixed both functions. -->
 <!-- Cache bust #22: 2026-03-07 Claude - FUNCTIONAL FIX x3: (a) rolloverDay() debt entry stored under tomorrow's date so calculateSpoons() finds it next morning; (b) stale-data confirm() replaced with rollover preview modal — night owls past midnight can say Not Yet; (c) onAuthStateChanged guard prevents loadData() re-firing on every 45-min token refresh, fixing visible "loading Firebase" flash -->
 <!-- Cache bust #23: 2026-03-07 Claude - FUNCTIONAL FIX: saveData() was doing a Firestore read before every write — incomingTimestamp=new Date() is always current time so always newer than stored savedAt, meaning the pre-read never blocked the write but cost a full round-trip on every user interaction. Removed the pre-read; now writes directly with set(). -->
-<!-- Cache bust #24: 2026-03-08 Claude - DEBUG: added console.log in applyDayTemplate() to log timeline state before carry-forward — investigating why tasks are wiped instead of carried forward. Carry-forward reads from module-scoped `timeline` (not window.timeline, which doesn't exist). -->
+<!-- Cache bust #24: 2026-03-08 Claude - DEBUG: added console.log in applyDayTemplate() to log timeline state before carry-forward — investigating why tasks are wiped instead of carried forward. Carry-forward reads from module-scoped 'timeline' (not window.timeline, which doesn't exist). -->

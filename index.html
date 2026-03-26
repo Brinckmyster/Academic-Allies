@@ -317,16 +317,17 @@
 <script>
   /* Claude: 2026-03-09 — converted arrow functions to ES5 for project consistency */
   /* Claude: 2026-03-10 — cache-bust bump for persistence fix */
-  fetch("/Academic-Allies/modular/shared-header.html?v=20260323")
+  /* Claude: 2026-03-25 — bumped stale cache-bust version */
+  fetch("/Academic-Allies/modular/shared-header.html?v=20260324")
     .then(function(r) { return r.text(); })
     .then(function(html) {
       var c = document.getElementById("site-header");
       c.innerHTML = html;
       c.querySelectorAll("script").forEach(function(old) {
         var s = document.createElement("script");
-        Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+        [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
         s.textContent = old.textContent;
-        old.replaceWith(s);
+        old.parentNode.replaceChild(s, old);
       });
       var d = document.createElement("script");
       d.src = "/Academic-Allies/modular/js/draggable.js";
@@ -542,7 +543,8 @@
     try {
       window.AA.auth.getRedirectResult().then(function(result) {
         if (result && result.user) {
-          console.log('[AA] Redirect sign-in completed for:', result.user.email);
+          /* Claude: 2026-03-25 — sanitized console log to remove PII */
+          if (window.AA_DEBUG) console.log('[AA] Redirect sign-in completed');
         }
       }).catch(function(err) {
         console.warn('[AA] getRedirectResult error (non-critical):', err.message);
@@ -790,8 +792,8 @@
 
   function localDate(d) {
     return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
+      ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+      ('0' + d.getDate()).slice(-2);
   }
 
   _waitAA(function () {
@@ -975,8 +977,8 @@
   }
   function _makeDateKey(d) {
     return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
+      ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+      ('0' + d.getDate()).slice(-2);
   }
   /* Claude: 2026-03-20 — returns full entries so AA.avgEntryColor() can
      compute detailed per-segment colors (same as status-circle.js). */

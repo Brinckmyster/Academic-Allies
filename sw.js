@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260324u'; /* Claude: 2026-03-24 — Audio Notes: track death listeners, Android camera-steal recovery, Wake Lock re-acquire */
+var CACHE   = 'aa-shell-20260325i'; /* Claude: 2026-03-25 — Round 8: listener guards, window.onerror, silent catch fixes, a11y labels, remaining dark mode */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -35,6 +35,23 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/spoon-planner/spoon-pal.html',    /* Claude: 2026-03-23 — was being cached, serving stale code */
   '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html', /* Claude: 2026-03-23 */
   '/Academic-Allies/modular/components/support-dashboard/support-dashboard.html', /* Claude: 2026-03-23 — quiet alert fix */
+  '/Academic-Allies/modular/components/meal-planner-mary/index.html', /* Claude: 2026-03-25 — C4 fix: was missing from NEVER_CACHE, served stale code */
+  '/Academic-Allies/modular/components/message-system/message-system.html', /* Claude: 2026-03-25 — mobile layout overhaul */
+  '/Academic-Allies/modular/components/settings/settings.html', /* Claude: 2026-03-25 — mobile responsive fix */
+  '/Academic-Allies/modular/components/audio-notes/audio-notes.html', /* Claude: 2026-03-25 — loading states + save button fixes */
+  '/Academic-Allies/modular/components/modes/modes.html', /* Claude: 2026-03-25 — mobile mode grid fix */
+  '/Academic-Allies/modular/components/recovery-mode.html', /* Claude: 2026-03-25 — energy radiogroup a11y + keyboard nav */
+  '/Academic-Allies/modular/checkin-log.html', /* Claude: 2026-03-25 — clickable div keyboard a11y */
+  '/Academic-Allies/modular/components/student-config/student-config-editor.html', /* Claude: 2026-03-25 — tab scroll hint */
+  '/Academic-Allies/modular/components/calendar/calendar.html', /* Claude: 2026-03-25 — mobile responsive + offline cache */
+  '/Academic-Allies/modular/components/streak-cat/streak-cat.html', /* Claude: 2026-03-25 — mobile + touch targets */
+  '/Academic-Allies/modular/checkin.html', /* Claude: 2026-03-25 — mobile responsive */
+  '/Academic-Allies/modular/components/user-tiers/user-tiers.html', /* Claude: 2026-03-25 — mobile responsive */
+  '/Academic-Allies/modular/components/study-notes/study-notes.html', /* Claude: 2026-03-25 — focus trap + dialog a11y */
+  '/Academic-Allies/modular/static/custom-quiz.html', /* Claude: 2026-03-25 — XSS escape + keyboard a11y */
+  '/Academic-Allies/modular/admin.html', /* Claude: 2026-03-25 — role-based access, must be fresh */
+  '/Academic-Allies/modular/components/audit-log/audit-log.html', /* Claude: 2026-03-25 — compliance data, must be fresh */
+  '/Academic-Allies/modular/components/audio-notes/audio-converter.html', /* Claude: 2026-03-25 — file I/O tool */
   '/Academic-Allies/sw.js'
 ];
 
@@ -52,7 +69,7 @@ var SHELL = [
      pre-cache. They are in NEVER_CACHE and always fetched fresh from network. */
 
   /* Core pages */
-  '/Academic-Allies/modular/checkin.html',
+  /* Claude: 2026-03-25 — checkin.html moved to NEVER_CACHE (mobile responsive changes) */
   '/Academic-Allies/modular/accommodations.html',
   '/Academic-Allies/modular/emergency.html',
   '/Academic-Allies/modular/resources.html',
@@ -63,13 +80,13 @@ var SHELL = [
   '/Academic-Allies/modular/semi-nope.html',
 
   /* Feature pages */
-  '/Academic-Allies/modular/components/audio-notes/audio-notes.html',
+  /* Claude: 2026-03-25 — audio-notes.html moved to NEVER_CACHE */
   '/Academic-Allies/modular/components/meal-planner/meal-planner.html',
   /* Claude: 2026-03-23 — spoon-planner.html moved to NEVER_CACHE (was serving stale code) */
-  '/Academic-Allies/modular/components/recovery-mode.html',
+  /* Claude: 2026-03-25 — recovery-mode.html moved to NEVER_CACHE (a11y keyboard nav changes) */
   '/Academic-Allies/modular/components/bad-brain-day.html',
-  '/Academic-Allies/modular/components/message-system/message-system.html',
-  '/Academic-Allies/modular/components/streak-cat/streak-cat.html',
+  /* Claude: 2026-03-25 — message-system.html moved to NEVER_CACHE */
+  /* Claude: 2026-03-25 — streak-cat.html moved to NEVER_CACHE (mobile + touch targets) */
   /* duchess photos load on demand — too large to pre-cache */
 
   /* App icon */
@@ -115,7 +132,8 @@ self.addEventListener('activate', function (e) {
         keys
           .filter(function (k) { return k !== CACHE; })
           .map(function (k) {
-            console.log('[AA SW] purging old cache:', k);
+            /* Claude: 2026-03-25 — fixed: service workers use self, not window */
+            if (self.AA_DEBUG) console.log('[AA SW] purging old cache:', k);
             return caches.delete(k);
           })
       );
@@ -138,9 +156,10 @@ self.addEventListener('fetch', function (e) {
   if (url.origin !== self.location.origin) return;
 
   /* Skip: Firestore / Storage REST endpoints */
-  if (url.hostname.includes('googleapis.com')) return;
-  if (url.hostname.includes('firebaseio.com'))  return;
-  if (url.hostname.includes('firebasestorage')) return;
+  /* Claude: 2026-03-25 — replaced .includes() with .indexOf() for ES5 compat */
+  if (url.hostname.indexOf('googleapis.com') !== -1) return;
+  if (url.hostname.indexOf('firebaseio.com') !== -1)  return;
+  if (url.hostname.indexOf('firebasestorage') !== -1) return;
 
   /* Claude: 2026-03-16 — NEVER_CACHE files always go to network first.
      These are the files that change most often (shared-header, aa-firebase, etc).
@@ -164,7 +183,8 @@ self.addEventListener('fetch', function (e) {
       if (cached) {
         var refresh = fetch(req).then(function (fresh) {
           if (fresh.ok) {
-            caches.open(CACHE).then(function (c) { c.put(req, fresh.clone()); });
+            /* Claude: 2026-03-25 — added .catch() to prevent unhandled rejection */
+            caches.open(CACHE).then(function (c) { c.put(req, fresh.clone()); }).catch(function () {});
           }
           return fresh;
         }).catch(function () { /* offline — cache already served */ });
@@ -175,7 +195,8 @@ self.addEventListener('fetch', function (e) {
       return fetch(req).then(function (response) {
         if (response.ok) {
           var clone = response.clone();
-          caches.open(CACHE).then(function (c) { c.put(req, clone); });
+          /* Claude: 2026-03-25 — added .catch() to prevent unhandled rejection */
+          caches.open(CACHE).then(function (c) { c.put(req, clone); }).catch(function () {});
         }
         return response;
       }).catch(function () {

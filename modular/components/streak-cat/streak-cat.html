@@ -200,6 +200,25 @@
       text-decoration: none; font-weight: 600;
     }
     html.aa-dark .checkin-prompt { background: #1a1500; border-color: #f59e0b; }
+
+    /* Claude: 2026-03-25 — mobile responsive fixes for streak cat */
+    @media (max-width: 400px) {
+      .page-wrap { padding: 12px 8px 80px; }
+      .streak-counter { padding: 10px 14px; gap: 8px; }
+      .streak-number { font-size: 1.6rem; }
+      .streak-fire { font-size: 1.5rem; }
+      .cat-stage { max-width: 280px; }
+      .items-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; }
+      .item-btn { padding: 8px 4px; min-height: 70px; }
+      .item-emoji { font-size: 1.4rem; }
+      .item-label { font-size: 0.68rem; }
+      .category-tab { padding: 6px 10px; font-size: 0.78rem; }
+      .paw-banner { flex-direction: column; gap: 8px; padding: 10px; }
+      .name-input { width: 160px; }
+      .repair-modal { padding: 20px 16px; }
+    }
+    /* 44px min-height touch targets */
+    .category-tab, .item-btn, .repair-btn, .checkin-prompt a, .name-save-btn { min-height: 44px; }
   </style>
 </head>
 <body>
@@ -854,13 +873,13 @@
        ══════════════════════════════════════════════════════════ */
     function todayStr() {
       var d = new Date();
-      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
     }
 
     function yesterdayStr() {
       var d = new Date();
       d.setDate(d.getDate() - 1);
-      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
     }
 
     function isUnlocked(itemId) {
@@ -916,7 +935,7 @@
           var shieldsUsed = 0;
           var d = new Date(startDate + 'T12:00:00');
           while (streak <= 400) {
-            var ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            var ds = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
             if (dateSet[ds]) {
               streak++;
               d.setDate(d.getDate() - 1);
@@ -1102,7 +1121,7 @@
     function consumeShields(shieldsUsed) {
       if (shieldsUsed > 0) {
         state.shields = Math.max(0, state.shields - shieldsUsed);
-        console.log('[StreakCat] Used ' + shieldsUsed + ' shield(s) to protect streak');
+        if (window.AA_DEBUG) console.log('[StreakCat] Used ' + shieldsUsed + ' shield(s) to protect streak');
       }
     }
 
@@ -1460,9 +1479,9 @@
         c.innerHTML = html;
         c.querySelectorAll('script').forEach(function(old) {
           var s = document.createElement('script');
-          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
           s.textContent = old.textContent;
-          old.replaceWith(s);
+          old.parentNode.replaceChild(s, old);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });

@@ -35,6 +35,14 @@
       .meal-item { padding: 12px; }
       .meal-item button { width: 100%; float: none !important; margin-top: 8px; min-height: 44px; }
     }
+
+    /* Claude: 2026-03-25 — dark mode for Mary's meal planner */
+    html.aa-dark body { background: #121212; color: #e0e0e0; }
+    html.aa-dark .meal-entry { background: #1e1e1e; }
+    html.aa-dark .meal-entry input, html.aa-dark .meal-entry textarea { background: #2a2a2a; color: #e0e0e0; border-color: #555; }
+    html.aa-dark .meal-item { background: #1e1e1e; border-left-color: #4CAF50; color: #ccc; }
+    html.aa-dark .meal-controls button.primary { background: #388E3C; }
+    html.aa-dark .meal-controls button.secondary { background: #1976D2; }
   </style>
 </head>
 <body>
@@ -46,21 +54,22 @@
   <script src="suggestions.js"></script>
   <script src="edit-modal.js"></script>
   <script>
+    /* Claude: 2026-03-25 — converted to ES5 var/function style */
     fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
-      .then(response => response.text())
-      .then(html => {
-        const container = document.getElementById('site-header');
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
         container.innerHTML = html;
-        const scripts = container.querySelectorAll('script');
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
           newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
+          oldScript.parentNode.replaceChild(newScript, oldScript);
         });
-        const dragScript = document.createElement('script');
+        var dragScript = document.createElement('script');
         dragScript.src = '/Academic-Allies/modular/js/draggable.js';
-        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
+        dragScript.onload = function() { if(typeof initDrag === 'function') initDrag(); };
         document.body.appendChild(dragScript);
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -81,11 +90,13 @@
   <div class="meal-entry" role="form" aria-label="Add a new meal">
     <h3>Add Meal</h3>
     <label for="mealName" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Meal name</label>
-    <input type="text" id="mealName" placeholder="Meal name" aria-label="Meal name">
+    <!-- Claude: 2026-03-25 — added maxlength -->
+    <input type="text" id="mealName" placeholder="Meal name" aria-label="Meal name" maxlength="200">
     <label for="mealTime" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Meal time</label>
     <input type="time" id="mealTime" aria-label="Meal time">
     <label for="mealNotes" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Notes</label>
-    <textarea id="mealNotes" placeholder="Notes (optional)" rows="3" aria-label="Meal notes"></textarea>
+    <!-- Claude: 2026-03-25 — added maxlength -->
+    <textarea id="mealNotes" placeholder="Notes (optional)" rows="3" aria-label="Meal notes" maxlength="500"></textarea>
     <label for="mealPhoto" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Meal photo</label>
     <input type="file" id="mealPhoto" accept="image/*" capture="camera" style="margin: 5px 0;" aria-label="Take or upload meal photo">
     <button class="primary" onclick="addMeal()" aria-label="Add this meal to today's plan">Add Meal</button>
@@ -102,12 +113,13 @@
     // removed undefined photoFile ref, removed duplicate script tags,
     // added removeMeal() per-item button.
 
+    /* Claude: 2026-03-25 — converted to ES5 var/function style */
     // ── Data init ─────────────────────────────────────────────
-    let todaysMeals = [];
+    var todaysMeals = [];
     try {
-      const stored = localStorage.getItem('maryMealPlan');
+      var stored = localStorage.getItem('maryMealPlan');
       if (stored) {
-        const parsed = JSON.parse(stored);
+        var parsed = JSON.parse(stored);
         todaysMeals = Array.isArray(parsed) ? parsed : [];
       }
     } catch(e) {
@@ -116,22 +128,26 @@
     }
 
     // ── Display ───────────────────────────────────────────────
+    /* Claude: 2026-03-25 — XSS escape helper for user-entered meal data */
+    function _escMeal(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
     function displayMeals() {
-      const list  = document.getElementById('mealList');
-      const count = document.getElementById('mealCount');
+      var list  = document.getElementById('mealList');
+      var count = document.getElementById('mealCount');
       count.textContent = todaysMeals.length;
-      list.innerHTML = todaysMeals.map((meal, i) => `
-        <div class="meal-item">
-          <strong>${meal.name || '(unnamed)'}</strong>
-          ${meal.time ? '<br>Time: ' + to12Hour(meal.time) : ''}
-          ${meal.notes ? '<br>Notes: ' + meal.notes : ''}
-          <button onclick="removeMeal(${i})"
-                  style="float:right;background:#f44336;color:#fff;border:none;
-                         border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;">
-            Remove
-          </button>
-        </div>
-      `).join('');
+      /* Claude: 2026-03-25 — escape meal.name and meal.notes to prevent XSS */
+      list.innerHTML = todaysMeals.map(function(meal, i) {
+        return '<div class="meal-item">' +
+          '<strong>' + (_escMeal(meal.name) || '(unnamed)') + '</strong>' +
+          (meal.time ? '<br>Time: ' + _escMeal(to12Hour(meal.time)) : '') +
+          (meal.notes ? '<br>Notes: ' + _escMeal(meal.notes) : '') +
+          '<button onclick="removeMeal(' + i + ')"' +
+          '        style="float:right;background:#f44336;color:#fff;border:none;' +
+          '               border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;">' +
+          '  Remove' +
+          '</button>' +
+        '</div>';
+      }).join('');
     }
 
     /* Claude: 2026-03-12 — mirror mode guard. Supporters view read-only;
@@ -163,16 +179,16 @@
     // ── Add meal ──────────────────────────────────────────────
     function addMeal() {
       if (_isMaryMirror()) { alert('Mirror mode — view only.'); return; }
-      const name  = document.getElementById('mealName').value.trim();
-      const time  = document.getElementById('mealTime').value;
-      const notes = document.getElementById('mealNotes').value.trim();
+      var name  = document.getElementById('mealName').value.trim();
+      var time  = document.getElementById('mealTime').value;
+      var notes = document.getElementById('mealNotes').value.trim();
 
       if (!name && !time) {
         alert('Please enter at least a meal name or time.');
         return;
       }
 
-      todaysMeals.push({ name: name || '(unnamed)', time, notes });
+      todaysMeals.push({ name: name || '(unnamed)', time: time, notes: notes });
       localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
 
       document.getElementById('mealName').value  = '';
@@ -201,15 +217,15 @@
 
     // ── Load base plan from uploaded file ─────────────────────
     function loadBasePlan() {
-      const file = document.getElementById('fileUpload').files[0];
+      var file = document.getElementById('fileUpload').files[0];
       if (!file) {
         alert('Please select a JSON file first.');
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (e) => {
+      var reader = new FileReader();
+      reader.onload = function(e) {
         try {
-          const plan = JSON.parse(e.target.result);
+          var plan = JSON.parse(e.target.result);
           localStorage.setItem('maryBasePlan', JSON.stringify(plan));
           alert('Base plan loaded!');
         } catch(err) {
@@ -224,13 +240,13 @@
 
     // Cache the bundled base plan JSON if not already stored
     fetch('base-meal-plan-mary.json')
-      .then(r => r.json())
-      .then(plan => {
+      .then(function(r) { return r.json(); })
+      .then(function(plan) {
         if (!localStorage.getItem('maryBasePlan')) {
           localStorage.setItem('maryBasePlan', JSON.stringify(plan));
         }
       })
-      .catch(() => {}); // silent — base plan is optional
+      .catch(function() {}); // silent — base plan is optional
   </script>
 </body>
 </html>

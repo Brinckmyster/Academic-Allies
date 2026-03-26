@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/Academic-Allies/favicon.ico">
+<!-- Claude: 2026-03-17 — early dark mode detect to prevent FOUC -->
+<script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Floral ID Match Game — Academic Allies</title>
+<!-- Claude: 2026-03-17 — Created floral matching game for Bruise's floral ID final -->
+<!-- Claude: 2026-03-17 — Improved: AA styling, dark mode, timer, best scores, study sheet -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    background: #FAFAF9;
+    min-height: 100vh;
+    padding: 0 12px 40px;
+    color: #333;
+  }
+  html.aa-dark body { background: #121212; color: #e0e0e0; }
+
+  .game-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding-top: 12px;
+  }
+
+  /* Back link */
+  .back-link {
+    display: inline-block;
+    color: #6CA0A3;
+    text-decoration: none;
+    font-size: 11pt;
+    margin-bottom: 8px;
+  }
+  .back-link:hover { text-decoration: underline; }
+  html.aa-dark .back-link { color: #8ec5c8; }
+
+  h1 {
+    text-align: center;
+    font-size: 20pt;
+    margin-bottom: 4px;
+    color: #4a7f82;
+  }
+  html.aa-dark h1 { color: #8ec5c8; }
+  .subtitle {
+    text-align: center;
+    font-size: 11pt;
+    color: #888;
+    margin-bottom: 12px;
+  }
+
+  /* Controls row */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .controls button, .controls select {
+    padding: 8px 16px;
+    border: 2px solid #6CA0A3;
+    border-radius: 20px;
+    background: #fff;
+    color: #4a7f82;
+    font-weight: 600;
+    font-size: 11pt;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  html.aa-dark .controls button, html.aa-dark .controls select {
+    background: #1e1e1e;
+    color: #8ec5c8;
+    border-color: #3a5a5c;
+  }
+  .controls button:hover {
+    background: #6CA0A3;
+    color: #fff;
+  }
+  html.aa-dark .controls button:hover {
+    background: #4a7f82;
+    color: #fff;
+  }
+  .controls select { appearance: auto; }
+  .controls .active-mode {
+    background: #6CA0A3;
+    color: #fff;
+  }
+  html.aa-dark .controls .active-mode {
+    background: #4a7f82;
+    color: #fff;
+  }
+
+  /* Score bar */
+  .score-bar {
+    text-align: center;
+    font-size: 12pt;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #4a7f82;
+  }
+  html.aa-dark .score-bar { color: #8ec5c8; }
+  .score-bar .correct { color: #2e7d32; }
+  .score-bar .wrong { color: #c62828; }
+  html.aa-dark .score-bar .correct { color: #66bb6a; }
+  html.aa-dark .score-bar .wrong { color: #ef5350; }
+
+  /* Timer bar */
+  .timer-bar {
+    text-align: center;
+    font-size: 11pt;
+    color: #888;
+    margin-bottom: 6px;
+    display: none;
+  }
+  .timer-bar.active { display: block; }
+  .timer-bar .time { font-weight: 700; color: #4a7f82; font-size: 14pt; }
+  html.aa-dark .timer-bar .time { color: #8ec5c8; }
+
+  /* Best score */
+  .best-score {
+    text-align: center;
+    font-size: 10pt;
+    color: #aaa;
+    margin-bottom: 8px;
+  }
+
+  .instructions {
+    text-align: center;
+    font-size: 10pt;
+    color: #aaa;
+    margin-bottom: 10px;
+    font-style: italic;
+  }
+
+  /* Game area */
+  .game-area {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+  .column {
+    flex: 1;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .col-header {
+    text-align: center;
+    font-weight: 700;
+    font-size: 11pt;
+    padding: 8px;
+    border-radius: 10px;
+    color: #fff;
+  }
+  .col-left .col-header { background: #6CA0A3; }
+  .col-right .col-header { background: #4a7f82; }
+  html.aa-dark .col-left .col-header { background: #3a6a6d; }
+  html.aa-dark .col-right .col-header { background: #2d5456; }
+
+  /* Cards */
+  .card {
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 11pt;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    text-align: center;
+    position: relative;
+  }
+  .card-common {
+    background: #e8f2f3;
+    color: #2c5a5e;
+    border-color: #b2d8db;
+  }
+  html.aa-dark .card-common {
+    background: #1a2e2f;
+    color: #8ec5c8;
+    border-color: #3a5a5c;
+  }
+  .card-genus {
+    background: #f0f7f0;
+    color: #2e5a2e;
+    border-color: #b2d8b2;
+  }
+  html.aa-dark .card-genus {
+    background: #1a2e1a;
+    color: #8ec58e;
+    border-color: #3a5a3a;
+  }
+  .card.selected {
+    border-color: #e8a838;
+    box-shadow: 0 0 0 3px rgba(232, 168, 56, 0.3);
+    transform: scale(1.03);
+  }
+  .card.matched {
+    opacity: 0.45;
+    cursor: default;
+    transform: scale(0.97);
+    border-style: dashed;
+  }
+  .card.correct-flash {
+    animation: correctPulse 0.6s ease;
+    border-color: #2e7d32;
+    background: #c8e6c9;
+  }
+  html.aa-dark .card.correct-flash { background: #1b3d1b; }
+  .card.wrong-flash {
+    animation: wrongShake 0.5s ease;
+    border-color: #c62828;
+  }
+  .card .genus-reveal {
+    display: none;
+    font-size: 9pt;
+    color: #888;
+    margin-top: 3px;
+  }
+  .card.matched .genus-reveal { display: block; }
+
+  @keyframes correctPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+    100% { transform: scale(0.97); }
+  }
+  @keyframes wrongShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  /* Complete banner */
+  .complete-banner {
+    display: none;
+    text-align: center;
+    padding: 24px;
+    margin: 20px auto;
+    max-width: 500px;
+    background: #f0f7f8;
+    border-radius: 16px;
+    border: 3px solid #6CA0A3;
+  }
+  html.aa-dark .complete-banner {
+    background: #1a2a2b;
+    border-color: #3a6a6d;
+  }
+  .complete-banner h2 { color: #2e7d32; margin-bottom: 8px; font-size: 16pt; }
+  html.aa-dark .complete-banner h2 { color: #66bb6a; }
+  .complete-banner .stats { font-size: 12pt; margin-bottom: 4px; color: #555; }
+  html.aa-dark .complete-banner .stats { color: #bbb; }
+  .complete-banner .time-stat { font-size: 11pt; color: #888; margin-bottom: 12px; }
+  .complete-banner .best-msg { font-size: 11pt; color: #e8a838; font-weight: 700; margin-bottom: 12px; }
+  .complete-banner button {
+    padding: 12px 28px;
+    border: 2px solid #6CA0A3;
+    border-radius: 20px;
+    background: #6CA0A3;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12pt;
+    font-family: inherit;
+    cursor: pointer;
+    margin: 4px;
+  }
+  .complete-banner button:hover { background: #4a7f82; }
+
+  /* Drag styles */
+  .dragging { opacity: 0.4; }
+  .drag-over {
+    border-color: #e8a838 !important;
+    background: #fef8ec !important;
+  }
+  html.aa-dark .drag-over { background: #2a2518 !important; }
+
+  /* Study Sheet mode */
+  .study-sheet {
+    display: none;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .study-sheet.active { display: block; }
+  .study-sheet h2 {
+    color: #4a7f82;
+    font-size: 14pt;
+    margin: 16px 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #e8f2f3;
+  }
+  html.aa-dark .study-sheet h2 { color: #8ec5c8; border-color: #333; }
+  .study-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+  }
+  .study-sheet th {
+    background: #6CA0A3;
+    color: #fff;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 10pt;
+  }
+  html.aa-dark .study-sheet th { background: #3a6a6d; }
+  .study-sheet td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #e8f2f3;
+    font-size: 11pt;
+  }
+  html.aa-dark .study-sheet td { border-color: #333; }
+  .study-sheet tr:nth-child(even) td { background: #f8fcfc; }
+  html.aa-dark .study-sheet tr:nth-child(even) td { background: #1a2222; }
+  .study-sheet .genus-col { font-style: italic; color: #4a7f82; }
+  html.aa-dark .study-sheet .genus-col { color: #8ec5c8; }
+
+  /* Mobile stacked */
+  @media (max-width: 600px) {
+    .game-area { flex-direction: column; align-items: center; }
+    .column { max-width: 100%; width: 100%; }
+    .card { font-size: 11pt; padding: 13px; }
+    h1 { font-size: 17pt; }
+  }
+
+  .credit {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #aaa;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
+<script>var AA_MODE_GATE = 'flowerQuiz';</script>
+<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<script src="/Academic-Allies/modular/js/study-activity.js?v=20260322"></script>
+
+<div class="game-container">
+  <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">&larr; Back to Study Tools</a>
+
+  <h1>Floral ID Match Game</h1>
+  <p class="subtitle">Common Name &harr; Genus Name — Study for your final!</p>
+
+  <div class="controls">
+    <select id="quizPicker" onchange="loadQuiz()">
+      <option value="all">All Flowers</option>
+      <option value="1">Quiz 1 — Mass Flowers</option>
+      <option value="2">Quiz 2 — Line Flowers</option>
+      <option value="3">Quiz 3 — Filler Flowers</option>
+      <option value="4">Quiz 4 — Form/Focal</option>
+      <option value="5">Quiz 5 — Foliage</option>
+      <option value="random10">Random 10</option>
+    </select>
+    <button onclick="loadQuiz()">Shuffle</button>
+    <!-- Claude: 2026-03-17 — reverse mode: genus → common name matching -->
+    <button id="reverseToggle" onclick="toggleReverse()">Mode: Common → Genus</button>
+    <button id="timerToggle" onclick="toggleTimer()">Timer: Off</button>
+    <button id="sheetToggle" onclick="toggleStudySheet()">Study Sheet</button>
+  </div>
+
+  <div class="score-bar" id="scoreBarArea">
+    Matched: <span class="correct" id="scoreCorrect">0</span> |
+    Misses: <span class="wrong" id="scoreMisses">0</span> |
+    Left: <span id="scoreLeft">0</span>
+  </div>
+
+  <div class="timer-bar" id="timerBar">
+    Time: <span class="time" id="timerDisplay">0:00</span>
+  </div>
+
+  <div class="best-score" id="bestScoreDisplay"></div>
+
+  <p class="instructions" id="instrText">Tap a common name, then tap its genus to match!</p>
+
+  <div class="game-area" id="gameArea">
+    <div class="column col-left" id="colLeft">
+      <div class="col-header">Common Name</div>
+    </div>
+    <div class="column col-right" id="colRight">
+      <div class="col-header">Genus Name</div>
+    </div>
+  </div>
+
+  <div class="complete-banner" id="completeBanner">
+    <h2 id="completeTitle">Round Complete!</h2>
+    <div class="stats" id="completeStats"></div>
+    <div class="time-stat" id="completeTime"></div>
+    <div class="best-msg" id="completeBest" style="display:none;"></div>
+    <button onclick="loadQuiz()">Play Again</button>
+    <button onclick="toggleStudySheet()">View Study Sheet</button>
+  </div>
+
+  <!-- Study Sheet View -->
+  <div class="study-sheet" id="studySheet"></div>
+</div>
+
+<p class="credit">Built by Claude for Bruise — March 2026</p>
+
+<script>
+/* Claude: 2026-03-17 — Floral matching game for floral ID final prep */
+/* Claude: 2026-03-17 — Improved: AA styling, dark mode, timer, best scores, study sheet */
+
+/* Claude: 2026-03-17 — Updated from Bruise's actual study guide screenshots */
+var FLOWERS = {
+  "1": [
+    { common: "Carnation", genus: "Dianthus" },
+    { common: "Daisy Pom/Cushion Pom", genus: "Chrysanthemum" },
+    { common: "Rose", genus: "Rosa" },
+    { common: "Alstro", genus: "Alstroemeria" },
+    { common: "Lisianthus", genus: "Eustoma" },
+    { common: "Hydrangea", genus: "Hydrangea" },
+    { common: "Peony", genus: "Paeonia" },
+    { common: "Ranunculus", genus: "Ranunculus" },
+    { common: "Safari Sunset", genus: "Leucadendron" },
+    { common: "China Aster", genus: "Callistephus" }
+  ],
+  "2": [
+    { common: "Snapdragon", genus: "Antirrhinum" },
+    { common: "Larkspur", genus: "Consolida" },
+    { common: "Delphinium", genus: "Delphinium" },
+    { common: "Liatris", genus: "Liatris" },
+    { common: "Gladiola", genus: "Gladiolus" },
+    { common: "Stock", genus: "Matthiola" },
+    { common: "Bells of Ireland", genus: "Moluccella" },
+    { common: "Baby Blue Eucalyptus", genus: "Eucalyptus" },
+    { common: "Curly Willow", genus: "Salix" },
+    { common: "Dendrobium Orchid", genus: "Dendrobium" }
+  ],
+  "3": [
+    { common: "Solidago", genus: "Solidago" },
+    { common: "Misty Blue", genus: "Limonium" },
+    { common: "Statice", genus: "Limonium" },
+    { common: "Queen Anne's Lace", genus: "Ammi" },
+    { common: "Babies Breath", genus: "Gypsophila" },
+    { common: "Waxflower", genus: "Chamelaucium" },
+    { common: "Pixie Carnation", genus: "Dianthus" },
+    { common: "Aster", genus: "Aster" },
+    { common: "Hypericum Berries", genus: "Hypericum" },
+    { common: "Sea Holly", genus: "Eryngium" }
+  ],
+  "4": [
+    { common: "Sunflower", genus: "Helianthus" },
+    { common: "Calla Lily", genus: "Zantedeschia" },
+    { common: "Tulip", genus: "Tulipa" },
+    { common: "Bird of Paradise", genus: "Strelitzia" },
+    { common: "Disbud Mum", genus: "Chrysanthemum" },
+    { common: "Lily", genus: "Lilium" },
+    { common: "Billy Balls", genus: "Craspedia" },
+    { common: "Anthurium", genus: "Anthurium" },
+    { common: "Iris", genus: "Iris" },
+    { common: "Gerber Daisy", genus: "Gerbera" }
+  ],
+  /* Claude: 2026-03-17 — Quiz 5 updated from Mary's study guide screenshot */
+  "5": [
+    { common: "Leather Leaf", genus: "Rumohra" },
+    { common: "Bear Grass", genus: "Xerophyllum" },
+    { common: "Lily Grass", genus: "Liriope" },
+    { common: "Seeded Eucalyptus", genus: "Eucalyptus" },
+    { common: "Israeli Ruscus", genus: "Ruscus" },
+    { common: "Italian Ruscus", genus: "Ruscus" },
+    { common: "Salal/Lemon Leaf", genus: "Gaultheria" },
+    { common: "Grevillea", genus: "Grevillea" },
+    { common: "Pitt", genus: "Pittosporum" },
+    { common: "Myrtle", genus: "Myrtus" }
+  ]
+};
+
+var QUIZ_NAMES = {
+  "1": "Quiz 1: Mass Flowers",
+  "2": "Quiz 2: Line Flowers",
+  "3": "Quiz 3: Filler Flowers",
+  "4": "Quiz 4: Form/Focal Flowers",
+  "5": "Quiz 5: Foliage"
+};
+
+var state = {
+  flowers: [],
+  selectedCommon: null,
+  selectedGenus: null,
+  correct: 0,
+  misses: 0,
+  total: 0,
+  matched: 0
+};
+
+/* Claude: 2026-03-17 — Reverse mode: genus on left, common on right */
+var reverseMode = false;
+
+function toggleReverse() {
+  reverseMode = !reverseMode;
+  var btn = document.getElementById('reverseToggle');
+  if (reverseMode) {
+    btn.textContent = 'Mode: Genus → Common';
+    btn.classList.add('active-mode');
+  } else {
+    btn.textContent = 'Mode: Common → Genus';
+    btn.classList.remove('active-mode');
+  }
+  loadQuiz();
+}
+
+/* Timer */
+var timerEnabled = false;
+var timerInterval = null;
+var timerSeconds = 0;
+
+function toggleTimer() {
+  timerEnabled = !timerEnabled;
+  var btn = document.getElementById('timerToggle');
+  btn.textContent = timerEnabled ? 'Timer: On' : 'Timer: Off';
+  if (timerEnabled) {
+    btn.classList.add('active-mode');
+  } else {
+    btn.classList.remove('active-mode');
+  }
+  document.getElementById('timerBar').className = timerEnabled ? 'timer-bar active' : 'timer-bar';
+  if (!timerEnabled) stopTimer();
+}
+
+function startTimer() {
+  timerSeconds = 0;
+  updateTimerDisplay();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(function() {
+    timerSeconds++;
+    updateTimerDisplay();
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function updateTimerDisplay() {
+  var m = Math.floor(timerSeconds / 60);
+  var s = timerSeconds % 60;
+  document.getElementById('timerDisplay').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+/* Best scores — localStorage */
+function getBestKey() {
+  /* Claude: 2026-03-17 — separate best scores for normal vs reverse mode */
+  return 'AA_MATCH_BEST_' + document.getElementById('quizPicker').value + (reverseMode ? '_REV' : '');
+}
+
+function loadBestScore() {
+  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+  var quizId = document.getElementById('quizPicker').value;
+  var modeKey = quizId + (reverseMode ? '_REV' : '');
+  var firestoreKey = 'match_' + modeKey;
+
+  AA.study.getBest(firestoreKey).then(function(best) {
+    if (best) {
+      var parts = [];
+      parts.push(best.accuracy + '% accuracy');
+      if (best.time) parts.push(best.time + 's');
+      document.getElementById('bestScoreDisplay').textContent = 'Best: ' + parts.join(' in ');
+    } else {
+      document.getElementById('bestScoreDisplay').textContent = '';
+    }
+  }).catch(function(err) {
+    /* Graceful fallback if Firestore unavailable */
+    console.warn('[AA] Failed to load best score:', err);
+    document.getElementById('bestScoreDisplay').textContent = '';
+  });
+}
+
+function saveBestScore(accuracy, time) {
+  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+  var quizId = document.getElementById('quizPicker').value;
+  var modeKey = quizId + (reverseMode ? '_REV' : '');
+  var firestoreKey = 'match_' + modeKey;
+
+  AA.study.saveBest(firestoreKey, { accuracy: accuracy, time: time || null }).then(function(isNew) {
+    return isNew;
+  }).catch(function(err) {
+    /* Graceful fallback if Firestore unavailable */
+    console.warn('[AA] Failed to save best score:', err);
+    return false;
+  });
+}
+
+/* Study Sheet */
+function toggleStudySheet() {
+  var sheet = document.getElementById('studySheet');
+  var game = document.getElementById('gameArea');
+  var scoreBar = document.getElementById('scoreBarArea');
+  var btn = document.getElementById('sheetToggle');
+  var banner = document.getElementById('completeBanner');
+
+  if (sheet.classList.contains('active')) {
+    sheet.classList.remove('active');
+    game.style.display = '';
+    scoreBar.style.display = '';
+    btn.classList.remove('active-mode');
+    btn.textContent = 'Study Sheet';
+  } else {
+    buildStudySheet();
+    sheet.classList.add('active');
+    game.style.display = 'none';
+    scoreBar.style.display = 'none';
+    banner.style.display = 'none';
+    btn.classList.add('active-mode');
+    btn.textContent = 'Back to Game';
+    stopTimer();
+  }
+}
+
+function buildStudySheet() {
+  var html = '';
+  var keys = ["1","2","3","4","5"];
+  keys.forEach(function(k) {
+    html += '<h2>' + QUIZ_NAMES[k] + '</h2>';
+    html += '<table><tr><th>Common Name</th><th>Genus (Botanical)</th></tr>';
+    FLOWERS[k].forEach(function(f) {
+      html += '<tr><td>' + f.common + '</td><td class="genus-col"><em>' + f.genus + '</em></td></tr>';
+    });
+    html += '</table>';
+  });
+  document.getElementById('studySheet').innerHTML = html;
+}
+
+/* Shuffle */
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+/* Load quiz */
+function loadQuiz() {
+  /* Close study sheet if open */
+  var sheet = document.getElementById('studySheet');
+  if (sheet.classList.contains('active')) {
+    sheet.classList.remove('active');
+    document.getElementById('gameArea').style.display = '';
+    document.getElementById('scoreBarArea').style.display = '';
+    document.getElementById('sheetToggle').classList.remove('active-mode');
+    document.getElementById('sheetToggle').textContent = 'Study Sheet';
+  }
+
+  var pick = document.getElementById("quizPicker").value;
+  var pool = [];
+
+  if (pick === "all") {
+    pool = FLOWERS["1"].concat(FLOWERS["2"]).concat(FLOWERS["3"]).concat(FLOWERS["4"]).concat(FLOWERS["5"]);
+  } else if (pick === "random10") {
+    var all = FLOWERS["1"].concat(FLOWERS["2"]).concat(FLOWERS["3"]).concat(FLOWERS["4"]).concat(FLOWERS["5"]);
+    pool = shuffle(all).slice(0, 10);
+  } else {
+    pool = (FLOWERS[pick] || []).slice();
+  }
+
+  /* Handle duplicate genus names — add common name hint for disambiguation */
+  var genusCounts = {};
+  pool.forEach(function(f) {
+    genusCounts[f.genus] = (genusCounts[f.genus] || 0) + 1;
+  });
+
+  state.flowers = pool;
+  state.selectedCommon = null;
+  state.selectedGenus = null;
+  state.correct = 0;
+  state.misses = 0;
+  state.total = pool.length;
+  state.matched = 0;
+
+  var colLeft = document.getElementById("colLeft");
+  var colRight = document.getElementById("colRight");
+
+  /* Claude: 2026-03-17 — reverse mode swaps columns */
+  var leftLabel = reverseMode ? "Genus Name" : "Common Name";
+  var rightLabel = reverseMode ? "Common Name" : "Genus Name";
+  colLeft.innerHTML = '<div class="col-header">' + leftLabel + '</div>';
+  colRight.innerHTML = '<div class="col-header">' + rightLabel + '</div>';
+
+  /* Update instruction text */
+  document.getElementById("instrText").textContent = reverseMode
+    ? "Tap a genus name, then tap its common name to match!"
+    : "Tap a common name, then tap its genus to match!";
+
+  /* Build left-side cards (draggable / first-pick) */
+  var leftData = shuffle(pool.map(function(f, i) {
+    return { text: reverseMode ? f.genus : f.common, idx: i, genus: f.genus, common: f.common, isDup: reverseMode && genusCounts[f.genus] > 1 };
+  }));
+  /* Build right-side cards (drop targets / second-pick) */
+  var rightData = shuffle(pool.map(function(f, i) {
+    return { text: reverseMode ? f.common : f.genus, idx: i, genus: f.genus, common: f.common, isDup: !reverseMode && genusCounts[f.genus] > 1 };
+  }));
+
+  leftData.forEach(function(item) {
+    var card = document.createElement("div");
+    card.className = reverseMode ? "card card-genus" : "card card-common";
+    card.textContent = item.text;
+    if (item.isDup) {
+      var hint = document.createElement("div");
+      hint.className = "genus-reveal";
+      hint.textContent = "(" + item.common + ")";
+      card.appendChild(hint);
+    }
+    card.setAttribute("data-idx", item.idx);
+    card.setAttribute("draggable", "true");
+    card.onclick = function() { selectCommon(card); };
+    card.ondragstart = function(e) {
+      card.classList.add("dragging");
+      e.dataTransfer.setData("text/plain", item.idx);
+    };
+    card.ondragend = function() { card.classList.remove("dragging"); };
+    colLeft.appendChild(card);
+  });
+
+  rightData.forEach(function(item) {
+    var card = document.createElement("div");
+    card.className = reverseMode ? "card card-common" : "card card-genus";
+    card.textContent = item.text;
+    if (item.isDup) {
+      var hint = document.createElement("div");
+      hint.className = "genus-reveal";
+      hint.textContent = "(" + item.common + ")";
+      card.appendChild(hint);
+    }
+    card.setAttribute("data-idx", item.idx);
+    card.onclick = function() { selectGenus(card); };
+    card.ondragover = function(e) { e.preventDefault(); card.classList.add("drag-over"); };
+    card.ondragleave = function() { card.classList.remove("drag-over"); };
+    card.ondrop = function(e) {
+      e.preventDefault();
+      card.classList.remove("drag-over");
+      var dragIdx = parseInt(e.dataTransfer.getData("text/plain"));
+      var dropIdx = parseInt(card.getAttribute("data-idx"));
+      handleMatch(dragIdx, dropIdx);
+    };
+    colRight.appendChild(card);
+  });
+
+  document.getElementById("completeBanner").style.display = "none";
+  updateScore();
+  loadBestScore();
+
+  /* Start timer if enabled */
+  if (timerEnabled) startTimer();
+}
+
+function selectCommon(card) {
+  if (card.classList.contains("matched")) return;
+  clearSelections("card-common");
+  card.classList.add("selected");
+  state.selectedCommon = parseInt(card.getAttribute("data-idx"));
+  tryMatch();
+}
+
+function selectGenus(card) {
+  if (card.classList.contains("matched")) return;
+  clearSelections("card-genus");
+  card.classList.add("selected");
+  state.selectedGenus = parseInt(card.getAttribute("data-idx"));
+  tryMatch();
+}
+
+function clearSelections(cls) {
+  var cards = document.querySelectorAll("." + cls + ".selected");
+  for (var i = 0; i < cards.length; i++) {
+    cards[i].classList.remove("selected");
+  }
+}
+
+function tryMatch() {
+  if (state.selectedCommon === null || state.selectedGenus === null) return;
+  handleMatch(state.selectedCommon, state.selectedGenus);
+}
+
+function handleMatch(commonIdx, genusIdx) {
+  var commonCard = document.querySelector('.card-common[data-idx="' + commonIdx + '"]');
+  var genusCard = document.querySelector('.card-genus[data-idx="' + genusIdx + '"]');
+  if (!commonCard || !genusCard) return;
+  if (commonCard.classList.contains("matched") || genusCard.classList.contains("matched")) return;
+
+  if (commonIdx === genusIdx) {
+    /* Correct match */
+    state.correct++;
+    state.matched++;
+    commonCard.classList.remove("selected");
+    genusCard.classList.remove("selected");
+    commonCard.classList.add("matched", "correct-flash");
+    genusCard.classList.add("matched", "correct-flash");
+
+    /* Claude: 2026-03-17 — Show match info on the left card (direction-aware) */
+    var reveal = document.createElement("div");
+    reveal.className = "genus-reveal";
+    reveal.style.display = "block";
+    reveal.textContent = reverseMode
+      ? "= " + state.flowers[commonIdx].common
+      : "= " + state.flowers[commonIdx].genus;
+    commonCard.appendChild(reveal);
+  } else {
+    /* Wrong match */
+    state.misses++;
+    commonCard.classList.add("wrong-flash");
+    genusCard.classList.add("wrong-flash");
+    setTimeout(function() {
+      commonCard.classList.remove("wrong-flash", "selected");
+      genusCard.classList.remove("wrong-flash", "selected");
+    }, 500);
+  }
+
+  state.selectedCommon = null;
+  state.selectedGenus = null;
+  updateScore();
+
+  if (state.matched >= state.total) {
+    setTimeout(showComplete, 600);
+  }
+}
+
+function updateScore() {
+  document.getElementById("scoreCorrect").textContent = state.correct;
+  document.getElementById("scoreMisses").textContent = state.misses;
+  document.getElementById("scoreLeft").textContent = (state.total - state.matched);
+}
+
+function showComplete() {
+  stopTimer();
+  var pct = state.total > 0 ? Math.round((state.correct / (state.correct + state.misses)) * 100) : 0;
+  var msg = "";
+  if (state.misses === 0) {
+    msg = "PERFECT! " + state.correct + "/" + state.correct + " — 100%!";
+  } else {
+    msg = state.correct + " correct, " + state.misses + " misses — " + pct + "% accuracy";
+  }
+  document.getElementById("completeStats").textContent = msg;
+
+  /* Timer result */
+  var timeEl = document.getElementById("completeTime");
+  if (timerEnabled && timerSeconds > 0) {
+    var m = Math.floor(timerSeconds / 60);
+    var s = timerSeconds % 60;
+    timeEl.textContent = "Time: " + m + ":" + (s < 10 ? "0" : "") + s;
+    timeEl.style.display = "";
+  } else {
+    timeEl.style.display = "none";
+  }
+
+  /* Best score check */
+  /* Claude: 2026-03-20 — saveBestScore now returns a Promise */
+  var bestEl = document.getElementById("completeBest");
+  saveBestScore(pct, timerEnabled ? timerSeconds : null).then(function(isNewBest) {
+    if (isNewBest) {
+      bestEl.textContent = "New personal best!";
+      bestEl.style.display = "";
+    } else {
+      bestEl.style.display = "none";
+    }
+  });
+
+  /* Fun title based on score */
+  var title = document.getElementById("completeTitle");
+  if (pct === 100) {
+    title.textContent = "You nailed it!";
+  } else if (pct >= 80) {
+    title.textContent = "Almost there!";
+  } else {
+    title.textContent = "Keep practicing!";
+  }
+
+  /* Claude: 2026-03-20 — log study session to Firestore */
+  if (AA && AA.study && AA.study.logSession) {
+    AA.study.logSession('match-game');
+  }
+
+  document.getElementById("completeBanner").style.display = "block";
+}
+
+/* Start on load */
+loadQuiz();
+</script>
+</body>
+</html>

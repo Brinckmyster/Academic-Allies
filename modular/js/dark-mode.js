@@ -751,7 +751,8 @@
       document.head.appendChild(_styleEl);
       document.documentElement.classList.add(CLASS_NAME);
     } else if (!on && _styleEl) {
-      _styleEl.remove();
+      /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+      if (_styleEl.parentNode) _styleEl.parentNode.removeChild(_styleEl);
       _styleEl = null;
       document.documentElement.classList.remove(CLASS_NAME);
     }
@@ -798,7 +799,8 @@
       var uid = window.AA.auth.currentUser.uid;
       window.AA.db.collection('users').doc(uid).update({
         darkMode: isDark
-      }).catch(function() { /* silent — localStorage is the primary store */ });
+      /* Claude: 2026-03-25 — added console.warn; localStorage is primary store so this is non-critical */
+      }).catch(function(e) { console.warn('[AA DarkMode] Firestore sync failed:', e.message || e); });
     } catch(e) {}
   }
 
@@ -831,7 +833,8 @@
             updateButton(data.darkMode);
           }
         }
-      }).catch(function() {});
+      /* Claude: 2026-03-25 — added console.warn to Firestore load catch */
+      }).catch(function(e) { console.warn('[AA DarkMode] Firestore load failed:', e.message || e); });
     } catch(e) {}
   }
 
@@ -841,7 +844,8 @@
 
   /* Claude: 2026-03-14 — remove early FOUC-prevention style now that full CSS is loaded */
   var _earlyStyle = document.getElementById('aa-dark-early');
-  if (_earlyStyle) _earlyStyle.remove();
+  /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+  if (_earlyStyle && _earlyStyle.parentNode) _earlyStyle.parentNode.removeChild(_earlyStyle);
 
   /* ── Public API ── */
   window.AA_toggleDarkMode = toggle;
@@ -868,6 +872,12 @@
       });
     }
   }, 300);
-  setTimeout(function() { clearInterval(_authPoll); }, 15000);
+  /* Claude: 2026-03-25 — added console.warn when auth poll times out */
+  setTimeout(function() {
+    clearInterval(_authPoll);
+    if (!window.AA || !window.AA.auth) {
+      console.warn('[AA DarkMode] Auth not available after 15s — Firestore sync skipped');
+    }
+  }, 15000);
 
 })();

@@ -31,6 +31,10 @@
 
   var CACHE_KEY     = 'aa-mirror';
   var SUPPORT_ROLES = ['support', 'family', 'nearby-help', 'network-lead', 'backstage-manager'];
+  /* Claude: 2026-03-25 — guard flag to prevent document click listener accumulation.
+     renderSwitcher() is called 6+ times; without this, each call adds a duplicate
+     document-level click listener that fires on stale menu references. */
+  var _docClickBound = false;
   var FLOWER_EXEMPT = 'dorothy.brinck@gmail.com';
 
   /* Pages where mirroring is suppressed entirely */
@@ -189,9 +193,14 @@
       menu.style.display = (menu.style.display === 'none') ? 'block' : 'none';
     });
 
-    document.addEventListener('click', function () {
-      if (menu) menu.style.display = 'none';
-    });
+    /* Claude: 2026-03-25 — only bind document click once to avoid listener accumulation */
+    if (!_docClickBound) {
+      _docClickBound = true;
+      document.addEventListener('click', function () {
+        var m = document.getElementById('aa-switcher-menu');
+        if (m) m.style.display = 'none';
+      });
+    }
   }
 
   function renderSwitcherWhenReady() {

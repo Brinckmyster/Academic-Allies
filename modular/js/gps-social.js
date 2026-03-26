@@ -39,9 +39,10 @@
   function analyzeMovement() {
     var dateKey = (function() {
       var d = new Date();
+      /* Claude: 2026-03-25 — replaced .padStart() (ES2017) with ES5-safe pattern */
       return d.getFullYear() + '-' +
-             String(d.getMonth()+1).padStart(2,'0') + '-' +
-             String(d.getDate()).padStart(2,'0');
+             ('0' + (d.getMonth()+1)).slice(-2) + '-' +
+             ('0' + d.getDate()).slice(-2);
     })();
     try {
       var raw = localStorage.getItem('aa_gps_' + dateKey);

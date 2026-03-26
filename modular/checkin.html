@@ -6,6 +6,8 @@
   <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Daily Check-In — Academic Allies</title>
+  <!-- Claude: 2026-03-25 — added favicon -->
+  <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
   <!-- Updated: 2026-02-25 by Claude — full 5-category gateway check-in per confirmed Grok spec + Mary's energy scale -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet"
@@ -252,6 +254,44 @@
 
     /* ── Notes final card ── */
     #notes-card textarea { min-height: 80px; }
+
+    /* Claude: 2026-03-25 — mobile responsive breakpoints */
+    @media (max-width: 600px) {
+      .page-wrap { padding: .75rem .75rem 2rem; }
+      h1 { font-size: 1.25rem; }
+      .card { padding: 1rem; }
+      .card h2 { font-size: 1rem; }
+      .gw-btn { min-width: 70px; font-size: .85rem; padding: .5rem .4rem; }
+      .emoji-btn { min-height: 44px; min-width: 44px; }
+      .slider-wrap input[type=range] { height: 28px; }
+      #save-btn, #reset-btn { padding: .85rem; font-size: 1rem; min-height: 48px; }
+    }
+    @media (max-width: 360px) {
+      .page-wrap { padding: .5rem .5rem 2rem; }
+      .gw-row { gap: .35rem; }
+      .gw-btn { min-width: 60px; font-size: .8rem; }
+      .emoji-row { gap: .25rem; }
+      .emoji-btn { font-size: .7rem; }
+    }
+
+    /* Claude: 2026-03-25 — dark mode overrides for daily check-in */
+    html.aa-dark .page-wrap { background: #1a1a2e; }
+    html.aa-dark .section-card { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .section-card h2 { color: #e0e0e0; }
+    html.aa-dark .gw-btn { background: #2a2a3e; color: #ccc; border-color: #444; }
+    html.aa-dark .gw-btn.selected-green { background: #1a3a2a !important; color: #6ecf9a !important; border-color: #2a6b4a !important; }
+    html.aa-dark .gw-btn.selected-yellow { background: #3a3520 !important; color: #e0c860 !important; border-color: #6b6030 !important; }
+    html.aa-dark .gw-btn.selected-red { background: #3a1a1a !important; color: #e07070 !important; border-color: #6b2a2a !important; }
+    html.aa-dark .emoji-btn { background: #2a2a3e; border-color: #444; }
+    html.aa-dark .emoji-btn.selected { border-color: #4a9eff; }
+    html.aa-dark textarea, html.aa-dark input[type="text"] { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark #save-btn { background: #4a7f82; color: #fff; }
+    html.aa-dark #save-btn:disabled { background: #333; color: #777; }
+    html.aa-dark #reset-btn { background: #2a2a3e; color: #ccc; border-color: #444; }
+    html.aa-dark #skip-all-btn { background: #2a2a3e; color: #ccc; border-color: #555; }
+    html.aa-dark .flag-bar { background: #1e2a2e; border-color: #333; }
+    html.aa-dark #emergency-card { background: #2a1a1a; border-color: #5a2a2a; }
+    html.aa-dark #emergency-card h2 { color: #e07070; }
   </style>
 </head>
 <body>
@@ -330,7 +370,7 @@
     <!-- Note (shown on yes/no, hidden on skip) -->
     <div class="note-wrap" id="note-wrap-mental" style="display:none;">
       <label for="note-mental">Anything else about your head space today? (optional)</label>
-      <textarea id="note-mental" placeholder="Optional note…"></textarea>
+      <textarea id="note-mental" placeholder="Optional note…" maxlength="500"></textarea>
     </div>
   </div>
 
@@ -379,7 +419,7 @@
 
     <div class="note-wrap" id="note-wrap-physical" style="display:none;">
       <label for="note-physical">Anything else about how your body feels? (optional)</label>
-      <textarea id="note-physical" placeholder="Optional note…"></textarea>
+      <textarea id="note-physical" placeholder="Optional note…" maxlength="500"></textarea>
     </div>
   </div>
 
@@ -422,7 +462,7 @@
 
     <div class="note-wrap" id="note-wrap-school" style="display:none;">
       <label for="note-school">Anything specific about school today? (optional)</label>
-      <textarea id="note-school" placeholder="Optional note…"></textarea>
+      <textarea id="note-school" placeholder="Optional note…" maxlength="500"></textarea>
     </div>
   </div>
 
@@ -464,7 +504,7 @@
 
     <div class="note-wrap" id="note-wrap-spiritual" style="display:none;">
       <label for="note-spiritual">Anything on your heart today? (optional)</label>
-      <textarea id="note-spiritual" placeholder="Optional note…"></textarea>
+      <textarea id="note-spiritual" placeholder="Optional note…" maxlength="500"></textarea>
     </div>
   </div>
 
@@ -509,7 +549,7 @@
 
     <div class="note-wrap" id="note-wrap-social" style="display:none;">
       <label for="note-social">Anything else about connections today? (optional)</label>
-      <textarea id="note-social" placeholder="Optional note…"></textarea>
+      <textarea id="note-social" placeholder="Optional note…" maxlength="500"></textarea>
     </div>
   </div>
 
@@ -557,7 +597,8 @@
     <h2>📝 Anything else?</h2>
     <div class="note-wrap">
       <label for="final-note">Open notes — share anything you want your team to know:</label>
-      <textarea id="final-note" placeholder="Whatever's on your mind…"></textarea>
+      <!-- Claude: 2026-03-25 — added maxlength to prevent oversized Firestore writes -->
+      <textarea id="final-note" placeholder="Whatever's on your mind…" maxlength="1000"></textarea>
     </div>
     <div class="save-row">
       <button id="save-btn" onclick="saveCheckin()">Save Check-In</button>
@@ -605,8 +646,8 @@ var emergencyYes = false;
 function localDateKey() {
   var d = new Date();
   return d.getFullYear() + '-' +
-    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-    String(d.getDate()).padStart(2, '0');
+    ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+    ('0' + d.getDate()).slice(-2);
 }
 
 // Tracks the most recent computed flag so saveCheckin() can persist it.
@@ -848,7 +889,8 @@ function saveCheckin() {
       checked: checked,
       emojiV:  emojiKey ? (catEmoji[emojiKey] || null) : null,
       mood:    emojiKey ? (catMood[cat]        || null) : null,
-      note:    (document.getElementById('note-' + cat) || {}).value || ''
+      /* Claude: 2026-03-25 — added length limit on category notes */
+      note:    ((document.getElementById('note-' + cat) || {}).value || '').slice(0, 1000)
     };
   });
 
@@ -874,7 +916,8 @@ function saveCheckin() {
     basics:       basics,
     thumping:     thumping,
     emergency:    emergencyYes,
-    finalNote:    document.getElementById('final-note').value || '',
+    /* Claude: 2026-03-25 — added length limit on final note */
+    finalNote:    (document.getElementById('final-note').value || '').slice(0, 2000),
 
     // Legacy compat
     energyLevel:  mentalCat.emojiV || null,
@@ -1223,7 +1266,7 @@ function applyGPSSocialHint() {
       // Store first snapshot immediately on permission grant
       try {
         var d = new Date();
-        var dk = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        var dk = d.getFullYear() + '-' + ('0' + (d.getMonth()+1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
         var snaps = JSON.parse(localStorage.getItem('aa_gps_' + dk) || '[]');
         snaps.push({ lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now() });
         /* Claude: 2026-03-14 — cap at 20 snapshots per day to prevent localStorage bloat */
@@ -1231,9 +1274,11 @@ function applyGPSSocialHint() {
         localStorage.setItem('aa_gps_' + dk, JSON.stringify(snaps));
       } catch(e) {}
     }, function() {});
-    msg.remove();
+    /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+    if (msg.parentNode) msg.parentNode.removeChild(msg);
   };
-  document.getElementById('gps-skip-btn').onclick = function() { msg.remove(); };
+  /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+  document.getElementById('gps-skip-btn').onclick = function() { if (msg.parentNode) msg.parentNode.removeChild(msg); };
 })();
 </script>
 
@@ -1252,9 +1297,9 @@ fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
     container.innerHTML = html;
     container.querySelectorAll('script').forEach(function(old) {
       var s = document.createElement('script');
-      Array.from(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      [].slice.call(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
       s.textContent = old.textContent;
-      old.replaceWith(s);
+      old.parentNode.replaceChild(s, old);
     });
   })
   .catch(function(){ /* header optional */ });

@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-21 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streak Cat — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    /* Claude: 2026-03-21 — Streak Cat dress-up game */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Atkinson Hyperlegible', Arial, sans-serif; background: #FAFAF9; color: #333; }
+
+    /* ── Dark mode ── */
+    html.aa-dark body { background: #121212; color: #e0e0e0; }
+    html.aa-dark .streak-card { background: #1e1e1e; border-color: #333; }
+    html.aa-dark .cat-stage { background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); }
+    html.aa-dark .item-btn { background: #2a2a2a; border-color: #444; color: #e0e0e0; }
+    html.aa-dark .item-btn:hover { background: #333; }
+    html.aa-dark .item-btn.equipped { background: #2d4a2d; border-color: #4ade80; }
+    html.aa-dark .item-btn.locked { background: #1a1a1a; border-color: #333; color: #666; }
+    html.aa-dark .cat-speech { background: #1e1e1e; border-color: #444; color: #e0e0e0; }
+    html.aa-dark .cat-speech::after { border-top-color: #1e1e1e; }
+    html.aa-dark .category-tab { background: #2a2a2a; color: #aaa; }
+    html.aa-dark .category-tab.active { background: #3b82f6; color: #fff; }
+    html.aa-dark .streak-counter { background: #1e1e1e; }
+    html.aa-dark .reward-toast { background: #1e1e1e; border-color: #4ade80; }
+    html.aa-dark .name-input { background: #2a2a2a; border-color: #555; color: #e0e0e0; }
+
+    /* ── Layout ── */
+    .page-wrap { max-width: 600px; margin: 0 auto; padding: 16px 12px 100px; }
+
+    /* ── Streak counter banner ── */
+    .streak-counter {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      background: #fff; border-radius: 14px; padding: 14px 20px; margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center;
+    }
+    .streak-fire { font-size: 2rem; }
+    .streak-number { font-size: 2.2rem; font-weight: 800; color: #f59e0b; }
+    .streak-label { font-size: 0.85rem; color: #888; margin-top: 2px; }
+    .streak-best { font-size: 0.75rem; color: #aaa; }
+
+    /* ── Cat stage ── */
+    .cat-stage {
+      position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 360px;
+      margin: 0 auto 16px; border-radius: 20px; overflow: hidden;
+      background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 40%, #93c5fd 100%);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .cat-stage svg { width: 100%; height: 100%; }
+
+    /* ── Cat speech bubble ── */
+    .cat-speech {
+      position: relative; background: #fff; border: 2px solid #e5e7eb;
+      border-radius: 16px; padding: 12px 16px; margin: 0 auto 16px;
+      max-width: 340px; text-align: center; font-size: 0.95rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .cat-speech::after {
+      content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+      border-left: 10px solid transparent; border-right: 10px solid transparent;
+      border-bottom: 10px solid #fff;
+    }
+    .cat-speech .cat-name { font-weight: 700; color: #6366f1; }
+
+    /* ── Name input ── */
+    .name-section { text-align: center; margin-bottom: 20px; }
+    .name-input {
+      font-size: 1.1rem; padding: 8px 16px; border: 2px solid #d1d5db;
+      border-radius: 10px; text-align: center; width: 200px; font-family: inherit;
+    }
+    .name-input:focus { outline: none; border-color: #6366f1; }
+    .name-save-btn {
+      display: inline-block; margin-left: 8px; padding: 8px 16px;
+      background: #6366f1; color: #fff; border: none; border-radius: 10px;
+      cursor: pointer; font-size: 0.9rem; font-family: inherit;
+    }
+    .name-save-btn:hover { background: #4f46e5; }
+
+    /* ── Category tabs ── */
+    .category-tabs {
+      display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 12px;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    .category-tabs::-webkit-scrollbar { display: none; }
+    .category-tab {
+      flex-shrink: 0; padding: 8px 14px; border-radius: 20px;
+      background: #f3f4f6; border: none; cursor: pointer;
+      font-size: 0.82rem; font-family: inherit; color: #666;
+      transition: all 0.15s ease;
+    }
+    .category-tab.active { background: #6366f1; color: #fff; font-weight: 600; }
+    .category-tab:hover { background: #e5e7eb; }
+    .category-tab.active:hover { background: #4f46e5; }
+
+    /* ── Item grid ── */
+    .items-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px; margin-bottom: 20px;
+    }
+    .item-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 10px 6px; border: 2px solid #e5e7eb; border-radius: 12px;
+      background: #fff; cursor: pointer; font-family: inherit;
+      transition: all 0.15s ease; font-size: 0.78rem; color: #555;
+      min-height: 80px; justify-content: center;
+    }
+    .item-btn:hover { border-color: #6366f1; transform: translateY(-1px); }
+    .item-btn.equipped { border-color: #4ade80; background: #f0fdf4; }
+    .item-btn.equipped::after { content: '✓'; position: absolute; top: 4px; right: 6px; color: #16a34a; font-size: 0.7rem; font-weight: 700; }
+    .item-btn { position: relative; }
+    .item-btn.locked { opacity: 0.45; cursor: default; border-color: #e5e7eb; }
+    .item-btn.locked:hover { border-color: #e5e7eb; transform: none; }
+    .item-emoji { font-size: 1.8rem; }
+    .item-label { font-size: 0.72rem; text-align: center; line-height: 1.2; }
+    .item-unlock { font-size: 0.65rem; color: #f59e0b; margin-top: 2px; }
+
+    /* ── Reward toast ── */
+    .reward-toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #fff; border: 2px solid #4ade80; border-radius: 16px;
+      padding: 16px 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      z-index: 500; text-align: center; animation: toastIn 0.4s ease;
+      display: none;
+    }
+    .reward-toast.show { display: block; }
+    .reward-emoji { font-size: 2.5rem; }
+    .reward-text { font-size: 0.95rem; margin-top: 6px; font-weight: 600; }
+    .reward-sub { font-size: 0.8rem; color: #888; margin-top: 4px; }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+    /* ── Milestone progress ── */
+    .milestone-bar {
+      background: #f3f4f6; border-radius: 10px; padding: 12px 16px;
+      margin-bottom: 16px;
+    }
+    .milestone-label { font-size: 0.8rem; color: #888; margin-bottom: 6px; }
+    .milestone-track { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+    .milestone-fill { height: 100%; background: linear-gradient(90deg, #f59e0b, #ef4444); border-radius: 4px; transition: width 0.5s ease; }
+    html.aa-dark .milestone-bar { background: #1e1e1e; }
+    html.aa-dark .milestone-track { background: #333; }
+
+    /* ── Paw Points & Shield banner — Claude: 2026-03-21 ── */
+    .paw-banner {
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      background: #fff; border-radius: 14px; padding: 10px 20px; margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08); font-size: 0.9rem;
+    }
+    .paw-points-display { display: flex; align-items: center; gap: 6px; font-weight: 700; color: #d97706; }
+    .paw-points-display .pp-icon { font-size: 1.3rem; }
+    .paw-points-display .pp-count { font-size: 1.2rem; }
+    .shield-display { display: flex; align-items: center; gap: 4px; font-weight: 600; color: #3b82f6; }
+    .shield-display .shield-icon { font-size: 1.2rem; }
+    .shield-display .shield-count { font-size: 1rem; }
+    html.aa-dark .paw-banner { background: #1e1e1e; }
+
+    /* ── Shop item price tag ── */
+    .item-price { font-size: 0.65rem; color: #d97706; margin-top: 2px; font-weight: 600; }
+    .item-btn.can-buy { border-color: #d97706; }
+    .item-btn.can-buy:hover { border-color: #b45309; background: #fffbeb; }
+    html.aa-dark .item-btn.can-buy:hover { background: #1a1500; }
+
+    /* ── Streak Repair modal ── */
+    .repair-modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5); z-index: 800; align-items: center; justify-content: center;
+    }
+    .repair-modal-overlay.show { display: flex; }
+    .repair-modal {
+      background: #fff; border-radius: 20px; padding: 28px 24px; max-width: 340px;
+      width: 90%; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+      animation: toastIn 0.3s ease;
+    }
+    .repair-modal h3 { margin: 8px 0 4px; font-size: 1.1rem; }
+    .repair-modal p { font-size: 0.85rem; color: #666; margin: 6px 0 16px; }
+    .repair-modal .repair-cost { font-size: 1rem; font-weight: 700; color: #d97706; }
+    .repair-btn {
+      display: inline-block; padding: 10px 28px; background: #f59e0b; color: #fff;
+      border: none; border-radius: 12px; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; margin: 4px;
+    }
+    .repair-btn:hover { background: #d97706; }
+    .repair-btn.secondary { background: #e5e7eb; color: #666; }
+    .repair-btn.secondary:hover { background: #d1d5db; }
+    .repair-btn:disabled { opacity: 0.5; cursor: default; }
+    html.aa-dark .repair-modal { background: #1e1e1e; }
+    html.aa-dark .repair-modal p { color: #aaa; }
+    html.aa-dark .repair-btn.secondary { background: #333; color: #aaa; }
+
+    /* ── No check-in prompt ── */
+    .checkin-prompt {
+      text-align: center; padding: 20px; background: #fffbeb;
+      border: 2px dashed #f59e0b; border-radius: 14px; margin-bottom: 16px;
+    }
+    .checkin-prompt a {
+      display: inline-block; margin-top: 10px; padding: 10px 24px;
+      background: #f59e0b; color: #fff; border-radius: 10px;
+      text-decoration: none; font-weight: 600;
+    }
+    html.aa-dark .checkin-prompt { background: #1a1500; border-color: #f59e0b; }
+  </style>
+</head>
+<body>
+  <div id="header-placeholder"></div>
+
+  <div class="page-wrap" id="main-content" style="display:none;">
+
+    <!-- Streak counter -->
+    <div class="streak-counter">
+      <span class="streak-fire" id="streak-fire">🔥</span>
+      <div>
+        <div class="streak-number" id="streak-number">0</div>
+        <div class="streak-label">day streak</div>
+        <div class="streak-best" id="streak-best"></div>
+      </div>
+    </div>
+
+    <!-- Claude: 2026-03-21 — Paw Points & Shield display -->
+    <div class="paw-banner" id="paw-banner">
+      <div class="paw-points-display">
+        <span class="pp-icon">🐾</span>
+        <span class="pp-count" id="pp-count">0</span>
+        <span style="font-weight:400;color:#888;font-size:0.75rem;">Paw Points</span>
+      </div>
+      <div class="shield-display">
+        <span class="shield-icon">🛡️</span>
+        <span class="shield-count" id="shield-count">0</span>
+        <span style="font-weight:400;color:#888;font-size:0.75rem;">Shields</span>
+      </div>
+    </div>
+
+    <!-- Check-in prompt (shown if no check-in today) -->
+    <div class="checkin-prompt" id="checkin-prompt" style="display:none;">
+      <div style="font-size:1.4rem;">😿</div>
+      <div style="margin-top:6px; font-weight:600;">No check-in today!</div>
+      <div style="font-size:0.85rem; color:#92400e; margin-top:4px;">Check in to keep your streak alive and earn rewards.</div>
+      <!-- Claude: 2026-03-24 — fixed broken path (was spoon-pal/, correct is spoon-planner/) -->
+      <a href="/Academic-Allies/modular/components/spoon-planner/spoon-pal.html">Go to SpoonPal</a>
+      <a href="/Academic-Allies/modular/checkin.html">Go to Check-In</a>
+    </div>
+
+    <!-- Cat stage -->
+    <div class="cat-stage" id="cat-stage">
+      <!-- SVG cat rendered here by JS -->
+    </div>
+
+    <!-- Cat speech -->
+    <div class="cat-speech" id="cat-speech">
+      <span class="cat-name" id="cat-name-display">Your Cat</span> says: <em id="cat-message">Hi there! Name me!</em>
+    </div>
+
+    <!-- Name section (first visit) -->
+    <div class="name-section" id="name-section" style="display:none;">
+      <label for="cat-name-input" style="font-size:0.85rem; color:#888;">Name your cat:</label><br>
+      <input type="text" id="cat-name-input" class="name-input" placeholder="Mittens" maxlength="20">
+      <button class="name-save-btn" id="name-save-btn">Save</button>
+    </div>
+
+    <!-- Milestone progress -->
+    <div class="milestone-bar" id="milestone-bar">
+      <div class="milestone-label" id="milestone-label">Next unlock: 3-day streak</div>
+      <div class="milestone-track"><div class="milestone-fill" id="milestone-fill" style="width:0%"></div></div>
+    </div>
+
+    <!-- Category tabs -->
+    <div class="category-tabs" id="category-tabs"></div>
+
+    <!-- Item grid -->
+    <div class="items-grid" id="items-grid"></div>
+
+    <!-- Reward toast -->
+    <div class="reward-toast" id="reward-toast">
+      <div class="reward-emoji" id="reward-emoji">🎉</div>
+      <div class="reward-text" id="reward-text">New item unlocked!</div>
+      <div class="reward-sub" id="reward-sub"></div>
+    </div>
+
+    <!-- Claude: 2026-03-21 — Streak Repair modal -->
+    <div class="repair-modal-overlay" id="repair-modal">
+      <div class="repair-modal">
+        <div style="font-size:2.5rem;">💔</div>
+        <h3>Your streak broke!</h3>
+        <p id="repair-message">You had a <strong id="repair-old-streak">0</strong>-day streak.
+          Spend <span class="repair-cost">🐾 50 Paw Points</span> to restore it?</p>
+        <p id="repair-timer" style="font-size:0.8rem;color:#ef4444;"></p>
+        <button class="repair-btn" id="repair-yes-btn">🐾 Repair Streak</button>
+        <button class="repair-btn secondary" id="repair-no-btn">Let It Go</button>
+        <p id="repair-insufficient" style="display:none;font-size:0.8rem;color:#ef4444;margin-top:8px;">
+          Not enough Paw Points! You need 50 🐾 to repair.
+        </p>
+      </div>
+    </div>
+
+  </div><!-- .page-wrap -->
+
+  <script>
+    /* Claude: 2026-03-21 — Streak Cat dress-up game
+       Firestore path: streakCat/{uid}
+       Fields: catName, streak, bestStreak, lastCheckinDate, unlockedItems[], equippedItems[], lastRewardDate
+    */
+
+    /* ══════════════════════════════════════════════════════════
+       ITEM CATALOG
+       ══════════════════════════════════════════════════════════ */
+    var ITEMS = [
+      /* ── Hats (cozy) ── */
+      { id: 'beanie',       cat: 'hats', emoji: '🧶', label: 'Cozy Beanie',       unlock: 'streak', at: 3  },
+      { id: 'bow',          cat: 'hats', emoji: '🎀', label: 'Pink Bow',           unlock: 'streak', at: 1  },
+      { id: 'crown',        cat: 'hats', emoji: '👑', label: 'Royal Crown',        unlock: 'streak', at: 14 },
+      { id: 'tophat',       cat: 'hats', emoji: '🎩', label: 'Top Hat',            unlock: 'streak', at: 21 },
+      { id: 'halo',         cat: 'hats', emoji: '😇', label: 'Halo',              unlock: 'streak', at: 30 },
+      { id: 'santa',        cat: 'hats', emoji: '🎅', label: 'Santa Hat',          unlock: 'random', pool: 7  },
+      { id: 'flower-crown', cat: 'hats', emoji: '🌸', label: 'Flower Crown',      unlock: 'random', pool: 3  },
+      { id: 'chef-hat',     cat: 'hats', emoji: '👨‍🍳', label: 'Chef Hat',          unlock: 'random', pool: 7  },
+      { id: 'party-hat',    cat: 'hats', emoji: '🥳', label: 'Party Hat',          unlock: 'random', pool: 14 },
+
+      /* ── Accessories (fun & silly) ── */
+      { id: 'sunglasses',   cat: 'accessories', emoji: '😎', label: 'Cool Shades',     unlock: 'streak', at: 5  },
+      { id: 'scarf',        cat: 'accessories', emoji: '🧣', label: 'Warm Scarf',       unlock: 'streak', at: 7  },
+      { id: 'monocle',      cat: 'accessories', emoji: '🧐', label: 'Monocle',          unlock: 'streak', at: 10 },
+      { id: 'bowtie',       cat: 'accessories', emoji: '🤵', label: 'Bow Tie',           unlock: 'random', pool: 5  },
+      { id: 'necklace',     cat: 'accessories', emoji: '📿', label: 'Bead Necklace',     unlock: 'random', pool: 3  },
+      { id: 'cape',         cat: 'accessories', emoji: '🦸', label: 'Hero Cape',         unlock: 'streak', at: 28 },
+      { id: 'wings',        cat: 'accessories', emoji: '🪽', label: 'Angel Wings',       unlock: 'streak', at: 60 },
+
+      /* ── Outfits (cozy & cute) ── */
+      { id: 'sweater',      cat: 'outfits', emoji: '🧥', label: 'Cozy Sweater',     unlock: 'streak', at: 7  },
+      { id: 'tutu',         cat: 'outfits', emoji: '🩰', label: 'Ballet Tutu',      unlock: 'random', pool: 14 },
+      { id: 'pajamas',      cat: 'outfits', emoji: '😴', label: 'Pajamas',           unlock: 'random', pool: 5  },
+      { id: 'overalls',     cat: 'outfits', emoji: '👨‍🌾', label: 'Overalls',          unlock: 'random', pool: 7  },
+      { id: 'raincoat',     cat: 'outfits', emoji: '🌧️', label: 'Raincoat',          unlock: 'random', pool: 10 },
+      { id: 'tuxedo',       cat: 'outfits', emoji: '🤵', label: 'Tuxedo',            unlock: 'streak', at: 45 },
+
+      /* ── Props (held items) ── */
+      { id: 'mug',          cat: 'props', emoji: '☕', label: 'Hot Cocoa',         unlock: 'streak', at: 3  },
+      { id: 'book',         cat: 'props', emoji: '📖', label: 'Good Book',         unlock: 'streak', at: 5  },
+      { id: 'teddy',        cat: 'props', emoji: '🧸', label: 'Teddy Bear',        unlock: 'random', pool: 3  },
+      { id: 'balloon',      cat: 'props', emoji: '🎈', label: 'Red Balloon',       unlock: 'random', pool: 5  },
+      { id: 'umbrella',     cat: 'props', emoji: '☂️', label: 'Umbrella',           unlock: 'random', pool: 7  },
+      { id: 'blanket',      cat: 'props', emoji: '🛏️', label: 'Cozy Blanket',      unlock: 'random', pool: 10 },
+      { id: 'scriptures',   cat: 'props', emoji: '📗', label: 'Scriptures',        unlock: 'streak', at: 14 },
+      { id: 'guitar',       cat: 'props', emoji: '🎸', label: 'Guitar',            unlock: 'streak', at: 30 },
+      { id: 'sword',        cat: 'props', emoji: '⚔️', label: 'Sword of Truth',    unlock: 'streak', at: 45 },
+
+      /* ── Backgrounds ── */
+      { id: 'bg-meadow',    cat: 'backgrounds', emoji: '🌿', label: 'Meadow',          unlock: 'streak', at: 7  },
+      { id: 'bg-stars',     cat: 'backgrounds', emoji: '🌟', label: 'Starry Night',     unlock: 'streak', at: 14 },
+      { id: 'bg-cozy',      cat: 'backgrounds', emoji: '🏠', label: 'Cozy Room',        unlock: 'streak', at: 10 },
+      { id: 'bg-rainbow',   cat: 'backgrounds', emoji: '🌈', label: 'Rainbow',          unlock: 'random', pool: 10 },
+      { id: 'bg-snow',      cat: 'backgrounds', emoji: '❄️', label: 'Snowy Day',        unlock: 'random', pool: 14 },
+      { id: 'bg-temple',    cat: 'backgrounds', emoji: '⛪', label: 'Temple Grounds',   unlock: 'streak', at: 30 },
+      { id: 'bg-beach',     cat: 'backgrounds', emoji: '🏖️', label: 'Beach',            unlock: 'random', pool: 21 },
+      { id: 'bg-space',     cat: 'backgrounds', emoji: '🚀', label: 'Outer Space',      unlock: 'streak', at: 60 },
+
+      /* ── Duchess Gallery — real photos of Duchess the ESA cat, unlocked at milestones ── */
+      /* Claude: 2026-03-21 — real unedited photos, no cropping/filtering/altering */
+      { id: 'duchess-01', cat: 'duchess', emoji: '😴', label: 'Couch Nap',           unlock: 'streak', at: 30,  photo: '20150129_210518.jpg' },
+      { id: 'duchess-02', cat: 'duchess', emoji: '🐾', label: 'Crate Curl',          unlock: 'streak', at: 45,  photo: '20150322_233711.jpg' },
+      { id: 'duchess-03', cat: 'duchess', emoji: '👀', label: 'Looking at You',      unlock: 'streak', at: 60,  photo: '20170802_221113.jpg' },
+      { id: 'duchess-04', cat: 'duchess', emoji: '🖤', label: 'Fluffy Close-Up',     unlock: 'streak', at: 90,  photo: '20170802_221127.jpg' },
+      { id: 'duchess-05', cat: 'duchess', emoji: '🤸', label: 'Kitchen Flop',        unlock: 'streak', at: 120, photo: '20240515_214924.jpg' },
+      { id: 'duchess-06', cat: 'duchess', emoji: '🌙', label: 'Windowsill Dreams',   unlock: 'streak', at: 150, photo: 'cfc61262-5cf1-48a0-b38a-def6c2a2d4d8.jpg' },
+      { id: 'duchess-07', cat: 'duchess', emoji: '🛏️', label: 'Bed Lounge',          unlock: 'streak', at: 200, photo: '8e6bf16f-43b7-4e14-bb5d-d4b372e9f608.jpg' },
+      { id: 'duchess-08', cat: 'duchess', emoji: '🏥', label: 'ESA on Duty',         unlock: 'streak', at: 250, photo: '20250725_130842.jpg' },
+      { id: 'duchess-09', cat: 'duchess', emoji: '👑', label: 'Queen Duchess',        unlock: 'streak', at: 300, photo: '20250827_093105.jpg' },
+      { id: 'duchess-10', cat: 'duchess', emoji: '💖', label: 'Emotional Support',   unlock: 'streak', at: 365, photo: '20240517_114542.jpg' },
+
+      /* ── Paw Shop — items purchasable with Paw Points ── */
+      /* Claude: 2026-03-21 — Paw Points coin shop, Duolingo-inspired */
+      { id: 'sparkle',      cat: 'shop', emoji: '✨', label: 'Sparkle Aura',      unlock: 'shop', price: 30  },
+      { id: 'heart-eyes',   cat: 'shop', emoji: '😻', label: 'Heart Eyes',        unlock: 'shop', price: 20  },
+      { id: 'rainbow-tail', cat: 'shop', emoji: '🌈', label: 'Rainbow Tail',      unlock: 'shop', price: 40  },
+      { id: 'tiny-crown',   cat: 'shop', emoji: '👸', label: 'Tiara',             unlock: 'shop', price: 35  },
+      { id: 'bubble-tea',   cat: 'shop', emoji: '🧋', label: 'Bubble Tea',        unlock: 'shop', price: 15  },
+      { id: 'butterfly',    cat: 'shop', emoji: '🦋', label: 'Butterfly Friend',  unlock: 'shop', price: 25  },
+      { id: 'pizza',        cat: 'shop', emoji: '🍕', label: 'Pizza Slice',       unlock: 'shop', price: 10  },
+      { id: 'headphones',   cat: 'shop', emoji: '🎧', label: 'Headphones',        unlock: 'shop', price: 30  },
+      { id: 'magic-wand',   cat: 'shop', emoji: '🪄', label: 'Magic Wand',        unlock: 'shop', price: 50  },
+      { id: 'shooting-star', cat: 'shop', emoji: '🌠', label: 'Shooting Star',    unlock: 'shop', price: 45  }
+    ];
+
+    /* Claude: 2026-03-21 — photo path helper for duchess items */
+    var DUCHESS_PHOTO_BASE = '/Academic-Allies/modular/components/streak-cat/duchess-photos/';
+    function getDuchessPhoto(itemId) {
+      for (var i = 0; i < ITEMS.length; i++) {
+        if (ITEMS[i].id === itemId && ITEMS[i].photo) return DUCHESS_PHOTO_BASE + ITEMS[i].photo;
+      }
+      return '';
+    }
+
+    var CATEGORIES = [
+      { id: 'hats',         label: '🎩 Hats' },
+      { id: 'accessories',  label: '✨ Accessories' },
+      { id: 'outfits',      label: '👗 Outfits' },
+      { id: 'props',        label: '🎁 Props' },
+      { id: 'backgrounds',  label: '🎨 Backgrounds' },
+      { id: 'duchess',      label: '📸 Duchess' },
+      { id: 'shop',         label: '🐾 Paw Shop' }
+    ];
+
+    /* Milestones sorted ascending */
+    var MILESTONES = [];
+    (function() {
+      var seen = {};
+      ITEMS.forEach(function(it) {
+        if (it.unlock === 'streak' && !seen[it.at]) { MILESTONES.push(it.at); seen[it.at] = true; }
+      });
+      MILESTONES.sort(function(a, b) { return a - b; });
+    })();
+
+    /* ══════════════════════════════════════════════════════════
+       PAW POINTS & STREAK SHIELD CONFIG
+       Claude: 2026-03-21 — Duolingo-inspired economy
+       ══════════════════════════════════════════════════════════ */
+
+    /* Paw Points earned per action */
+    var PP_PER_CHECKIN     = 5;    /* daily check-in */
+    var PP_DAILY_BONUS     = 2;    /* small random daily bonus */
+    var PP_REPAIR_COST     = 50;   /* cost to repair a broken streak */
+    var REPAIR_WINDOW_HRS  = 48;   /* hours after break to allow repair */
+    var MAX_SHIELDS        = 3;    /* max shields you can hold */
+
+    /* Shield milestones — earn 1 shield at each of these streak days */
+    var SHIELD_MILESTONES = [7, 21, 45, 90, 180, 365];
+
+    /* Paw Point bonuses at streak milestones */
+    var PP_MILESTONES = {
+      7: 10, 14: 15, 21: 20, 30: 50, 45: 60, 60: 75,
+      90: 100, 120: 100, 150: 125, 200: 150, 250: 175, 300: 200, 365: 500
+    };
+
+    /* ══════════════════════════════════════════════════════════
+       CAT SPEECH LINES — personality reactions
+       ══════════════════════════════════════════════════════════ */
+    var SPEECH = {
+      noStreak:   ["I believe in you! Let's start a streak!", "Every journey starts with day one!", "Check in today — I'll be here waiting!"],
+      low:        ["We're just getting started!", "Day {n} — you showed up and that matters!", "Keep going, I'm cheering for you!"],
+      medium:     ["Wow, {n} days! I'm so proud of you!", "You're on fire! 🔥", "Look at us — {n} days strong!", "I feel fancier already!"],
+      high:       ["{n} DAYS?! You're a legend!", "I can't believe how far we've come!", "You inspire me every single day!"],
+      epic:       ["UNSTOPPABLE! {n} days!!", "I'm the luckiest cat in the world!", "We're writing history here! {n} days!"],
+      newItem:    ["Ooh, new outfit! How do I look?", "Fashion show time!", "I love presents!"],
+      dressed:    ["I feel fabulous!", "Looking good, if I do say so myself!", "Best dressed cat on campus!"],
+      naked:      ["A little chilly without accessories!", "Au naturel today, huh?", "I'm a simple cat with simple tastes."],
+      duchess:    ["Duchess has joined the party!", "A whole YEAR of check-ins! Duchess is impressed.", "Duchess says: you earned this. She's proud of you.", "Two cats are better than one!", "Duchess is your Emotional Support Cat — and you've earned her!"],
+      shield:     ["🛡️ Shield activated! I've got your back!", "A shield saved your streak! Close call!", "Your shield protected us — phew!"],
+      repair:     ["We're back in business! Streak restored!", "You fixed it! I knew you would!", "Second chances are the best!"],
+      pawPoints:  ["Cha-ching! 🐾 More Paw Points!", "Shopping spree time?", "Saving up for something special?"]
+    };
+
+    function pickSpeech(category, streak) {
+      var lines = SPEECH[category] || SPEECH.low;
+      var line = lines[Math.floor(Math.random() * lines.length)];
+      return line.replace('{n}', streak || 0);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SVG CAT RENDERER
+       ══════════════════════════════════════════════════════════ */
+
+    /* Background gradients keyed by bg item id */
+    var BG_GRADIENTS = {
+      'default':     '<stop offset="0%" stop-color="#e0f2fe"/><stop offset="40%" stop-color="#bae6fd"/><stop offset="100%" stop-color="#93c5fd"/>',
+      'bg-meadow':   '<stop offset="0%" stop-color="#d1fae5"/><stop offset="50%" stop-color="#a7f3d0"/><stop offset="100%" stop-color="#6ee7b7"/>',
+      'bg-stars':    '<stop offset="0%" stop-color="#1e1b4b"/><stop offset="50%" stop-color="#312e81"/><stop offset="100%" stop-color="#1e1b4b"/>',
+      'bg-cozy':     '<stop offset="0%" stop-color="#fef3c7"/><stop offset="50%" stop-color="#fde68a"/><stop offset="100%" stop-color="#fbbf24"/>',
+      'bg-rainbow':  '<stop offset="0%" stop-color="#fecaca"/><stop offset="25%" stop-color="#fde68a"/><stop offset="50%" stop-color="#bbf7d0"/><stop offset="75%" stop-color="#bfdbfe"/><stop offset="100%" stop-color="#e9d5ff"/>',
+      'bg-snow':     '<stop offset="0%" stop-color="#f0f9ff"/><stop offset="50%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#bae6fd"/>',
+      'bg-temple':   '<stop offset="0%" stop-color="#fef9ef"/><stop offset="50%" stop-color="#fef3c7"/><stop offset="100%" stop-color="#d4c89a"/>',
+      'bg-beach':    '<stop offset="0%" stop-color="#7dd3fc"/><stop offset="60%" stop-color="#fde68a"/><stop offset="100%" stop-color="#d2b48c"/>',
+      'bg-space':    '<stop offset="0%" stop-color="#0f0c29"/><stop offset="50%" stop-color="#302b63"/><stop offset="100%" stop-color="#24243e"/>'
+    };
+
+    function renderCat(equipped) {
+      equipped = equipped || [];
+      var eq = {};
+      equipped.forEach(function(id) { eq[id] = true; });
+
+      /* Determine background */
+      var bgKey = 'default';
+      equipped.forEach(function(id) { if (id.indexOf('bg-') === 0) bgKey = id; });
+      var grad = BG_GRADIENTS[bgKey] || BG_GRADIENTS['default'];
+
+      /* Stars for night/space backgrounds */
+      var stars = '';
+      if (bgKey === 'bg-stars' || bgKey === 'bg-space') {
+        for (var i = 0; i < 30; i++) {
+          var sx = Math.random() * 360, sy = Math.random() * 180, sr = 0.5 + Math.random() * 1.5;
+          stars += '<circle cx="' + sx + '" cy="' + sy + '" r="' + sr + '" fill="white" opacity="' + (0.4 + Math.random() * 0.6) + '"/>';
+        }
+      }
+
+      /* Snow for snow bg */
+      var snowflakes = '';
+      if (bgKey === 'bg-snow') {
+        for (var j = 0; j < 20; j++) {
+          var fx = Math.random() * 360, fy = Math.random() * 360;
+          snowflakes += '<circle cx="' + fx + '" cy="' + fy + '" r="' + (1 + Math.random() * 2) + '" fill="white" opacity="0.7"/>';
+        }
+      }
+
+      var svg = '<svg viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg">';
+
+      /* Background */
+      svg += '<defs><linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">' + grad + '</linearGradient></defs>';
+      svg += '<rect width="360" height="360" fill="url(#bg-grad)"/>';
+      svg += stars + snowflakes;
+
+      /* Ground/floor */
+      if (bgKey === 'bg-meadow') {
+        svg += '<ellipse cx="180" cy="330" rx="160" ry="40" fill="#86efac"/>';
+        svg += '<circle cx="100" cy="310" r="4" fill="#fbbf24"/><circle cx="250" cy="315" r="3" fill="#f472b6"/><circle cx="140" cy="325" r="3" fill="#a78bfa"/>';
+      } else if (bgKey === 'bg-beach') {
+        svg += '<rect x="0" y="260" width="360" height="100" fill="#d2b48c"/>';
+        svg += '<ellipse cx="300" cy="310" rx="20" ry="8" fill="#fbbf24" opacity="0.5"/>';
+      } else if (bgKey === 'bg-temple') {
+        /* Simple temple silhouette */
+        svg += '<rect x="140" y="60" width="80" height="120" fill="#f5f0e0" rx="2"/>';
+        svg += '<polygon points="140,60 180,30 220,60" fill="#e8dcc0"/>';
+        svg += '<circle cx="180" cy="45" r="5" fill="#fbbf24"/>';
+        svg += '<rect x="165" y="120" width="30" height="60" fill="#d4c89a" rx="1"/>';
+      } else {
+        svg += '<ellipse cx="180" cy="330" rx="140" ry="30" fill="rgba(0,0,0,0.05)"/>';
+      }
+
+      /* Claude: 2026-03-21 — When any Duchess photo is equipped, she replaces
+         the orange cat entirely. Detect any duchess-XX item in equipped. */
+      var _duchessPhoto = null;
+      equipped.forEach(function(id) {
+        if (id.indexOf('duchess-') === 0) _duchessPhoto = id;
+      });
+      if (!_duchessPhoto) {
+      /* ── Cape (behind cat) ── */
+      if (eq['cape']) {
+        svg += '<path d="M140,180 Q120,260 110,320 L250,320 Q240,260 220,180 Z" fill="#dc2626" opacity="0.85"/>';
+        svg += '<path d="M140,180 Q120,260 110,320 L250,320 Q240,260 220,180 Z" fill="none" stroke="#991b1b" stroke-width="1"/>';
+      }
+
+      /* ── Wings (behind cat) ── */
+      if (eq['wings']) {
+        svg += '<path d="M130,190 Q80,140 60,170 Q50,200 90,210 Q70,180 130,190Z" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1"/>';
+        svg += '<path d="M230,190 Q280,140 300,170 Q310,200 270,210 Q290,180 230,190Z" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1"/>';
+      }
+
+      /* ── Body ── */
+      /* Tail */
+      svg += '<path d="M240,280 Q290,260 300,220 Q310,190 295,180" fill="none" stroke="#fb923c" stroke-width="12" stroke-linecap="round"/>';
+      svg += '<path d="M240,280 Q290,260 300,220 Q310,190 295,180" fill="none" stroke="#fdba74" stroke-width="6" stroke-linecap="round"/>';
+
+      /* Body */
+      svg += '<ellipse cx="180" cy="270" rx="65" ry="55" fill="#fb923c"/>';
+      svg += '<ellipse cx="180" cy="275" rx="50" ry="40" fill="#fed7aa"/>';  /* belly */
+
+      /* ── Outfit overlays ── */
+      if (eq['sweater']) {
+        svg += '<ellipse cx="180" cy="265" rx="62" ry="50" fill="#7c3aed" opacity="0.85"/>';
+        svg += '<rect x="150" y="235" width="60" height="8" rx="3" fill="#6d28d9"/>';  /* collar */
+      }
+      if (eq['tutu']) {
+        svg += '<path d="M120,285 Q150,270 180,285 Q210,270 240,285 Q230,295 180,300 Q130,295 120,285Z" fill="#f9a8d4" opacity="0.8"/>';
+      }
+      if (eq['pajamas']) {
+        svg += '<ellipse cx="180" cy="265" rx="62" ry="50" fill="#93c5fd" opacity="0.8"/>';
+        /* dots */
+        for (var px = 145; px <= 215; px += 18) {
+          for (var py = 240; py <= 290; py += 18) {
+            svg += '<circle cx="' + px + '" cy="' + py + '" r="3" fill="#bfdbfe"/>';
+          }
+        }
+      }
+      if (eq['overalls']) {
+        svg += '<rect x="148" y="250" width="64" height="50" rx="5" fill="#1d4ed8" opacity="0.85"/>';
+        svg += '<rect x="158" y="240" width="10" height="20" rx="2" fill="#1d4ed8"/>';
+        svg += '<rect x="192" y="240" width="10" height="20" rx="2" fill="#1d4ed8"/>';
+      }
+      if (eq['raincoat']) {
+        svg += '<ellipse cx="180" cy="265" rx="66" ry="53" fill="#fbbf24" opacity="0.8"/>';
+        svg += '<line x1="180" y1="225" x2="180" y2="310" stroke="#f59e0b" stroke-width="2"/>';
+      }
+      if (eq['tuxedo']) {
+        svg += '<ellipse cx="180" cy="268" rx="60" ry="48" fill="#1f2937" opacity="0.9"/>';
+        svg += '<path d="M170,235 L180,280 L190,235" fill="white"/>';  /* shirt front */
+        svg += '<circle cx="180" cy="248" r="3" fill="#ef4444"/>';  /* button */
+      }
+
+      /* Paws */
+      svg += '<ellipse cx="148" cy="315" rx="18" ry="12" fill="#fb923c"/>';
+      svg += '<ellipse cx="212" cy="315" rx="18" ry="12" fill="#fb923c"/>';
+      svg += '<ellipse cx="148" cy="316" rx="12" ry="7" fill="#fed7aa"/>';
+      svg += '<ellipse cx="212" cy="316" rx="12" ry="7" fill="#fed7aa"/>';
+
+      /* ── Props (held items) ── */
+      if (eq['mug']) {
+        svg += '<rect x="225" y="280" width="22" height="26" rx="4" fill="#fff" stroke="#d97706" stroke-width="2"/>';
+        svg += '<path d="M247,286 Q258,290 247,300" fill="none" stroke="#d97706" stroke-width="2"/>';
+        svg += '<path d="M230,278 Q233,270 236,278" fill="none" stroke="#9ca3af" stroke-width="1.5" opacity="0.5"/>';
+      }
+      if (eq['book']) {
+        svg += '<rect x="100" y="285" width="30" height="22" rx="2" fill="#3b82f6"/>';
+        svg += '<line x1="115" y1="285" x2="115" y2="307" stroke="#1d4ed8" stroke-width="1.5"/>';
+      }
+      if (eq['teddy']) {
+        svg += '<circle cx="108" cy="290" r="14" fill="#d2b48c"/>';
+        svg += '<circle cx="102" cy="281" r="5" fill="#c8a882"/>';
+        svg += '<circle cx="114" cy="281" r="5" fill="#c8a882"/>';
+        svg += '<circle cx="105" cy="288" r="2" fill="#333"/>';
+        svg += '<circle cx="111" cy="288" r="2" fill="#333"/>';
+        svg += '<ellipse cx="108" cy="293" rx="3" ry="2" fill="#333"/>';
+      }
+      if (eq['balloon']) {
+        svg += '<line x1="240" y1="230" x2="240" y2="140" stroke="#999" stroke-width="1"/>';
+        svg += '<ellipse cx="240" cy="125" rx="18" ry="22" fill="#ef4444"/>';
+        svg += '<ellipse cx="235" cy="118" rx="5" ry="7" fill="#fca5a5" opacity="0.5"/>';
+      }
+      if (eq['umbrella']) {
+        svg += '<line x1="108" y1="180" x2="108" y2="290" stroke="#713f12" stroke-width="3"/>';
+        svg += '<path d="M65,180 Q108,140 151,180" fill="#7c3aed"/>';
+        svg += '<path d="M108,290 Q100,300 105,305" fill="none" stroke="#713f12" stroke-width="2.5" stroke-linecap="round"/>';
+      }
+      if (eq['blanket']) {
+        svg += '<path d="M115,265 Q110,310 120,330 L240,330 Q250,310 245,265" fill="#c4b5fd" opacity="0.7" stroke="#a78bfa" stroke-width="1"/>';
+      }
+      if (eq['scriptures']) {
+        svg += '<rect x="96" y="282" width="28" height="20" rx="2" fill="#166534"/>';
+        svg += '<rect x="98" y="284" width="24" height="16" rx="1" fill="#15803d"/>';
+        svg += '<line x1="110" y1="284" x2="110" y2="300" stroke="#14532d" stroke-width="1"/>';
+      }
+      if (eq['guitar']) {
+        svg += '<line x1="240" y1="200" x2="260" y2="310" stroke="#713f12" stroke-width="3"/>';
+        svg += '<ellipse cx="255" cy="300" rx="16" ry="20" fill="#d97706"/>';
+        svg += '<ellipse cx="255" cy="300" rx="5" ry="6" fill="#1f2937"/>';
+      }
+      if (eq['sword']) {
+        svg += '<line x1="248" y1="170" x2="248" y2="310" stroke="#9ca3af" stroke-width="4"/>';
+        svg += '<rect x="235" y="280" width="26" height="6" rx="2" fill="#d97706"/>';
+        svg += '<circle cx="248" cy="170" r="4" fill="#fbbf24"/>';
+      }
+
+      /* ── Head ── */
+      /* Ears */
+      svg += '<polygon points="130,155 142,100 165,150" fill="#fb923c"/>';
+      svg += '<polygon points="138,150 148,112 158,148" fill="#fda4af"/>';  /* inner ear */
+      svg += '<polygon points="195,150 218,100 230,155" fill="#fb923c"/>';
+      svg += '<polygon points="202,148 212,112 222,150" fill="#fda4af"/>';
+
+      /* Head shape */
+      svg += '<ellipse cx="180" cy="175" rx="55" ry="48" fill="#fb923c"/>';
+
+      /* Face markings */
+      svg += '<ellipse cx="180" cy="182" rx="40" ry="32" fill="#fed7aa"/>';  /* muzzle area */
+
+      /* Eyes */
+      svg += '<ellipse cx="160" cy="168" rx="10" ry="11" fill="white"/>';
+      svg += '<ellipse cx="200" cy="168" rx="10" ry="11" fill="white"/>';
+      svg += '<ellipse cx="162" cy="169" rx="6" ry="7" fill="#1f2937"/>';
+      svg += '<ellipse cx="202" cy="169" rx="6" ry="7" fill="#1f2937"/>';
+      svg += '<ellipse cx="164" cy="166" rx="2.5" ry="2.5" fill="white"/>';  /* shine */
+      svg += '<ellipse cx="204" cy="166" rx="2.5" ry="2.5" fill="white"/>';
+
+      /* Nose */
+      svg += '<ellipse cx="180" cy="185" rx="5" ry="3.5" fill="#f472b6"/>';
+
+      /* Mouth */
+      svg += '<path d="M175,190 Q180,196 185,190" fill="none" stroke="#9f1239" stroke-width="1.5" stroke-linecap="round"/>';
+
+      /* Whiskers */
+      svg += '<line x1="120" y1="180" x2="155" y2="183" stroke="#d97706" stroke-width="1" opacity="0.5"/>';
+      svg += '<line x1="118" y1="188" x2="155" y2="188" stroke="#d97706" stroke-width="1" opacity="0.5"/>';
+      svg += '<line x1="205" y1="183" x2="240" y2="180" stroke="#d97706" stroke-width="1" opacity="0.5"/>';
+      svg += '<line x1="205" y1="188" x2="242" y2="188" stroke="#d97706" stroke-width="1" opacity="0.5"/>';
+
+      /* ── Hats ── */
+      if (eq['beanie']) {
+        svg += '<ellipse cx="180" cy="140" rx="52" ry="25" fill="#7c3aed"/>';
+        svg += '<ellipse cx="180" cy="128" rx="42" ry="20" fill="#6d28d9"/>';
+        svg += '<circle cx="180" cy="108" r="8" fill="#a78bfa"/>';  /* pom pom */
+        svg += '<rect x="130" y="135" width="100" height="10" rx="3" fill="#5b21b6"/>';  /* brim fold */
+      }
+      if (eq['bow']) {
+        svg += '<circle cx="145" cy="128" r="6" fill="#ec4899"/>';
+        svg += '<ellipse cx="128" cy="128" rx="12" ry="8" fill="#f472b6"/>';
+        svg += '<ellipse cx="162" cy="128" rx="12" ry="8" fill="#f472b6"/>';
+      }
+      if (eq['crown']) {
+        svg += '<polygon points="140,142 145,105 160,125 175,98 190,125 205,105 215,142" fill="#fbbf24"/>';
+        svg += '<polygon points="140,142 145,105 160,125 175,98 190,125 205,105 215,142" fill="none" stroke="#d97706" stroke-width="1.5"/>';
+        svg += '<circle cx="160" cy="130" r="3" fill="#ef4444"/>';
+        svg += '<circle cx="180" cy="118" r="3" fill="#3b82f6"/>';
+        svg += '<circle cx="200" cy="130" r="3" fill="#10b981"/>';
+      }
+      if (eq['tophat']) {
+        svg += '<rect x="148" y="90" width="64" height="55" rx="4" fill="#1f2937"/>';
+        svg += '<ellipse cx="180" cy="145" rx="48" ry="10" fill="#111827"/>';
+        svg += '<rect x="155" y="130" width="50" height="6" rx="2" fill="#dc2626"/>';  /* band */
+      }
+      if (eq['halo']) {
+        svg += '<ellipse cx="180" cy="112" rx="35" ry="8" fill="none" stroke="#fbbf24" stroke-width="4"/>';
+        svg += '<ellipse cx="180" cy="112" rx="35" ry="8" fill="none" stroke="#fde68a" stroke-width="2"/>';
+      }
+      if (eq['santa']) {
+        svg += '<path d="M130,155 Q140,100 180,95 Q220,100 230,155" fill="#dc2626"/>';
+        svg += '<path d="M180,95 Q250,80 240,110" fill="#dc2626" stroke="#dc2626" stroke-width="2"/>';
+        svg += '<circle cx="240" cy="110" r="8" fill="white"/>';
+        svg += '<rect x="128" y="148" width="104" height="12" rx="6" fill="white"/>';
+      }
+      if (eq['flower-crown']) {
+        svg += '<path d="M132,148 Q155,125 180,130 Q205,125 228,148" fill="none" stroke="#16a34a" stroke-width="3"/>';
+        svg += '<circle cx="145" cy="138" r="6" fill="#f472b6"/>';
+        svg += '<circle cx="165" cy="130" r="6" fill="#fbbf24"/>';
+        svg += '<circle cx="185" cy="128" r="6" fill="#a78bfa"/>';
+        svg += '<circle cx="205" cy="130" r="6" fill="#f472b6"/>';
+        svg += '<circle cx="220" cy="138" r="6" fill="#fbbf24"/>';
+      }
+      if (eq['chef-hat']) {
+        svg += '<rect x="145" y="108" width="70" height="40" rx="3" fill="white"/>';
+        svg += '<ellipse cx="180" cy="108" rx="40" ry="20" fill="white"/>';
+        svg += '<ellipse cx="170" cy="100" rx="15" ry="18" fill="white"/>';
+        svg += '<ellipse cx="190" cy="100" rx="15" ry="18" fill="white"/>';
+        svg += '<ellipse cx="180" cy="95" rx="12" ry="16" fill="white"/>';
+      }
+      if (eq['party-hat']) {
+        svg += '<polygon points="155,145 180,70 205,145" fill="#6366f1"/>';
+        svg += '<line x1="165" y1="130" x2="195" y2="130" stroke="#fbbf24" stroke-width="2"/>';
+        svg += '<line x1="160" y1="115" x2="200" y2="115" stroke="#ec4899" stroke-width="2"/>';
+        svg += '<circle cx="180" cy="70" r="6" fill="#fbbf24"/>';
+      }
+
+      /* ── Accessories on face/neck ── */
+      if (eq['sunglasses']) {
+        svg += '<rect x="143" y="160" width="28" height="18" rx="6" fill="#1f2937" opacity="0.85"/>';
+        svg += '<rect x="189" y="160" width="28" height="18" rx="6" fill="#1f2937" opacity="0.85"/>';
+        svg += '<line x1="171" y1="168" x2="189" y2="168" stroke="#1f2937" stroke-width="2"/>';
+        svg += '<line x1="143" y1="168" x2="130" y2="164" stroke="#1f2937" stroke-width="2"/>';
+        svg += '<line x1="217" y1="168" x2="230" y2="164" stroke="#1f2937" stroke-width="2"/>';
+      }
+      if (eq['scarf']) {
+        svg += '<path d="M130,210 Q180,225 230,210 Q235,218 230,225 Q180,240 130,225 Q125,218 130,210" fill="#dc2626"/>';
+        svg += '<rect x="170" y="225" width="18" height="30" rx="3" fill="#dc2626"/>';
+        svg += '<line x1="170" y1="235" x2="188" y2="235" stroke="#b91c1c" stroke-width="1"/>';
+        svg += '<line x1="170" y1="245" x2="188" y2="245" stroke="#b91c1c" stroke-width="1"/>';
+      }
+      if (eq['monocle']) {
+        svg += '<circle cx="200" cy="168" r="14" fill="none" stroke="#d97706" stroke-width="2"/>';
+        svg += '<line x1="200" y1="182" x2="215" y2="220" stroke="#d97706" stroke-width="1"/>';
+      }
+      if (eq['bowtie']) {
+        svg += '<polygon points="165,215 180,222 180,212 165,215" fill="#ef4444"/>';
+        svg += '<polygon points="195,215 180,222 180,212 195,215" fill="#ef4444"/>';
+        svg += '<circle cx="180" cy="217" r="3" fill="#dc2626"/>';
+      }
+      if (eq['necklace']) {
+        svg += '<path d="M140,215 Q160,235 180,238 Q200,235 220,215" fill="none" stroke="#a78bfa" stroke-width="2.5"/>';
+        svg += '<circle cx="180" cy="238" r="4" fill="#a78bfa"/>';
+        svg += '<circle cx="168" cy="236" r="2.5" fill="#c4b5fd"/>';
+        svg += '<circle cx="192" cy="236" r="2.5" fill="#c4b5fd"/>';
+      }
+
+      /* ── Shop item overlays (work on orange cat only) ── */
+      /* Claude: 2026-03-21 — Paw Shop cosmetic items */
+      if (eq['sparkle']) {
+        svg += '<circle cx="130" cy="140" r="3" fill="#fbbf24" opacity="0.8"/>';
+        svg += '<circle cx="230" cy="150" r="2.5" fill="#fbbf24" opacity="0.7"/>';
+        svg += '<circle cx="150" cy="260" r="2" fill="#fbbf24" opacity="0.6"/>';
+        svg += '<circle cx="210" cy="130" r="3.5" fill="#fde68a" opacity="0.8"/>';
+        svg += '<circle cx="250" cy="250" r="2" fill="#fde68a" opacity="0.7"/>';
+      }
+      if (eq['heart-eyes']) {
+        svg += '<text x="160" y="175" text-anchor="middle" font-size="16" fill="#ef4444">❤️</text>';
+        svg += '<text x="200" y="175" text-anchor="middle" font-size="16" fill="#ef4444">❤️</text>';
+      }
+      if (eq['rainbow-tail']) {
+        svg += '<path d="M240,280 Q290,260 300,220 Q310,190 295,180" fill="none" stroke="url(#rainbow-grad)" stroke-width="14" stroke-linecap="round" opacity="0.8"/>';
+        svg = svg.replace('</defs>', '<linearGradient id="rainbow-grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ef4444"/><stop offset="25%" stop-color="#fbbf24"/><stop offset="50%" stop-color="#22c55e"/><stop offset="75%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#a855f7"/></linearGradient></defs>');
+      }
+      if (eq['tiny-crown']) {
+        svg += '<polygon points="158,140 163,120 170,132 178,115 186,132 193,120 198,140" fill="#f9a8d4" stroke="#ec4899" stroke-width="1"/>';
+      }
+      if (eq['bubble-tea']) {
+        svg += '<rect x="230" y="275" width="18" height="30" rx="5" fill="#f9a8d4" opacity="0.9"/>';
+        svg += '<circle cx="234" cy="290" r="2.5" fill="#ec4899" opacity="0.6"/>';
+        svg += '<circle cx="240" cy="295" r="2" fill="#ec4899" opacity="0.5"/>';
+        svg += '<line x1="239" y1="275" x2="239" y2="265" stroke="#333" stroke-width="1.5"/>';
+      }
+      if (eq['butterfly']) {
+        svg += '<ellipse cx="100" cy="150" rx="10" ry="7" fill="#a78bfa" opacity="0.8"/>';
+        svg += '<ellipse cx="118" cy="150" rx="10" ry="7" fill="#c4b5fd" opacity="0.8"/>';
+        svg += '<line x1="109" y1="150" x2="109" y2="143" stroke="#6d28d9" stroke-width="1"/>';
+      }
+      if (eq['pizza']) {
+        svg += '<polygon points="102,290 120,270 138,290" fill="#fbbf24"/>';
+        svg += '<circle cx="115" cy="282" r="3" fill="#ef4444"/>';
+        svg += '<circle cx="122" cy="286" r="2" fill="#ef4444"/>';
+      }
+      if (eq['headphones']) {
+        svg += '<path d="M132,155 Q130,120 180,115 Q230,120 228,155" fill="none" stroke="#333" stroke-width="5"/>';
+        svg += '<rect x="125" y="150" width="14" height="20" rx="5" fill="#333"/>';
+        svg += '<rect x="221" y="150" width="14" height="20" rx="5" fill="#333"/>';
+      }
+      if (eq['magic-wand']) {
+        svg += '<line x1="242" y1="180" x2="270" y2="140" stroke="#6366f1" stroke-width="3" stroke-linecap="round"/>';
+        svg += '<text x="272" y="138" font-size="14">✨</text>';
+      }
+      if (eq['shooting-star']) {
+        svg += '<text x="80" y="60" font-size="20">🌠</text>';
+        svg += '<line x1="95" y1="55" x2="60" y2="40" stroke="#fbbf24" stroke-width="1.5" opacity="0.6"/>';
+      }
+
+      } /* end if !_duchessPhoto — orange cat hidden when a Duchess photo is shown */
+
+      /* ── Duchess photo gallery (real photos, unedited) ── */
+      /* Claude: 2026-03-21 — show the selected real photo of Duchess, no editing */
+      if (_duchessPhoto) {
+        var _photoUrl = getDuchessPhoto(_duchessPhoto);
+        if (_photoUrl) {
+          /* preserveAspectRatio="xMidYMid slice" fills the square, cropping edges naturally */
+          svg += '<image href="' + _photoUrl + '" x="0" y="0" width="360" height="360" preserveAspectRatio="xMidYMid slice">';
+          svg += '<title>Duchess — real ESA cat photo!</title>';
+          svg += '</image>';
+        }
+        /* Fallback if image fails to load */
+        svg += '<text x="180" y="170" text-anchor="middle" font-size="48" fill="#6366f1" opacity="0.15">📸🐱</text>';
+        svg += '<text x="180" y="200" text-anchor="middle" font-size="14" fill="#888" opacity="0.3">Duchess</text>';
+      }
+
+      svg += '</svg>';
+      return svg;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       STATE
+       ══════════════════════════════════════════════════════════ */
+    var state = {
+      catName: '',
+      streak: 0,
+      bestStreak: 0,
+      lastCheckinDate: '',
+      lastRewardDate: '',
+      unlockedItems: [],
+      equippedItems: [],
+      activeCategory: 'hats',
+      /* Claude: 2026-03-21 — Paw Points economy */
+      pawPoints: 0,
+      shields: 0,
+      shieldsEarned: [],     /* milestone days where shields were already granted */
+      ppMilestonesEarned: [], /* milestone days where PP bonus was already granted */
+      lastPPDate: '',         /* last date Paw Points were awarded (prevents double-earn) */
+      streakBrokenAt: '',     /* ISO timestamp when streak broke — for 48hr repair window */
+      streakBeforeBreak: 0    /* what the streak was before it broke — used for repair */
+    };
+
+    /* ══════════════════════════════════════════════════════════
+       HELPERS
+       ══════════════════════════════════════════════════════════ */
+    function todayStr() {
+      var d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function yesterdayStr() {
+      var d = new Date();
+      d.setDate(d.getDate() - 1);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function isUnlocked(itemId) {
+      return state.unlockedItems.indexOf(itemId) !== -1;
+    }
+
+    function isEquipped(itemId) {
+      return state.equippedItems.indexOf(itemId) !== -1;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       STREAK CALCULATION FROM CHECK-IN DATA
+       ══════════════════════════════════════════════════════════ */
+    /* Claude: 2026-03-21 — O(1) date lookups, retry, shield support.
+       Shields auto-forgive single missed days. If a gap is found and
+       shields > 0, consume one shield and keep counting.
+       Callback: (streak, checkedInToday, shieldsUsed, streakBrokenInfo) */
+    function calculateStreak(uid, callback, _retries) {
+      _retries = _retries || 0;
+      AA.db.collection('checkins').doc(uid).collection('days')
+        .orderBy(firebase.firestore.FieldPath.documentId(), 'desc')
+        .limit(400)
+        .get()
+        .then(function(snap) {
+          if (snap.empty) { callback(0, false, 0, null); return; }
+
+          var dateSet = {};
+          snap.forEach(function(doc) {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(doc.id)) {
+              dateSet[doc.id] = true;
+            }
+          });
+
+          var today = todayStr();
+          var yesterday = yesterdayStr();
+          var checkedInToday = !!dateSet[today];
+
+          var startDate = checkedInToday ? today : yesterday;
+          if (!dateSet[startDate]) {
+            /* No check-in today or yesterday — streak may be broken.
+               Return info so repair logic can check if shields or repair apply. */
+            /* Find the last check-in date to determine how long ago it broke */
+            var lastDate = null;
+            snap.forEach(function(doc) {
+              if (!lastDate && /^\d{4}-\d{2}-\d{2}$/.test(doc.id)) lastDate = doc.id;
+            });
+            callback(0, false, 0, { brokenSince: lastDate });
+            return;
+          }
+
+          var streak = 0;
+          var shieldsAvailable = state.shields || 0;
+          var shieldsUsed = 0;
+          var d = new Date(startDate + 'T12:00:00');
+          while (streak <= 400) {
+            var ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            if (dateSet[ds]) {
+              streak++;
+              d.setDate(d.getDate() - 1);
+            } else if (shieldsAvailable > 0) {
+              /* Claude: 2026-03-21 — Shield auto-protect: forgive this missed day */
+              shieldsAvailable--;
+              shieldsUsed++;
+              streak++;  /* count the shielded day as part of the streak */
+              d.setDate(d.getDate() - 1);
+            } else {
+              break;
+            }
+          }
+
+          callback(streak, checkedInToday, shieldsUsed, null);
+        })
+        .catch(function(err) {
+          console.warn('[StreakCat] checkin read failed (attempt ' + (_retries + 1) + '):', err.message);
+          if (_retries < 2) {
+            setTimeout(function() { calculateStreak(uid, callback, _retries + 1); }, 1500);
+          } else {
+            callback(0, false, 0, null);
+          }
+        });
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       REWARD LOGIC
+       ══════════════════════════════════════════════════════════ */
+    /* Claude: 2026-03-21 — audit fix: use hash set for O(1) lookups, dedup guard */
+    function computeNewUnlocks(streak, existingUnlocked) {
+      var newItems = [];
+      /* Build hash for O(1) membership check */
+      var has = {};
+      existingUnlocked.forEach(function(id) { has[id] = true; });
+
+      ITEMS.forEach(function(item) {
+        if (has[item.id]) return;  /* already have it */
+        if (item.unlock === 'streak' && streak >= item.at) {
+          newItems.push(item);
+        }
+      });
+
+      return newItems;
+    }
+
+    function rollRandomReward(streak, existingUnlocked, lastRewardDate) {
+      /* Only one random reward per day */
+      if (lastRewardDate === todayStr()) return null;
+      if (streak < 1) return null;
+
+      /* Build hash for O(1) membership check */
+      var has = {};
+      existingUnlocked.forEach(function(id) { has[id] = true; });
+
+      /* Pool: random items whose pool requirement <= streak */
+      var pool = ITEMS.filter(function(item) {
+        if (item.unlock !== 'random') return false;
+        if (has[item.id]) return false;
+        return streak >= item.pool;
+      });
+
+      if (pool.length === 0) return null;
+
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    /* Claude: 2026-03-21 — audit fix: dedup helper — prevents duplicates in
+       unlockedItems array on reload race or double-fire */
+    function dedup(arr) {
+      var seen = {};
+      return arr.filter(function(id) {
+        if (seen[id]) return false;
+        seen[id] = true;
+        return true;
+      });
+    }
+
+    /* Claude: 2026-03-21 — redundancy layer: localStorage crash-recovery backup.
+       If Firestore is down on page load, we can still show the last-known state.
+       Also cleans up stale IDs (like old 'bonus-cat') that no longer exist in ITEMS. */
+    var _LS_KEY = 'AA_STREAK_CAT_BACKUP';
+    var _VALID_IDS = {};
+    ITEMS.forEach(function(it) { _VALID_IDS[it.id] = true; });
+
+    function backupToLocal() {
+      try {
+        localStorage.setItem(_LS_KEY, JSON.stringify({
+          catName: state.catName, streak: state.streak, bestStreak: state.bestStreak,
+          lastRewardDate: state.lastRewardDate, unlockedItems: state.unlockedItems,
+          equippedItems: state.equippedItems,
+          /* Claude: 2026-03-21 — Paw Points fields */
+          pawPoints: state.pawPoints, shields: state.shields,
+          shieldsEarned: state.shieldsEarned, ppMilestonesEarned: state.ppMilestonesEarned,
+          lastPPDate: state.lastPPDate, streakBrokenAt: state.streakBrokenAt,
+          streakBeforeBreak: state.streakBeforeBreak,
+          savedAt: new Date().toISOString()
+        }));
+      } catch (e) { /* localStorage full or blocked — silently skip */ }
+    }
+
+    function restoreFromLocal() {
+      try {
+        var raw = localStorage.getItem(_LS_KEY);
+        if (!raw) return false;
+        var d = JSON.parse(raw);
+        state.catName            = d.catName || '';
+        state.bestStreak         = d.bestStreak || 0;
+        state.lastRewardDate     = d.lastRewardDate || '';
+        state.unlockedItems      = dedup(d.unlockedItems || []);
+        state.equippedItems      = dedup(d.equippedItems || []);
+        /* Claude: 2026-03-21 — restore Paw Points fields */
+        state.pawPoints          = d.pawPoints || 0;
+        state.shields            = d.shields || 0;
+        state.shieldsEarned      = d.shieldsEarned || [];
+        state.ppMilestonesEarned = d.ppMilestonesEarned || [];
+        state.lastPPDate         = d.lastPPDate || '';
+        state.streakBrokenAt     = d.streakBrokenAt || '';
+        state.streakBeforeBreak  = d.streakBeforeBreak || 0;
+        return true;
+      } catch (e) { return false; }
+    }
+
+    /* Remove any equipped/unlocked IDs that no longer exist in ITEMS (e.g. old 'bonus-cat') */
+    function cleanStaleIds() {
+      state.unlockedItems = state.unlockedItems.filter(function(id) { return !!_VALID_IDS[id]; });
+      state.equippedItems = state.equippedItems.filter(function(id) { return !!_VALID_IDS[id]; });
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       PAW POINTS ECONOMY — Claude: 2026-03-21
+       ══════════════════════════════════════════════════════════ */
+
+    /* Award daily Paw Points (check-in + daily bonus). Only once per day. */
+    function awardDailyPP(checkedInToday) {
+      var today = todayStr();
+      if (state.lastPPDate === today) return 0;  /* already awarded today */
+      if (!checkedInToday) return 0;
+
+      var earned = PP_PER_CHECKIN + PP_DAILY_BONUS;
+      state.pawPoints += earned;
+      state.lastPPDate = today;
+      return earned;
+    }
+
+    /* Award milestone Paw Point bonuses (only once per milestone). */
+    function awardMilestonePP(streak) {
+      var earned = 0;
+      var earnedHash = {};
+      state.ppMilestonesEarned.forEach(function(m) { earnedHash[m] = true; });
+
+      Object.keys(PP_MILESTONES).forEach(function(key) {
+        var day = parseInt(key, 10);
+        if (streak >= day && !earnedHash[day]) {
+          earned += PP_MILESTONES[day];
+          state.ppMilestonesEarned.push(day);
+        }
+      });
+
+      state.pawPoints += earned;
+      return earned;
+    }
+
+    /* Grant shields at milestones (only once per milestone, cap at MAX_SHIELDS). */
+    function grantShields(streak) {
+      var granted = 0;
+      var earnedHash = {};
+      state.shieldsEarned.forEach(function(m) { earnedHash[m] = true; });
+
+      SHIELD_MILESTONES.forEach(function(day) {
+        if (streak >= day && !earnedHash[day]) {
+          if (state.shields < MAX_SHIELDS) {
+            state.shields++;
+            granted++;
+          }
+          state.shieldsEarned.push(day);
+        }
+      });
+      return granted;
+    }
+
+    /* Consume shields that were used during streak calculation. */
+    function consumeShields(shieldsUsed) {
+      if (shieldsUsed > 0) {
+        state.shields = Math.max(0, state.shields - shieldsUsed);
+        console.log('[StreakCat] Used ' + shieldsUsed + ' shield(s) to protect streak');
+      }
+    }
+
+    /* Check if streak repair is available (within 48hr window). */
+    function canRepairStreak() {
+      if (!state.streakBrokenAt) return false;
+      var brokenTime = new Date(state.streakBrokenAt).getTime();
+      var now = Date.now();
+      var hoursSinceBroken = (now - brokenTime) / (1000 * 60 * 60);
+      return hoursSinceBroken <= REPAIR_WINDOW_HRS && state.streakBeforeBreak > 0;
+    }
+
+    /* Execute streak repair — costs PP_REPAIR_COST Paw Points. */
+    function repairStreak() {
+      if (state.pawPoints < PP_REPAIR_COST) return false;
+      state.pawPoints -= PP_REPAIR_COST;
+      state.streak = state.streakBeforeBreak;
+      if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+      state.streakBrokenAt = '';
+      state.streakBeforeBreak = 0;
+      return true;
+    }
+
+    /* Buy a shop item with Paw Points. */
+    function buyShopItem(item) {
+      if (!item.price || state.pawPoints < item.price) return false;
+      if (isUnlocked(item.id)) return false;  /* already owned */
+      state.pawPoints -= item.price;
+      state.unlockedItems.push(item.id);
+      return true;
+    }
+
+    /* Show repair modal if applicable. */
+    function showRepairModal() {
+      var modal = document.getElementById('repair-modal');
+      document.getElementById('repair-old-streak').textContent = state.streakBeforeBreak;
+
+      /* Show time remaining */
+      var brokenTime = new Date(state.streakBrokenAt).getTime();
+      var hoursLeft = Math.max(0, REPAIR_WINDOW_HRS - ((Date.now() - brokenTime) / (1000 * 60 * 60)));
+      var hrsInt = Math.floor(hoursLeft);
+      var minsInt = Math.floor((hoursLeft - hrsInt) * 60);
+      document.getElementById('repair-timer').textContent = hrsInt + 'h ' + minsInt + 'm left to repair';
+
+      var yesBtn = document.getElementById('repair-yes-btn');
+      var insufficientMsg = document.getElementById('repair-insufficient');
+
+      if (state.pawPoints < PP_REPAIR_COST) {
+        yesBtn.disabled = true;
+        insufficientMsg.style.display = 'block';
+      } else {
+        yesBtn.disabled = false;
+        insufficientMsg.style.display = 'none';
+      }
+
+      modal.classList.add('show');
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       UI RENDERING
+       ══════════════════════════════════════════════════════════ */
+    function updateStreakDisplay() {
+      document.getElementById('streak-number').textContent = state.streak;
+      document.getElementById('streak-fire').textContent = state.streak >= 7 ? '🔥' : state.streak >= 1 ? '✨' : '💤';
+      document.getElementById('streak-best').textContent = state.bestStreak > 0 ? 'Best: ' + state.bestStreak + ' days' : '';
+    }
+
+    /* Claude: 2026-03-21 — Paw Points & Shield banner update */
+    function updatePawDisplay() {
+      document.getElementById('pp-count').textContent = state.pawPoints;
+      document.getElementById('shield-count').textContent = state.shields;
+    }
+
+    function updateMilestone() {
+      var next = null;
+      for (var i = 0; i < MILESTONES.length; i++) {
+        if (state.streak < MILESTONES[i]) { next = MILESTONES[i]; break; }
+      }
+      var bar = document.getElementById('milestone-bar');
+      if (!next) {
+        document.getElementById('milestone-label').textContent = '🏆 All milestones reached!';
+        document.getElementById('milestone-fill').style.width = '100%';
+        return;
+      }
+      /* Find the previous milestone */
+      var prev = 0;
+      for (var j = MILESTONES.length - 1; j >= 0; j--) {
+        if (MILESTONES[j] <= state.streak) { prev = MILESTONES[j]; break; }
+      }
+      var pct = Math.min(100, Math.round(((state.streak - prev) / (next - prev)) * 100));
+      document.getElementById('milestone-label').textContent = 'Next unlock: ' + next + '-day streak (' + state.streak + '/' + next + ')';
+      document.getElementById('milestone-fill').style.width = pct + '%';
+    }
+
+    /* Claude: 2026-03-21 — redundancy: after rendering, attach onerror to any
+       SVG <image> so broken Duchess photos gracefully degrade to emoji fallback */
+    function updateCatStage() {
+      var stage = document.getElementById('cat-stage');
+      stage.innerHTML = renderCat(state.equippedItems);
+
+      /* Find SVG image elements and add error handling */
+      var imgs = stage.querySelectorAll('image');
+      imgs.forEach(function(img) {
+        /* Preload the image to detect load failure */
+        var testImg = new Image();
+        testImg.onerror = function() {
+          /* Photo failed to load — hide the broken image, fallback text is already behind it */
+          img.setAttribute('opacity', '0');
+          /* Make the fallback text visible */
+          var texts = stage.querySelectorAll('text');
+          texts.forEach(function(t) { t.setAttribute('opacity', '1'); });
+          console.warn('[StreakCat] Duchess photo failed to load:', img.getAttribute('href'));
+        };
+        testImg.src = img.getAttribute('href');
+      });
+    }
+
+    function updateSpeech(category) {
+      var msg;
+      if (category) {
+        msg = pickSpeech(category, state.streak);
+      } else if (state.equippedItems.some(function(id) { return id.indexOf('duchess-') === 0; })) {
+        msg = pickSpeech('duchess', state.streak);
+      } else if (state.equippedItems.length > 0) {
+        msg = pickSpeech('dressed', state.streak);
+      } else if (state.streak === 0) {
+        msg = pickSpeech('noStreak', state.streak);
+      } else if (state.streak < 7) {
+        msg = pickSpeech('low', state.streak);
+      } else if (state.streak < 21) {
+        msg = pickSpeech('medium', state.streak);
+      } else if (state.streak < 45) {
+        msg = pickSpeech('high', state.streak);
+      } else {
+        msg = pickSpeech('epic', state.streak);
+      }
+      document.getElementById('cat-message').textContent = msg;
+      document.getElementById('cat-name-display').textContent = state.catName || 'Your Cat';
+    }
+
+    function renderCategoryTabs() {
+      var container = document.getElementById('category-tabs');
+      container.innerHTML = '';
+      CATEGORIES.forEach(function(cat) {
+        var btn = document.createElement('button');
+        btn.className = 'category-tab' + (cat.id === state.activeCategory ? ' active' : '');
+        btn.textContent = cat.label;
+        btn.onclick = function() {
+          state.activeCategory = cat.id;
+          renderCategoryTabs();
+          renderItems();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function renderItems() {
+      var container = document.getElementById('items-grid');
+      container.innerHTML = '';
+
+      var catItems = ITEMS.filter(function(it) { return it.cat === state.activeCategory; });
+
+      catItems.forEach(function(item) {
+        var btn = document.createElement('button');
+        var unlocked = isUnlocked(item.id);
+        var equipped = isEquipped(item.id);
+
+        /* Claude: 2026-03-21 — shop items: show price, highlight if affordable */
+        var isShopItem = item.unlock === 'shop';
+        var canAfford = isShopItem && !unlocked && state.pawPoints >= item.price;
+
+        btn.className = 'item-btn'
+          + (equipped ? ' equipped' : '')
+          + (!unlocked && !canAfford ? ' locked' : '')
+          + (canAfford ? ' can-buy' : '');
+
+        var html = '<span class="item-emoji">' + item.emoji + '</span>';
+        html += '<span class="item-label">' + item.label + '</span>';
+
+        if (!unlocked) {
+          if (isShopItem) {
+            html += '<span class="item-price">🐾 ' + item.price + '</span>';
+          } else if (item.unlock === 'streak') {
+            html += '<span class="item-unlock">🔒 ' + item.at + '-day streak</span>';
+          } else {
+            html += '<span class="item-unlock">🎲 Random (' + item.pool + '+ days)</span>';
+          }
+        }
+
+        btn.innerHTML = html;
+
+        if (unlocked) {
+          btn.onclick = function() { toggleEquip(item); };
+        } else if (canAfford) {
+          /* Claude: 2026-03-21 — buy shop item on click */
+          btn.onclick = function() {
+            if (buyShopItem(item)) {
+              showRewardToast(item);
+              updatePawDisplay();
+              renderItems();
+              saveState();
+            }
+          };
+        }
+
+        container.appendChild(btn);
+      });
+    }
+
+    function toggleEquip(item) {
+      var idx = state.equippedItems.indexOf(item.id);
+
+      /* For backgrounds, only one at a time */
+      if (item.cat === 'backgrounds' && idx === -1) {
+        state.equippedItems = state.equippedItems.filter(function(id) { return id.indexOf('bg-') !== 0; });
+      }
+      /* For hats, only one at a time */
+      if (item.cat === 'hats' && idx === -1) {
+        var hatIds = ITEMS.filter(function(i) { return i.cat === 'hats'; }).map(function(i) { return i.id; });
+        state.equippedItems = state.equippedItems.filter(function(id) { return hatIds.indexOf(id) === -1; });
+      }
+      /* Claude: 2026-03-21 — Duchess photos: only one at a time (replaces orange cat) */
+      if (item.cat === 'duchess' && idx === -1) {
+        state.equippedItems = state.equippedItems.filter(function(id) { return id.indexOf('duchess-') !== 0; });
+      }
+
+      if (idx !== -1) {
+        state.equippedItems.splice(idx, 1);
+      } else {
+        state.equippedItems.push(item.id);
+      }
+
+      updateCatStage();
+      updateSpeech('dressed');
+      renderItems();
+      saveState();
+    }
+
+    function showRewardToast(item) {
+      document.getElementById('reward-emoji').textContent = item.emoji;
+      document.getElementById('reward-text').textContent = 'New item: ' + item.label + '!';
+      /* Claude: 2026-03-21 — different subtitle for shop vs streak vs random */
+      var sub = 'Lucky daily reward!';
+      if (item.unlock === 'streak') sub = 'Earned at ' + item.at + '-day streak!';
+      else if (item.unlock === 'shop') sub = 'Purchased for 🐾 ' + item.price + ' Paw Points!';
+      document.getElementById('reward-sub').textContent = sub;
+      var toast = document.getElementById('reward-toast');
+      toast.classList.add('show');
+      setTimeout(function() { toast.classList.remove('show'); }, 3500);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       FIRESTORE PERSISTENCE
+       ══════════════════════════════════════════════════════════ */
+    var _uid = null;
+
+    /* Claude: 2026-03-21 — audit fix: dedup before save, retry on save failure */
+    var _savePending = false;
+    function saveState() {
+      if (!_uid) return;
+      /* Mirror mode guard — supporters cannot modify */
+      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+      if (_savePending) return;  /* debounce rapid saves */
+      _savePending = true;
+
+      /* Dedup arrays before persisting */
+      state.unlockedItems = dedup(state.unlockedItems);
+      state.equippedItems = dedup(state.equippedItems);
+
+      /* Claude: 2026-03-21 — redundancy layer 2: mirror to localStorage */
+      backupToLocal();
+
+      /* Claude: 2026-03-21 — includes Paw Points fields */
+      var _savePayload = {
+        catName:            state.catName,
+        streak:             state.streak,
+        bestStreak:         state.bestStreak,
+        lastCheckinDate:    state.lastCheckinDate,
+        lastRewardDate:     state.lastRewardDate,
+        unlockedItems:      state.unlockedItems,
+        equippedItems:      state.equippedItems,
+        pawPoints:          state.pawPoints,
+        shields:            state.shields,
+        shieldsEarned:      state.shieldsEarned,
+        ppMilestonesEarned: state.ppMilestonesEarned,
+        lastPPDate:         state.lastPPDate,
+        streakBrokenAt:     state.streakBrokenAt,
+        streakBeforeBreak:  state.streakBeforeBreak,
+        updatedAt:          firebase.firestore.FieldValue.serverTimestamp()
+      };
+      AA.db.collection('streakCat').doc(_uid).set(_savePayload, { merge: true }).then(function() {
+        _savePending = false;
+      }).catch(function(err) {
+        _savePending = false;
+        console.warn('[StreakCat] save failed:', err.message);
+        setTimeout(function() {
+          if (!_savePending) {
+            _savePending = true;
+            _savePayload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+            AA.db.collection('streakCat').doc(_uid).set(_savePayload, { merge: true })
+              .then(function() { _savePending = false; })
+              .catch(function() { _savePending = false; });
+          }
+        }, 2000);
+      });
+    }
+
+    /* Claude: 2026-03-21 — audit fix: retry load, dedup on load, localStorage fallback,
+       stale ID cleanup (e.g. old 'bonus-cat' from prior testing) */
+    function loadState(uid, callback, _retries) {
+      _retries = _retries || 0;
+      AA.db.collection('streakCat').doc(uid).get().then(function(doc) {
+        if (doc.exists) {
+          var d = doc.data();
+          state.catName            = d.catName || '';
+          state.bestStreak         = d.bestStreak || 0;
+          state.lastRewardDate     = d.lastRewardDate || '';
+          state.unlockedItems      = dedup(d.unlockedItems || []);
+          state.equippedItems      = dedup(d.equippedItems || []);
+          /* Claude: 2026-03-21 — load Paw Points fields */
+          state.pawPoints          = d.pawPoints || 0;
+          state.shields            = d.shields || 0;
+          state.shieldsEarned      = d.shieldsEarned || [];
+          state.ppMilestonesEarned = d.ppMilestonesEarned || [];
+          state.lastPPDate         = d.lastPPDate || '';
+          state.streakBrokenAt     = d.streakBrokenAt || '';
+          state.streakBeforeBreak  = d.streakBeforeBreak || 0;
+        }
+        cleanStaleIds();  /* remove old 'bonus-cat' etc. */
+        backupToLocal();  /* mirror good state to localStorage */
+        callback();
+      }).catch(function(err) {
+        console.warn('[StreakCat] load failed (attempt ' + (_retries + 1) + '):', err.message);
+        if (_retries < 2) {
+          setTimeout(function() { loadState(uid, callback, _retries + 1); }, 1500);
+        } else {
+          /* Firestore gave up — try localStorage as crash-recovery fallback */
+          console.warn('[StreakCat] Firestore failed — falling back to localStorage backup');
+          var restored = restoreFromLocal();
+          if (restored) cleanStaleIds();
+          callback();
+        }
+      });
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       INIT
+       ══════════════════════════════════════════════════════════ */
+    /* Claude: 2026-03-21 — load shared-header and re-execute its scripts
+       so Firebase SDK + aa-firebase.js + aa-mirror.js all load properly */
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('header-placeholder');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+
+    /* Claude: 2026-03-21 — audit fix: user-facing error when AA fails, offline banner */
+
+    /* Offline detection — show banner if we lose connection */
+    window.addEventListener('offline', function() {
+      var banner = document.getElementById('offline-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'offline-banner';
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ef4444;color:#fff;text-align:center;padding:8px;font-size:0.85rem;z-index:9999;';
+        banner.textContent = '⚠️ You appear to be offline. Changes may not save until reconnected.';
+        document.body.appendChild(banner);
+      }
+      banner.style.display = 'block';
+    });
+    window.addEventListener('online', function() {
+      var banner = document.getElementById('offline-banner');
+      if (banner) banner.style.display = 'none';
+    });
+
+    /* Wait for AA (loaded by shared-header's SDK chain) before initializing */
+    function _waitForAA(cb) {
+      if (window.AA && window.AA.auth) { cb(); return; }
+      var attempts = 0;
+      var iv = setInterval(function() {
+        attempts++;
+        if (window.AA && window.AA.auth) { clearInterval(iv); cb(); }
+        else if (attempts > 100) {
+          clearInterval(iv);
+          console.error('[StreakCat] AA never loaded');
+          /* Show user-facing error instead of silent failure */
+          var wrap = document.getElementById('main-content');
+          if (wrap) {
+            wrap.style.display = 'block';
+            wrap.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
+              '<div style="font-size:2rem;">😿</div>' +
+              '<h2 style="margin:12px 0;">Streak Cat couldn\'t load</h2>' +
+              '<p style="color:#888;font-size:0.9rem;">The app engine didn\'t start. Try refreshing the page.</p>' +
+              '<a href="javascript:location.reload()" style="display:inline-block;margin-top:12px;padding:10px 24px;background:#6366f1;color:#fff;border-radius:10px;text-decoration:none;">Refresh</a>' +
+              '</div>';
+          }
+        }
+      }, 100);
+    }
+
+    _waitForAA(function() {
+    var _pReady = (window.AA && window.AA._persistenceReady) ? window.AA._persistenceReady : Promise.resolve();
+    _pReady.then(function() {
+      /* Claude: 2026-03-21 — audit fix: guard for logout state, prevent double init */
+      var _initialized = false;
+      AA.auth.onAuthStateChanged(function(user) {
+        if (!user) {
+          /* Logged out — hide content */
+          document.getElementById('main-content').style.display = 'none';
+          _uid = null;
+          _initialized = false;
+          return;
+        }
+        /* Prevent double-initialization on rapid auth state changes */
+        if (_initialized) return;
+        _initialized = true;
+
+        /* Use mirror UID if in mirror mode, otherwise real UID */
+        _uid = window.AA_MIRROR_UID || user.uid;
+        document.getElementById('main-content').style.display = 'block';
+
+        loadState(_uid, function() {
+          /* Claude: 2026-03-21 — calculate streak with shield support */
+          calculateStreak(_uid, function(streak, checkedInToday, shieldsUsed, brokenInfo) {
+
+            /* ── Streak break detection & repair ── */
+            if (streak === 0 && brokenInfo && state.streak > 0) {
+              /* Streak just broke this session — record for repair window */
+              if (!state.streakBrokenAt) {
+                state.streakBrokenAt = new Date().toISOString();
+                state.streakBeforeBreak = state.streak;
+              }
+            }
+
+            state.streak = streak;
+            state.lastCheckinDate = checkedInToday ? todayStr() : state.lastCheckinDate;
+
+            /* Consume shields that were used */
+            consumeShields(shieldsUsed);
+
+            /* Update best streak */
+            if (streak > state.bestStreak) {
+              state.bestStreak = streak;
+            }
+
+            /* Show check-in prompt if not checked in today */
+            if (!checkedInToday) {
+              document.getElementById('checkin-prompt').style.display = 'block';
+            }
+
+            /* ── Paw Points: daily earning ── */
+            var ppEarned = awardDailyPP(checkedInToday);
+
+            /* ── Paw Points: milestone bonuses ── */
+            var ppMilestone = awardMilestonePP(streak);
+
+            /* ── Shields: grant at milestones ── */
+            var shieldsGranted = grantShields(streak);
+
+            /* Process milestone unlocks */
+            var newMilestones = computeNewUnlocks(streak, state.unlockedItems);
+            newMilestones.forEach(function(item) {
+              state.unlockedItems.push(item.id);
+            });
+
+            /* Process daily random reward */
+            var randomReward = rollRandomReward(streak, state.unlockedItems, state.lastRewardDate);
+            if (randomReward) {
+              state.unlockedItems.push(randomReward.id);
+              state.lastRewardDate = todayStr();
+            }
+
+            /* If first item ever unlocked, auto-equip the bow */
+            if (state.unlockedItems.length > 0 && state.equippedItems.length === 0) {
+              if (state.unlockedItems.indexOf('bow') !== -1) {
+                state.equippedItems.push('bow');
+              }
+            }
+
+            /* Show name section if no name yet */
+            if (!state.catName) {
+              document.getElementById('name-section').style.display = 'block';
+            }
+
+            /* Render everything */
+            updateStreakDisplay();
+            updatePawDisplay();
+            updateMilestone();
+            updateCatStage();
+            renderCategoryTabs();
+            renderItems();
+
+            /* Show reward toasts */
+            var allNew = newMilestones.slice();
+            if (randomReward) allNew.push(randomReward);
+
+            if (allNew.length > 0) {
+              updateSpeech('newItem');
+              allNew.forEach(function(item, i) {
+                setTimeout(function() { showRewardToast(item); }, i * 3800);
+              });
+            } else {
+              updateSpeech();
+            }
+
+            /* ── Show repair modal if streak is broken and within window ── */
+            if (streak === 0 && canRepairStreak()) {
+              showRepairModal();
+            }
+
+            /* Clear broken-streak data if streak is now healthy */
+            if (streak > 0) {
+              state.streakBrokenAt = '';
+              state.streakBeforeBreak = 0;
+            }
+
+            /* Save updated state */
+            saveState();
+          });
+        });
+      });
+    });
+
+    /* Name save handler */
+    document.getElementById('name-save-btn').onclick = function() {
+      var name = (document.getElementById('cat-name-input').value || '').trim();
+      if (!name) return;
+      state.catName = name;
+      document.getElementById('name-section').style.display = 'none';
+      updateSpeech();
+      saveState();
+    };
+
+    /* Claude: 2026-03-21 — Streak Repair modal button handlers */
+    document.getElementById('repair-yes-btn').onclick = function() {
+      if (repairStreak()) {
+        document.getElementById('repair-modal').classList.remove('show');
+        /* Refresh everything with restored streak */
+        updateStreakDisplay();
+        updatePawDisplay();
+        updateMilestone();
+        updateCatStage();
+        updateSpeech();
+        renderItems();
+        saveState();
+      }
+    };
+    document.getElementById('repair-no-btn').onclick = function() {
+      document.getElementById('repair-modal').classList.remove('show');
+      /* Clear the repair data — they chose to let it go */
+      state.streakBrokenAt = '';
+      state.streakBeforeBreak = 0;
+      saveState();
+    };
+
+    /* Claude: 2026-03-21 — redundancy: recalculate streak when tab regains focus
+       (handles overnight sessions where a new day starts while page is open) */
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && _uid) {
+        calculateStreak(_uid, function(streak, checkedInToday, shieldsUsed) {
+          if (shieldsUsed > 0) consumeShields(shieldsUsed);
+          if (streak !== state.streak) {
+            state.streak = streak;
+            if (streak > state.bestStreak) state.bestStreak = streak;
+            var newUnlocks = computeNewUnlocks(streak, state.unlockedItems);
+            newUnlocks.forEach(function(item) { state.unlockedItems.push(item.id); });
+            awardDailyPP(checkedInToday);
+            awardMilestonePP(streak);
+            grantShields(streak);
+            updateCatStage();
+            updateSpeech();
+            renderItems();
+            updateStreakDisplay();
+            updatePawDisplay();
+            updateMilestone();
+            if (newUnlocks.length > 0) {
+              newUnlocks.forEach(function(item, i) {
+                setTimeout(function() { showRewardToast(item); }, i * 3800);
+              });
+            }
+            saveState();
+          }
+          /* Also refresh check-in button state in case day changed */
+          var btn = document.getElementById('checkin-btn');
+          if (btn) {
+            btn.disabled = checkedInToday;
+            btn.textContent = checkedInToday ? '✅ Checked In Today!' : '📅 Daily Check-In';
+          }
+        });
+      }
+    });
+
+    }); /* end _waitForAA */
+
+    /* ══════════════════════════════════════════════════════════
+       TESTING PANEL — Claude: 2026-03-21
+       Toggle with the 🧪 button at bottom-right.
+       Lets you simulate any streak level, unlock all items,
+       or reset everything — without real check-in data.
+       ══════════════════════════════════════════════════════════ */
+    (function() {
+      /* Floating toggle button */
+      var togBtn = document.createElement('button');
+      togBtn.textContent = '🧪';
+      togBtn.title = 'Testing Panel';
+      togBtn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:600;width:48px;height:48px;border-radius:50%;border:2px solid #6366f1;background:#fff;font-size:1.5rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.15);';
+      document.body.appendChild(togBtn);
+
+      /* Panel */
+      var panel = document.createElement('div');
+      panel.id = 'test-panel';
+      panel.style.cssText = 'display:none;position:fixed;bottom:80px;right:16px;z-index:600;background:#fff;border:2px solid #6366f1;border-radius:16px;padding:16px;width:280px;box-shadow:0 8px 30px rgba(0,0,0,0.2);font-size:0.85rem;max-height:70vh;overflow-y:auto;';
+
+      panel.innerHTML =
+        '<div style="font-weight:700;margin-bottom:10px;color:#6366f1;">🧪 Testing Panel</div>' +
+        '<label style="font-size:0.8rem;">Simulate streak:</label><br>' +
+        '<input type="range" id="test-streak" min="0" max="400" value="0" style="width:100%;"> ' +
+        '<span id="test-streak-val">0</span> days<br><br>' +
+        '<button id="test-apply" style="padding:6px 14px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-right:6px;">Apply Streak</button>' +
+        '<button id="test-unlock-all" style="padding:6px 14px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;">Unlock All</button><br><br>' +
+        '<button id="test-equip-random" style="padding:6px 14px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-right:6px;">Random Outfit</button>' +
+        '<button id="test-unequip" style="padding:6px 14px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;">Strip All</button><br><br>' +
+        /* Claude: 2026-03-21 — Paw Points testing */
+        '<hr style="border:none;border-top:1px solid #ddd;margin:10px 0;">' +
+        '<label style="font-size:0.8rem;">🐾 Paw Points:</label><br>' +
+        '<input type="number" id="test-pp" min="0" max="9999" value="0" style="width:80px;padding:4px;border:1px solid #ccc;border-radius:4px;"> ' +
+        '<button id="test-pp-set" style="padding:4px 10px;background:#d97706;color:#fff;border:none;border-radius:6px;cursor:pointer;">Set PP</button><br><br>' +
+        '<label style="font-size:0.8rem;">🛡️ Shields:</label><br>' +
+        '<input type="number" id="test-shields" min="0" max="3" value="0" style="width:60px;padding:4px;border:1px solid #ccc;border-radius:4px;"> ' +
+        '<button id="test-shields-set" style="padding:4px 10px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;">Set Shields</button><br><br>' +
+        '<button id="test-reset" style="padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;">🗑️ Reset Everything</button>' +
+        '<div style="margin-top:10px;font-size:0.72rem;color:#888;">Testing only — changes save to Firestore.</div>';
+
+      document.body.appendChild(panel);
+
+      /* Dark mode for panel */
+      if (document.documentElement.classList.contains('aa-dark')) {
+        panel.style.background = '#1e1e1e';
+        panel.style.borderColor = '#6366f1';
+        panel.style.color = '#e0e0e0';
+        togBtn.style.background = '#1e1e1e';
+        togBtn.style.color = '#e0e0e0';
+      }
+
+      togBtn.onclick = function() {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      };
+
+      /* Streak slider */
+      var slider = document.getElementById('test-streak');
+      var sliderVal = document.getElementById('test-streak-val');
+      slider.oninput = function() { sliderVal.textContent = slider.value; };
+
+      /* Apply simulated streak */
+      document.getElementById('test-apply').onclick = function() {
+        var simStreak = parseInt(slider.value, 10);
+        state.streak = simStreak;
+        if (simStreak > state.bestStreak) state.bestStreak = simStreak;
+
+        /* Unlock milestone items for this streak */
+        var newItems = computeNewUnlocks(simStreak, state.unlockedItems);
+        newItems.forEach(function(item) { state.unlockedItems.push(item.id); });
+
+        /* Also roll a random reward */
+        state.lastRewardDate = '';  /* allow a roll */
+        var randomReward = rollRandomReward(simStreak, state.unlockedItems, state.lastRewardDate);
+        if (randomReward) {
+          state.unlockedItems.push(randomReward.id);
+          state.lastRewardDate = todayStr();
+          showRewardToast(randomReward);
+        }
+
+        if (newItems.length > 0) {
+          newItems.forEach(function(item, i) {
+            setTimeout(function() { showRewardToast(item); }, (randomReward ? 1 : 0) * 3800 + i * 3800);
+          });
+        }
+
+        /* Also award PP and shields for test streak */
+        awardMilestonePP(simStreak);
+        grantShields(simStreak);
+        updateStreakDisplay();
+        updatePawDisplay();
+        updateMilestone();
+        renderItems();
+        updateSpeech();
+        saveState();
+      };
+
+      /* Claude: 2026-03-21 — Set Paw Points test control */
+      document.getElementById('test-pp-set').onclick = function() {
+        var val = parseInt(document.getElementById('test-pp').value, 10) || 0;
+        state.pawPoints = Math.max(0, val);
+        updatePawDisplay();
+        renderItems();
+        saveState();
+      };
+
+      /* Set Shields test control */
+      document.getElementById('test-shields-set').onclick = function() {
+        var val = parseInt(document.getElementById('test-shields').value, 10) || 0;
+        state.shields = Math.max(0, Math.min(MAX_SHIELDS, val));
+        updatePawDisplay();
+        saveState();
+      };
+
+      /* Unlock all items */
+      document.getElementById('test-unlock-all').onclick = function() {
+        ITEMS.forEach(function(item) {
+          if (state.unlockedItems.indexOf(item.id) === -1) {
+            state.unlockedItems.push(item.id);
+          }
+        });
+        renderItems();
+        updateSpeech('newItem');
+        saveState();
+      };
+
+      /* Random outfit */
+      document.getElementById('test-equip-random').onclick = function() {
+        state.equippedItems = [];
+        /* Pick one random item per category from unlocked */
+        CATEGORIES.forEach(function(cat) {
+          var available = ITEMS.filter(function(it) {
+            return it.cat === cat.id && state.unlockedItems.indexOf(it.id) !== -1;
+          });
+          if (available.length > 0) {
+            var pick = available[Math.floor(Math.random() * available.length)];
+            state.equippedItems.push(pick.id);
+          }
+        });
+        updateCatStage();
+        renderItems();
+        updateSpeech('dressed');
+        saveState();
+      };
+
+      /* Strip all equipped */
+      document.getElementById('test-unequip').onclick = function() {
+        state.equippedItems = [];
+        updateCatStage();
+        renderItems();
+        updateSpeech('naked');
+        saveState();
+      };
+
+      /* Reset everything */
+      document.getElementById('test-reset').onclick = function() {
+        if (!confirm('Reset all streak cat data? This clears name, items, streak — everything.')) return;
+        state.catName = '';
+        state.streak = 0;
+        state.bestStreak = 0;
+        state.lastCheckinDate = '';
+        state.lastRewardDate = '';
+        state.unlockedItems = [];
+        state.equippedItems = [];
+        /* Claude: 2026-03-21 — reset Paw Points fields */
+        state.pawPoints = 0;
+        state.shields = 0;
+        state.shieldsEarned = [];
+        state.ppMilestonesEarned = [];
+        state.lastPPDate = '';
+        state.streakBrokenAt = '';
+        state.streakBeforeBreak = 0;
+        document.getElementById('name-section').style.display = 'block';
+        updateStreakDisplay();
+        updatePawDisplay();
+        updateMilestone();
+        updateCatStage();
+        renderItems();
+        updateSpeech();
+        saveState();
+      };
+    })();
+  </script>
+</body>
+</html>

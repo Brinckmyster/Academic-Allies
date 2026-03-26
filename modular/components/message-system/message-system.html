@@ -53,12 +53,14 @@
     .online-dot.offline { background: #9ca3af; }
     .contact-info { min-width: 0; }
     .contact-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .contact-tier    { font-size: 0.72rem; color: #888; }
+    /* Claude: 2026-03-25 — I4 fix: bumped from 0.72rem to 0.8rem for WCAG AA minimum */
+    .contact-tier    { font-size: 0.8rem; color: #888; }
     /* Claude: 2026-03-14 — #aaa→#777 for WCAG AA contrast */
-    .contact-preview { font-size: 0.72rem; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Claude: 2026-03-25 — I4 fix: bumped from 0.72rem to 0.8rem */
+    .contact-preview { font-size: 0.8rem; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .contact-unread {
       margin-left: auto; background: #4a7f82; color: #fff;
-      border-radius: 10px; padding: 1px 7px; font-size: 0.72rem; font-weight: 700;
+      border-radius: 10px; padding: 1px 7px; font-size: 0.8rem; font-weight: 700;
       flex-shrink: 0;
     }
     /* Claude: 2026-03-14 — #aaa→#777 */
@@ -105,7 +107,8 @@
     }
     .compose-area textarea {
       flex: 1; padding: 9px 12px; border: 1px solid #ccc; border-radius: 8px;
-      font-size: 14px; resize: none; font-family: inherit; min-height: 38px; max-height: 120px;
+      /* Claude: 2026-03-25 — I5 fix: bumped from 38px to 44px for WCAG touch target */
+      font-size: 14px; resize: none; font-family: inherit; min-height: 44px; max-height: 120px;
     }
     .compose-area textarea:focus { outline: none; border-color: #4a7f82; }
     .btn-send {
@@ -119,6 +122,9 @@
     /* Loading / signin */
     /* Claude: 2026-03-14 — #aaa→#777 */
     #msg-loading { padding: 40px; text-align: center; color: #777; }
+    /* Claude: 2026-03-25 — I11 fix: spinner animation for loading state */
+    .aa-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #e1e5e9; border-top-color: #4a7f82; border-radius: 50%; animation: aa-spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes aa-spin { to { transform: rotate(360deg); } }
 
     /* Tier badge colours for contact tier label */
     .tier-backstage-manager { color: #6366f1; }
@@ -128,13 +134,28 @@
     .tier-nearby-help { color: #f97316; }
 
     /* Claude: 2026-03-09 — mobile layout: side-by-side → vertical for <600px */
+    /* Claude: 2026-03-25 — C1 fix: proper mobile layout with toggle, not cramped sidebar */
     @media (max-width: 600px) {
-      .contacts-panel { width: 64px; }
-      .contact-name, .contact-tier, #contacts-empty { display: none; }
-      .contact-avatar { width: 40px; height: 40px; }
-      .msg-layout { flex-direction: column; }
-      .thread-panel { min-height: 300px; }
+      .msg-layout { flex-direction: column; height: auto; min-height: calc(100vh - 80px); }
+      .contacts-panel { width: 100%; max-height: 45vh; border-right: none; border-bottom: 1px solid #e1e5e9; }
+      .contacts-panel.hidden { display: none; }
+      .contact-name { display: inline; }
+      .contact-tier { display: inline; font-size: 0.8rem; }
+      .contact-avatar { width: 36px; height: 36px; }
+      .contact-preview, #contacts-empty { display: block; }
+      .thread-panel { flex: 1; min-height: 300px; }
+      .thread-header { padding: 10px 14px; }
+      .messages-area { padding: 12px 14px; }
       .msg-bubble { max-width: 90%; }
+      .compose-area { padding: 10px 12px; }
+      .compose-area textarea { min-height: 44px; }
+      #msg-back-btn { display: inline-flex !important; }
+    }
+    /* Claude: 2026-03-25 — back button for mobile thread navigation */
+    #msg-back-btn {
+      display: none; background: none; border: none; font-size: 1.2rem;
+      cursor: pointer; padding: 4px 8px; color: #4a7f82; min-height: 44px;
+      align-items: center;
     }
 
     /* ── Page tabs (hidden for students) ── */
@@ -157,6 +178,27 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 17px; flex-shrink: 0; border: 2px solid #b0d8da;
     }
+
+    /* Claude: 2026-03-25 — dark mode overrides for message system */
+    html.aa-dark #msg-layout { background: #121212; }
+    html.aa-dark .contact-sidebar { background: #1a1a2e; border-right-color: #333; }
+    html.aa-dark .contact-item { border-bottom-color: #2a2a3e; }
+    html.aa-dark .contact-item:hover { background: #2a2a3e; }
+    html.aa-dark .contact-item.active { background: #1a2e30; }
+    html.aa-dark .contact-name { color: #e0e0e0; }
+    html.aa-dark .contact-tier { color: #999; }
+    html.aa-dark .contact-preview { color: #888; }
+    html.aa-dark .thread-header { background: #1a1a2e; border-bottom-color: #333; color: #e0e0e0; }
+    html.aa-dark .thread-header .tier-label { color: #999; }
+    html.aa-dark .msg-theirs { background: #2a2a3e; color: #e0e0e0; }
+    html.aa-dark .msg-time { color: #888; }
+    html.aa-dark .compose-bar { background: #1a1a2e; border-top-color: #333; }
+    html.aa-dark .compose-bar textarea { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark #msg-loading { color: #ccc; }
+    html.aa-dark .msg-tab { color: #999; border-bottom-color: #333; }
+    html.aa-dark .msg-tab:hover { color: #64b5f6; }
+    html.aa-dark .msg-tab.active { color: #4a9eff; border-bottom-color: #4a9eff; }
+    html.aa-dark .nc-group-icon { background: #1a2e30; border-color: #2a4447; }
   </style>
 </head>
 <body>
@@ -164,7 +206,8 @@
   <script>var AA_MODE_GATE = 'messages';</script>
   <script src="/Academic-Allies/modular/js/mode-gate.js"></script>
   <div id="site-header"></div>
-  <div id="msg-loading">Loading messages…</div>
+  <!-- Claude: 2026-03-25 — I11 fix: spinner for loading state -->
+  <div id="msg-loading"><span class="aa-spinner"></span> Loading messages…</div>
 
   <!-- Tab bar — shown for non-student roles only -->
   <div id="msg-tabs">
@@ -191,6 +234,8 @@
     <div class="thread-panel" id="thread-panel">
       <div id="thread-placeholder">← Select a contact to start messaging</div>
       <div class="thread-header" id="thread-header" style="display:none;">
+        <!-- Claude: 2026-03-25 — back button for mobile thread navigation -->
+        <button id="msg-back-btn" onclick="msgMobileBack()" aria-label="Back to contacts">← </button>
         <img id="thread-avatar" src="" alt="">
         <div>
           <div class="thread-header-name" id="thread-name"></div>
@@ -199,7 +244,8 @@
       </div>
       <div class="messages-area" id="messages-area" style="display:none;"></div>
       <div class="compose-area" id="compose-area">
-        <textarea id="compose-text" placeholder="Type a message…" rows="1"
+        <!-- Claude: 2026-03-25 — added maxlength to prevent oversized Firestore writes -->
+        <textarea id="compose-text" placeholder="Type a message…" rows="1" maxlength="2000"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
         <button class="btn-send" id="btn-send" onclick="sendMessage()">Send</button>
       </div>
@@ -238,7 +284,7 @@
       </div>
       <div class="messages-area" id="nc-messages-area" style="display:none;"></div>
       <div class="compose-area" id="nc-compose-area">
-        <textarea id="nc-compose-text" placeholder="Type a message…" rows="1"
+        <textarea id="nc-compose-text" placeholder="Type a message…" rows="1" maxlength="2000"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendNcMessage();}"></textarea>
         <button class="btn-send" id="nc-btn-send" onclick="sendNcMessage()">Send</button>
       </div>
@@ -254,9 +300,9 @@
         c.innerHTML = html;
         c.querySelectorAll('script').forEach(function(old) {
           var s = document.createElement('script');
-          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
           s.textContent = old.textContent;
-          old.replaceWith(s);
+          old.parentNode.replaceChild(s, old);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -314,7 +360,8 @@
     function waitForAA(cb, tries) {
       tries = tries || 0;
       if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-      if (tries > 40) { document.getElementById('msg-loading').textContent = 'Could not connect to Firebase.'; return; }
+      /* Claude: 2026-03-25 — added retry button to timeout state */
+      if (tries > 40) { document.getElementById('msg-loading').innerHTML = '⚠️ Could not connect. Check your connection and try again.<br><button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>'; return; }
       setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
     }
 
@@ -341,6 +388,12 @@
     function boot() {
       AA.auth.onAuthStateChanged(function(user) {
         if (!user) {
+          /* Claude: 2026-03-25 — tear down Firestore listeners on sign-out to prevent data leak */
+          if (unsubMessages)  { unsubMessages();  unsubMessages  = null; }
+          if (unsubThreads)   { unsubThreads();   unsubThreads   = null; }
+          if (unsubThreadDoc) { unsubThreadDoc(); unsubThreadDoc = null; }
+          if (unsubNcMessages){ unsubNcMessages(); unsubNcMessages = null; }
+          currentUser = null;
           document.getElementById('msg-loading').textContent = 'Please sign in to use messages.';
           return;
         }
@@ -453,6 +506,7 @@
                 });
               });
 
+              /* Claude: 2026-03-25 — added .catch() to Promise.all to prevent unhandled rejection */
               Promise.all(fetches).then(function(contacts) {
                 renderContacts(contacts.filter(function(c) { return c.data; }));
                 watchThreads();
@@ -461,7 +515,14 @@
                 document.getElementById('msg-layout').style.display  = 'flex';
                 // Claude: BUG #9 FIX — initialize Network Chat student dropdown on load (2026-03-03)
                 // populateNcStudentDropdown() is called from loadContacts() before this
+              }).catch(function(err) {
+                console.warn('[AA Messages] Error fetching contacts:', err.message || err);
+                document.getElementById('msg-loading').innerHTML = '⚠️ Some contacts could not be loaded. <button onclick="location.reload()" style="margin-top:8px;padding:6px 14px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
               });
+            }).catch(function(err) {
+              /* Claude: 2026-03-25 — catch getAllAdmins rejection */
+              console.warn('[AA Messages] getAllAdmins failed:', err.message || err);
+              document.getElementById('msg-loading').innerHTML = '⚠️ Could not load admin contacts. <button onclick="location.reload()" style="margin-top:8px;padding:6px 14px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
             });
           }).catch(function(err) {
             document.getElementById('msg-loading').textContent = 'Error loading contacts: ' + err.message;
@@ -520,6 +581,16 @@
        that doesn't exist yet throws "insufficient permissions". We now
        check existence first and only attach listeners if the doc exists.
        Archive: message-system_2026-03-19_pre-thread-guard.bak.html */
+    /* Claude: 2026-03-25 — mobile back button: show contacts, hide thread */
+    window.msgMobileBack = function() {
+      var cp = document.querySelector('.contacts-panel');
+      if (cp) cp.classList.remove('hidden');
+      document.getElementById('thread-header').style.display = 'none';
+      document.getElementById('messages-area').style.display = 'none';
+      document.getElementById('compose-area').style.display  = 'none';
+      document.getElementById('thread-placeholder').style.display = 'flex';
+    };
+
     function openThread(uid, name, tier, icon, el) {
       /* Clear previous listeners */
       if (unsubMessages) { unsubMessages(); unsubMessages = null; }
@@ -530,7 +601,8 @@
 
       /* Clear badge from the contact item immediately */
       var badge = el && el.querySelector('.contact-unread');
-      if (badge) badge.remove();
+      /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+      if (badge && badge.parentNode) badge.parentNode.removeChild(badge);
 
       /* Highlight selected contact */
       document.querySelectorAll('.contact-item').forEach(function(i) { i.classList.remove('active'); });
@@ -541,6 +613,11 @@
       document.getElementById('thread-header').style.display      = 'flex';
       document.getElementById('messages-area').style.display      = 'flex';
       document.getElementById('compose-area').style.display       = 'flex';
+      /* Claude: 2026-03-25 — on mobile, hide contacts and show thread */
+      if (window.innerWidth <= 600) {
+        var cp = document.querySelector('.contacts-panel');
+        if (cp) cp.classList.add('hidden');
+      }
       _draftLoad(activeThreadId);
       document.getElementById('thread-avatar').src  = icon;
       document.getElementById('thread-name').textContent = name;
@@ -631,7 +708,8 @@
       if (activeThreadId) {
         markRead(activeThreadId);
         var activeBadge = document.querySelector('.contact-item.active .contact-unread');
-        if (activeBadge) activeBadge.remove();
+        /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+        if (activeBadge && activeBadge.parentNode) activeBadge.parentNode.removeChild(activeBadge);
       }
     }
 
@@ -642,17 +720,23 @@
       var textarea = document.getElementById('compose-text');
       var text     = textarea.value.trim();
       if (!text || !activeThreadId) return;
+      /* Claude: 2026-03-25 — enforce length limit server-side (maxlength is client-only) */
+      if (text.length > 2000) {
+        alert('Message is too long (max 2000 characters). Please shorten it.');
+        return;
+      }
 
       var btn = document.getElementById('btn-send');
       btn.disabled = true;
 
       /* Ensure the thread doc exists (for future querying) */
       var threadRef = AA.db.collection('messages').doc(activeThreadId);
+      /* Claude: 2026-03-25 — added .catch() — was fire-and-forget with no error handling */
       threadRef.set({
         participants: [currentUser.uid, activeContact.uid],
         lastMessage:  text,
         lastAt:       AA.FieldValue.serverTimestamp()
-      }, { merge: true });
+      }, { merge: true }).catch(function(e) { console.warn('[AA] Thread metadata write:', e.message); });
 
       /* Add the message */
       threadRef.collection('msgs').add({
@@ -679,7 +763,7 @@
         if (_currentUserRole === 'student') {
           // FUNCTIONAL FIX 2026-03-07 by Claude: local date not UTC (toISOString flips day after ~7 PM EST)
           var _d = new Date();
-          var dateKey = _d.getFullYear() + '-' + String(_d.getMonth()+1).padStart(2,'0') + '-' + String(_d.getDate()).padStart(2,'0');
+          var dateKey = _d.getFullYear() + '-' + ('0' + (_d.getMonth()+1)).slice(-2) + '-' + ('0' + _d.getDate()).slice(-2);
           AA.db.collection('checkins').doc(currentUser.uid)
             .collection('days').doc(dateKey)
             .set({ reachedOutAt: AA.FieldValue.serverTimestamp() }, { merge: true })
@@ -714,7 +798,11 @@
             try { localStorage.setItem('aa-msg-read-' + doc.id, now); } catch(e) {}
           });
           /* Remove all unread badges from sidebar */
-          document.querySelectorAll('.contact-unread').forEach(function(b) { b.remove(); });
+          /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+          var _badges = document.querySelectorAll('.contact-unread');
+          for (var _bi = 0; _bi < _badges.length; _bi++) {
+            if (_badges[_bi].parentNode) _badges[_bi].parentNode.removeChild(_badges[_bi]);
+          }
           /* Hide nav red dot immediately */
           var navBadge = document.getElementById('msg-nav-badge');
           if (navBadge) navBadge.style.display = 'none';
@@ -839,7 +927,8 @@
         }
         badge.textContent = '\u2022'; /* bullet — keeps badge small */
       } else if (badge) {
-        badge.remove();
+        /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+        if (badge.parentNode) badge.parentNode.removeChild(badge);
       }
     }
 
@@ -855,7 +944,8 @@
         AA.getLastSeen(uid).then(function(ls) {
           /* Remove old dot if any */
           var old = item.querySelector('.online-dot');
-          if (old) old.remove();
+          /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+          if (old && old.parentNode) old.parentNode.removeChild(old);
 
           var dot = document.createElement('span');
           dot.className = 'online-dot';
@@ -898,6 +988,8 @@
     }
 
     function _draftSave() {
+      /* Claude: 2026-03-25 — added mirror guard to prevent supporters saving drafts as student */
+      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       if (!currentUser || !activeThreadId) return;
       var text = document.getElementById('compose-text').value;
       var statusEl = document.getElementById('draft-status');
@@ -939,6 +1031,8 @@
     }
 
     function _draftClear(tid) {
+      /* Claude: 2026-03-25 — added mirror guard to prevent supporters clearing drafts as student */
+      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       if (!currentUser) return;
       _draftRef(tid).delete().catch(function() {});
       var statusEl = document.getElementById('draft-status');
@@ -1203,17 +1297,20 @@
       var msgColl;
       if (ncActiveIsGroup) {
         msgColl = AA.db.collection('networkChat').doc(ncStudentUid).collection('group');
+        /* Claude: 2026-03-25 — added .catch() — was fire-and-forget */
         AA.db.collection('networkChat').doc(ncStudentUid)
-          .set({ lastGroupAt: AA.FieldValue.serverTimestamp(), lastGroupMsg: text }, { merge: true });
+          .set({ lastGroupAt: AA.FieldValue.serverTimestamp(), lastGroupMsg: text }, { merge: true })
+          .catch(function(e) { console.warn('[AA] Network chat group write:', e.message); });
       } else {
         var dmRef = AA.db.collection('networkChat').doc(ncStudentUid)
           .collection('dms').doc(ncActiveThread);
         msgColl = dmRef.collection('msgs');
+        /* Claude: 2026-03-25 — added .catch() — was fire-and-forget */
         dmRef.set({
           participants: [currentUser.uid, ncActivePeerUid].filter(Boolean),
           lastAt:  AA.FieldValue.serverTimestamp(),
           lastMsg: text
-        }, { merge: true });
+        }, { merge: true }).catch(function(e) { console.warn('[AA] Network chat DM write:', e.message); });
       }
 
       msgColl.add(msgData).then(function () {

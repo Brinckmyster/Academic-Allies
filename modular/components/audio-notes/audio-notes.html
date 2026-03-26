@@ -169,6 +169,42 @@
       font-size: 11pt; z-index: 2000; display: none;
       max-width: 85vw; white-space: normal; text-align: center; /* Claude: 2026-03-09 — allow wrapping on mobile */
     }
+
+    /* Claude: 2026-03-25 — dark mode overrides for audio notes page */
+    html.aa-dark body { background: #121212; color: #e0e0e0; }
+    html.aa-dark h1 { color: #7abfc2; }
+    html.aa-dark .sub { color: #999; }
+    html.aa-dark #recordBtn { background: #1e1e2e; border-color: #555; }
+    html.aa-dark #recordBtn:hover { border-color: #7abfc2; }
+    html.aa-dark #recordBtn.recording { border-color: #f44336; background: #2a1a1a; }
+    html.aa-dark #recordStatus { color: #999; }
+    html.aa-dark #gpsStatus { color: #777; }
+    html.aa-dark #speechWarning { color: #e0a030; }
+    html.aa-dark #noteTitleInput { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark #noteTitleInput:focus { border-color: #7abfc2; }
+    html.aa-dark #noteTitleInput::placeholder { color: #666; }
+    html.aa-dark #liveTranscript { background: #1e1e2e; border-color: #333; color: #ccc; }
+    html.aa-dark .modal { background: #1e1e2e; }
+    html.aa-dark .modal h2 { color: #7abfc2; }
+    html.aa-dark .cat-btn { background: #0f1117; border-color: #444; color: #ccc; }
+    html.aa-dark .cat-btn:hover { border-color: #7abfc2; background: #1a2e30; }
+    html.aa-dark #cancelCat { background: #2a2a3e; color: #ccc; }
+    html.aa-dark .filter-bar input { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .filter-bar select { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .note-card { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .note-time { color: #999; }
+    html.aa-dark .note-title { color: #e0e0e0; }
+    html.aa-dark .note-transcript { color: #ccc; }
+    html.aa-dark .note-expand { color: #6fa8fc; }
+    html.aa-dark .note-loc { color: #777; }
+    html.aa-dark .note-delete { color: #666; }
+    html.aa-dark .note-delete:hover { color: #f44336; }
+    html.aa-dark .note-rename-input { background: #0f1117; color: #e0e0e0; border-color: #7abfc2; }
+    html.aa-dark .note-rename-save { background: #3d6a6d; }
+    html.aa-dark .note-rename-cancel { color: #999; }
+    html.aa-dark #emptyState { color: #666; }
+    html.aa-dark .mirror-banner { background: #2a2a1a; border-color: #665a20; color: #d4c870; }
+    html.aa-dark #toast { background: #2a2a3e; color: #e0e0e0; }
   </style>
 </head>
 <body>
@@ -257,7 +293,8 @@
     </div>
   </div>
 
-  <div id="toast"></div>
+  <!-- Claude: 2026-03-25 — A8 fix: aria-live so screen readers announce toasts -->
+  <div id="toast" role="alert" aria-live="assertive"></div>
 
   <script>
     fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
@@ -267,9 +304,9 @@
         c.innerHTML = html;
         c.querySelectorAll('script').forEach(function(old) {
           var s = document.createElement('script');
-          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
           s.textContent = old.textContent;
-          old.replaceWith(s);
+          old.parentNode.replaceChild(s, old);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -335,7 +372,7 @@
        Until the native shell exists, all these are undefined and web APIs are used instead.
        Every call site checks: if (AA_NATIVE && AA_NATIVE.method) use it, else fall back to web. */
     var _isNative = !!(window.AA_NATIVE && window.AA_NATIVE.isNative);
-    if (_isNative) { console.log('[AA] Native app detected — using native bridges'); }
+    if (_isNative && window.AA_DEBUG) { console.log('[AA] Native app detected — using native bridges'); }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
     // Claude: duration param — errors stay visible longer (10s) than success (3s)
@@ -394,7 +431,7 @@
         navigator.wakeLock.request('screen').then(function(lock) {
           _wakeLock = lock;
           _wakeLock.addEventListener('release', function() {
-            console.log('[AA] Wake Lock released');
+            if (window.AA_DEBUG) console.log('[AA] Wake Lock released');
             _wakeLock = null;
             /* Claude: 2026-03-24 — re-acquire wake lock if still recording.
                Android releases the lock when switching apps (e.g. opening Camera).
@@ -402,11 +439,11 @@
                Redundancy: 1) re-acquire on release 2) re-acquire on visibilitychange
                3) track.onended catches stream death if re-acquire fails */
             if (window.AA_isRecording) {
-              console.log('[AA] Wake Lock lost during recording — re-acquiring…');
+              if (window.AA_DEBUG) console.log('[AA] Wake Lock lost during recording — re-acquiring…');
               _acquireWakeLock();
             }
           });
-          console.log('[AA] Wake Lock acquired — screen will stay on during recording');
+          if (window.AA_DEBUG) console.log('[AA] Wake Lock acquired — screen will stay on during recording');
         }).catch(function(err) {
           console.warn('[AA] Wake Lock failed:', err.message);
           /* Claude: 2026-03-24 — warn user on Android that screen lock may interrupt recording */
@@ -903,7 +940,12 @@
             if (recordingAddress) gpsStatusEl.textContent = '📍 ' + recordingAddress;
           }
         })
-        .catch(function() { /* silent — coords still saved */ });
+        /* Claude: 2026-03-25 — I13 fix: show fallback coords instead of silent failure */
+        .catch(function() {
+          if (recordingGps) {
+            gpsStatusEl.textContent = '📍 ' + recordingGps.lat.toFixed(4) + ', ' + recordingGps.lng.toFixed(4);
+          }
+        });
     }
 
     // ── Recording timer ────────────────────────────────────────────────────────
@@ -1052,7 +1094,8 @@
                    but warn the user and remove the dead preview. */
                 if (track.kind === 'video') {
                   if (_videoPreview) {
-                    _videoPreview.remove();
+                    /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+                    if (_videoPreview.parentNode) _videoPreview.parentNode.removeChild(_videoPreview);
                     _videoPreview = null;
                   }
                   showToast('⚠️ Camera was disconnected — audio is still recording!', 6000);
@@ -1217,7 +1260,7 @@
         /* Claude: 2026-03-16 — debounce rapid visibility toggles */
         var now = Date.now();
         if (now - _lastVisibilitySaveTime < _VISIBILITY_DEBOUNCE_MS) {
-          console.log('[AA] Visibility save debounced');
+          if (window.AA_DEBUG) console.log('[AA] Visibility save debounced');
           return;
         }
         _lastVisibilitySaveTime = now;
@@ -1243,7 +1286,7 @@
             ? new Blob(audioChunks, { type: recordingMimeType })
             : null;
           _saveEmergencyDraft(blob);
-          console.log('[AA] Page hidden during recording — emergency draft saved');
+          if (window.AA_DEBUG) console.log('[AA] Page hidden during recording — emergency draft saved');
         }
         return;
       }
@@ -1268,13 +1311,13 @@
       if (window.AA_isRecording || sessionStorage.getItem('AA_RECORDING_ACTIVE')) {
         if (window.AA_resetSessionTimer) {
           window.AA_resetSessionTimer();
-          console.log('[AA] Visibility restored while recording — session timer reset');
+          if (window.AA_DEBUG) console.log('[AA] Visibility restored while recording — session timer reset');
         }
       }
       // Restart SR if it was paused by the browser while hidden
       if (window.AA_isRecording && !isAndroid && !speechStopping && !isRecognitionRunning) {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
-          console.log('[AA] Visibility restored — restarting speech recognition');
+          if (window.AA_DEBUG) console.log('[AA] Visibility restored — restarting speech recognition');
           try { initRecognitionInstance(); } catch(e) {}
         }
       }
@@ -1305,6 +1348,41 @@
       }
     };
 
+    /* Claude: 2026-03-25 — focus trap + Escape key for catModal accessibility */
+    var _catModalTrap = null;
+    var _catModalEsc = null;
+    var _catPrevFocus = null;
+    function _catModalOpen() {
+      _catPrevFocus = document.activeElement;
+      var focusable = catModal.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (focusable.length) setTimeout(function() { focusable[0].focus(); }, 50);
+      _catModalTrap = function(e) {
+        if (e.key !== 'Tab') return;
+        var els = catModal.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (!els.length) return;
+        var first = els[0]; var last = els[els.length - 1];
+        if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+        else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+      };
+      _catModalEsc = function(e) { if (e.key === 'Escape') { document.getElementById('cancelCat').click(); } };
+      document.addEventListener('keydown', _catModalTrap);
+      document.addEventListener('keydown', _catModalEsc);
+    }
+    function _catModalClose() {
+      if (_catModalTrap) { document.removeEventListener('keydown', _catModalTrap); _catModalTrap = null; }
+      if (_catModalEsc) { document.removeEventListener('keydown', _catModalEsc); _catModalEsc = null; }
+      if (_catPrevFocus) { try { _catPrevFocus.focus(); } catch(e) {} _catPrevFocus = null; }
+    }
+    /* Hook: observe catModal class changes */
+    (new MutationObserver(function(mutations) {
+      mutations.forEach(function(m) {
+        if (m.attributeName === 'class') {
+          if (catModal.classList.contains('open')) { _catModalOpen(); }
+          else { _catModalClose(); }
+        }
+      });
+    })).observe(catModal, { attributes: true });
+
     document.getElementById('cancelCat').onclick = function() {
       catModal.classList.remove('open');
       // Claude: 2026-03-08 — re-show draftActions so user can still pick Docs or Discard
@@ -1334,6 +1412,16 @@
     // ── Save note ──────────────────────────────────────────────────────────────
     // Claude: flow is: build blob → upload to Drive → save metadata to Firebase.
     // If Drive upload fails, still saves to Firebase with null driveLink.
+    /* Claude: 2026-03-25 — I10 fix: reset save buttons after save completes or fails */
+    function _resetSaveButtons() {
+      var b1 = document.getElementById('saveToDocsBtn');
+      var b2 = document.getElementById('saveToDriveBtn');
+      var b3 = document.getElementById('discardDraftBtn');
+      if (b1) { b1.disabled = false; b1.textContent = '📄 Save transcript to Docs'; }
+      if (b2) { b2.disabled = false; b2.textContent = '🎵 Save audio to Drive'; }
+      if (b3) b3.disabled = false;
+    }
+
     function saveNote(category) {
       /* Claude: 2026-03-13 — mirror guard: supporters cannot save audio notes */
       if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
@@ -1369,6 +1457,13 @@
       }
 
       recordStatus.textContent = audioBlob ? 'Uploading to Drive…' : 'Saving transcript…';
+      /* Claude: 2026-03-25 — I10 fix: disable action buttons during save to prevent double-tap */
+      var _saveDocsBtn = document.getElementById('saveToDocsBtn');
+      var _saveDriveBtn = document.getElementById('saveToDriveBtn');
+      var _discardBtn = document.getElementById('discardDraftBtn');
+      if (_saveDocsBtn) _saveDocsBtn.disabled = true;
+      if (_saveDriveBtn) { _saveDriveBtn.disabled = true; _saveDriveBtn.textContent = '⏳ Saving…'; }
+      if (_discardBtn) _discardBtn.disabled = true;
 
       /* Claude: 2026-03-24 — if blob failed, skip Drive entirely but still save to Firebase */
       var drivePromise = audioBlob
@@ -1438,6 +1533,7 @@
             noteTitleInput.value = '';
             noteTitleInput.disabled = false;
             recordingAddress = null;
+            _resetSaveButtons(); /* Claude: 2026-03-25 — re-enable buttons after success */
           })
           .catch(function(err) {
             if (saveResolved) return;
@@ -1447,7 +1543,9 @@
             recordStatus.textContent = 'Save failed — ' + errText;
             showToast('Error: ' + errText, 10000);
             console.error('[AudioNotes] Firestore save error:', err);
-            console.error('[AudioNotes] writeUid:', writeUid, 'noteData:', noteData);
+            /* Claude: 2026-03-25 — sanitized console log to remove PII */
+            console.error('[AudioNotes] Save failed — check auth and data');
+            _resetSaveButtons(); /* Claude: 2026-03-25 — re-enable buttons on failure */
           });
       })
       /* Claude: 2026-03-24 — CRITICAL: catch outer promise so Drive failure doesn't silently
@@ -1647,7 +1745,13 @@
                 }
               })
               .then(function() { showToast('Renamed!'); })
-              .catch(function(err) { showToast('Rename failed'); console.error(err); });
+              .catch(function(err) {
+                showToast('Rename failed');
+                console.error(err);
+                /* Claude: 2026-03-25 — re-enable button on error so user isn't stuck */
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+              });
             // renderNotes() will be called by the Firestore onSnapshot listener automatically
           }
 
@@ -1726,7 +1830,7 @@
           }
           btn.disabled = true;
           btn.textContent = 'Sending…';
-          var docTitle = (noteTitle || 'Audio Note') + ' — ' + new Date().toLocaleDateString();
+          var docTitle = (noteTitle || 'Audio Note') + ' — ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); /* Claude: 2026-03-25 — added explicit locale to prevent regional format inconsistency */
           createGoogleDoc(docTitle, note.transcript).then(function(result) {
             if (result && result.webViewLink) {
               showToast('Saved to Google Docs!');
@@ -1952,7 +2056,7 @@
             var fullBlob = new Blob(blobs, { type: recordingMimeType || 'audio/webm' });
             var totalChunks = 0;
             batches.forEach(function(b) { totalChunks += (b.chunkCount || 0); });
-            console.log('[AA] Reassembled ' + batches.length + ' batches (' + totalChunks + ' chunks) into ' + Math.round(fullBlob.size / 1024) + 'KB blob');
+            if (window.AA_DEBUG) console.log('[AA] Reassembled ' + batches.length + ' batches (' + totalChunks + ' chunks) into ' + Math.round(fullBlob.size / 1024) + 'KB blob');
             cb(fullBlob);
           };
           getAll.onerror = function() { cb(null); };
@@ -1993,7 +2097,7 @@
         var req = store.put(draft);
         /* Claude: 2026-03-24 — onsuccess confirms the write actually landed */
         req.onsuccess = function() {
-          console.log('[AA] Emergency draft saved to IndexedDB');
+          if (window.AA_DEBUG) console.log('[AA] Emergency draft saved to IndexedDB');
         };
         /* Claude: 2026-03-16 — detect IndexedDB quota exceeded and warn user */
         req.onerror = function(evt) {

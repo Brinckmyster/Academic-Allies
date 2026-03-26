@@ -43,36 +43,37 @@ window.components = window.components || (window.modular && window.modular.compo
   onReady(function(){
     // If suggestor created suggestion buttons, delegate click handling for time override
     document.body.addEventListener('click', function(e){
-      const btn = e.target;
+      /* Claude: 2026-03-25 — converted const/let to var for ES5 compat */
+      var btn = e.target;
       if(!btn || !btn.textContent) return;
       // Match both "Add: X" and "Add to Plan" patterns
       if(/^Add: /.test(btn.textContent) || btn.classList.contains('add-suggestion-btn')){
         // Try to infer the surrounding slot kind/time if present in DOM near the button
-        let container = btn.closest('div');
-        let inferredTime = '';
-        let inferredKind = '';
+        var container = btn.closest('div');
+        var inferredTime = '';
+        var inferredKind = '';
         if(container){
-          const timeEl = container.querySelector('.suggestion-time');
-          const nameEl = container.querySelector('b, .suggestion-name');
+          var timeEl = container.querySelector('.suggestion-time');
+          var nameEl = container.querySelector('b, .suggestion-name');
           if(timeEl && timeEl.textContent){
-            const m = timeEl.textContent.match(/\b(\d{1,2}:\d{2})\b/);
+            var m = timeEl.textContent.match(/\b(\d{1,2}:\d{2})\b/);
             if(m) inferredTime = m[1];
           }
           if(nameEl && nameEl.textContent){
-            const k = nameEl.textContent.replace(/\d{1,2}:\d{2}\s*[·\-–]\s*/,'').trim();
+            var k = nameEl.textContent.replace(/\d{1,2}:\d{2}\s*[·\-–]\s*/,'').trim();
             if(k) inferredKind = k;
           }
         }
         // Prompt for a time override
-        const chosenTime = prompt('Enter time for this meal (HH:MM) or leave blank to use suggested time:', inferredTime || '');
+        var chosenTime = prompt('Enter time for this meal (HH:MM) or leave blank to use suggested time:', inferredTime || '');
         // Try to extract label text for the meal
-        let label = btn.textContent.replace(/^Add:\s*/,'').trim();
+        var label = btn.textContent.replace(/^Add:\s*/,'').trim();
         if(!label && container){
-          const name = container.querySelector('.suggestion-name');
+          var name = container.querySelector('.suggestion-name');
           if(name) label = name.textContent.trim();
         }
         // Fallback kind
-        const kind = inferredKind || 'Meal';
+        var kind = inferredKind || 'Meal';
         // Use addPlannedMeal if present
         try{
           if(typeof addPlannedMeal === 'function'){
@@ -106,7 +107,7 @@ window.meal = window.meal || {};
     try{
       var root = document.getElementById('suggestions-list') || document.getElementById('suggestion-list');
       if(!root) return;
-      var blocks = Array.from(root.querySelectorAll('div'));
+      var blocks = [].slice.call(root.querySelectorAll('div'));
       // Build a map by kind -> container blocks
       var groups = {};
       blocks.forEach(function(b){
@@ -140,13 +141,17 @@ window.meal = window.meal || {};
             return d;
           })();
           // Count existing buttons (Add: X…)
-          var existing = Array.from(b.querySelectorAll('button')).filter(function(x){ return /^Add: /.test(x.textContent||''); });
+          var existing = [].slice.call(b.querySelectorAll('button')).filter(function(x){ return /^Add: /.test(x.textContent||''); });
           // If fewer than 3, add more unique options
-          var have = new Set(existing.map(function(x){ return (x.textContent||'').replace(/^Add:\s*/,'').trim(); }));
-          var needed = Math.max(0, 3 - have.size);
+          /* Claude: 2026-03-25 — replaced new Set() (ES2015) with object lookup for ES5 compat */
+          var have = {};
+          var _haveArr = existing.map(function(x){ return (x.textContent||'').replace(/^Add:\s*/,'').trim(); });
+          for(var _hi=0; _hi<_haveArr.length; _hi++){ have[_haveArr[_hi]] = true; }
+          var haveCount = Object.keys(have).length;
+          var needed = Math.max(0, 3 - haveCount);
           for(var i=0, added=0; i < cat.length && added < needed; i++){
             var opt = cat[i];
-            if(!opt || have.has(opt)) continue;
+            if(!opt || have[opt]) continue;
             var btn = document.createElement('button');
             btn.textContent = 'Add: ' + opt;
             btn.className = 'add-suggestion-btn';
@@ -255,16 +260,21 @@ window.suggestor = window.suggestor || {};
       var bad='/Academic-Allies/Academic-Allies/';
       var good='/Academic-Allies/';
       // Fix <script>, <link>, <img>, <a>
-      ['script','link','img','a'].forEach(function(tag){
-        document.querySelectorAll(tag).forEach(function(el){
-          ['src','href'].forEach(function(attr){
+      /* Claude: 2026-03-25 — replaced NodeList.forEach with for loop for ES5 compat */
+      var _tags = ['script','link','img','a'];
+      for (var _tgi = 0; _tgi < _tags.length; _tgi++) { var tag = _tags[_tgi];
+        var _nodes = document.querySelectorAll(tag);
+        for (var _ni = 0; _ni < _nodes.length; _ni++) { var el = _nodes[_ni];
+          /* Claude: 2026-03-25 — replaced NodeList.forEach with for loop for ES5 compat */
+          var _attrs = ['src','href'];
+          for (var _ai = 0; _ai < _attrs.length; _ai++) { var attr = _attrs[_ai];
             var v = el.getAttribute && el.getAttribute(attr);
             if(v && v.indexOf(bad) !== -1){
               el.setAttribute(attr, v.replace(bad, good));
             }
-          });
-        });
-      });
+          }
+        }
+      }
     }catch(_){}
   });
 })();
@@ -301,12 +311,16 @@ window.suggestor = window.suggestor || {};
     try{
       // Rewrite visible times in common locations
       // 1) Any element with class .suggestion-time
-      document.querySelectorAll('.suggestion-time').forEach(function(el){
+      /* Claude: 2026-03-25 — replaced NodeList.forEach with for loop for ES5 compat */
+      var _bs1 = document.querySelectorAll('.suggestion-time');
+      for (var _bs1i = 0; _bs1i < _bs1.length; _bs1i++) { var el = _bs1[_bs1i];
         var t = (el.textContent||'').trim(); var m = t.match(/(\d{1,2}:\d{2})/);
         if(m){ el.textContent = t.replace(m[1], to12h(m[2])); }
-      });
+      }
       // 2) Common time labels inside planner rows
-      document.querySelectorAll('[data-time], .time-label, .meal-time').forEach(function(el){
+      /* Claude: 2026-03-25 — replaced NodeList.forEach with for loop for ES5 compat */
+      var _bs2 = document.querySelectorAll('[data-time], .time-label, .meal-time');
+      for (var _bs2i = 0; _bs2i < _bs2.length; _bs2i++) { var el = _bs2[_bs2i];
         var t = el.getAttribute('data-time') || (el.textContent||'').trim();
         var m = (t||'').match(/^(\d{1,2}):(\d{2})$/);
         if(m){
@@ -314,7 +328,7 @@ window.suggestor = window.suggestor || {};
           // If text looks like just HH:MM, replace it
           if(/^\d{1,2}:\d{2}$/.test(t)) el.textContent = to12h(t);
         }
-      });
+      }
     }catch(_){}
   });
 })();
@@ -366,21 +380,30 @@ window.suggestor = window.suggestor || {};
       window.cat = window.cat || {};
       ['Breakfast','Lunch','Dinner','Snack'].forEach(function(k){
         var base = Array.isArray(window.cat[k]) ? window.cat[k] : [];
-        var merged = Array.from(new Set([].concat(base, Standard[k]||[])));
+        /* Claude: 2026-03-25 — replaced new Set() (ES2015) with manual dedup for ES5 compat */
+        var _combined = [].concat(base, Standard[k]||[]);
+        var _seen = {}; var merged = [];
+        for (var _di = 0; _di < _combined.length; _di++) {
+          if (!_seen[_combined[_di]]) { _seen[_combined[_di]] = true; merged.push(_combined[_di]); }
+        }
         window.cat[k] = merged;
       });
 
       // Convert visible times to 12-hour
       (function to12hourUi(){
         try{
-          document.querySelectorAll('.suggestion-time').forEach(function(el){
+          /* Claude: 2026-03-25 — replaced NodeList.forEach with for loop for ES5 compat */
+          var _bs3 = document.querySelectorAll('.suggestion-time');
+          for (var _bs3i = 0; _bs3i < _bs3.length; _bs3i++) { var el = _bs3[_bs3i];
             var t=(el.textContent||'').trim(), m=t.match(/(\d{1,2}:\d{2})/); if(m) el.textContent=t.replace(m[1], to12h(m[2]));
-          });
-          document.querySelectorAll('[data-time], .time-label, .meal-time').forEach(function(el){
+          }
+          /* Claude: 2026-03-25 — replaced NodeList.forEach with for loop for ES5 compat */
+          var _bs4 = document.querySelectorAll('[data-time], .time-label, .meal-time');
+          for (var _bs4i = 0; _bs4i < _bs4.length; _bs4i++) { var el = _bs4[_bs4i];
             var t=el.getAttribute('data-time') || (el.textContent||'').trim();
             var m=(t||'').match(/^(\d{1,2}):(\d{2})$/);
             if(m){ el.setAttribute('data-time-12', to12h(m)); if(/^\d{1,2}:\d{2}$/.test(t)) el.textContent = to12h(t); }
-          });
+          }
         }catch(_){}
       })();
 

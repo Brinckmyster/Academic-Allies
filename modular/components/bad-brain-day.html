@@ -934,7 +934,9 @@ function pickEnergy(el) {
 
     var v   = parseInt(el.dataset.v);
     var lbl = LABELS[v];
-    var em  = el.querySelector('.energy-emoji').textContent;
+    /* Claude: 2026-03-25 — null guard for querySelector */
+    var _emEl = el.querySelector('.energy-emoji');
+    var em  = _emEl ? _emEl.textContent : '';
 
     var logged = document.getElementById('checkin-logged');
     logged.style.display = 'block';
@@ -1041,8 +1043,8 @@ function showAuthGate(visible) {
 function _bbdDateKey() {
     var d = new Date();
     return d.getFullYear() + '-'
-        + String(d.getMonth() + 1).padStart(2, '0') + '-'
-        + String(d.getDate()).padStart(2, '0');
+        + ('0' + (d.getMonth() + 1)).slice(-2) + '-'
+        + ('0' + d.getDate()).slice(-2);
 }
 
 /* Claude: 2026-03-21 — Triple redundancy on energy save */
@@ -1119,13 +1121,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (Object.keys(bbdVisible).length > 0) {
           restoreCheckboxes();
         } else if (window.AA_CONFIG) {
+          /* Claude: 2026-03-25 — added .catch() for unhandled promise */
           window.AA_CONFIG.load(currentUid).then(function() {
             var saved = window.AA_CONFIG.get('modes.bbdVisible', null);
             if (saved && typeof saved === 'object') {
               bbdVisible = saved;
               restoreCheckboxes();
             }
-          });
+          }).catch(function(err) { console.warn('[BBD] Config load failed:', err.message || err); });
         }
 
         /* Restore energy check-in */
@@ -1141,7 +1144,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     var logged = document.getElementById('checkin-logged');
                     if (logged) {
                         logged.style.display = 'block';
-                        logged.textContent = 'Restored: ' + el.querySelector('.energy-emoji').textContent + ' ' + data.badBrainDayLabel;
+                        /* Claude: 2026-03-25 — null guard for querySelector */
+                        var _rEmEl = el.querySelector('.energy-emoji');
+                        logged.textContent = 'Restored: ' + (_rEmEl ? _rEmEl.textContent : '') + ' ' + data.badBrainDayLabel;
                     }
                 }
             }
@@ -1174,7 +1179,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (currentMode !== 'bad-brain-day') {
         localStorage.setItem('appMode', 'bad-brain-day');
         window.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: 'bad-brain-day' } }));
-        console.log('[AA] Mode set to bad-brain-day');
+        if (window.AA_DEBUG) console.log('[AA] Mode set to bad-brain-day');
         /* Claude: 2026-03-21 — Auto red alert: sends red_flag notification
            so Family and Network Lead see it as an urgent alert, not just informational.
            Only fires for the student (not in mirror mode). */
@@ -1305,10 +1310,11 @@ document.addEventListener('DOMContentLoaded', function() {
         AA.auth.onAuthStateChanged(function(user) {
           if (!user) return;
           var uid = window.AA_MIRROR_UID || user.uid;
+          /* Claude: 2026-03-25 — added .catch() for unhandled promise */
           window.AA_CONFIG.load(uid).then(function() {
             var cardsCfg = window.AA_CONFIG.get('modes.cards.bad-brain', null);
             if (cardsCfg && Array.isArray(cardsCfg)) { _applyCardLayout(cardsCfg); }
-          });
+          }).catch(function(err) { console.warn('[BBD] Card config load failed:', err.message || err); });
         });
       });
     })();

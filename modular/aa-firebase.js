@@ -62,7 +62,7 @@
   if (!firebase.apps.length) {
     firebase.initializeApp(FIREBASE_CONFIG);
   }
-  console.log('[AA] Firebase initialised');
+  if (window.AA_DEBUG) console.log('[AA] Firebase initialised');
 
   var db   = firebase.firestore();
   var auth = firebase.auth();
@@ -97,7 +97,7 @@
     console.warn('[AA] localStorage read failed (using fallback):', e.message);
   }
   var _keepSignedIn = (_keepSignedInValue || sessionStorage.getItem('AA_KEEP_SIGNED_IN_SS')) !== 'false';
-  console.log('[AA] Persistence preference: ' + (_keepSignedIn ? 'LOCAL' : 'SESSION') + ' | AA_KEEP_SIGNED_IN=' + (_keepSignedInDisplay || 'unavailable'));
+  if (window.AA_DEBUG) console.log('[AA] Persistence preference: ' + (_keepSignedIn ? 'LOCAL' : 'SESSION') + ' | AA_KEEP_SIGNED_IN=' + (_keepSignedInDisplay || 'unavailable'));
 
   /* Only call setPersistence when the user opted into SESSION (non-default).
      LOCAL is Firebase's default — calling setPersistence(LOCAL) redundantly
@@ -106,7 +106,7 @@
   var _typeReady = _keepSignedIn
     ? Promise.resolve()
     : auth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
-        .then(function () { console.log('[AA] setPersistence(SESSION) resolved OK'); })
+        .then(function () { if (window.AA_DEBUG) console.log('[AA] setPersistence(SESSION) resolved OK'); })
         .catch(function (err) {
           console.warn('[AA] Auth persistence set failed:', err.code);
         });
@@ -134,7 +134,7 @@
         _resolved = true;
         clearTimeout(_timeout);
         unsub();
-        console.log('[AA] Auth state resolved: ' + (user ? 'USER' + (_dbg() ? ' (' + user.email + ')' : '') : 'null'));
+        if (window.AA_DEBUG) console.log('[AA] Auth state resolved: ' + (user ? 'USER' + (_dbg() ? ' (' + user.email + ')' : '') : 'null'));
         /* Claude: 2026-03-12 — diagnostic: if LOCAL persistence was expected but no session
            was restored, log a warning with context so we can track the sign-out pattern. */
         if (!user && _keepSignedIn) {
@@ -365,7 +365,38 @@
 
   // Claude: clear cached user on sign-out so re-auth isn't attempted next load
   window.AA.signOut = function () {
-    try { localStorage.removeItem('AA_LAST_USER'); } catch (e) {}
+    /* Claude: 2026-03-25 — clean up user-specific localStorage on sign-out
+       to prevent stale data leaking between accounts on shared devices */
+    try {
+      localStorage.removeItem('AA_LAST_USER');
+      localStorage.removeItem('appMode');
+      localStorage.removeItem('aa-status-view');
+      localStorage.removeItem('aa-status-dev');
+      localStorage.removeItem('aa_migraine_mode');
+      /* Clean UID-keyed entries */
+      var uid = auth.currentUser ? auth.currentUser.uid : '';
+      if (uid) {
+        localStorage.removeItem('AA_MIGRAINE_BACKUP_' + uid);
+        localStorage.removeItem('AA_CONFIG_BACKUP_' + uid);
+        localStorage.removeItem('AA_STUDY_BACKUP_' + uid);
+        localStorage.removeItem('AA_BBD_VISIBLE_' + uid);
+        localStorage.removeItem('AA_STUDY_MIGRATED_' + uid);
+      }
+      /* Clean stale retry queues */
+      localStorage.removeItem('AA_MIGRAINE_RETRY_QUEUE');
+      localStorage.removeItem('AA_CONFIG_RETRY_QUEUE');
+      localStorage.removeItem('AA_STUDY_RETRY_QUEUE');
+      /* Prune old date-keyed entries (checkins_*, aa_gps_*) — keep last 7 days */
+      var cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
+      var cutoffStr = cutoff.toISOString().slice(0, 10);
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var k = localStorage.key(i);
+        if ((k.indexOf('checkins_') === 0 || k.indexOf('aa_gps_') === 0) && k.slice(-10) < cutoffStr) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch (e) { console.warn('[AA] Sign-out cleanup error:', e.message || e); }
     return auth.signOut();
   };
 
@@ -431,12 +462,14 @@
           /* Same email, different UID — inherit the existing role so a
              duplicate account doesn't silently become pending/student */
           var inherited = snap.docs[0].data().role || 'pending';
-          console.log('[AA] Inheriting role from existing user doc:', email, '→', inherited);
+          /* Claude: 2026-03-25 — sanitized console log to remove PII */
+          if (window.AA_DEBUG) console.log('[AA] Inheriting role from existing user doc:', inherited);
           return inherited;
         }
         /* Unknown email → pending (dev phase). Invite code modal handles redemption.
            Change to 'student' at Play Store launch (STUDENT-NETWORK-SPEC §7 Step 5). */
-        console.log('[AA] Unknown email — assigning pending role:', email);
+        /* Claude: 2026-03-25 — sanitized console log to remove PII */
+        if (window.AA_DEBUG) console.log('[AA] Unknown email — assigning pending role');
         return 'pending';
       })
       .catch(function () { return 'pending'; });
@@ -453,9 +486,9 @@
      This prevents onAuthStateChanged from firing with null while
      IndexedDB is still loading the persisted session. */
   _persistenceReady.then(function () {
-  console.log('[AA] aa-firebase onAuthStateChanged registering. currentUser=' + (auth.currentUser ? (_dbg() ? auth.currentUser.email : 'present') : 'null'));
+  if (window.AA_DEBUG) console.log('[AA] aa-firebase onAuthStateChanged registering. currentUser=' + (auth.currentUser ? (_dbg() ? auth.currentUser.email : 'present') : 'null'));
   auth.onAuthStateChanged(function (user) {
-    console.log('[AA] aa-firebase onAuthStateChanged: ' + (user ? 'USER' + (_dbg() ? ' (' + user.email + ')' : '') : 'null'));
+    if (window.AA_DEBUG) console.log('[AA] aa-firebase onAuthStateChanged: ' + (user ? 'USER' + (_dbg() ? ' (' + user.email + ')' : '') : 'null'));
     /* Claude: cache last signed-in user to localStorage for re-auth fallback.
        If Firebase persistence fails (virtual desktops, cleared IndexedDB),
        shared-header can read this to attempt silent re-auth. */
@@ -468,12 +501,29 @@
           persistence: _keepSignedIn ? 'LOCAL' : 'SESSION'
         }));
       } catch (e) {}
+      /* Claude: 2026-03-25 — one-time prune of stale date-keyed localStorage on sign-in.
+         Runs once per session to clean entries older than 30 days. */
+      if (!window._aaPruned) {
+        window._aaPruned = true;
+        try {
+          var _pc = new Date();
+          _pc.setDate(_pc.getDate() - 30);
+          var _cs = _pc.toISOString().slice(0, 10);
+          for (var _pi = localStorage.length - 1; _pi >= 0; _pi--) {
+            var _pk = localStorage.key(_pi);
+            if ((_pk.indexOf('checkins_') === 0 || _pk.indexOf('aa_gps_') === 0) && _pk.slice(-10) < _cs) {
+              localStorage.removeItem(_pk);
+            }
+          }
+        } catch (e) {}
+      }
       /* Claude: 2026-03-05 — silently refresh token every 45 min when LOCAL persistence
          is active, to prevent 1-hour expiration sign-outs */
       if (_keepSignedIn && !window._aaTokenRefreshInterval) {
         window._aaTokenRefreshInterval = setInterval(function () {
           var u = auth.currentUser;
-          if (u) u.getIdToken(true).catch(function () {});
+          /* Claude: 2026-03-25 — added console.warn to token refresh catch */
+          if (u) u.getIdToken(true).catch(function (e) { console.warn('[AA] Token refresh failed:', e.message || e); });
         }, 45 * 60 * 1000);
       }
       /* Claude: 2026-03-05 — visibilitychange refresh.
@@ -488,7 +538,8 @@
             var u = auth.currentUser;
             if (u) {
               /* Refresh token proactively — Chrome throttles timers in background tabs */
-              u.getIdToken(true).catch(function () {});
+              /* Claude: 2026-03-25 — added console.warn to visibility refresh catch */
+              u.getIdToken(true).catch(function (e) { console.warn('[AA] Visibility token refresh failed:', e.message || e); });
             } else {
               /* Claude: 2026-03-06 — tab returned to foreground with no current user.
                  Firebase may have expired the session while throttled in background.
@@ -525,8 +576,9 @@
       if (doc.exists) {
         // ── Admin self-heal: if this is an admin email but role got wiped, restore it ──
         if (ADMIN_EMAILS.indexOf(user.email) !== -1 && doc.data().role !== 'backstage-manager') {
-          console.log('[AA] Backstage-manager role self-heal →', _dbg() ? user.email : user.uid);
-          db.collection('users').doc(user.uid).update({ role: 'backstage-manager' }).catch(function () {});
+          if (window.AA_DEBUG) console.log('[AA] Backstage-manager role self-heal →', _dbg() ? user.email : user.uid);
+          /* Claude: 2026-03-25 — added console.warn to admin self-heal catch */
+          db.collection('users').doc(user.uid).update({ role: 'backstage-manager' }).catch(function (e) { console.warn('[AA] Admin self-heal failed:', e.message || e); });
         }
         // ── 24-hour admin timer: auto self-admin if slot empty >24h ──
         _check24HourAdminTimer(user.uid, doc.data());
@@ -538,10 +590,10 @@
               var pendingRole = pending.data().role || 'student';
               // Claude: 2026-03-05 — never overwrite an admin email's role via pendingUsers
               if (ADMIN_EMAILS.indexOf(user.email) !== -1) {
-                console.log('[AA] Skipping pendingUsers role for admin email:', _dbg() ? user.email : user.uid);
+                if (window.AA_DEBUG) console.log('[AA] Skipping pendingUsers role for admin email:', _dbg() ? user.email : user.uid);
                 return db.collection('pendingUsers').doc(user.email).delete().catch(function () {});
               }
-              console.log('[AA] Honoring pending role for existing user:', _dbg() ? user.email : user.uid, '→', pendingRole);
+              if (window.AA_DEBUG) console.log('[AA] Honoring pending role for existing user:', _dbg() ? user.email : user.uid, '→', pendingRole);
               return db.collection('pendingUsers').doc(user.email).delete()
                 .catch(function () {})
                 .then(function () {
@@ -561,7 +613,7 @@
           var role;
           if (pending.exists) {
             role = pending.data().role || 'student';
-            console.log('[AA] Found pending registration for', _dbg() ? user.email : user.uid, '→ role:', role);
+            if (window.AA_DEBUG) console.log('[AA] Found pending registration for', _dbg() ? user.email : user.uid, '→ role:', role);
             return db.collection('pendingUsers').doc(user.email).delete()
               .catch(function () {})
               .then(function () { return createUserDoc(user, role); })
@@ -575,7 +627,7 @@
         .catch(function (err) {
           // Permission denied reading pendingUsers (non-admin first-time sign-in).
           // Resolve role (may inherit from an existing doc with the same email).
-          console.log('[AA] pendingUsers check skipped (' + err.code + ') — resolving role.');
+          if (window.AA_DEBUG) console.log('[AA] pendingUsers check skipped (' + err.code + ') — resolving role.');
           return _resolveRoleForNewUser(user.email)
             .then(function (role) { return createUserDoc(user, role); })
             .then(function () { window.location.reload(); });
@@ -673,7 +725,9 @@
   };
 
   /* Merge-write individual fields (won't overwrite other fields) */
+  /* Claude: 2026-03-25 — added missing mirror mode write guard */
   window.AA.patchFlowerQuiz = function (uid, patch) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     var data = Object.assign({}, patch, {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -751,8 +805,9 @@
       update['supportNetwork.' + memberUid] = tier;
       // Write-back: flag the member's own doc so they can see the Support Dashboard
       // even if their primary role is 'student' (dual-role: student + supporter)
+      /* Claude: 2026-03-25 — added console.warn to best-effort isSupporter write */
       db.collection('users').doc(memberUid).update({ isSupporter: true })
-        .catch(function() {}); // best-effort; non-blocking
+        .catch(function(e) { console.warn('[AA] isSupporter flag write failed:', e.message || e); }); // best-effort; non-blocking
       return db.collection('users').doc(studentUid).update(update);
     });
   };
@@ -765,8 +820,9 @@
     // Clear the isSupporter flag from the member's doc
     // (edge case: if they're still in another network they'll lose the card,
     //  but it will be restored next time setNetworkMember is called for them)
+    /* Claude: 2026-03-25 — added console.warn to best-effort isSupporter clear */
     db.collection('users').doc(memberUid).update({ isSupporter: false })
-      .catch(function() {}); // best-effort; non-blocking
+      .catch(function(e) { console.warn('[AA] isSupporter flag clear failed:', e.message || e); }); // best-effort; non-blocking
     return db.collection('users').doc(studentUid).update(update);
   };
 
@@ -974,6 +1030,10 @@
         callback(doc.exists ? doc.data() : null);
       }, function (err) {
         console.error('[AA] watchMealLog error:', err);
+        /* Claude: 2026-03-25 — pass error to callback so meal-planner can show offline fallback.
+           Without this, the error fires but the callback never runs, leaving the UI stuck
+           on "Loading..." forever with no retry option. */
+        callback(null, err);
       });
   };
 
@@ -1049,12 +1109,14 @@
     /* Claude: 2026-03-16 — merge:true for defensive consistency */
     return db.collection('invites').doc(code).set(invite, { merge: true })
       .then(function () {
-        console.log('[AA] Invite created:', code, '→', role);
+        if (window.AA_DEBUG) console.log('[AA] Invite created:', code, '→', role);
         return { code: code, expiresAt: expiresAt };
       });
   }
 
+  /* Claude: 2026-03-25 — added missing mirror mode write guard */
   window.AA.createInvite = function (studentUid, role) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     var validRoles = ['family', 'support', 'nearby-help', 'network-lead'];
     if (validRoles.indexOf(role) === -1) {
       return Promise.reject(new Error('Invalid role: ' + role));
@@ -1099,9 +1161,11 @@
   };
 
   /* Revoke (delete) an unused invite — student cancels an outstanding invite */
+  /* Claude: 2026-03-25 — added missing mirror mode write guard */
   window.AA.revokeInvite = function (code) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     return db.collection('invites').doc(code).delete()
-      .then(function () { console.log('[AA] Invite revoked:', code); });
+      .then(function () { if (window.AA_DEBUG) console.log('[AA] Invite revoked:', code); });
   };
 
   /* Redeem an invite code.
@@ -1111,7 +1175,9 @@
      - Adds invitee to student's supportNetwork map
      - Updates invitee's own user doc role to match the invite role
      Returns Promise<{ studentUid, role, studentName }>               */
+  /* Claude: 2026-03-25 — added missing mirror mode write guard */
   window.AA.redeemInvite = function (code) {
+    if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
     var user = auth.currentUser;
     if (!user) return Promise.reject(new Error('Must be signed in to redeem an invite'));
 
@@ -1166,7 +1232,7 @@
         });
       })
       .then(function () {
-        console.log('[AA] Invite redeemed:', code, '→ network role:', inv.role, 'for', inv.studentUid);
+        if (window.AA_DEBUG) console.log('[AA] Invite redeemed:', code, '→ network role:', inv.role, 'for', inv.studentUid);
         // Claude: compliance — notify student when someone joins their network (FERPA)
         // Write to /users/{studentUid}/notifications/{auto-id}
         var displayName = user.displayName || user.email || 'Someone';
@@ -1288,16 +1354,18 @@
 
     var hoursElapsed = (Date.now() - timerStart.getTime()) / 3600000;
     if (hoursElapsed < 24) {
-      console.log('[AA] Admin timer: ' + Math.round(24 - hoursElapsed) + 'h remaining before self-admin');
+      if (window.AA_DEBUG) console.log('[AA] Admin timer: ' + Math.round(24 - hoursElapsed) + 'h remaining before self-admin');
       return;
     }
 
     /* 24 hours passed — assign student as their own network-lead */
-    console.log('[AA] 24h timer expired — assigning self network-lead for', uid);
+    /* Claude: 2026-03-25 — sanitized console log to remove PII */
+    if (window.AA_DEBUG) console.log('[AA] 24h timer expired — assigning self network-lead');
     var selfAdminUpdate = {};
     selfAdminUpdate['supportNetwork.' + uid] = 'network-lead';
     db.collection('users').doc(uid).update(selfAdminUpdate)
-      .then(function () { console.log('[AA] Self network-lead assigned for', uid); })
+      /* Claude: 2026-03-25 — sanitized console log to remove PII */
+      .then(function () { if (window.AA_DEBUG) console.log('[AA] Self network-lead assigned'); })
       .catch(function (err) { console.warn('[AA] Self network-lead assign failed:', err); });
   }
 
@@ -1632,8 +1700,8 @@
 
     /* Throttle: only fire once per day per device */
     var dateKey = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0');
+      ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+      ('0' + now.getDate()).slice(-2);
     var throttleKey = 'AA_MEAL_ALERT_' + dateKey;
     /* Claude: 2026-03-16 — safe storage read for throttle key */
     try {
@@ -1690,8 +1758,8 @@
     /* Throttle: once per day per device */
     var now = new Date();
     var dateKey = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0');
+      ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+      ('0' + now.getDate()).slice(-2);
     /* Claude: 2026-03-23 — wrapped localStorage in try-catch (same as checkMissedMeal).
        localStorage can throw in private browsing or when storage is full.
        Archive: aa-firebase_2026-03-23_pre-try-catch-fix.bak.js */
@@ -1772,7 +1840,8 @@
         _roleResolved = true;
         return role;
       })
-      .catch(function() { return 'unknown'; });
+      /* Claude: 2026-03-25 — added console.warn to role fetch catch */
+      .catch(function(e) { console.warn('[AA] Role fetch failed:', e.message || e); return 'unknown'; });
     return _rolePromise;
   }
 
@@ -2163,5 +2232,54 @@
     return 'green';
   };
 
-  console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);
+  if (window.AA_DEBUG) console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);
+
+  /* Claude: 2026-03-25 — Global unhandled rejection handler.
+     Catches any Promise rejections that slip past .catch() chains
+     (Firebase calls, fetch failures, etc.) and logs them gracefully
+     instead of letting them silently fail or show raw errors in console.
+     Only attaches once; does not interfere with any existing handler. */
+  if (!window._AA_REJECTION_HANDLER_SET) {
+    window._AA_REJECTION_HANDLER_SET = true;
+    window.addEventListener('unhandledrejection', function (event) {
+      var reason = event.reason;
+      var msg = (reason && reason.message) ? reason.message : String(reason || 'Unknown');
+      /* Suppress noisy Firebase internal rejections that are handled internally */
+      if (msg.indexOf('Failed to get document because the client is offline') !== -1) return;
+      if (msg.indexOf('Missing or insufficient permissions') !== -1) {
+        console.warn('[AA] Firestore permission denied — check security rules or auth state. Detail:', msg);
+        return;
+      }
+      console.warn('[AA] Unhandled promise rejection:', msg);
+      if (_dbg() && reason && reason.stack) {
+        console.warn('[AA] Stack:', reason.stack);
+      }
+    });
+  }
+
+  /* Claude: 2026-03-25 — Global window.onerror handler for synchronous errors.
+     Catches uncaught JS errors (null reference, type errors, etc.) and logs them
+     gracefully. Suppresses ResizeObserver loop errors (benign Chrome bug).
+     Complements the unhandledrejection handler above. */
+  if (!window._AA_ONERROR_SET) {
+    window._AA_ONERROR_SET = true;
+    window.onerror = function (msg, src, line, col, err) {
+      var m = String(msg || '');
+      /* ResizeObserver loop errors are benign — Chrome fires them when layout
+         shifts happen faster than the observer callback. Safe to suppress. */
+      if (m.indexOf('ResizeObserver loop') !== -1) return true;
+      /* Script errors from cross-origin scripts (Firebase SDK, etc.) show as
+         "Script error." with no useful info — just log it quietly. */
+      if (m === 'Script error.' || m === 'Script error') {
+        if (_dbg()) console.warn('[AA] Cross-origin script error (no details available)');
+        return false;
+      }
+      console.warn('[AA] Uncaught error:', m, '| File:', src || '(unknown)', '| Line:', line || '?');
+      if (_dbg() && err && err.stack) {
+        console.warn('[AA] Stack:', err.stack);
+      }
+      return false; /* let default browser error reporting continue */
+    };
+  }
+
 })();

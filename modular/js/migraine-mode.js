@@ -54,9 +54,10 @@
   }
 
   function removeCSS() {
-    if (_styleEl) { _styleEl.remove(); _styleEl = null; }
+    if (_styleEl && _styleEl.parentNode) { _styleEl.parentNode.removeChild(_styleEl); _styleEl = null;  }
     var el = document.getElementById('aa-migraine-css');
-    if (el) el.remove();
+    /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+    if (el && el.parentNode) el.parentNode.removeChild(el);
   }
 
   /* ── Check current state ── */
@@ -92,7 +93,7 @@
       /* Layer 1: localStorage backup FIRST (synchronous, survives connection loss) */
       try {
         localStorage.setItem('AA_MIGRAINE_BACKUP_' + user.uid, JSON.stringify({ migraineMode: active, savedAt: new Date().toISOString() }));
-        console.log('[MigraineMode] Layer 1 — localStorage backup saved');
+        if (window.AA_DEBUG) console.log('[MigraineMode] Layer 1 — localStorage backup saved');
       } catch(lsErr) {
         try { sessionStorage.setItem('AA_MIGRAINE_BACKUP_' + user.uid, JSON.stringify({ migraineMode: active })); } catch(ssErr) {}
       }
@@ -115,7 +116,7 @@
           clearTimeout(saveTimeout);
           /* Clean up localStorage backup on success */
           try { localStorage.removeItem('AA_MIGRAINE_BACKUP_' + user.uid); } catch(e) {}
-          console.log('[MigraineMode] Layer 2 — Firestore saved');
+          if (window.AA_DEBUG) console.log('[MigraineMode] Layer 2 — Firestore saved');
         })
         .catch(function (err) {
           clearTimeout(saveTimeout);
@@ -135,14 +136,16 @@
       try {
         var queue = JSON.parse(localStorage.getItem('AA_MIGRAINE_RETRY_QUEUE') || '[]');
         if (queue.length === 0) return;
-        console.log('[MigraineMode] Processing', queue.length, 'queued retries');
+        if (window.AA_DEBUG) console.log('[MigraineMode] Processing', queue.length, 'queued retries');
         localStorage.removeItem('AA_MIGRAINE_RETRY_QUEUE');
         queue.forEach(function(item) {
           if (window.AA && window.AA.db) {
             window.AA.db.collection('users').doc(item.uid)
               .update({ migraineMode: item.active })
-              .then(function() { console.log('[MigraineMode] Retry succeeded for', item.uid); })
-              .catch(function() { /* give up silently — user will toggle again */ });
+              /* Claude: 2026-03-25 — sanitized console log to remove PII */
+              .then(function() { if (window.AA_DEBUG) console.log('[MigraineMode] Retry succeeded'); })
+              /* Claude: 2026-03-25 — added console.warn to retry failure */
+              .catch(function(e) { console.warn('[MigraineMode] Retry failed:', e.message || e); });
           }
         });
       } catch(e) {}
@@ -216,15 +219,20 @@
     var b = document.getElementById('aa-migraine-network-banner');
     if (b) {
       document.body.style.paddingTop = Math.max(0, parseInt(document.body.style.paddingTop || 0) - 44) + 'px';
-      b.remove();
+      /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+      if (b.parentNode) b.parentNode.removeChild(b);
     }
   }
 
   /* ── Watch mirrored student's migraineMode field ── */
+  /* Claude: 2026-03-25 — store unsubscribe to prevent onSnapshot memory leak */
+  var _migraineMirrorUnsub = null;
   function watchMirrorMigraine() {
     if (!window.AA_MIRROR_UID) return;
     if (!window.AA || !window.AA.db) return;
-    window.AA.db.collection('users').doc(window.AA_MIRROR_UID)
+    /* Clean up any previous listener before attaching a new one */
+    if (_migraineMirrorUnsub) { _migraineMirrorUnsub(); _migraineMirrorUnsub = null; }
+    _migraineMirrorUnsub = window.AA.db.collection('users').doc(window.AA_MIRROR_UID)
       .onSnapshot(function (doc) {
         if (doc.exists && doc.data().migraineMode) {
           showNetworkBanner();

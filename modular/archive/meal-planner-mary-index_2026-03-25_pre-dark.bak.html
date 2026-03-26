@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mary's Meal Planner - Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .meal-controls { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+    .meal-controls button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 6px; border: none; }
+    .meal-controls button.primary { background: #4CAF50; color: white; }
+    .meal-controls button.secondary { background: #2196F3; color: white; }
+    .meal-controls button.danger { background: #f44336; color: white; }
+    .meal-entry { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .meal-entry input, .meal-entry textarea { width: 100%; padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #ccc; }
+    .meal-list { margin-top: 20px; }
+    .meal-item { background: white; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #4CAF50; }
+
+    /* Claude: 2026-03-13 — 44px touch targets, mobile responsive, focus-visible */
+    .meal-controls button { min-height: 44px; }
+    .meal-controls button:focus-visible { outline: 3px solid #4CAF50; outline-offset: 2px; }
+    .meal-entry input, .meal-entry textarea { min-height: 44px; font-size: 16px; }
+    .meal-entry button { min-height: 44px; }
+    input[type="file"] { min-height: 44px; padding: 8px 0; }
+
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      h1 { font-size: 1.3rem; }
+      .meal-controls { flex-direction: column; }
+      .meal-controls button { width: 100%; text-align: center; }
+      .meal-entry { padding: 14px; }
+      .meal-item { padding: 12px; }
+      .meal-item button { width: 100%; float: none !important; margin-top: 8px; min-height: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Claude: 2026-03-19 — mode-gate: blocks page if feature is off for current mode -->
+  <script>var AA_MODE_GATE = 'mealPlan';</script>
+  <script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+  <div id="site-header"></div>
+  <script src="time-utils.js"></script>
+  <script src="suggestions.js"></script>
+  <script src="edit-modal.js"></script>
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
+      .then(response => response.text())
+      .then(html => {
+        const container = document.getElementById('site-header');
+        container.innerHTML = html;
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+        const dragScript = document.createElement('script');
+        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
+        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(dragScript);
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+
+  <h1>Mary's Meal Planner</h1>
+  <p>Gastroparesis-safe meals. Refined wheat OK. Solids at 10:30am/1:30pm/4:30pm, liquids only after 5pm.</p>
+
+  <!-- Claude: 2026-03-13 — added ARIA labels for accessibility -->
+  <div class="meal-controls" role="toolbar" aria-label="Meal plan actions">
+    <input type="file" id="fileUpload" accept=".json,.csv,.pdf" aria-label="Upload base plan file">
+    <button class="secondary" onclick="loadBasePlan()" aria-label="Load base meal plan from file">Load Base Plan</button>
+    <button class="secondary" onclick="suggestMeal()" aria-label="Get meal suggestions">Suggest Meals</button>
+    <button class="danger" onclick="resetPlan()" aria-label="Clear all meals for today">Reset</button>
+    <button class="secondary" onclick="showBasePlan()" aria-label="Show or edit the base plan template">Show/Edit Base Plan Template</button>
+  </div>
+
+  <div class="meal-entry" role="form" aria-label="Add a new meal">
+    <h3>Add Meal</h3>
+    <label for="mealName" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Meal name</label>
+    <input type="text" id="mealName" placeholder="Meal name" aria-label="Meal name">
+    <label for="mealTime" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Meal time</label>
+    <input type="time" id="mealTime" aria-label="Meal time">
+    <label for="mealNotes" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Notes</label>
+    <textarea id="mealNotes" placeholder="Notes (optional)" rows="3" aria-label="Meal notes"></textarea>
+    <label for="mealPhoto" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Meal photo</label>
+    <input type="file" id="mealPhoto" accept="image/*" capture="camera" style="margin: 5px 0;" aria-label="Take or upload meal photo">
+    <button class="primary" onclick="addMeal()" aria-label="Add this meal to today's plan">Add Meal</button>
+  </div>
+
+  <!-- Today's Plan -->
+  <div role="region" aria-label="Today's meal plan">
+    <h3>Meals Planned Today: <span id="mealCount">0</span></h3>
+    <div id="mealList" class="meal-list" role="list" aria-live="polite"></div>
+  </div>
+
+  <script>
+    // Updated 2026-02-18 by Claude — fixed missing braces throughout,
+    // removed undefined photoFile ref, removed duplicate script tags,
+    // added removeMeal() per-item button.
+
+    // ── Data init ─────────────────────────────────────────────
+    let todaysMeals = [];
+    try {
+      const stored = localStorage.getItem('maryMealPlan');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        todaysMeals = Array.isArray(parsed) ? parsed : [];
+      }
+    } catch(e) {
+      console.error('Error loading meals:', e);
+      localStorage.removeItem('maryMealPlan');
+    }
+
+    // ── Display ───────────────────────────────────────────────
+    function displayMeals() {
+      const list  = document.getElementById('mealList');
+      const count = document.getElementById('mealCount');
+      count.textContent = todaysMeals.length;
+      list.innerHTML = todaysMeals.map((meal, i) => `
+        <div class="meal-item">
+          <strong>${meal.name || '(unnamed)'}</strong>
+          ${meal.time ? '<br>Time: ' + to12Hour(meal.time) : ''}
+          ${meal.notes ? '<br>Notes: ' + meal.notes : ''}
+          <button onclick="removeMeal(${i})"
+                  style="float:right;background:#f44336;color:#fff;border:none;
+                         border-radius:4px;padding:4px 12px;cursor:pointer;font-size:13px;">
+            Remove
+          </button>
+        </div>
+      `).join('');
+    }
+
+    /* Claude: 2026-03-12 — mirror mode guard. Supporters view read-only;
+       student is sudo. Hide edit UI for mirrors, block write functions. */
+    function _isMaryMirror() {
+      return !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
+        && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+    }
+    (function _guardMirror() {
+      function _applyGuard() {
+        if (!window.AA || !AA.auth) { setTimeout(_applyGuard, 300); return; }
+        AA.auth.onAuthStateChanged(function(user) {
+          if (!user) return;
+          if (_isMaryMirror()) {
+            var entry = document.querySelector('.meal-entry');
+            var controls = document.querySelector('.meal-controls');
+            if (entry) entry.style.display = 'none';
+            if (controls) controls.style.display = 'none';
+            var h1 = document.querySelector('h1');
+            if (h1) h1.insertAdjacentHTML('afterend',
+              '<div style="background:#e8eeff;border:2px solid #a5b4fc;border-radius:10px;padding:12px 18px;margin:12px 0;color:#4338ca;font-size:0.9rem;">' +
+              '🪞 <strong>Read-only mirror view</strong> — you can view Mary\'s meals but not change them.</div>');
+          }
+        });
+      }
+      _applyGuard();
+    })();
+
+    // ── Add meal ──────────────────────────────────────────────
+    function addMeal() {
+      if (_isMaryMirror()) { alert('Mirror mode — view only.'); return; }
+      const name  = document.getElementById('mealName').value.trim();
+      const time  = document.getElementById('mealTime').value;
+      const notes = document.getElementById('mealNotes').value.trim();
+
+      if (!name && !time) {
+        alert('Please enter at least a meal name or time.');
+        return;
+      }
+
+      todaysMeals.push({ name: name || '(unnamed)', time, notes });
+      localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
+
+      document.getElementById('mealName').value  = '';
+      document.getElementById('mealTime').value  = '';
+      document.getElementById('mealNotes').value = '';
+      displayMeals();
+    }
+
+    // ── Remove individual meal ────────────────────────────────
+    function removeMeal(index) {
+      if (_isMaryMirror()) { alert('Mirror mode — view only.'); return; }
+      todaysMeals.splice(index, 1);
+      localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
+      displayMeals();
+    }
+
+    // ── Reset all ─────────────────────────────────────────────
+    function resetPlan() {
+      if (_isMaryMirror()) { alert('Mirror mode — view only.'); return; }
+      if (confirm('Clear all meals for today?')) {
+        todaysMeals = [];
+        localStorage.setItem('maryMealPlan', JSON.stringify(todaysMeals));
+        displayMeals();
+      }
+    }
+
+    // ── Load base plan from uploaded file ─────────────────────
+    function loadBasePlan() {
+      const file = document.getElementById('fileUpload').files[0];
+      if (!file) {
+        alert('Please select a JSON file first.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const plan = JSON.parse(e.target.result);
+          localStorage.setItem('maryBasePlan', JSON.stringify(plan));
+          alert('Base plan loaded!');
+        } catch(err) {
+          alert('Error loading file — make sure it is valid JSON.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ── Init ──────────────────────────────────────────────────
+    displayMeals();
+
+    // Cache the bundled base plan JSON if not already stored
+    fetch('base-meal-plan-mary.json')
+      .then(r => r.json())
+      .then(plan => {
+        if (!localStorage.getItem('maryBasePlan')) {
+          localStorage.setItem('maryBasePlan', JSON.stringify(plan));
+        }
+      })
+      .catch(() => {}); // silent — base plan is optional
+  </script>
+</body>
+</html>

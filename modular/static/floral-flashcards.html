@@ -286,9 +286,9 @@
         var scripts = container.querySelectorAll('script');
         scripts.forEach(function(oldScript) {
           var newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
           newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
+          oldScript.parentNode.replaceChild(newScript, oldScript);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -342,12 +342,14 @@
   </div>
 
   <div class="nav-row">
-    <button class="nav-btn" id="fcPrev" onclick="prevCard()">◀</button>
+    <!-- Claude: 2026-03-25 — added aria-labels to icon-only nav buttons -->
+    <button class="nav-btn" id="fcPrev" onclick="prevCard()" aria-label="Previous card">◀</button>
     <span id="fcCounter" style="font-size:11pt;color:#888;">1 / 10</span>
-    <button class="nav-btn" id="fcNext" onclick="nextCard()">▶</button>
+    <button class="nav-btn" id="fcNext" onclick="nextCard()" aria-label="Next card">▶</button>
   </div>
 
-  <div class="results" id="fcResults">
+  <!-- Claude: 2026-03-25 — aria-live on results for screen readers -->
+  <div class="results" id="fcResults" role="alert" aria-live="polite">
     <h2 id="fcResultTitle">Deck Complete!</h2>
     <div class="stat" id="fcResultStat"></div>
     <div class="stat" id="fcResultMissed"></div>

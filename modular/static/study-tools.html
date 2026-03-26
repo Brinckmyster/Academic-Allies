@@ -228,9 +228,11 @@
         var scripts = container.querySelectorAll('script');
         scripts.forEach(function(oldScript) {
           var newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          /* Claude: 2026-03-25 — replaced Array.from() (ES2015) with [].slice.call() for ES5 compat */
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
           newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
+          /* Claude: 2026-03-25 — replaced .replaceWith() with ES5-safe .replaceChild() */
+          oldScript.parentNode.replaceChild(newScript, oldScript);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -469,29 +471,36 @@ function buildCard(tool) {
   return html;
 }
 
+/* Claude: 2026-03-25 — added aria-expanded toggle for a11y */
 function toggleSemester(id) {
   var body = document.getElementById('sem-body-' + id);
   var arrow = document.getElementById('sem-arrow-' + id);
+  var heading = body ? body.previousElementSibling : null;
   if (body.classList.contains('collapsed')) {
     body.classList.remove('collapsed');
     body.style.maxHeight = body.scrollHeight + 'px';
     arrow.classList.remove('collapsed');
+    if (heading) heading.setAttribute('aria-expanded', 'true');
   } else {
     body.classList.add('collapsed');
     body.style.maxHeight = '0';
     arrow.classList.add('collapsed');
+    if (heading) heading.setAttribute('aria-expanded', 'false');
   }
 }
 
 /* Claude: 2026-03-24 — Toggle collapsible tool groups within a semester */
+/* Claude: 2026-03-25 — added aria-expanded toggle for a11y */
 function toggleToolGroup(gId) {
   var body = document.getElementById('tg-body-' + gId);
   var arrow = document.getElementById('tg-arrow-' + gId);
+  var heading = body ? body.previousElementSibling : null;
   if (!body) return;
   if (body.classList.contains('collapsed')) {
     body.classList.remove('collapsed');
     body.style.maxHeight = body.scrollHeight + 'px';
     if (arrow) arrow.classList.remove('collapsed');
+    if (heading) heading.setAttribute('aria-expanded', 'true');
     /* Also recalc parent semester body max-height */
     var parent = body.closest('.semester-body');
     if (parent && !parent.classList.contains('collapsed')) {
@@ -501,6 +510,7 @@ function toggleToolGroup(gId) {
     body.classList.add('collapsed');
     body.style.maxHeight = '0';
     if (arrow) arrow.classList.add('collapsed');
+    if (heading) heading.setAttribute('aria-expanded', 'false');
   }
 }
 
@@ -518,7 +528,8 @@ function buildPage() {
     var startCollapsed = past && !isCurrent;
 
     /* Semester heading */
-    html += '<div class="semester-heading" onclick="toggleSemester(\'' + sem.id + '\')">';
+    /* Claude: 2026-03-25 — added role, tabindex, aria-expanded, keyboard handler for a11y */
+    html += '<div class="semester-heading" role="button" tabindex="0" aria-expanded="' + (startCollapsed ? 'false' : 'true') + '" onclick="toggleSemester(\'' + sem.id + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleSemester(\'' + sem.id + '\');}">';
     html += '<h2>' + sem.label + '</h2>';
     html += '<div class="sem-meta">';
     if (sem.bonus) {
@@ -562,7 +573,8 @@ function buildPage() {
       var gId = 'tg-' + sem.id + '-' + groupName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
       var toolCount = gTools.filter(function(t) { return t.type === 'card'; }).length;
 
-      html += '<div class="tool-group-heading" onclick="toggleToolGroup(\'' + gId + '\')">';
+      /* Claude: 2026-03-25 — added role, tabindex, aria-expanded, keyboard handler for a11y */
+      html += '<div class="tool-group-heading" role="button" tabindex="0" aria-expanded="true" onclick="toggleToolGroup(\'' + gId + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleToolGroup(\'' + gId + '\');}">';
       html += '<strong>🌸 ' + groupName + '</strong>';
       html += '<div class="tool-group-meta">';
       html += '<span class="tool-group-badge">' + toolCount + ' tool' + (toolCount !== 1 ? 's' : '') + '</span>';
@@ -695,7 +707,8 @@ var _cfgPoll = setInterval(function() {
           var quizCount = groups[groupName].length;
 
           html += '<div style="margin: 16px 0 8px; padding: 8px 12px; background: rgba(108,160,163,0.1); border-radius: 8px;">';
-          html += '<div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="var b=document.getElementById(\'' + groupId + '\');if(b.style.display===\'none\'){b.style.display=\'block\';}else{b.style.display=\'none\';}">';
+          /* Claude: 2026-03-25 — added role, tabindex, aria-expanded, keyboard handler for a11y */
+          html += '<div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" role="button" tabindex="0" aria-expanded="true" onclick="var b=document.getElementById(\'' + groupId + '\');var exp=b.style.display===\'none\';b.style.display=exp?\'block\':\'none\';this.setAttribute(\'aria-expanded\',exp?\'true\':\'false\');" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}">';
           html += '<strong style="color: #4a7f82;">' + groupName + '</strong>';
           html += '<span style="color:#888; font-size:0.85rem;">' + quizCount + ' quiz' + (quizCount !== 1 ? 'zes' : '') + ' ▼</span>';
           html += '</div>';
@@ -750,7 +763,8 @@ var _cfgPoll = setInterval(function() {
       /* Fallback section for quizzes without a trimester */
       if (orphans.length > 0) {
         var fallbackHtml = '<div style="margin-top: 24px;">';
-        fallbackHtml += '<div class="semester-heading" onclick="toggleSemester(\'orphan-quizzes\')">';
+        /* Claude: 2026-03-25 — added role, tabindex, aria-expanded, keyboard handler for a11y */
+        fallbackHtml += '<div class="semester-heading" role="button" tabindex="0" aria-expanded="true" onclick="toggleSemester(\'orphan-quizzes\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleSemester(\'orphan-quizzes\');}">';
         fallbackHtml += '<h2>Custom Quizzes</h2>';
         fallbackHtml += '<div class="sem-meta">';
         fallbackHtml += '<span class="sem-badge">' + orphans.length + ' quiz' + (orphans.length !== 1 ? 'zes' : '') + '</span>';

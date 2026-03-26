@@ -226,13 +226,30 @@
     html.aa-dark .status-msg.error { background: #4a2b2b; color: #ff8080; border-color: #6b3f3f; }
     html.aa-dark .status-msg.info { background: #1e3a42; color: #8dd9e8; border-color: #2d5a6b; }
 
+    /* Claude: 2026-03-25 — scroll hint for tabs on mobile */
+    .tabs-nav-wrap {
+      position: relative;
+    }
+    .tabs-nav-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0; right: 0;
+      width: 32px;
+      background: linear-gradient(to right, transparent, var(--bg));
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .tabs-nav-wrap.has-scroll::after { opacity: 1; }
+
     /* ── Mobile Responsive ─────────────────────────────────── */
     @media (max-width: 768px) {
       .page-wrap { padding: 1rem; }
       h1 { font-size: 1.4rem; }
       .spoon-task-form { grid-template-columns: 1fr 1fr; }
-      .tabs-nav { gap: 0; }
-      .tabs-nav button { padding: 10px 12px; font-size: 0.85rem; }
+      .tabs-nav { gap: 0; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .tabs-nav::-webkit-scrollbar { display: none; }
+      .tabs-nav button { padding: 10px 12px; font-size: 0.85rem; white-space: nowrap; }
       .button-group { flex-direction: column; }
       .btn { width: 100%; }
     }
@@ -354,15 +371,17 @@
         </div>
       </details>
 
-      <!-- ── Tab Navigation ── -->
-      <div class="tabs-nav">
-        <button class="tab-btn active" data-tab="modes">🎛️ Modes</button>
-        <button class="tab-btn" data-tab="spoon-plan">🥄 Spoon Plan</button>
-        <button class="tab-btn" data-tab="meals">🍽️ Meals</button>
-        <button class="tab-btn" data-tab="quizzes">📚 Quizzes</button>
-        <button class="tab-btn" data-tab="comfort">💜 Comfort</button>
-        <button class="tab-btn" data-tab="alerts">⚠️ Alerts</button>
-        <button class="tab-btn" data-tab="ai">✨ AI Assistant</button>
+      <!-- Claude: 2026-03-25 — tabs-nav-wrap for scroll fade hint on mobile -->
+      <div class="tabs-nav-wrap" id="tabs-nav-wrap">
+        <div class="tabs-nav" id="tabs-nav-scroll">
+          <button class="tab-btn active" data-tab="modes">🎛️ Modes</button>
+          <button class="tab-btn" data-tab="spoon-plan">🥄 Spoon Plan</button>
+          <button class="tab-btn" data-tab="meals">🍽️ Meals</button>
+          <button class="tab-btn" data-tab="quizzes">📚 Quizzes</button>
+          <button class="tab-btn" data-tab="comfort">💜 Comfort</button>
+          <button class="tab-btn" data-tab="alerts">⚠️ Alerts</button>
+          <button class="tab-btn" data-tab="ai">✨ AI Assistant</button>
+        </div>
       </div>
 
       <!-- ── Modes Tab ── -->
@@ -456,7 +475,8 @@
           <h2>Dietary Notes</h2>
           <div class="form-group">
             <label for="meals-dietary-note">Any dietary restrictions or preferences?</label>
-            <textarea id="meals-dietary-note" placeholder="e.g., allergies, preferences, medication timing constraints..."></textarea>
+            <!-- Claude: 2026-03-25 — added maxlength -->
+            <textarea id="meals-dietary-note" placeholder="e.g., allergies, preferences, medication timing constraints..." maxlength="500"></textarea>
           </div>
         </div>
       </div>
@@ -666,11 +686,17 @@
         document.getElementById('loadingSpinner').style.display = 'block';
         document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.disabled = true; });
 
-        return new Promise(function(resolve) {
+        /* Claude: 2026-03-25 — added 10s timeout to AA poll to prevent infinite hang */
+        return new Promise(function(resolve, reject) {
+          var tries = 0;
           var check = setInterval(function() {
+            tries++;
             if (window.AA && window.AA.auth) {
               clearInterval(check);
               resolve();
+            } else if (tries > 200) {
+              clearInterval(check);
+              reject(new Error('timeout'));
             }
           }, 50);
         }).then(function() {
@@ -681,6 +707,11 @@
             }
             checkAuthorization(user);
           });
+        }).catch(function() {
+          /* Claude: 2026-03-25 — timeout fallback with retry */
+          document.getElementById('loadingSpinner').innerHTML =
+            '⚠️ Could not connect. Check your connection and try again.<br>' +
+            '<button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
         });
       }
 
@@ -990,6 +1021,22 @@
         });
       });
 
+      /* Claude: 2026-03-25 — scroll hint: show/hide fade gradient when tabs overflow */
+      (function _tabScrollHint() {
+        var wrap = document.getElementById('tabs-nav-wrap');
+        var nav = document.getElementById('tabs-nav-scroll');
+        if (!wrap || !nav) return;
+        function _checkScroll() {
+          var canScroll = nav.scrollWidth > nav.clientWidth + 2;
+          var atEnd = nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 4;
+          if (canScroll && !atEnd) { wrap.classList.add('has-scroll'); }
+          else { wrap.classList.remove('has-scroll'); }
+        }
+        nav.addEventListener('scroll', _checkScroll);
+        window.addEventListener('resize', _checkScroll);
+        setTimeout(_checkScroll, 200);
+      })();
+
       /* ── Add Item Buttons ──────────────────────────────────────── */
       document.getElementById('btn-add-task').addEventListener('click', function() {
         /* Claude: 2026-03-20 — SpoonPlanner format */
@@ -1051,9 +1098,11 @@
           if (hidden.length > 0) summary.push(hidden.length + ' hidden tool' + (hidden.length > 1 ? 's' : ''));
           var msg = 'Configuration saved! (' + (summary.length > 0 ? summary.join(', ') : 'defaults') + ')';
           showStatus(msg, 'success');
+          /* Claude: 2026-03-25 — moved cleanup from .finally() (ES2018) to both paths for ES5 compat */
+          btn.disabled = false;
+          btn.textContent = originalText;
         }).catch(function(err) {
           showStatus('Failed to save: ' + err.message, 'error');
-        }).finally(function() {
           btn.disabled = false;
           btn.textContent = originalText;
         });
@@ -1589,9 +1638,9 @@
         c.innerHTML = html;
         c.querySelectorAll('script').forEach(function(old) {
           var s = document.createElement('script');
-          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
           s.textContent = old.textContent;
-          old.replaceWith(s);
+          old.parentNode.replaceChild(s, old);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });

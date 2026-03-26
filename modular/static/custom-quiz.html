@@ -441,9 +441,9 @@
         var scripts = container.querySelectorAll('script');
         scripts.forEach(function(oldScript) {
           var newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
           newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
+          oldScript.parentNode.replaceChild(newScript, oldScript);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -499,6 +499,9 @@
   /* Claude: 2026-03-21 — Quiz index and UID for progress tracking */
   var quizIndex = 0;
   var _quizUid = null;
+
+  /* Claude: 2026-03-25 — HTML escape function to prevent XSS from Firestore quiz data */
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
   function getPrompt(item) { return flipMode ? item.answer : item.term; }
   function getAnswer(item) { return flipMode ? item.term : item.answer; }
@@ -598,7 +601,7 @@
       var all = JSON.parse(localStorage.getItem(lsKey) || '{}');
       all[key] = entry;
       localStorage.setItem(lsKey, JSON.stringify(all));
-      console.log('[Quiz] Layer 2 — localStorage saved for ' + key);
+      if (window.AA_DEBUG) console.log('[Quiz] Layer 2 — localStorage saved for ' + key);
     } catch(e) {
       /* Layer 2b: sessionStorage fallback if localStorage is full */
       try {
@@ -606,7 +609,7 @@
         var all2 = JSON.parse(sessionStorage.getItem(ssKey) || '{}');
         all2[key] = entry;
         sessionStorage.setItem(ssKey, JSON.stringify(all2));
-        console.log('[Quiz] Layer 2b — sessionStorage fallback saved for ' + key);
+        if (window.AA_DEBUG) console.log('[Quiz] Layer 2b — sessionStorage fallback saved for ' + key);
       } catch(e2) { console.warn('[Quiz] Both local + session storage failed:', e2); }
     }
   }
@@ -619,7 +622,7 @@
       /* Cap queue at 20 to avoid localStorage bloat */
       if (queue.length > 20) queue = queue.slice(-20);
       localStorage.setItem('AA_QUIZ_RETRY_QUEUE', JSON.stringify(queue));
-      console.log('[Quiz] Layer 3 — queued for retry: ' + key);
+      if (window.AA_DEBUG) console.log('[Quiz] Layer 3 — queued for retry: ' + key);
     } catch(e) { console.warn('[Quiz] Retry queue save failed:', e); }
   }
 
@@ -638,12 +641,14 @@
         db.collection('quizProgress').doc(item.uid).set(update, { merge: true })
           .then(function() {
             processed++;
-            console.log('[Quiz] Retry succeeded: ' + item.key);
+            if (window.AA_DEBUG) console.log('[Quiz] Retry succeeded: ' + item.key);
+            /* Claude: 2026-03-25 — moved from .finally() (ES2018) to both paths for ES5 compat */
+            if (processed + remaining.length === queue.length) {
+              localStorage.setItem('AA_QUIZ_RETRY_QUEUE', JSON.stringify(remaining));
+            }
           })
           .catch(function() {
             remaining.push(item); /* still failed, keep in queue */
-          })
-          .finally(function() {
             if (processed + remaining.length === queue.length) {
               localStorage.setItem('AA_QUIZ_RETRY_QUEUE', JSON.stringify(remaining));
             }
@@ -676,7 +681,7 @@
 
     progressRef.set(update, { merge: true }).then(function() {
       clearTimeout(saveTimeout);
-      console.log('[Quiz] Layer 1 — Firestore saved for ' + key);
+      if (window.AA_DEBUG) console.log('[Quiz] Layer 1 — Firestore saved for ' + key);
     }).catch(function(e) {
       clearTimeout(saveTimeout);
       console.warn('[Quiz] Firestore save failed:', e);
@@ -909,10 +914,12 @@
       '<div class="quiz-section">' +
       '<div class="progress-bar"><div class="progress-fill" style="width:' + progress + '%"></div></div>' +
       '<div class="question-num">Question ' + (currentQuestion + 1) + ' of ' + quizData.data.length + '</div>' +
-      '<div class="question">' + getPrompt(item) + '</div>' +
+      /* Claude: 2026-03-25 — escape quiz data to prevent XSS */
+      '<div class="question">' + esc(getPrompt(item)) + '</div>' +
       '<input type="text" id="answerInput" class="answer-input" placeholder="Type your answer..." autocomplete="off" />' +
       '<div class="hint-box" id="hintBox"></div>' +
-      '<div class="feedback" id="feedback"></div>' +
+      /* Claude: 2026-03-25 — aria-live for screen reader quiz feedback */
+      '<div class="feedback" id="feedback" role="alert" aria-live="assertive"></div>' +
       '<div class="btn-row">' +
       '<button class="btn-primary" onclick="checkAnswer()">Check Answer</button>' +
       '<button class="btn-secondary" onclick="skipQuestion()">Skip</button>' +
@@ -977,7 +984,8 @@
     } else if (halfMatch) {
       var creditVal = halfMatch.credit || 0.5;
       var noteText = halfMatch.note ? ' — ' + halfMatch.note : '';
-      feedback.innerHTML = '½ Credit! ' + noteText + '<br><small>Full-credit answer: <strong>' + correctAnswer + '</strong></small>';
+      /* Claude: 2026-03-25 — escape user data to prevent XSS */
+      feedback.innerHTML = '½ Credit! ' + esc(noteText) + '<br><small>Full-credit answer: <strong>' + esc(correctAnswer) + '</strong></small>';
       feedback.classList.remove('error');
       feedback.style.cssText = 'display:block; background:#fff3cd; color:#856404; border:1px solid #ffc107; padding:10px; border-radius:8px;';
       halfCreditCount++;
@@ -993,8 +1001,9 @@
     var wasRight = isCorrect || isClose || !!halfMatch;
     answered.push({ term: getPrompt(item), answer: getAnswer(item), userAnswer: userAnswer, correct: wasRight });
 
-    document.getElementById('answerInput').disabled = true;
-    document.querySelector('.btn-primary').disabled = true;
+    /* Claude: 2026-03-25 — null guards for querySelector */
+    var _ai = document.getElementById('answerInput'); if (_ai) _ai.disabled = true;
+    var _bp = document.querySelector('.btn-primary'); if (_bp) _bp.disabled = true;
 
     setTimeout(function() {
       currentQuestion++;
@@ -1032,7 +1041,8 @@
       html += '<div><strong>Review Missed:</strong></div>' +
         '<div class="missed-list">';
       missed.forEach(function(item) {
-        html += '<div class="missed-item"><strong>' + item.term + '</strong>: ' + item.correct + '</div>';
+        /* Claude: 2026-03-25 — escape quiz data */
+        html += '<div class="missed-item"><strong>' + esc(item.term) + '</strong>: ' + esc(item.correct) + '</div>';
       });
       html += '</div>';
     }
@@ -1097,15 +1107,16 @@
       '<div class="match-column">' +
       '<div class="match-column-label">Terms</div>';
 
+    /* Claude: 2026-03-25 — escape quiz data to prevent XSS + add keyboard a11y */
     terms.forEach(function(term) {
-      html += '<div class="match-item" data-id="term-' + term.id + '" onclick="selectMatchItem(\'term-' + term.id + '\')">' + term.text + '</div>';
+      html += '<div class="match-item" role="button" tabindex="0" data-id="term-' + term.id + '" onclick="selectMatchItem(\'term-' + term.id + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();selectMatchItem(\'term-' + term.id + '\');}">' + esc(term.text) + '</div>';
     });
 
     html += '</div><div class="match-column">' +
       '<div class="match-column-label">Answers</div>';
 
     answers.forEach(function(answer) {
-      html += '<div class="match-item" data-id="answer-' + answer.correctId + '" onclick="selectMatchItem(\'answer-' + answer.correctId + '\')">' + answer.text + '</div>';
+      html += '<div class="match-item" role="button" tabindex="0" data-id="answer-' + answer.correctId + '" onclick="selectMatchItem(\'answer-' + answer.correctId + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();selectMatchItem(\'answer-' + answer.correctId + '\');}">' + esc(answer.text) + '</div>';
     });
 
     html += '</div></div>' +
@@ -1213,11 +1224,12 @@
       '<div class="flashcard" id="flashcard" onclick="flipCard()">' +
       '<div class="flashcard-inner">' +
       '<div class="flashcard-face flashcard-front">' +
-      '<div class="flashcard-text">' + getPrompt(item) + '</div>' +
+      /* Claude: 2026-03-25 — escape quiz data */
+      '<div class="flashcard-text">' + esc(getPrompt(item)) + '</div>' +
       '<div class="flashcard-label">Tap to reveal answer</div>' +
       '</div>' +
       '<div class="flashcard-face flashcard-back">' +
-      '<div class="flashcard-text">' + getAnswer(item) + '</div>' +
+      '<div class="flashcard-text">' + esc(getAnswer(item)) + '</div>' +
       '<div class="flashcard-label">Tap to continue</div>' +
       '</div>' +
       '</div>' +

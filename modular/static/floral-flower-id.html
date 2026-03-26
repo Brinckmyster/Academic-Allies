@@ -153,9 +153,9 @@
       var scripts = container.querySelectorAll('script');
       scripts.forEach(function(oldScript) {
         var newScript = document.createElement('script');
-        Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+        [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
         newScript.textContent = oldScript.textContent;
-        oldScript.replaceWith(newScript);
+        oldScript.parentNode.replaceChild(newScript, oldScript);
       });
     })
     .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -174,7 +174,8 @@
     <div id="flower-hint" style="text-align: center; color: #6CA0A3; font-weight: 600; margin: 15px 0; font-size: 14pt; display: none;"></div>
 
     <!-- RESULT MESSAGE -->
-    <div id="quiz-result" style="background: #f0f4ff; padding: 15px; border-radius: 12px; margin: 15px 0; text-align: center; font-weight: 600; font-size: 18pt; border: 2px solid #6CA0A3; min-height: 100px; max-height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+    <!-- Claude: 2026-03-25 — aria-live for screen reader feedback -->
+    <div id="quiz-result" role="alert" aria-live="assertive" style="background: #f0f4ff; padding: 15px; border-radius: 12px; margin: 15px 0; text-align: center; font-weight: 600; font-size: 18pt; border: 2px solid #6CA0A3; min-height: 100px; max-height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
       <span style="opacity: 0.5;">Select your answer...</span>
     </div>
 
@@ -203,7 +204,10 @@ var flowers = [];
 var flowerDeck = [];
 var currentFlower = null;
 var flowerCount = 0; /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
-var reportedFlowers = JSON.parse(localStorage.getItem('reportedFlowers') || '[]');
+/* Claude: 2026-03-25 — wrap JSON.parse in try/catch; corrupted localStorage would crash page */
+var reportedFlowers = [];
+try { reportedFlowers = JSON.parse(localStorage.getItem('reportedFlowers') || '[]'); }
+catch (_e) { console.warn('[FlowerID] reportedFlowers parse failed:', _e.message); try { localStorage.removeItem('reportedFlowers'); } catch(_) {} }
 
 document.getElementById('flower-count').textContent = flowerCount;
 document.getElementById('report-count').textContent = reportedFlowers.length;
@@ -227,7 +231,7 @@ function shuffleDeck(arr) {
 function nextFromDeck() {
   if (flowerDeck.length === 0) {
     flowerDeck = shuffleDeck(flowers);
-    console.log('[FlowerQuiz] Deck exhausted — reshuffled ' + flowerDeck.length + ' flowers');
+    if (window.AA_DEBUG) console.log('[FlowerQuiz] Deck exhausted — reshuffled ' + flowerDeck.length + ' flowers');
   }
   return flowerDeck.pop();
 }
@@ -252,7 +256,7 @@ fetch("/Academic-Allies/modular/icons/flowers/flowers.json")
       });
     });
     flowerDeck = shuffleDeck(flowers);
-    console.log("Loaded " + flowers.length + " flowers into shuffle deck");
+    if (window.AA_DEBUG) console.log("Loaded " + flowers.length + " flowers into shuffle deck");
     loadNewFlower();
   })
   .catch(function(err) { console.error("Failed to load flowers:", err); });
@@ -332,7 +336,7 @@ function checkAnswer(selected, button, correctAnswer) {
     result.textContent = correctMessages[Math.floor(Math.random() * correctMessages.length)];
   } else {
     button.classList.add('incorrect');
-    var correctBtn = Array.from(allButtons).find(function(btn) { return btn.textContent === correctAnswer; });
+    var correctBtn = [].slice.call(allButtons).find(function(btn) { return btn.textContent === correctAnswer; });
     if (correctBtn) correctBtn.classList.add('correct');
     /* Claude: 2026-03-20 — Firestore: increment miss count */
     if (window.AA && window.AA.study) {
@@ -350,7 +354,8 @@ function checkAnswer(selected, button, correctAnswer) {
 }
 
 function reportWrongCategory() {
-  if (!reportedFlowers.includes(currentFlower.name)) {
+  /* Claude: 2026-03-25 — replaced .includes() with .indexOf() for ES5 compat */
+  if (reportedFlowers.indexOf(currentFlower.name) === -1) {
     reportedFlowers.push(currentFlower.name);
     localStorage.setItem('reportedFlowers', JSON.stringify(reportedFlowers));
     document.getElementById('report-count').textContent = reportedFlowers.length;

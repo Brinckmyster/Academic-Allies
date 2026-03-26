@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spoon Planner — Your Safe Space</title>
+    <!-- Claude 2026-03-08: load aa-mirror.js synchronously in <head> so AA_uid() is
+         available before onAuthStateChanged fires. Without this, mirror mode doesn't work
+         because the shared-header loads it async via fetch(). -->
+    <!-- Claude: 2026-03-13 — aligned aa-mirror.js cache-bust -->
+    <!-- Claude: 2026-03-14 — removed duplicate aa-mirror.js; shared-header loads it -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        body {
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            font-size: 18pt;
+            line-height: 1.5;
+            letter-spacing: 0.035em;
+            background: #FAFAF9;
+            color: #333333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .planner-container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 22pt;
+            margin-bottom: 10px;
+            color: #6CA0A3;
+        }
+
+        /* Top Action Bar */
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            background: #999;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16pt;
+            cursor: pointer;
+            min-height: 19mm;
+            transition: opacity 0.2s;
+            font-weight: 600;
+        }
+
+        .btn-cancel:hover {
+            opacity: 0.8;
+        }
+
+        .btn-cancel:active {
+            animation: blink 0.3s;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Spoon Counter */
+        .spoon-summary {
+            background: #6CA0A3;
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .spoon-display {
+            font-size: 24pt;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .spoon-details {
+            display: flex;
+            justify-content: space-around;
+            font-size: 14pt;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #6CA0A3;
+            margin-bottom: 15px;
+            font-size: 20pt;
+        }
+
+        /* Task List */
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            min-height: 19mm;
+            background: white;
+            cursor: grab;
+        }
+
+        .task-item:active {
+            cursor: grabbing;
+        }
+
+        .task-item.dragging {
+            opacity: 0.5;
+            border-color: #6CA0A3;
+        }
+
+        .task-item.task-completed {
+            opacity: 0.6;
+            background: #f5f5f5;
+        }
+
+        /* Claude: 2026-03-14 — #888→#666 for WCAG AA contrast on white bg */
+        .task-item.task-completed .task-name {
+            text-decoration: line-through;
+            color: #666;
+        }
+
+        .task-check {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .drag-handle {
+            font-size: 20pt;
+            margin-right: 12px;
+            cursor: grab;
+            color: #999;
+            min-width: 19mm;
+            text-align: center;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-name {
+            font-size: 16pt;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .task-meta {
+            font-size: 14pt;
+            color: #666;
+        }
+
+        .task-spoons {
+            font-size: 18pt;
+            font-weight: 700;
+            color: #6CA0A3;
+            margin: 0 15px;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            font-size: 20pt;
+            cursor: pointer;
+            padding: 8px;
+            min-width: 19mm;
+            min-height: 19mm;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-icon:hover {
+            background: #f0f0f0;
+        }
+
+        /* Claude: 2026-03-14 — :focus → :focus-visible to avoid mouse-click rings */
+        .btn-icon:focus-visible {
+            outline: 3px solid #6CA0A3;
+        }
+
+        /* Add Task Form */
+        .add-task-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .form-label {
+            font-weight: 600;
+            min-width: 100px;
+            font-size: 16pt;
+        }
+
+        .form-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16pt;
+            min-height: 19mm;
+        }
+
+        /* Claude: 2026-03-14 — :focus → :focus-visible */
+        .form-input:focus-visible {
+            outline: none;
+            border-color: #6CA0A3;
+        }
+
+        .form-input-small {
+            width: 80px;
+        }
+
+        /* Buttons */
+        .btn {
+            background: #6CA0A3;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18pt;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            min-height: 19mm;
+            transition: opacity 0.2s;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Claude: 2026-03-14 — :focus → :focus-visible */
+        .btn:focus-visible {
+            outline: 3px solid #6CA0A3;
+            outline-offset: 2px;
+        }
+
+        .btn-confirm {
+            background: #6CA0A3;
+            font-size: 20pt;
+            padding: 20px;
+        }
+
+        .btn-add {
+            background: #4caf50;
+        }
+
+        .btn-bulk {
+            background: #999;
+            font-size: 16pt;
+            padding: 12px 20px;
+        }
+
+        /* Bulk Actions */
+        .bulk-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .bulk-actions .btn {
+            flex: 1;
+        }
+
+        /* Modal for Edit Task */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            color: #6CA0A3;
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .form-label {
+                min-width: auto;
+            }
+
+            .bulk-actions {
+                flex-direction: column;
+            }
+
+            .action-bar {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- Claude: 2026-03-19 — mode-gate: blocks page if feature is off for current mode -->
+<script>var AA_MODE_GATE = 'spoonPlanner';</script>
+<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
+      .then(response => response.text())
+      .then(html => {
+        const container = document.getElementById('site-header');
+        container.innerHTML = html;
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+        const dragScript = document.createElement('script');
+        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
+        dragScript.onload = () => { if(typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(dragScript);
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+    <div class="planner-container">
+        <div class="header">
+            <h1>📋 Spoon Planner</h1>
+            <p>Plan your day with care</p>
+        </div>
+
+        <!-- Claude 2026-03-12: Pending suggestions banner — moved to top so students see it immediately -->
+        <div id="suggestions-banner" style="display:none;background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:20px;margin-top:10px;margin-bottom:10px;text-align:center;">
+            <p style="font-size:16pt;font-weight:700;color:#92400e;margin-bottom:10px;">💡 You have plan suggestions!</p>
+            <p id="suggestions-count" style="font-size:14pt;color:#78350f;margin-bottom:15px;"></p>
+            <button class="btn" style="background:#f59e0b;color:#78350f;" onclick="showSuggestions()">Review Suggestions</button>
+        </div>
+
+        <!-- Action Bar with Cancel -->
+        <div class="action-bar">
+            <button class="btn-cancel" onclick="cancelPlanner()">← Cancel</button>
+            <div style="flex: 1; text-align: center; font-size: 16pt; color: #666;">
+                Editing your daily plan
+            </div>
+        </div>
+
+        <!-- Spoon Summary -->
+        <div class="spoon-summary">
+            <div class="spoon-display">
+                🥄 <span id="remaining-spoons">10</span> / <span id="total-spoons">10</span> Spoons
+            </div>
+            <div class="spoon-details">
+                <div>Planned: <span id="planned-spoons">0</span></div>
+                <div>Remaining: <span id="leftover-spoons">10</span></div>
+            </div>
+        </div>
+
+        <!-- Add New Task -->
+        <div class="card">
+            <h2>➕ Add New Task</h2>
+            <div class="add-task-form">
+                <div class="form-row">
+                    <label class="form-label">Task Name:</label>
+                    <input type="text" id="new-task-name" class="form-input" placeholder="What do you need to do?">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Spoon Cost:</label>
+                    <input type="number" id="new-task-spoons" class="form-input form-input-small" min="0" max="20" value="1" step="0.5">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Time:</label>
+                    <input type="time" id="new-task-time" class="form-input">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Priority:</label>
+                    <select id="new-task-priority" class="form-input">
+                        <option value="High">High</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                <button class="btn btn-add" onclick="addTask()">Add Task</button>
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <div class="card">
+            <h2>📝 Your Tasks</h2>
+            <p style="margin-bottom: 15px; color: #666; font-size: 14pt;">Drag to reorder. Tap to edit.</p>
+            
+            <ul class="task-list" id="task-list">
+                <!-- Tasks will be added here -->
+            </ul>
+
+            <div id="empty-state" style="text-align: center; padding: 40px; color: #999;">
+                <p style="font-size: 48pt;">📋</p>
+                <p style="font-size: 16pt;">No tasks yet. Add one above!</p>
+            </div>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="bulk-actions">
+            <button class="btn btn-bulk" onclick="clearAllTasks()">🗑️ Clear All</button>
+            <button class="btn btn-bulk" onclick="duplicateDay()">📋 Duplicate Yesterday</button>
+        </div>
+
+        <!-- Confirm Button - Bottom (hidden in mirror mode; replaced by Suggest) -->
+        <button class="btn btn-confirm" id="btn-confirm-plan" onclick="confirmPlan()">
+            ✅ Confirm Plan
+        </button>
+
+        <!-- Claude 2026-03-08: Suggest Plan button — shown in mirror mode only -->
+        <button class="btn btn-confirm" id="btn-suggest-plan" style="display:none;background:#a78bfa;" onclick="openSuggestModal()">
+            💡 Suggest This Plan
+        </button>
+
+        <!-- Back to Recovery Mode -->
+        <button class="btn" onclick="backToRecovery()">
+            ← Back to Recovery Mode
+        </button>
+
+        <!-- Claude 2026-03-12: suggestion banner moved to top (was at bottom, invisible) -->
+    </div>
+
+    <!-- Claude 2026-03-08: Suggest Plan modal — supporter provides reason -->
+    <div class="modal" id="suggest-modal">
+        <div class="modal-content">
+            <h2>💡 Suggest Plan</h2>
+            <p style="font-size:14pt;color:#666;margin-bottom:15px;">The student will see your reason and can accept or reject this plan.</p>
+            <div class="add-task-form">
+                <div class="form-row" style="flex-direction:column;align-items:stretch;">
+                    <label class="form-label">Why are you suggesting this plan?</label>
+                    <textarea id="suggest-reason" class="form-input" rows="3" placeholder="e.g. I noticed you've been overplanning — this lighter plan might help with pacing." style="resize:vertical;font-size:14pt;"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn" style="background:#a78bfa;" onclick="submitSuggestion()">Send Suggestion</button>
+                    <button class="btn btn-cancel" onclick="closeSuggestModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Claude 2026-03-08: Suggestion review modal — student accepts/rejects -->
+    <div class="modal" id="review-modal">
+        <div class="modal-content" id="review-modal-content">
+            <!-- Populated dynamically by showSuggestions() -->
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div class="modal" id="edit-modal">
+        <div class="modal-content">
+            <h2>✏️ Edit Task</h2>
+            <div class="add-task-form">
+                <div class="form-row">
+                    <label class="form-label">Task Name:</label>
+                    <input type="text" id="edit-task-name" class="form-input">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Spoon Cost:</label>
+                    <input type="number" id="edit-task-spoons" class="form-input form-input-small" min="0" max="20" step="0.5">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Time:</label>
+                    <input type="time" id="edit-task-time" class="form-input">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Priority:</label>
+                    <select id="edit-task-priority" class="form-input">
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn" onclick="saveEdit()">Save</button>
+                    <button class="btn btn-cancel" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* Claude-credit: Firebase sync added 2026-02-26 by Claude */
+        /* Claude: 2026-03-23 — XSS escape helper for Firestore data in innerHTML */
+        function _esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        /* Safe ID escaper — strips anything that isn't alphanumeric/dash/underscore */
+        function _escId(s) { return String(s || '').replace(/[^a-zA-Z0-9_-]/g, ''); }
+
+        // State Management
+        let tasks = [];
+        let totalSpoons = 10;
+        let editingTaskIndex = -1;
+        let originalTasks = []; // For cancel functionality
+        /* Claude: 2026-03-12 — moved to script scope so updateMirrorUI() can access it.
+           Was inside loadSavedData() causing ReferenceError when _initSuggestions() ran. */
+        var _isSupporterRole = false;
+
+        // Load saved data — localStorage first (fast), then Firebase if signed in
+        function loadSavedData() {
+            const saved = localStorage.getItem('spoonPlannerTasks');
+            if (saved) {
+                originalTasks = JSON.parse(saved);
+                tasks = JSON.parse(JSON.stringify(originalTasks));
+            }
+            const savedSpoons = localStorage.getItem('dailySpoons');
+            /* Claude: 2026-03-25 — parseInt NaN guard: parseInt('abc') = NaN → breaks all spoon math */
+            if (savedSpoons) {
+                var parsed = parseInt(savedSpoons, 10);
+                if (!isNaN(parsed)) totalSpoons = parsed;
+            }
+            renderTasks();
+
+            /* Claude: 2026-03-12 — poll for AA + auth before fetching from Firebase.
+               shared-header.html loads Firebase async, so window.AA is rarely ready
+               on first call. Without retry, Firestore plan data never loads. */
+            _waitForFirebase();
+        }
+
+        var _spPlannerUid = null;
+        function _waitForFirebase() {
+            if (window.AA && AA.auth) {
+                AA.auth.onAuthStateChanged(function(user) {
+                    if (!user) return;
+                    var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(user.uid) : user.uid;
+                    // Claude: 2026-03-07 — guard against token-refresh re-fires
+                    if (effectiveUid === _spPlannerUid) return;
+                    _spPlannerUid = effectiveUid;
+
+                    /* Claude: 2026-03-09 — fetch role and enforce suggest-only for supporters */
+                    /* Claude: 2026-03-16 — added .catch() for missing error handler */
+                    AA.db.collection('users').doc(user.uid).get().then(function(doc) {
+                        var role = (doc.exists && doc.data().role) ? doc.data().role : 'pending';
+                        var supporterRoles = ['family', 'support', 'nearby-help'];
+                        _isSupporterRole = (supporterRoles.indexOf(role) !== -1);
+                        /* Claude: 2026-03-20 — also updateMirrorUI for NLs in mirror mode
+                           so they see Confirm (not Suggest) with full write access */
+                        if (_isSupporterRole || window.AA_MIRROR_UID) {
+                            updateMirrorUI();
+                        }
+                    }).catch(function(err) { console.warn('[SpoonPlanner] Role fetch failed:', err.message); });
+
+                    // Personalise title with signed-in user's name
+                    var isMirror = (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== user.uid);
+                    var firstName;
+                    if (isMirror && window.AA_MIRROR && window.AA_MIRROR.studentName) {
+                        firstName = window.AA_MIRROR.studentName.split(/[\s@]/)[0];
+                    } else {
+                        firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
+                    }
+                    if (firstName) document.title = 'Spoon Planner \u2014 ' + firstName + '\u2019s Safe Space';
+                    AA.getSpoonPlan(effectiveUid).then(function(data) {
+                        if (!data) return;
+                        if (data.tasks)       { tasks = data.tasks; originalTasks = JSON.parse(JSON.stringify(tasks)); }
+                        if (data.dailySpoons) { totalSpoons = data.dailySpoons; }
+                        renderTasks();
+                    }).catch(function(err) {
+                        console.warn('[AA] Could not load spoon plan from Firebase:', err.message);
+                        /* Claude: 2026-03-25 — offline fallback: localStorage already loaded
+                           in loadSavedData(), so tasks are populated. Just warn the user. */
+                        if (tasks.length > 0) {
+                            console.log('[SpoonPlanner] Using localStorage cached plan (' + tasks.length + ' tasks)');
+                        }
+                    });
+                });
+            } else {
+                setTimeout(_waitForFirebase, 300);
+            }
+        }
+
+        // Save data — always localStorage, also Firebase if signed in
+        // Updated 2026-03-08 by Claude: block ALL mirror saves. Student is sudo —
+        // supporters must use "Suggest Plan" instead. No direct writes to student data.
+        /* Claude: 2026-03-09 — block saves for supporters AND mirror mode */
+        /* Claude: 2026-03-20 — network-leads (AA_MIRROR_CAN_WRITE) can save directly */
+        function saveTasks() {
+            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && window.AA && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            if (isMirror || _isSupporterRole) return; // Supporters use "Suggest Plan" — no direct saves.
+            localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
+            if (window.AA && AA.auth && AA.auth.currentUser) {
+                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
+                    tasks: tasks,
+                    dailySpoons: totalSpoons
+                }).catch(function(err) {
+                    console.warn('[AA] Could not save spoon plan to Firebase:', err.message);
+                });
+            }
+        }
+
+        // Update spoon counter
+        function updateSpoonCounter() {
+            const planned = tasks.reduce((sum, task) => sum + task.spoons, 0);
+            const completed = tasks.filter(t => t.completed).reduce((sum, t) => sum + t.spoons, 0);
+            const remaining = totalSpoons - completed;
+            const leftover = totalSpoons - planned;
+
+            document.getElementById('total-spoons').textContent = totalSpoons;
+            document.getElementById('planned-spoons').textContent = planned.toFixed(1);
+            document.getElementById('remaining-spoons').textContent = remaining.toFixed(1);
+            document.getElementById('leftover-spoons').textContent = leftover.toFixed(1);
+        }
+
+        // Render task list
+        function renderTasks() {
+            const taskList = document.getElementById('task-list');
+            const emptyState = document.getElementById('empty-state');
+
+            if (tasks.length === 0) {
+                taskList.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            taskList.innerHTML = '';
+
+            tasks.forEach((task, index) => {
+                const li = document.createElement('li');
+                li.className = 'task-item';
+                li.draggable = true;
+                li.dataset.index = index;
+
+                if (task.completed) li.classList.add('task-completed');
+
+                /* Claude: 2026-03-23 — build DOM nodes instead of innerHTML to prevent XSS
+                   from Firestore-sourced task.name (supporters can suggest plans with arbitrary
+                   task names). Archive: spoon-planner_2026-03-23_pre-fix.bak.html */
+                var dragHandle = document.createElement('span');
+                dragHandle.className = 'drag-handle';
+                dragHandle.textContent = '☰';
+                li.appendChild(dragHandle);
+
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'task-check';
+                checkbox.checked = !!task.completed;
+                checkbox.setAttribute('aria-label', 'Mark complete');
+                checkbox.onchange = (function(idx) { return function() { toggleComplete(idx); }; })(index);
+                li.appendChild(checkbox);
+
+                var contentDiv = document.createElement('div');
+                contentDiv.className = 'task-content';
+                var nameDiv = document.createElement('div');
+                nameDiv.className = 'task-name';
+                nameDiv.textContent = task.name;
+                contentDiv.appendChild(nameDiv);
+                var metaDiv = document.createElement('div');
+                metaDiv.className = 'task-meta';
+                metaDiv.textContent = (task.time ? task.time + ' \u2022 ' : '') + task.priority + ' Priority';
+                contentDiv.appendChild(metaDiv);
+                li.appendChild(contentDiv);
+
+                var spoonSpan = document.createElement('span');
+                spoonSpan.className = 'task-spoons';
+                spoonSpan.textContent = task.spoons + '🥄';
+                li.appendChild(spoonSpan);
+
+                var actionsDiv = document.createElement('div');
+                actionsDiv.className = 'task-actions';
+                var editBtn = document.createElement('button');
+                editBtn.className = 'btn-icon';
+                editBtn.textContent = '✏️';
+                editBtn.setAttribute('aria-label', 'Edit task');
+                editBtn.onclick = (function(idx) { return function() { editTask(idx); }; })(index);
+                actionsDiv.appendChild(editBtn);
+                var delBtn = document.createElement('button');
+                delBtn.className = 'btn-icon';
+                delBtn.textContent = '🗑️';
+                delBtn.setAttribute('aria-label', 'Delete task');
+                delBtn.onclick = (function(idx) { return function() { deleteTask(idx); }; })(index);
+                actionsDiv.appendChild(delBtn);
+                li.appendChild(actionsDiv);
+
+                // Drag and drop handlers
+                li.addEventListener('dragstart', handleDragStart);
+                li.addEventListener('dragover', handleDragOver);
+                li.addEventListener('drop', handleDrop);
+                li.addEventListener('dragend', handleDragEnd);
+
+                taskList.appendChild(li);
+            });
+
+            updateSpoonCounter();
+        }
+
+        // Toggle task completion
+        function toggleComplete(index) {
+            tasks[index].completed = !tasks[index].completed;
+            saveTasks();
+            // Update the existing li directly — avoids re-render race with Firebase
+            var li = document.querySelector('.task-item[data-index="' + index + '"]');
+            if (li) li.classList.toggle('task-completed', tasks[index].completed);
+            updateSpoonCounter();
+        }
+
+        // Add new task
+        /* Claude: 2026-03-09 — addTask allowed in mirror mode so supporters can
+           build a plan to suggest. saveTasks() blocks Firestore writes in mirror,
+           and Confirm is hidden / replaced by "Suggest This Plan". */
+        function addTask() {
+            const name = document.getElementById('new-task-name').value.trim();
+            const spoons = parseFloat(document.getElementById('new-task-spoons').value) || 1;
+            const time = document.getElementById('new-task-time').value;
+            const priority = document.getElementById('new-task-priority').value;
+
+            if (!name) {
+                alert('Please enter a task name');
+                return;
+            }
+
+            /* Claude: 2026-03-25 — validate all values before pushing to tasks array.
+               undefined/empty values in Firestore cause read errors on other pages. */
+            tasks.push({
+                name: name,
+                spoons: isNaN(spoons) ? 1 : spoons,
+                time: time || '',
+                priority: priority || 'Medium',
+                completed: false
+            });
+
+            // Clear form
+            document.getElementById('new-task-name').value = '';
+            document.getElementById('new-task-spoons').value = '1';
+            document.getElementById('new-task-time').value = '';
+            document.getElementById('new-task-priority').value = 'Medium';
+
+            renderTasks();
+            /* Claude: 2026-03-23 — was missing saveTasks(); edits lost on refresh */
+            saveTasks();
+        }
+
+        // Edit task
+        function editTask(index) {
+            editingTaskIndex = index;
+            const task = tasks[index];
+
+            document.getElementById('edit-task-name').value = task.name;
+            document.getElementById('edit-task-spoons').value = task.spoons;
+            document.getElementById('edit-task-time').value = task.time || '';
+            document.getElementById('edit-task-priority').value = task.priority;
+
+            document.getElementById('edit-modal').classList.add('show');
+        }
+
+        function saveEdit() {
+            if (editingTaskIndex === -1) return;
+
+            /* Claude: 2026-03-25 — same validation as addTask */
+            tasks[editingTaskIndex] = {
+                name: document.getElementById('edit-task-name').value.trim(),
+                spoons: parseFloat(document.getElementById('edit-task-spoons').value) || 1,
+                time: document.getElementById('edit-task-time').value || '',
+                priority: document.getElementById('edit-task-priority').value || 'Medium',
+                completed: tasks[editingTaskIndex].completed
+            };
+
+            closeEditModal();
+            renderTasks();
+            /* Claude: 2026-03-23 — was missing saveTasks(); task edits lost on refresh */
+            saveTasks();
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('show');
+            editingTaskIndex = -1;
+        }
+
+        // Delete task
+        function deleteTask(index) {
+            if (confirm('Delete this task?')) {
+                tasks.splice(index, 1);
+                renderTasks();
+                /* Claude: 2026-03-23 — was missing saveTasks(); deleted tasks came back on refresh */
+                saveTasks();
+            }
+        }
+
+        // Bulk actions
+        /* Claude: 2026-03-09 — clearAll allowed in mirror mode (local only, no Firestore write) */
+        function clearAllTasks() {
+            if (confirm('Clear all tasks? This cannot be undone.')) {
+                tasks = [];
+                renderTasks();
+                /* Claude: 2026-03-23 — was missing saveTasks(); cleared tasks reappeared on refresh */
+                saveTasks();
+            }
+        }
+
+        // Updated 2026-03-08 by Claude: use AA_uid() for mirror mode
+        /* Claude: 2026-03-20 — NLs (AA_MIRROR_CAN_WRITE) can use localStorage too */
+        function duplicateDay() {
+            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            var yesterday = isMirror ? null : localStorage.getItem('yesterdayTasks');
+            if (yesterday) {
+                tasks = JSON.parse(yesterday);
+                renderTasks();
+                /* Claude: 2026-03-23 — was missing saveTasks() */
+                saveTasks();
+            } else if (window.AA && AA.auth && AA.auth.currentUser) {
+                var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid;
+                AA.getSpoonPlan(effectiveUid).then(function(data) {
+                    if (data && data.yesterdayTasks && data.yesterdayTasks.length > 0) {
+                        tasks = data.yesterdayTasks;
+                        renderTasks();
+                        /* Claude: 2026-03-23 — was missing saveTasks() */
+                        saveTasks();
+                    } else {
+                        alert('No tasks from yesterday to duplicate.');
+                    }
+                });
+            } else {
+                alert('No tasks from yesterday to duplicate.');
+            }
+        }
+
+        // Drag and drop
+        let draggedElement = null;
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            if (draggedElement !== this) {
+                const fromIndex = parseInt(draggedElement.dataset.index);
+                const toIndex = parseInt(this.dataset.index);
+
+                const [movedTask] = tasks.splice(fromIndex, 1);
+                tasks.splice(toIndex, 0, movedTask);
+
+                renderTasks();
+            }
+
+            return false;
+        }
+
+        /* Claude: 2026-03-23 — added saveTasks() call so drag-reorder persists to
+           localStorage and Firestore. Without this, reordering was visual only and
+           lost on page refresh. Archive: spoon-planner_2026-03-23_pre-fix.bak.html */
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            saveTasks();
+        }
+
+        // Confirm plan
+        function confirmPlan() {
+            // Save to localStorage
+            saveTasks();
+            localStorage.setItem('yesterdayTasks', JSON.stringify(tasks));
+            originalTasks = JSON.parse(JSON.stringify(tasks));
+
+            /* Claude: 2026-03-09 — block confirm for supporters AND mirror mode */
+            /* Claude: 2026-03-20 — network-leads (AA_MIRROR_CAN_WRITE) can confirm directly */
+            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && window.AA && AA.auth && AA.auth.currentUser
+                && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            if (isMirror || _isSupporterRole) {
+                // Shouldn't reach here (button is hidden), but belt-and-suspenders
+                alert('Use "Suggest This Plan" instead — the student decides.');
+                return;
+            }
+
+            // Save yesterdayTasks to Firebase (own plan only)
+            if (window.AA && AA.auth && AA.auth.currentUser) {
+                AA.saveSpoonPlan(AA.auth.currentUser.uid, {
+                    tasks: tasks,
+                    dailySpoons: totalSpoons,
+                    yesterdayTasks: tasks
+                }).catch(function(err) {
+                    console.warn('[AA] Firebase confirm save failed:', err.message);
+                });
+            }
+
+            alert('✅ Plan confirmed! Your tasks are ready in Recovery Mode.');
+            window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
+        }
+
+        // Cancel plan
+        function cancelPlanner() {
+            // Revert to original tasks (no save)
+            tasks = JSON.parse(JSON.stringify(originalTasks));
+            
+            // Visual feedback - button blink is in CSS
+            const cancelBtn = event.target;
+            cancelBtn.style.animation = 'blink 0.3s';
+            
+            setTimeout(() => {
+                window.location.href = '/Academic-Allies/modular/components/recovery-mode.html';
+            }, 300);
+        }
+
+        // Back to Recovery Mode (same as cancel)
+        function backToRecovery() {
+            if (confirm('Go back without saving? Any unsaved changes will be lost.')) {
+                cancelPlanner();
+            }
+        }
+
+        /* ── Plan Suggestions — Claude 2026-03-08 ──────────────────
+           Support members suggest plans; student is sudo (accept/reject).
+           Supporter must give a reason before the student even sees it.
+        ──────────────────────────────────────────────────────────── */
+        var _pendingSuggestions = [];
+
+        /* Claude: 2026-03-09 — supporters can build a plan (add/clear/rearrange tasks)
+           but can ONLY submit it as a suggestion, never confirm directly.
+           saveTasks() blocks Firestore writes in mirror mode.
+           Archive: spoon-planner_2026-03-09_pre-mirror-addtask-fix.html */
+        /* Claude: 2026-03-09 — also check _isSupporterRole so family/support/nearby-help
+           always see Suggest instead of Confirm, even when not in mirror mode */
+        /* Claude: 2026-03-20 — network-leads see Confirm (not Suggest) because they can write */
+        function updateMirrorUI() {
+            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && window.AA && AA.auth && AA.auth.currentUser
+                && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            var suggestOnly = isMirror || _isSupporterRole;
+            var confirmBtn = document.getElementById('btn-confirm-plan');
+            var suggestBtn = document.getElementById('btn-suggest-plan');
+            /* Swap Confirm ↔ Suggest */
+            if (suggestOnly) {
+                if (confirmBtn) confirmBtn.style.display = 'none';
+                if (suggestBtn) suggestBtn.style.display = '';
+            } else {
+                if (confirmBtn) confirmBtn.style.display = '';
+                if (suggestBtn) suggestBtn.style.display = 'none';
+            }
+        }
+
+        function openSuggestModal() {
+            document.getElementById('suggest-reason').value = '';
+            document.getElementById('suggest-modal').classList.add('show');
+        }
+        function closeSuggestModal() {
+            document.getElementById('suggest-modal').classList.remove('show');
+        }
+
+        function submitSuggestion() {
+            var reason = document.getElementById('suggest-reason').value.trim();
+            if (!reason) { alert('Please provide a reason for your suggestion.'); return; }
+            if (!window.AA || !window.AA_MIRROR_UID) { alert('Not in mirror mode.'); return; }
+            var studentUid = window.AA_MIRROR_UID;
+            AA.suggestSpoonPlan(studentUid, {
+                tasks: tasks,
+                dailySpoons: totalSpoons,
+                reason: reason
+            }).then(function() {
+                closeSuggestModal();
+                alert('Suggestion sent! The student will see it next time they open Spoon Planner.');
+            }).catch(function(err) {
+                console.error('[AA] Suggest plan error:', err);
+                alert('Could not send suggestion: ' + err.message);
+            });
+        }
+
+        /* Claude: 2026-03-09 — real-time listener so students see suggestions
+           even if they already have the page open when a supporter sends one.
+           Archive: spoon-planner_2026-03-09_pre-mirror-addtask-fix.html */
+        var _suggestionsUnsub = null;
+        /* Claude: 2026-03-12 — added debug logging to help trace suggestion delivery issues */
+        function checkForSuggestions() {
+            var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
+                && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            if (isMirror) return;
+            if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
+            var uid = AA.auth.currentUser.uid;
+            /* Unsubscribe any previous listener */
+            if (_suggestionsUnsub) { _suggestionsUnsub(); _suggestionsUnsub = null; }
+            /* Live listener — fires immediately with current data, then on every change */
+            _suggestionsUnsub = AA.db.collection('spoonPlanSuggestions').doc(uid)
+                .collection('pending')
+                .where('status', '==', 'pending')
+                .onSnapshot(function(snapshot) {
+                    var suggestions = [];
+                    snapshot.forEach(function(doc) {
+                        var d = doc.data();
+                        d.id = doc.id;
+                        suggestions.push(d);
+                    });
+                    _pendingSuggestions = suggestions;
+                    var banner = document.getElementById('suggestions-banner');
+                    if (suggestions.length > 0) {
+                        document.getElementById('suggestions-count').textContent =
+                            suggestions.length + ' suggestion' + (suggestions.length > 1 ? 's' : '') +
+                            ' from your support network';
+                        banner.style.display = '';
+                    } else {
+                        banner.style.display = 'none';
+                    }
+                }, function(err) {
+                    console.warn('[AA] Suggestion listener error:', err.message);
+                });
+        }
+
+        function showSuggestions() {
+            var container = document.getElementById('review-modal-content');
+            if (_pendingSuggestions.length === 0) {
+                container.innerHTML = '<h2>No suggestions</h2><button class="btn btn-cancel" onclick="closeReviewModal()">Close</button>';
+                document.getElementById('review-modal').classList.add('show');
+                return;
+            }
+            var s = _pendingSuggestions[0]; // Show one at a time
+            /* Claude: 2026-03-23 — escaped all Firestore-sourced data to prevent XSS.
+               task names, supporter names, reasons, and doc IDs all come from user input.
+               Archive: spoon-planner_2026-03-23_pre-fix.bak.html */
+            var taskList = (s.tasks || []).map(function(t) {
+                return '<li style="padding:8px 0;border-bottom:1px solid #eee;">' +
+                    '<strong>' + _esc(t.name || 'Task') + '</strong> — ' +
+                    (parseFloat(t.spoons) || 0) + ' spoon' + ((parseFloat(t.spoons) || 0) !== 1 ? 's' : '') +
+                    (t.time ? ' at ' + _esc(t.time) : '') +
+                    '</li>';
+            }).join('');
+            var when = s.createdAt && s.createdAt.toDate ? s.createdAt.toDate().toLocaleDateString() : 'recently';
+            var safeId = _escId(s.id);
+            container.innerHTML =
+                '<h2>💡 Plan Suggestion</h2>' +
+                '<p style="font-size:14pt;color:#666;margin-bottom:10px;">From <strong>' +
+                    _esc(s.suggestedByName || 'a supporter') + '</strong> (' + _esc(when) + ')</p>' +
+                '<div style="background:#f8f4ff;border:2px solid #a78bfa;border-radius:8px;padding:15px;margin-bottom:15px;">' +
+                    '<p style="font-size:14pt;font-weight:600;color:#5b21b6;margin-bottom:8px;">Their reason:</p>' +
+                    '<p style="font-size:14pt;color:#333;">' + _esc(s.reason || 'No reason given') + '</p>' +
+                '</div>' +
+                '<p style="font-size:14pt;font-weight:600;margin-bottom:8px;">Proposed tasks (' +
+                    (parseInt(s.dailySpoons) || 10) + ' spoons):</p>' +
+                '<ul style="list-style:none;padding:0;max-height:200px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:8px;padding:10px;">' +
+                    taskList +
+                '</ul>' +
+                '<p style="font-size:13pt;color:#666;margin-top:12px;font-style:italic;">You are in charge of your own plan. Accept only if this feels right for you.</p>' +
+                '<div class="modal-actions" style="margin-top:20px;">' +
+                    '<button class="btn" style="background:#22c55e;" onclick="acceptSuggestion(\'' + safeId + '\')">✅ Accept Plan</button>' +
+                    '<button class="btn" style="background:#ef4444;" onclick="rejectSuggestion(\'' + safeId + '\')">❌ No Thanks</button>' +
+                    '<button class="btn btn-cancel" onclick="closeReviewModal()">Decide Later</button>' +
+                '</div>';
+            document.getElementById('review-modal').classList.add('show');
+        }
+
+        function acceptSuggestion(id) {
+            var uid = AA.auth.currentUser.uid;
+            AA.acceptSuggestion(uid, id).then(function() {
+                closeReviewModal();
+                alert('Plan accepted! Your tasks have been updated.');
+                // Reload the page to show the new plan
+                window.location.reload();
+            }).catch(function(err) {
+                alert('Error accepting: ' + err.message);
+            });
+        }
+
+        function rejectSuggestion(id) {
+            var uid = AA.auth.currentUser.uid;
+            AA.rejectSuggestion(uid, id).then(function() {
+                _pendingSuggestions = _pendingSuggestions.filter(function(s) { return s.id !== id; });
+                closeReviewModal();
+                if (_pendingSuggestions.length > 0) {
+                    showSuggestions(); // Show next one
+                } else {
+                    document.getElementById('suggestions-banner').style.display = 'none';
+                    alert('Suggestion dismissed.');
+                }
+            }).catch(function(err) {
+                alert('Error rejecting: ' + err.message);
+            });
+        }
+
+        function closeReviewModal() {
+            document.getElementById('review-modal').classList.remove('show');
+        }
+
+        // Initialize
+        loadSavedData();
+        renderTasks();
+
+        // ARIA announcements + mirror UI + suggestion check
+        document.addEventListener('DOMContentLoaded', function() {
+            // Make sure all interactive elements are keyboard accessible
+            document.querySelectorAll('.task-item').forEach(item => {
+                item.setAttribute('role', 'listitem');
+            });
+        });
+
+        // Claude 2026-03-08: wait for AA + auth before checking mirror state & suggestions
+        function _initSuggestions() {
+            if (window.AA && AA.auth) {
+                AA.auth.onAuthStateChanged(function() {
+                    updateMirrorUI();
+                    checkForSuggestions();
+                });
+            } else {
+                setTimeout(_initSuggestions, 300);
+            }
+        }
+        _initSuggestions();
+    </script>
+    <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. Firebase for cross-device spoon plan sync is handled by shared-header. -->
+<!-- Cache bust #3: 2026-02-18 Bruise - Grok assisted - fixed history expansion -->
+<!-- Cache bust #4: 2026-02-18 Bruise - Grok assisted - cleaned DOCTYPE & remnant -->
+<!-- Cache bust #5: 2026-02-26 Claude - Firebase sync added -->
+</body>
+</html>

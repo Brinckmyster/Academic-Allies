@@ -175,6 +175,18 @@
       .entry-note { border-left-color: #999; }
       @page { margin: 0.75in; }
     }
+
+    /* Claude: 2026-03-25 — dark mode for check-in log */
+    html.aa-dark { --bg: #121212; --card: #1e1e1e; --border: #333; --text: #e0e0e0; --muted: #888; --shadow: 0 2px 8px rgba(0,0,0,.3); }
+    html.aa-dark .day-card { background: #1e1e1e; border-color: #333; }
+    html.aa-dark .day-date { color: #8ec5c8; }
+    html.aa-dark .day-detail { border-top-color: #333; }
+    html.aa-dark .cat-pill { background: #2a2a2a; border-color: #444; color: #ccc; }
+    html.aa-dark .entry-note { background: #1a1e1a; border-left-color: #4d787b; color: #ccc; }
+    html.aa-dark .thumping-badge { background: #2e2200; color: #ffc107; }
+    html.aa-dark .emergency-badge { background: #2e0a0e; color: #ff6b7a; }
+    html.aa-dark #mirror-notice { background: #1a2e2f; border-color: #4d787b; color: #8ec5c8; }
+    html.aa-dark #auth-gate button { background: #4d787b; }
   </style>
 </head>
 <body>
@@ -331,7 +343,8 @@ function renderDayCard(dayData) {
     ? entries.map(renderEntry).join('<hr style="border:none;border-top:1px solid #eee;margin:.75rem 0">')
     : '<p style="color:#999;font-size:.85rem">No entries recorded.</p>';
 
-  return '<div class="day-card" onclick="toggleDay(this)">' +
+  /* Claude: 2026-03-25 — added role="button", tabindex, keyboard handler for a11y */
+  return '<div class="day-card" onclick="toggleDay(this)" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDay(this);}">' +
     '<div class="day-header">' +
       '<span class="flag-dot ' + esc(flag) + '"></span>' +
       '<span class="day-date">' + esc(dateLabel) + '</span>' +
@@ -517,6 +530,8 @@ waitForAA(function() {
     var controls = document.getElementById('log-controls');
 
     if (!user) {
+      /* Claude: 2026-03-25 — tear down Firestore listener on sign-out to prevent data leak */
+      if (_unsubLog) { _unsubLog(); _unsubLog = null; }
       authGate.style.display = 'block';
       show('log-loading');
       document.getElementById('log-student-name').textContent = '—';
@@ -586,16 +601,16 @@ fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
     container.innerHTML = html;
     container.querySelectorAll('script').forEach(function(old) {
       var s = document.createElement('script');
-      Array.from(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      [].slice.call(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
       s.textContent = old.textContent;
-      old.replaceWith(s);
+      old.parentNode.replaceChild(s, old);
     });
     var drag = document.createElement('script');
     drag.src = '/Academic-Allies/modular/js/draggable.js';
     drag.onload = function(){ if (typeof initDrag === 'function') initDrag(); };
     document.body.appendChild(drag);
   })
-  .catch(function(){})
+  /* Claude: 2026-03-25 — merged duplicate .catch() into one handler */
   .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 </script>
 

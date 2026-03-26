@@ -195,7 +195,8 @@
           _configCache = merged;
           _cacheUid = uid;
           window.AA_STUDENT_CONFIG = merged;
-          console.log('[AA_CONFIG] Loaded config for', uid);
+          /* Claude: 2026-03-25 — sanitized console log to remove PII */
+          if (window.AA_DEBUG) console.log('[AA_CONFIG] Loaded config');
           return merged;
         })
         .catch(function(err) {
@@ -246,7 +247,7 @@
          Layer 3: Retry queue if Firestore fails */
       try {
         localStorage.setItem('AA_CONFIG_BACKUP_' + uid, JSON.stringify(data));
-        console.log('[AA_CONFIG] Layer 1 — localStorage backup saved');
+        if (window.AA_DEBUG) console.log('[AA_CONFIG] Layer 1 — localStorage backup saved');
       } catch(lsErr) {
         try { sessionStorage.setItem('AA_CONFIG_BACKUP_' + uid, JSON.stringify(data)); } catch(ssErr) {}
       }
@@ -272,7 +273,8 @@
             _configCache = deepMerge(DEFAULT_CONFIG, data);
             _cacheUid = uid;
             window.AA_STUDENT_CONFIG = _configCache;
-            console.log('[AA_CONFIG] Layer 2 — Firestore saved for', uid);
+            /* Claude: 2026-03-25 — sanitized console log to remove PII */
+            if (window.AA_DEBUG) console.log('[AA_CONFIG] Layer 2 — Firestore saved');
 
             /* Audit log entry */
             return window.AA.db.collection('auditLog').doc(uid).collection('entries').add({
@@ -301,9 +303,9 @@
     _configCache = null;
     _cacheUid = null;
     delete window.AA_STUDENT_CONFIG;
-    console.log('[AA_CONFIG] Cache cleared');
+    if (window.AA_DEBUG) console.log('[AA_CONFIG] Cache cleared');
   };
 
-  console.log('[AA_CONFIG] Student config system loaded');
+  if (window.AA_DEBUG) console.log('[AA_CONFIG] Student config system loaded');
 
 })();

@@ -122,6 +122,61 @@
     .btn-gcal:hover { background: #e8f0fe; }
     .btn-gcal.connected { border-color: #10b981; color: #10b981; }
     .dot-gcal { background: #4285f4; }
+
+    /* Claude: 2026-03-25 — I3 fix: calendar mobile responsiveness */
+    /* Claude: 2026-03-25 — I11: loading spinner */
+    .aa-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #e1e5e9; border-top-color: #4a7f82; border-radius: 50%; animation: aa-spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes aa-spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .cal-day { min-height: 48px; padding: 4px 3px; }
+      .day-num { font-size: 0.72rem; width: 20px; height: 20px; }
+      .cal-day.today .day-num { width: 20px; height: 20px; }
+      .day-dots { gap: 2px; }
+      .day-dot { width: 6px; height: 6px; }
+      .cal-dow { font-size: 0.65rem; padding: 6px 2px; }
+      .cal-nav h2 { font-size: 1.1rem; }
+      .cal-btn { padding: 6px 10px; font-size: 0.8rem; }
+      .gcal-connect-bar { flex-direction: column; text-align: center; }
+      .detail-entry { flex-direction: column; gap: 4px; }
+      .cal-legend { font-size: 0.7rem; gap: 10px; }
+    }
+    @media (max-width: 360px) {
+      .cal-day { min-height: 40px; padding: 2px; }
+      .day-num { font-size: 0.65rem; width: 18px; height: 18px; }
+      .day-dots { display: none; }
+    }
+
+    /* Claude: 2026-03-25 — dark mode overrides for calendar page */
+    html.aa-dark body { background: #121212; color: #e0e0e0; }
+    html.aa-dark .cal-nav h2 { color: #7abfc2; }
+    html.aa-dark .cal-btn { background: #1e1e2e; border-color: #444; color: #ccc; }
+    html.aa-dark .cal-btn:hover { background: #2a3a3b; border-color: #7abfc2; color: #7abfc2; }
+    html.aa-dark .cal-btn.today-btn { background: #3d6a6d; border-color: #3d6a6d; color: #fff; }
+    html.aa-dark .cal-btn.today-btn:hover { background: #4a7a7d; }
+    html.aa-dark .cal-grid { background: #1e1e2e; border-color: #333; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+    html.aa-dark .cal-dow { background: #1a1a2e; color: #999; border-bottom-color: #333; }
+    html.aa-dark .cal-dow:not(:last-child) { border-right-color: #2a2a3e; }
+    html.aa-dark .cal-day { border-bottom-color: #2a2a3e; border-right-color: #2a2a3e; }
+    html.aa-dark .cal-day:hover { background: #2a3a3b; }
+    html.aa-dark .cal-day.other-month { background: #151520; }
+    html.aa-dark .cal-day.other-month .day-num { color: #555; }
+    html.aa-dark .cal-day.today { background: #1a2e30; }
+    html.aa-dark .cal-day.today .day-num { background: #4a7f82; color: #fff; }
+    html.aa-dark .cal-day.selected { outline-color: #7abfc2; }
+    html.aa-dark .day-num { color: #ccc; }
+    html.aa-dark #detail-panel { background: #1e1e2e; border-color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    html.aa-dark #detail-panel h3 { color: #7abfc2; }
+    html.aa-dark .detail-section-title { color: #999; }
+    html.aa-dark .detail-entry { background: #0f1117; color: #ccc; }
+    html.aa-dark .gcal-btn { background: #1e1e2e; border-color: #4285f4; color: #6fa8fc; }
+    html.aa-dark .gcal-btn:hover { background: #1a2040; }
+    html.aa-dark #detail-empty { color: #666; }
+    html.aa-dark .cal-legend { color: #999; }
+    html.aa-dark #cal-loading { color: #666; }
+    html.aa-dark .gcal-connect-bar { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .gcal-connect-bar span { color: #ccc; }
+    html.aa-dark .btn-gcal { background: #1e1e2e; border-color: #4285f4; color: #6fa8fc; }
   </style>
 </head>
 <body>
@@ -129,7 +184,7 @@
   <script>var AA_MODE_GATE = 'calendar';</script>
   <script src="/Academic-Allies/modular/js/mode-gate.js"></script>
   <div id="site-header"></div>
-  <div id="cal-loading">Loading calendar…</div>
+  <div id="cal-loading"><span class="aa-spinner"></span> Loading calendar…</div>
 
   <div class="container" id="cal-container" style="display:none;">
     <div class="cal-nav">
@@ -180,9 +235,9 @@
         c.innerHTML = html;
         c.querySelectorAll('script').forEach(function(old) {
           var s = document.createElement('script');
-          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
           s.textContent = old.textContent;
-          old.replaceWith(s);
+          old.parentNode.replaceChild(s, old);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -293,11 +348,12 @@
     function waitForAA(cb, tries) {
       tries = tries || 0;
       if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
-      if (tries > 40) { document.getElementById('cal-loading').textContent = 'Could not connect.'; return; }
+      /* Claude: 2026-03-25 — added retry button to timeout state */
+      if (tries > 40) { document.getElementById('cal-loading').innerHTML = '⚠️ Could not connect. Check your connection and try again.<br><button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>'; return; }
       setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
     }
 
-    function pad(n) { return String(n).padStart(2, '0'); }
+    function pad(n) { return ('0' + n).slice(-2); }
     function dateKey(y, m, d) { return y + '-' + pad(m + 1) + '-' + pad(d); }
     function todayKey() { return dateKey(today.getFullYear(), today.getMonth(), today.getDate()); }
 
@@ -305,6 +361,16 @@
     function loadMonthData(uid, year, month, cb) {
       var cacheKey = uid + '_' + year + '_' + month;
       if (cache[cacheKey]) { cb(cache[cacheKey]); return; }
+      /* Claude: 2026-03-25 — I7: check localStorage on first load for instant render */
+      try {
+        var offlineData = localStorage.getItem('AA_CAL_' + cacheKey);
+        if (offlineData) {
+          var parsed = JSON.parse(offlineData);
+          cache[cacheKey] = parsed;
+          cb(parsed);
+          /* Still fetch fresh data in background to update */
+        }
+      } catch(e) {}
 
       var data = { checkins: {}, meals: {} };
       var daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -337,9 +403,22 @@
       /* Claude: 2026-03-14 — added .catch() so calendar still renders on partial fetch failure */
       Promise.all(checkinPromises.concat(mealPromises)).then(function() {
         cache[cacheKey] = data;
+        /* Claude: 2026-03-25 — I7 fix: persist to localStorage for offline access */
+        try { localStorage.setItem('AA_CAL_' + cacheKey, JSON.stringify(data)); } catch(e) {}
         cb(data);
       }).catch(function(err) {
         console.warn('[AA] Calendar month data fetch failed:', err);
+        /* Claude: 2026-03-25 — I7 fix: try localStorage if Firestore fails */
+        if (!data.checkins || Object.keys(data.checkins).length === 0) {
+          try {
+            var cached = localStorage.getItem('AA_CAL_' + cacheKey);
+            if (cached) {
+              var parsed = JSON.parse(cached);
+              data = parsed;
+              if (window.AA_DEBUG) console.log('[AA] Calendar loaded from offline cache');
+            }
+          } catch(e2) {}
+        }
         cb(data); /* render with whatever data we have */
       });
     }
@@ -436,7 +515,7 @@
             selectDay(dk, cell);
           }
           /* Arrow key navigation between days */
-          var allDays = Array.from(document.querySelectorAll('.cal-day:not(.other-month)'));
+          var allDays = [].slice.call(document.querySelectorAll('.cal-day:not(.other-month)'));
           var idx = allDays.indexOf(cell);
           if (idx === -1) return;
           var target = -1;
@@ -576,7 +655,8 @@
         content.appendChild(sec3);
         // Update empty check
         var emptyEl = document.getElementById('detail-empty');
-        if (emptyEl) emptyEl.remove();
+        /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+        if (emptyEl && emptyEl.parentNode) emptyEl.parentNode.removeChild(emptyEl);
       }
 
       panel.style.display = 'block';

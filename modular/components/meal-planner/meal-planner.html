@@ -75,8 +75,11 @@
     .base-plan-section ul { margin: 0; padding-left: 18px; }
     .base-plan-section li { font-size: 0.88rem; color: #444; margin: 3px 0; }
 
-    /* Sign-in notice */
+    /* Sign-in notice / loading state */
+    /* Claude: 2026-03-25 — I11 fix: added spinner animation for loading state */
     #signin-notice { padding: 30px; text-align: center; color: #888; font-size: 0.95rem; }
+    .aa-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #e1e5e9; border-top-color: #2e6b4f; border-radius: 50%; animation: aa-spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes aa-spin { to { transform: rotate(360deg); } }
 
     /* Mirror / NL banner */
     #meal-mirror-banner {
@@ -91,6 +94,25 @@
       background: linear-gradient(135deg, #e8eeff 0%, #f0f0ff 100%);
       border: 1px solid #a5b4fc; color: #4338ca;
     }
+
+    /* Claude: 2026-03-25 — dark mode overrides for meal planner */
+    html.aa-dark body { background: #121212; color: #e0e0e0; }
+    html.aa-dark h1 { color: #6ecf9a; }
+    html.aa-dark .subtitle { color: #999; }
+    html.aa-dark .meal-entry { background: #1a2e20; border-color: #2a5a3a; }
+    html.aa-dark .meal-entry h3 { color: #6ecf9a; }
+    html.aa-dark .meal-entry input, html.aa-dark .meal-entry textarea, html.aa-dark .meal-entry select { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .meal-item { background: #1e1e2e; border-left-color: #2e6b4f; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    html.aa-dark .meal-item .meta { color: #999; }
+    html.aa-dark .meal-item .mtype { background: #1a3a2a; color: #6ecf9a; }
+    html.aa-dark .base-plan-panel { background: #1e1e2e; border-color: #3d3060; }
+    html.aa-dark .base-plan-panel h3 { color: #b39ddb; }
+    html.aa-dark .base-plan-section h4 { color: #ccc; }
+    html.aa-dark .base-plan-section li { color: #bbb; }
+    html.aa-dark #signin-notice { color: #777; }
+    html.aa-dark .aa-spinner { border-color: #333; border-top-color: #6ecf9a; }
+    html.aa-dark #meal-mirror-banner.nl-banner { background: linear-gradient(135deg, #1a2e20 0%, #1a3020 100%); border-color: #2a6b4a; color: #6ecf9a; }
+    html.aa-dark #meal-mirror-banner.mirror-banner { background: linear-gradient(135deg, #1a1a30 0%, #1a1a35 100%); border-color: #4a4a8a; color: #a5b4fc; }
   </style>
 </head>
 <body>
@@ -105,16 +127,18 @@
         c.innerHTML = html;
         c.querySelectorAll('script').forEach(function(old) {
           var s = document.createElement('script');
-          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
           s.textContent = old.textContent;
-          old.replaceWith(s);
+          old.parentNode.replaceChild(s, old);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
   </script>
 
-  <div id="signin-notice">Loading…</div>
-  <div id="planner-body" style="display:none;">
+  <!-- Claude: 2026-03-25 — I11 fix: spinner during loading -->
+  <div id="signin-notice"><span class="aa-spinner"></span> Loading meal planner…</div>
+  <!-- Claude: 2026-03-25 — A7 fix: main-content for skip-to-content link -->
+  <div id="planner-body" role="main" style="display:none;">
 
     <div id="meal-mirror-banner"></div>
 
@@ -149,11 +173,13 @@
       </select>
       <!-- Claude: 2026-03-13 — added labels for accessibility -->
       <label for="mealName" class="sr-only">Meal name</label>
-      <input  type="text"  id="mealName"  placeholder="Meal name (e.g. Grilled chicken, rice, broccoli)" aria-label="Meal name">
+      <!-- Claude: 2026-03-25 — added maxlength -->
+      <input  type="text"  id="mealName"  placeholder="Meal name (e.g. Grilled chicken, rice, broccoli)" aria-label="Meal name" maxlength="200">
       <label for="mealTime" class="sr-only">Meal time</label>
       <input  type="time"  id="mealTime" aria-label="Meal time">
       <label for="mealNotes" class="sr-only">Meal notes</label>
-      <textarea id="mealNotes" placeholder="Notes (optional)" rows="2" aria-label="Meal notes"></textarea>
+      <!-- Claude: 2026-03-25 — added maxlength -->
+      <textarea id="mealNotes" placeholder="Notes (optional)" rows="2" aria-label="Meal notes" maxlength="500"></textarea>
       <button class="btn-primary" onclick="addMeal()" aria-label="Add a new meal">+ Add Meal</button>
     </div>
 
@@ -178,7 +204,7 @@
     var unsubMealLog  = null;
     // FUNCTIONAL FIX 2026-03-07 by Claude: local date not UTC (toISOString flips day after ~7 PM EST)
     var d = new Date();
-    var dateKey = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    var dateKey = d.getFullYear() + '-' + ('0' + (d.getMonth()+1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
 
     /* ── Wait for AA to be ready ── */
     function waitForAA(cb, tries) {
@@ -205,6 +231,13 @@
         }));
       } catch(e) {}
     }
+
+    /* Claude: 2026-03-25 — I17 fix: save draft on beforeunload + input change */
+    window.addEventListener('beforeunload', _mealDraftSave);
+    ['mealName', 'mealTime', 'mealNotes', 'mealType'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', function() { clearTimeout(window._mealDraftTimer); window._mealDraftTimer = setTimeout(_mealDraftSave, 2000); });
+    });
 
     function _mealDraftRestore() {
       try {
@@ -250,8 +283,9 @@
             });
 
           /* Hide direct-edit UI, show suggest button instead */
-          document.querySelector('.meal-entry').style.display    = 'none';
-          document.querySelector('.meal-controls').style.display = 'none';
+          /* Claude: 2026-03-25 — null guards for querySelector (element may not exist in all views) */
+          var _me = document.querySelector('.meal-entry'); if (_me) _me.style.display = 'none';
+          var _mc = document.querySelector('.meal-controls'); if (_mc) _mc.style.display = 'none';
           _showMealSuggestUI();
         }
 
@@ -299,8 +333,27 @@
           mealList.innerHTML = '<p style="text-align:center;color:#999;padding:2rem;">Taking longer than expected…</p><button onclick="location.reload()" style="color:#2e6b4f;background:none;border:none;cursor:pointer;font-weight:700;text-decoration:underline;">Retry</button>';
         }
       }, 15000);
-      unsubMealLog = AA.watchMealLog(currentUid, dateKey, function(data) {
+      /* Claude: 2026-03-25 — handle error parameter for offline fallback.
+         If Firestore is down, restore from localStorage draft so meals aren't blank. */
+      unsubMealLog = AA.watchMealLog(currentUid, dateKey, function(data, err) {
         clearTimeout(_mealLoadTimer);
+        if (err) {
+          console.warn('[MealPlanner] Firestore error, trying offline restore:', err.message || err);
+          try {
+            var draft = localStorage.getItem('AA_MEAL_DRAFT');
+            if (draft) {
+              var parsed = JSON.parse(draft);
+              if (parsed.meals && parsed.dateKey === dateKey) {
+                todaysMeals = parsed.meals;
+                displayMeals();
+                return;
+              }
+            }
+          } catch(e) {}
+          todaysMeals = [];
+          displayMeals();
+          return;
+        }
         todaysMeals = (data && Array.isArray(data.meals)) ? data.meals : [];
         displayMeals();
       });
@@ -419,6 +472,9 @@
         alert('Please enter at least a meal name or time.');
         return;
       }
+      /* Claude: 2026-03-25 — field length limits to prevent oversized Firestore docs */
+      if (name.length > 200) { alert('Meal name is too long (max 200 characters).'); return; }
+      if (notes.length > 500) { alert('Notes are too long (max 500 characters).'); return; }
 
       /* Claude: 2026-03-16 — double-click protection on add button */
       var btn = document.querySelector('[onclick*="addMeal()"]');
@@ -504,7 +560,8 @@
             '<option value="">Type</option><option value="Breakfast">Breakfast</option>' +
             '<option value="Lunch">Lunch</option><option value="Dinner">Dinner</option>' +
             '<option value="Snack">Snack</option></select>' +
-          '<input id="sugMealName" placeholder="Meal name" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:1rem;min-width:150px;">' +
+          /* Claude: 2026-03-25 — added explicit type="text" for a11y best practice */
+          '<input type="text" id="sugMealName" placeholder="Meal name" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:1rem;min-width:150px;">' +
           '<input id="sugMealTime" type="time" style="padding:10px;border-radius:8px;border:1px solid #ddd;font-size:1rem;">' +
         '</div>' +
         '<button onclick="_addSugMeal()" style="margin-top:10px;background:#a78bfa;color:white;border:none;border-radius:8px;padding:12px 20px;font-size:1rem;cursor:pointer;font-weight:600;">+ Add to Suggestion</button>' +
@@ -544,7 +601,8 @@
       list.innerHTML = _suggestedMeals.map(function(m, i) {
         return '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:white;border-radius:8px;margin-bottom:6px;">' +
           '<span style="flex:1;font-size:0.95rem;">' + (m.type ? esc(m.type) + ': ' : '') + esc(m.name) + (m.time ? ' at ' + esc(m.time) : '') + '</span>' +
-          '<button onclick="_suggestedMeals.splice(' + i + ',1);_renderSugMeals();" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">✕</button>' +
+          /* Claude: 2026-03-25 — added aria-label to icon-only remove button */
+          '<button onclick="_suggestedMeals.splice(' + i + ',1);_renderSugMeals();" style="background:none;border:none;cursor:pointer;font-size:1.2rem;" aria-label="Remove suggested meal">✕</button>' +
         '</div>';
       }).join('');
     }
@@ -606,7 +664,8 @@
       }
       AA.respondMealSuggestion(uid, id, true).then(function() {
         var b = document.getElementById('meal-suggestion-banner');
-        if (b) b.remove();
+        /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+        if (b && b.parentNode) b.parentNode.removeChild(b);
       }).catch(function(err) { alert('Error: ' + err.message); });
     }
 
@@ -616,7 +675,8 @@
       var uid = AA.auth.currentUser.uid;
       AA.respondMealSuggestion(uid, id, false).then(function() {
         var b = document.getElementById('meal-suggestion-banner');
-        if (b) b.remove();
+        /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+        if (b && b.parentNode) b.parentNode.removeChild(b);
       }).catch(function(err) { alert('Error: ' + err.message); });
     }
 

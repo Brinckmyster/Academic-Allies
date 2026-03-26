@@ -20,7 +20,8 @@
     return;
   }
 
-  console.log('[QUIZ LOADER] Loading quizzes for student UID:', uid);
+  /* Claude: 2026-03-25 — sanitized console log to remove PII */
+  if (window.AA_DEBUG) console.log('[QUIZ LOADER] Loading quizzes');
 
   var quizzes = [
     {
@@ -262,7 +263,7 @@
     var skipped = 0;
     quizzes.forEach(function(q) {
       if (existingTitles[q.title]) {
-        console.log('[QUIZ LOADER] Skipping duplicate:', q.title);
+        if (window.AA_DEBUG) console.log('[QUIZ LOADER] Skipping duplicate:', q.title);
         skipped++;
       } else {
         existingQuizzes.push(q);
@@ -277,7 +278,7 @@
       configuredBy: window.AA.auth.currentUser ? window.AA.auth.currentUser.uid : null
     }, { merge: true }).then(function() {
       var msg = '[QUIZ LOADER] Done! Added ' + added + ' quizzes, skipped ' + skipped + ' duplicates.';
-      console.log(msg);
+      if (window.AA_DEBUG) console.log(msg);
       alert(msg);
 
       /* Audit log */
@@ -290,7 +291,7 @@
       });
     });
   }).then(function() {
-    console.log('[QUIZ LOADER] Audit log entry created.');
+    if (window.AA_DEBUG) console.log('[QUIZ LOADER] Audit log entry created.');
   }).catch(function(err) {
     console.error('[QUIZ LOADER] Error:', err);
     alert('Error loading quizzes: ' + err.message);

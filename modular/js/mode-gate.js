@@ -17,6 +17,10 @@
 (function() {
   'use strict';
 
+  /* Claude: 2026-03-25 — guard against double-loading (e.g. duplicate script tag) */
+  if (window._AA_MODE_GATE_LOADED) return;
+  window._AA_MODE_GATE_LOADED = true;
+
   var gateKey = window.AA_MODE_GATE;
   if (!gateKey) return; /* No gate configured — skip */
 
@@ -130,7 +134,8 @@
   /* ── Unblock (if Firestore says feature is actually on) ── */
   function unblockPage() {
     var notice = document.getElementById('mode-gate-blocked');
-    if (notice) notice.remove();
+    /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+    if (notice && notice.parentNode) notice.parentNode.removeChild(notice);
     var children = document.body.children;
     for (var i = 0; i < children.length; i++) {
       children[i].style.display = '';
@@ -222,8 +227,9 @@
           /* Custom settings say blocked but we didn't block yet (default said OK) */
           blockPage(mode);
         }
-      }).catch(function() {
-        /* Firestore failed — defaults already applied, leave as-is */
+      /* Claude: 2026-03-25 — added console.warn to mode-gate Firestore catch */
+      }).catch(function(e) {
+        console.warn('[AA ModeGate] Firestore read failed — using defaults:', e.message || e);
       });
     });
   });

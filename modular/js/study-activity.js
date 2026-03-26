@@ -49,11 +49,12 @@
   }
 
   /* ── Date helpers ────────────────────────────────────────── */
+  /* Claude: 2026-03-25 — replaced .padStart() (ES2017) with ES5-safe pattern */
   function _todayKey() {
     var d = new Date();
     return d.getFullYear() + '-' +
-           String(d.getMonth() + 1).padStart(2, '0') + '-' +
-           String(d.getDate()).padStart(2, '0');
+           ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+           ('0' + d.getDate()).slice(-2);
   }
 
   /* ── Firestore doc ref for a user's study activity ──────── */
@@ -93,7 +94,7 @@
       queue.push({ uid: uid, action: action, payload: payload, queuedAt: new Date().toISOString() });
       if (queue.length > 20) queue = queue.slice(-20);
       localStorage.setItem('AA_STUDY_RETRY_QUEUE', JSON.stringify(queue));
-      console.log('[AA Study] Queued retry:', action);
+      if (window.AA_DEBUG) console.log('[AA Study] Queued retry:', action);
     } catch(e) {}
   }
 
@@ -101,18 +102,19 @@
     try {
       var queue = JSON.parse(localStorage.getItem('AA_STUDY_RETRY_QUEUE') || '[]');
       if (queue.length === 0) return;
-      console.log('[AA Study] Processing', queue.length, 'queued retries');
+      if (window.AA_DEBUG) console.log('[AA Study] Processing', queue.length, 'queued retries');
       localStorage.removeItem('AA_STUDY_RETRY_QUEUE');
       queue.forEach(function(item) {
         if (!window.AA || !window.AA.db) return;
         var ref = window.AA.db.collection('studyActivity').doc(item.uid);
         if (item.action === 'logSession' || item.action === 'saveBest' || item.action === 'addMiss' || item.action === 'removeMiss') {
           ref.set(item.payload, { merge: true })
-            .then(function() { console.log('[AA Study] Retry succeeded:', item.action); })
-            .catch(function() { /* give up silently */ });
+            .then(function() { if (window.AA_DEBUG) console.log('[AA Study] Retry succeeded:', item.action); })
+            /* Claude: 2026-03-25 — added console.warn to retry failures */
+            .catch(function(e) { console.warn('[AA Study] Retry failed:', item.action, e.message || e); });
         } else if (item.action === 'resetMissed') {
           ref.update({ missed: firebase.firestore.FieldValue.delete() })
-            .catch(function() {});
+            .catch(function(e) { console.warn('[AA Study] resetMissed retry failed:', e.message || e); });
         }
       });
     } catch(e) {}
@@ -187,7 +189,7 @@
 
       return (snap.exists ? _docRef(uid).update(update) : _docRef(uid).set(update))
         .then(function() {
-          console.log('[AA Study] logSession saved to Firestore');
+          if (window.AA_DEBUG) console.log('[AA Study] logSession saved to Firestore');
         })
         .catch(function(err) {
           console.warn('[AA Study] logSession Firestore failed:', err.message);
@@ -239,7 +241,7 @@
         writePromise = _docRef(uid).update(update);
       }
       return writePromise
-        .then(function() { console.log('[AA Study] saveBest saved to Firestore'); })
+        .then(function() { if (window.AA_DEBUG) console.log('[AA Study] saveBest saved to Firestore'); })
         .catch(function(err) {
           console.warn('[AA Study] saveBest Firestore failed:', err.message);
           var payload = { bests: {} };
@@ -285,7 +287,7 @@
         : _docRef(uid).set({ missed: missed }, { merge: true });
 
       return writePromise
-        .then(function() { console.log('[AA Study] addMiss saved to Firestore'); })
+        .then(function() { if (window.AA_DEBUG) console.log('[AA Study] addMiss saved to Firestore'); })
         .catch(function(err) {
           console.warn('[AA Study] addMiss Firestore failed:', err.message);
           _queueStudyRetry(uid, 'addMiss', { missed: missed });
@@ -320,7 +322,7 @@
         : _docRef(uid).set({ missed: missed }, { merge: true });
 
       return writePromise
-        .then(function() { console.log('[AA Study] removeMiss saved to Firestore'); })
+        .then(function() { if (window.AA_DEBUG) console.log('[AA Study] removeMiss saved to Firestore'); })
         .catch(function(err) {
           console.warn('[AA Study] removeMiss Firestore failed:', err.message);
           _queueStudyRetry(uid, 'removeMiss', { missed: missed });
@@ -350,7 +352,7 @@
     return _docRef(uid).update({
       missed: firebase.firestore.FieldValue.delete()
     }).then(function() {
-      console.log('[AA Study] resetMissed saved to Firestore');
+      if (window.AA_DEBUG) console.log('[AA Study] resetMissed saved to Firestore');
     }).catch(function (err) {
       console.warn('[AA Study] resetMissed Firestore failed:', err.message);
       _queueStudyRetry(uid, 'resetMissed', {});
@@ -431,7 +433,8 @@
       /* Mark migrated and clean up localStorage */
       try { localStorage.setItem(migKey, '1'); } catch (e) {}
       _cleanupLocalStorage();
-      console.log('[AA Study] Migrated localStorage data to Firestore for', uid);
+      /* Claude: 2026-03-25 — sanitized console log to remove PII */
+      if (window.AA_DEBUG) console.log('[AA Study] Migrated localStorage data to Firestore');
     }).catch(function (err) {
       console.warn('[AA Study] Migration failed:', err.message);
     });
@@ -481,7 +484,7 @@
         localStorage.removeItem(k);
       });
       if (keysToRemove.length > 0) {
-        console.log('[AA Study] Cleaned up', keysToRemove.length, 'localStorage keys');
+        if (window.AA_DEBUG) console.log('[AA Study] Cleaned up', keysToRemove.length, 'localStorage keys');
       }
     } catch (e) {}
   }

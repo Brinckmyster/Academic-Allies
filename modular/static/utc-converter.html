@@ -6,6 +6,8 @@
   <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Atomic Clock & UTC Converter — Academic Allies</title>
+  <!-- Claude: 2026-03-25 — added missing favicon -->
+  <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
   <!-- Created: 2026-02-25 by Claude — UTC converter utility tool, placed in static/ -->
   <!-- Claude: 2026-03-13 — Added atomic clock sync via timeapi.io with drift correction,
        millisecond precision display, sync status indicator, and re-sync every 5 min -->
@@ -33,7 +35,8 @@
       line-height: 1.6;
       padding-bottom: 3rem;
     }
-    #shared-header { min-height: 56px; }
+    /* Claude: 2026-03-25 — renamed shared-header to site-header for consistency */
+    #site-header { min-height: 56px; }
     .page-wrap {
       max-width: 680px;
       margin: 0 auto;
@@ -205,11 +208,16 @@
       .atomic-ms { font-size: 1rem; }
       .tz-list .tz-name { flex: 0 0 130px; }
     }
+
+    /* Claude: 2026-03-25 — dark mode via CSS var overrides */
+    html.aa-dark { --bg: #121212; --card: #1e1e1e; --border: #333; --text: #e0e0e0; --muted: #888; --teal-dk: #8ec5c8; }
+    html.aa-dark input, html.aa-dark select { background: #2a2a2a; color: #e0e0e0; border-color: #555; }
   </style>
 </head>
 <body>
 
-<div id="shared-header"></div>
+<!-- Claude: 2026-03-25 — renamed to site-header for consistency with all other pages -->
+<div id="site-header"></div>
 
 <div class="page-wrap">
   <h1>Atomic Clock & UTC Converter</h1>
@@ -562,7 +570,7 @@ function parseUTC() {
       if (ampm === 'pm' && h !== 12) h += 12;
       if (ampm === 'am' && h === 12) h = 0;
       var today2 = new Date().toISOString().split('T')[0];
-      d = new Date(today2 + 'T' + String(h).padStart(2,'0') + ':' + String(min).padStart(2,'0') + ':00Z');
+      d = new Date(today2 + 'T' + ('0' + h).slice(-2) + ':' + ('0' + min).slice(-2) + ':00Z');
     } else {
       d = new Date(raw);
     }
@@ -602,14 +610,15 @@ function copyUTCResult() {
 fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
   .then(function(r){ return r.text(); })
   .then(function(html){
-    var container = document.getElementById('shared-header');
+    /* Claude: 2026-03-25 — renamed to site-header for consistency */
+    var container = document.getElementById('site-header');
     container.innerHTML = html;
     /* Re-execute every <script> so Firebase + AA auth actually initialise */
     container.querySelectorAll('script').forEach(function(old) {
       var s = document.createElement('script');
-      Array.from(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      [].slice.call(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
       s.textContent = old.textContent;
-      old.replaceWith(s);
+      old.parentNode.replaceChild(s, old);
     });
     /* Draggable header */
     var drag = document.createElement('script');

@@ -140,6 +140,7 @@
 
     @media (max-width: 480px) {
       h1 { font-size: 1.25rem; }
+      /* Claude: 2026-03-25 — N3 fix: 2-col grid, not minmax(140px) which cramps on 320px */
       .modes-grid { grid-template-columns: repeat(2, 1fr); gap: .75rem; }
       .mode-tile { padding: 1rem .75rem; }
       .mode-config-card { padding: 14px; }
@@ -147,6 +148,31 @@
       .mode-save-row { flex-direction: column; }
       .btn-mode-save, .btn-mode-reset { width: 100%; text-align: center; }
     }
+    /* Claude: 2026-03-25 — extra-small phones (iPhone SE 320px) */
+    @media (max-width: 340px) {
+      .modes-grid { grid-template-columns: 1fr; }
+      .mode-tile { flex-direction: row; gap: .75rem; padding: .75rem; justify-content: flex-start; }
+      .mode-tile .mode-desc { display: none; }
+    }
+
+    /* Claude: 2026-03-25 — dark mode overrides for modes page */
+    html.aa-dark { --bg: #121212; --card: #1e1e2e; --border: #333; --text: #e0e0e0; --muted: #888; --shadow: 0 2px 8px rgba(0,0,0,.3); }
+    html.aa-dark h1 { color: #7abfc2; }
+    html.aa-dark .subtitle { color: #888; }
+    html.aa-dark .mode-tile { background: #1e1e2e; border-color: #333; color: #e0e0e0; }
+    html.aa-dark .mode-tile:hover { border-color: #7abfc2; background: #1a2e30; }
+    html.aa-dark .mode-tile.active-mode { border-color: #7abfc2; background: #1a2e30; }
+    html.aa-dark .mode-tile .mode-name { color: #7abfc2; }
+    html.aa-dark .mode-tile .mode-desc { color: #999; }
+    html.aa-dark .mode-config-card { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .mode-config-body { border-top-color: #2a2a3e; }
+    html.aa-dark .mode-config-desc { color: #999; }
+    html.aa-dark .feature-row { color: #ccc; }
+    html.aa-dark .feat-slider { background: #555; }
+    html.aa-dark .btn-mode-save { background: #3d6a6d; }
+    html.aa-dark .btn-mode-save:hover { background: #4a7a7d; }
+    html.aa-dark .btn-mode-reset { background: #1e1e2e; border-color: #444; color: #999; }
+    html.aa-dark #signin-msg { color: #666; }
   </style>
 </head>
 <body>
@@ -161,11 +187,11 @@
         container.innerHTML = html;
         container.querySelectorAll('script').forEach(function(oldScript) {
           var newScript = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(function(attr) {
+          [].slice.call(oldScript.attributes).forEach(function(attr) {
             newScript.setAttribute(attr.name, attr.value);
           });
           newScript.textContent = oldScript.textContent;
-          oldScript.replaceWith(newScript);
+          oldScript.parentNode.replaceChild(newScript, oldScript);
         });
       })
       .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
@@ -378,7 +404,8 @@
         bodyHtml += '<div class="mode-save-row">';
         bodyHtml += '<button class="btn-mode-save" onclick="saveModeConfig(\'' + mode.key + '\')">Save</button>';
         bodyHtml += '<button class="btn-mode-reset" onclick="resetModeConfig(\'' + mode.key + '\')">Reset to Defaults</button>';
-        bodyHtml += '<span class="mode-save-status" id="mcstatus-' + mode.key + '"></span>';
+        /* Claude: 2026-03-25 — A8 fix: aria-live for save status announcements */
+        bodyHtml += '<span class="mode-save-status" id="mcstatus-' + mode.key + '" aria-live="polite"></span>';
         bodyHtml += '</div></div>';
 
         card.innerHTML = headerHtml + bodyHtml;

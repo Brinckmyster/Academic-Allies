@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/Academic-Allies/favicon.ico">
+<!-- Claude: 2026-03-17 — early dark mode detect to prevent FOUC -->
+<script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Floral Flashcards — Academic Allies</title>
+<!-- Claude: 2026-03-17 — Flashcard study mode for floral ID exam prep -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    background: #FAFAF9;
+    min-height: 100vh;
+    padding: 0 12px 40px;
+    color: #333;
+  }
+  html.aa-dark body { background: #121212; color: #e0e0e0; }
+
+  .fc-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding-top: 12px;
+    text-align: center;
+  }
+
+  .back-link {
+    display: inline-block;
+    color: #6CA0A3;
+    text-decoration: none;
+    font-size: 11pt;
+    margin-bottom: 8px;
+    text-align: left;
+    width: 100%;
+  }
+  .back-link:hover { text-decoration: underline; }
+  html.aa-dark .back-link { color: #8ec5c8; }
+
+  h1 { font-size: 20pt; margin-bottom: 4px; color: #4a7f82; }
+  html.aa-dark h1 { color: #8ec5c8; }
+  .subtitle { font-size: 11pt; color: #888; margin-bottom: 12px; }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .controls button, .controls select {
+    padding: 8px 14px;
+    border: 2px solid #6CA0A3;
+    border-radius: 20px;
+    background: #fff;
+    color: #4a7f82;
+    font-weight: 600;
+    font-size: 10pt;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  html.aa-dark .controls button, html.aa-dark .controls select {
+    background: #1e1e1e;
+    color: #8ec5c8;
+    border-color: #3a5a5c;
+  }
+  .controls button:hover { background: #6CA0A3; color: #fff; }
+  html.aa-dark .controls button:hover { background: #4a7f82; color: #fff; }
+  .controls select { appearance: auto; }
+  .controls .active-mode { background: #6CA0A3; color: #fff; }
+  html.aa-dark .controls .active-mode { background: #4a7f82; color: #fff; }
+
+  /* Progress bar */
+  .progress-row {
+    font-size: 10pt;
+    color: #888;
+    margin-bottom: 12px;
+  }
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e8f2f3;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  html.aa-dark .progress-bar { background: #2a3a3b; }
+  .progress-fill {
+    height: 100%;
+    background: #6CA0A3;
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+
+  /* Flashcard */
+  .card-wrapper {
+    perspective: 800px;
+    width: 100%;
+    max-width: 400px;
+    height: 240px;
+    margin: 0 auto 16px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .flashcard {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.5s;
+  }
+  .flashcard.flipped { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    border: 3px solid transparent;
+  }
+  .card-front {
+    background: #e8f2f3;
+    border-color: #6CA0A3;
+    color: #2c5a5e;
+  }
+  html.aa-dark .card-front {
+    background: #1a2e2f;
+    border-color: #3a6a6d;
+    color: #8ec5c8;
+  }
+  .card-back {
+    background: #f0f7f0;
+    border-color: #4a9a4a;
+    color: #2e5a2e;
+    transform: rotateY(180deg);
+  }
+  html.aa-dark .card-back {
+    background: #1a2e1a;
+    border-color: #3a6a3a;
+    color: #8ec58e;
+  }
+  .card-label {
+    font-size: 10pt;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.6;
+    margin-bottom: 8px;
+  }
+  .card-text {
+    font-size: 22pt;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .card-hint {
+    font-size: 10pt;
+    opacity: 0.5;
+    margin-top: 12px;
+    font-style: italic;
+  }
+  .card-category {
+    font-size: 9pt;
+    opacity: 0.4;
+    margin-top: 8px;
+  }
+
+  /* Nav buttons */
+  .nav-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .nav-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid #6CA0A3;
+    background: #fff;
+    color: #4a7f82;
+    font-size: 18pt;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  html.aa-dark .nav-btn { background: #1e1e1e; color: #8ec5c8; border-color: #3a5a5c; }
+  .nav-btn:hover { background: #6CA0A3; color: #fff; }
+  html.aa-dark .nav-btn:hover { background: #4a7f82; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+  /* Know / Don't Know buttons */
+  .verdict-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .verdict-btn {
+    padding: 10px 24px;
+    border-radius: 12px;
+    border: 2px solid;
+    font-weight: 700;
+    font-size: 11pt;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-know {
+    border-color: #2e7d32;
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+  html.aa-dark .btn-know { background: #1a2e1a; color: #66bb6a; border-color: #2e7d32; }
+  .btn-know:hover { background: #2e7d32; color: #fff; }
+  .btn-dunno {
+    border-color: #c62828;
+    background: #ffebee;
+    color: #c62828;
+  }
+  html.aa-dark .btn-dunno { background: #2e1a1a; color: #ef5350; border-color: #c62828; }
+  .btn-dunno:hover { background: #c62828; color: #fff; }
+
+  /* Results */
+  .results {
+    display: none;
+    padding: 24px;
+    background: #f0f7f8;
+    border-radius: 16px;
+    border: 3px solid #6CA0A3;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  html.aa-dark .results { background: #1a2a2b; border-color: #3a6a6d; }
+  .results h2 { color: #2e7d32; margin-bottom: 12px; font-size: 16pt; }
+  html.aa-dark .results h2 { color: #66bb6a; }
+  .results .stat { font-size: 12pt; margin-bottom: 6px; color: #555; }
+  html.aa-dark .results .stat { color: #bbb; }
+  .results button {
+    margin-top: 12px;
+    padding: 10px 24px;
+    border: 2px solid #6CA0A3;
+    border-radius: 12px;
+    background: #6CA0A3;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12pt;
+    font-family: inherit;
+    cursor: pointer;
+    margin-right: 8px;
+  }
+  .results button:hover { background: #4a7f82; }
+
+  .credit {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #aaa;
+    margin-top: 20px;
+  }
+
+  @media (max-width: 500px) {
+    .card-wrapper { height: 200px; }
+    .card-text { font-size: 18pt; }
+  }
+</style>
+</head>
+<body>
+<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
+<script>var AA_MODE_GATE = 'flowerQuiz';</script>
+<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+<script src="/Academic-Allies/modular/js/study-activity.js?v=20260322"></script>
+
+<div class="fc-container">
+  <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">&larr; Back to Study Tools</a>
+
+  <h1>Floral Flashcards</h1>
+  <p class="subtitle">Tap to flip — swipe or arrow keys to navigate</p>
+
+  <div class="controls">
+    <select id="fcQuizPicker" onchange="startDeck()">
+      <option value="all">All 50 Flowers</option>
+      <option value="1">Quiz 1 — Mass</option>
+      <option value="2">Quiz 2 — Line</option>
+      <option value="3">Quiz 3 — Filler</option>
+      <option value="4">Quiz 4 — Form/Focal</option>
+      <option value="5">Quiz 5 — Foliage</option>
+      <option value="missed">Missed Only</option>
+    </select>
+    <button id="fcDirBtn" onclick="toggleDirection()">Show: Genus</button>
+    <button onclick="startDeck()">Shuffle</button>
+  </div>
+
+  <div class="progress-row">
+    <span id="fcProgress">0 / 0</span>
+    <div class="progress-bar"><div class="progress-fill" id="fcProgressFill"></div></div>
+  </div>
+
+  <div class="card-wrapper" id="fcCardWrap" onclick="flipCard()">
+    <div class="flashcard" id="fcCard">
+      <div class="card-face card-front">
+        <div class="card-label" id="fcFrontLabel">Common Name</div>
+        <div class="card-text" id="fcFrontText">—</div>
+        <div class="card-hint">Tap to reveal</div>
+        <div class="card-category" id="fcCategory"></div>
+      </div>
+      <div class="card-face card-back">
+        <div class="card-label" id="fcBackLabel">Genus</div>
+        <div class="card-text" id="fcBackText">—</div>
+        <div class="card-category" id="fcCategoryBack"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="verdict-row" id="fcVerdictRow">
+    <button class="verdict-btn btn-know" onclick="markCard(true)">Got it ✓</button>
+    <button class="verdict-btn btn-dunno" onclick="markCard(false)">Missed ✗</button>
+  </div>
+
+  <div class="nav-row">
+    <button class="nav-btn" id="fcPrev" onclick="prevCard()">◀</button>
+    <span id="fcCounter" style="font-size:11pt;color:#888;">1 / 10</span>
+    <button class="nav-btn" id="fcNext" onclick="nextCard()">▶</button>
+  </div>
+
+  <div class="results" id="fcResults">
+    <h2 id="fcResultTitle">Deck Complete!</h2>
+    <div class="stat" id="fcResultStat"></div>
+    <div class="stat" id="fcResultMissed"></div>
+    <button onclick="startDeck()">Shuffle &amp; Restart</button>
+    <button onclick="reviewMissed()">Review Missed</button>
+  </div>
+</div>
+
+<p class="credit">Built by Claude for Bruise — March 2026</p>
+
+<script>
+/* Claude: 2026-03-17 — Floral flashcard study mode
+   Features: flip cards, swipe nav, keyboard nav, know/don't-know tracking,
+   missed flowers saved to localStorage for cross-session review */
+
+var FLOWERS = {
+  "1": [
+    { common: "Carnation", genus: "Dianthus" },
+    { common: "Daisy Pom/Cushion Pom", genus: "Chrysanthemum" },
+    { common: "Rose", genus: "Rosa" },
+    { common: "Alstro", genus: "Alstroemeria" },
+    { common: "Lisianthus", genus: "Eustoma" },
+    { common: "Hydrangea", genus: "Hydrangea" },
+    { common: "Peony", genus: "Paeonia" },
+    { common: "Ranunculus", genus: "Ranunculus" },
+    { common: "Safari Sunset", genus: "Leucadendron" },
+    { common: "China Aster", genus: "Callistephus" }
+  ],
+  "2": [
+    { common: "Snapdragon", genus: "Antirrhinum" },
+    { common: "Larkspur", genus: "Consolida" },
+    { common: "Delphinium", genus: "Delphinium" },
+    { common: "Liatris", genus: "Liatris" },
+    { common: "Gladiola", genus: "Gladiolus" },
+    { common: "Stock", genus: "Matthiola" },
+    { common: "Bells of Ireland", genus: "Moluccella" },
+    { common: "Baby Blue Eucalyptus", genus: "Eucalyptus" },
+    { common: "Curly Willow", genus: "Salix" },
+    { common: "Dendrobium Orchid", genus: "Dendrobium" }
+  ],
+  "3": [
+    { common: "Solidago", genus: "Solidago" },
+    { common: "Misty Blue", genus: "Limonium" },
+    { common: "Statice", genus: "Limonium" },
+    { common: "Queen Anne's Lace", genus: "Ammi" },
+    { common: "Babies Breath", genus: "Gypsophila" },
+    { common: "Waxflower", genus: "Chamelaucium" },
+    { common: "Pixie Carnation", genus: "Dianthus" },
+    { common: "Aster", genus: "Aster" },
+    { common: "Hypericum Berries", genus: "Hypericum" },
+    { common: "Sea Holly", genus: "Eryngium" }
+  ],
+  "4": [
+    { common: "Sunflower", genus: "Helianthus" },
+    { common: "Calla Lily", genus: "Zantedeschia" },
+    { common: "Tulip", genus: "Tulipa" },
+    { common: "Bird of Paradise", genus: "Strelitzia" },
+    { common: "Disbud Mum", genus: "Chrysanthemum" },
+    { common: "Lily", genus: "Lilium" },
+    { common: "Billy Balls", genus: "Craspedia" },
+    { common: "Anthurium", genus: "Anthurium" },
+    { common: "Iris", genus: "Iris" },
+    { common: "Gerber Daisy", genus: "Gerbera" }
+  ],
+  "5": [
+    { common: "Leather Leaf", genus: "Rumohra" },
+    { common: "Bear Grass", genus: "Xerophyllum" },
+    { common: "Lily Grass", genus: "Liriope" },
+    { common: "Seeded Eucalyptus", genus: "Eucalyptus" },
+    { common: "Israeli Ruscus", genus: "Ruscus" },
+    { common: "Italian Ruscus", genus: "Ruscus" },
+    { common: "Salal/Lemon Leaf", genus: "Gaultheria" },
+    { common: "Grevillea", genus: "Grevillea" },
+    { common: "Pitt", genus: "Pittosporum" },
+    { common: "Myrtle", genus: "Myrtus" }
+  ]
+};
+
+var QUIZ_NAMES = {
+  "1": "Mass Flowers", "2": "Line Flowers", "3": "Filler Flowers",
+  "4": "Form/Focal", "5": "Foliage"
+};
+
+/* State */
+var deck = [];
+var deckIdx = 0;
+var showGenus = true; /* true = front shows common, back shows genus */
+var known = [];
+var missed = [];
+
+/* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+/* Missed flowers tracker — persisted in Firestore via AA.study module */
+
+function saveMissed(common) {
+  /* Guard for mirror mode — supporters cannot record their own study */
+  if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+  if (AA && AA.study && AA.study.addMiss) {
+    AA.study.addMiss(common);
+  }
+}
+
+function saveKnown(common) {
+  /* Guard for mirror mode — supporters cannot record their own study */
+  if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+  if (AA && AA.study && AA.study.removeMiss) {
+    AA.study.removeMiss(common);
+  }
+}
+
+function getMissedFlowers() {
+  /* Claude: 2026-03-20 — now async; returns Promise */
+  return new Promise(function(resolve) {
+    if (AA && AA.study && AA.study.getMissed) {
+      AA.study.getMissed()
+        .then(function(missedNames) {
+          var all = getAllFlowers();
+          var result = [];
+          all.forEach(function(f) {
+            if (missedNames.indexOf(f.common) !== -1) result.push(f);
+          });
+          resolve(result);
+        })
+        .catch(function(err) {
+          console.warn('[AA] getMissed failed, returning empty:', err);
+          resolve([]);
+        });
+    } else {
+      resolve([]);
+    }
+  });
+}
+
+function getAllFlowers() {
+  var pool = [];
+  var keys = ["1","2","3","4","5"];
+  keys.forEach(function(k) {
+    FLOWERS[k].forEach(function(f) {
+      pool.push({ common: f.common, genus: f.genus, quiz: k });
+    });
+  });
+  return pool;
+}
+
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function toggleDirection() {
+  showGenus = !showGenus;
+  var btn = document.getElementById('fcDirBtn');
+  btn.textContent = showGenus ? 'Show: Genus' : 'Show: Common';
+  if (showGenus) btn.classList.remove('active-mode');
+  else btn.classList.add('active-mode');
+  showCard();
+}
+
+function startDeck() {
+  var pick = document.getElementById('fcQuizPicker').value;
+  var pool = [];
+
+  /* Claude: 2026-03-20 — getMissedFlowers now returns a Promise */
+  if (pick === 'missed') {
+    getMissedFlowers()
+      .then(function(missedFlowers) {
+        if (missedFlowers.length === 0) {
+          missedFlowers = getAllFlowers();
+          alert('No missed flowers recorded yet! Showing all flowers instead.');
+        }
+        deck = shuffle(missedFlowers);
+        deckIdx = 0;
+        known = [];
+        missed = [];
+
+        document.getElementById('fcResults').style.display = 'none';
+        document.getElementById('fcCardWrap').style.display = '';
+        document.getElementById('fcVerdictRow').style.display = '';
+        document.getElementById('fcProgress').parentElement.style.display = '';
+
+        showCard();
+      });
+    return;
+  }
+
+  if (pick === 'all') {
+    pool = getAllFlowers();
+  } else {
+    FLOWERS[pick].forEach(function(f) {
+      pool.push({ common: f.common, genus: f.genus, quiz: pick });
+    });
+  }
+
+  deck = shuffle(pool);
+  deckIdx = 0;
+  known = [];
+  missed = [];
+
+  document.getElementById('fcResults').style.display = 'none';
+  document.getElementById('fcCardWrap').style.display = '';
+  document.getElementById('fcVerdictRow').style.display = '';
+  document.getElementById('fcProgress').parentElement.style.display = '';
+
+  showCard();
+}
+
+function showCard() {
+  if (deckIdx >= deck.length) { showResults(); return; }
+  var f = deck[deckIdx];
+  var card = document.getElementById('fcCard');
+  card.classList.remove('flipped');
+
+  var frontLabel = document.getElementById('fcFrontLabel');
+  var frontText = document.getElementById('fcFrontText');
+  var backLabel = document.getElementById('fcBackLabel');
+  var backText = document.getElementById('fcBackText');
+  var cat = document.getElementById('fcCategory');
+  var catBack = document.getElementById('fcCategoryBack');
+
+  if (showGenus) {
+    frontLabel.textContent = 'Common Name';
+    frontText.textContent = f.common;
+    backLabel.textContent = 'Genus';
+    backText.textContent = f.genus;
+  } else {
+    frontLabel.textContent = 'Genus';
+    frontText.textContent = f.genus;
+    backLabel.textContent = 'Common Name';
+    backText.textContent = f.common;
+  }
+
+  var quizLabel = f.quiz ? QUIZ_NAMES[f.quiz] : '';
+  cat.textContent = quizLabel;
+  catBack.textContent = quizLabel;
+
+  /* Update progress */
+  var total = deck.length;
+  var done = deckIdx;
+  document.getElementById('fcProgress').textContent = done + ' / ' + total;
+  document.getElementById('fcProgressFill').style.width = (total > 0 ? (done / total * 100) : 0) + '%';
+  document.getElementById('fcCounter').textContent = (deckIdx + 1) + ' / ' + total;
+
+  document.getElementById('fcPrev').disabled = (deckIdx === 0);
+  document.getElementById('fcNext').disabled = (deckIdx >= deck.length - 1);
+}
+
+function flipCard() {
+  document.getElementById('fcCard').classList.toggle('flipped');
+}
+
+function markCard(gotIt) {
+  if (deckIdx >= deck.length) return;
+  var f = deck[deckIdx];
+  if (gotIt) {
+    known.push(f);
+    saveKnown(f.common);
+  } else {
+    missed.push(f);
+    saveMissed(f.common);
+  }
+  deckIdx++;
+  showCard();
+}
+
+function nextCard() {
+  if (deckIdx < deck.length - 1) {
+    deckIdx++;
+    showCard();
+  }
+}
+
+function prevCard() {
+  if (deckIdx > 0) {
+    deckIdx--;
+    showCard();
+  }
+}
+
+function showResults() {
+  document.getElementById('fcCardWrap').style.display = 'none';
+  document.getElementById('fcVerdictRow').style.display = 'none';
+  var results = document.getElementById('fcResults');
+  results.style.display = 'block';
+
+  var total = known.length + missed.length;
+  var pct = total > 0 ? Math.round(known.length / total * 100) : 0;
+
+  document.getElementById('fcResultTitle').textContent =
+    pct === 100 ? 'Perfect! You knew them all!' :
+    pct >= 80 ? 'Almost there!' : 'Keep practicing!';
+
+  document.getElementById('fcResultStat').textContent =
+    known.length + ' / ' + total + ' correct (' + pct + '%)';
+
+  if (missed.length > 0) {
+    var names = missed.map(function(f) { return f.common; }).join(', ');
+    document.getElementById('fcResultMissed').textContent = 'Missed: ' + names;
+    document.getElementById('fcResultMissed').style.display = '';
+  } else {
+    document.getElementById('fcResultMissed').style.display = 'none';
+  }
+
+  /* Claude: 2026-03-20 — log study session to Firestore */
+  if (AA && AA.study && AA.study.logSession) {
+    AA.study.logSession('flashcards');
+  }
+}
+
+function reviewMissed() {
+  if (missed.length === 0) { startDeck(); return; }
+  deck = shuffle(missed.slice());
+  deckIdx = 0;
+  known = [];
+  missed = [];
+  document.getElementById('fcResults').style.display = 'none';
+  document.getElementById('fcCardWrap').style.display = '';
+  document.getElementById('fcVerdictRow').style.display = '';
+  showCard();
+}
+
+/* Keyboard nav */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowLeft') prevCard();
+  else if (e.key === 'ArrowRight') nextCard();
+  else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipCard(); }
+  else if (e.key === '1' || e.key === 'g') markCard(true);
+  else if (e.key === '2' || e.key === 'm') markCard(false);
+});
+
+/* Swipe detection */
+var touchStartX = 0;
+var touchStartY = 0;
+document.getElementById('fcCardWrap').addEventListener('touchstart', function(e) {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+document.getElementById('fcCardWrap').addEventListener('touchend', function(e) {
+  var dx = e.changedTouches[0].clientX - touchStartX;
+  var dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+    if (dx < 0) nextCard();
+    else prevCard();
+  }
+});
+
+/* Claude: 2026-03-17 — auto-select missed filter when linked from tracker */
+if (window.location.search.indexOf('filter=missed') !== -1) {
+  document.getElementById('fcQuizPicker').value = 'missed';
+}
+
+/* Start */
+startDeck();
+</script>
+</body>
+</html>

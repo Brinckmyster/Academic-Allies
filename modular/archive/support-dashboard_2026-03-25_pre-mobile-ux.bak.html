@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<!-- ============================================================
+     support-dashboard/support-dashboard.html
+     Created: 2026-02-19 by Claude
+     Read-only view of a student's wellness data for support
+     network members (family, nearby-help, support, admin).
+     Sections: Status, Check-ins, Flower Quiz, Today's Meals, Message.
+     Each section is individually toggleable; prefs saved per viewer.
+     Real-time Firestore listeners for status + today's log.
+     ============================================================ -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support Dashboard — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    body { font-family: 'Atkinson Hyperlegible', Arial, sans-serif; background: #FAFAF9; color: #333; margin: 0; padding: 16px; }
+    .page-wrap { max-width: 820px; margin: 0 auto; padding-top: 12px; }
+
+    /* Header */
+    .dash-header { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; flex-wrap: wrap; }
+    .dash-header h1 { margin: 0; font-size: 1.5rem; color: #4a7f82; }
+    .dash-header .sub { color: #888; font-size: 0.88rem; margin: 0 0 20px; }
+    .student-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: #e8f5ee; border: 1px solid #b2d4c8; border-radius: 20px;
+      padding: 5px 14px; font-size: 0.85rem; font-weight: 600; color: #2e6b4f;
+    }
+    .student-badge img { width: 22px; height: 22px; border-radius: 50%; }
+
+    /* Student picker (if in multiple networks) */
+    #student-picker-wrap { margin-bottom: 18px; }
+    #student-picker-wrap label { font-size: 0.85rem; color: #888; margin-right: 8px; }
+    #student-picker { padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+
+    /* Toggle bar */
+    .toggle-bar {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+      padding: 12px 16px; background: #f0f8f8; border-radius: 10px; border: 1px solid #c9e4d8;
+    }
+    .toggle-bar label { font-size: 0.82rem; color: #555; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .toggle-bar input[type=checkbox] { accent-color: #4a7f82; width: 15px; height: 15px; cursor: pointer; }
+
+    /* Sections */
+    .dash-section {
+      background: #fff; border: 1px solid #e1e5e9; border-radius: 12px;
+      margin-bottom: 16px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .section-header {
+      padding: 13px 18px; font-weight: 700; font-size: 0.95rem;
+      border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 8px;
+    }
+    .section-body { padding: 16px 18px; }
+
+    /* Status section */
+    .status-dot {
+      width: 18px; height: 18px; border-radius: 50%; display: inline-block;
+      flex-shrink: 0; vertical-align: middle;
+    }
+    .status-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .status-label { font-size: 1rem; font-weight: 600; }
+    .status-since { font-size: 0.8rem; color: #aaa; }
+    .nope-details { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: 0.88rem; color: #7f1d1d; }
+
+    /* Claude: 2026-03-21 — Supporter guidance styling */
+    .supporter-guidance {
+      border-radius: 8px; padding: 12px 16px; margin-top: 10px;
+      font-size: 0.88rem; line-height: 1.5;
+    }
+    .guidance-red  { background: #fef2f2; border-left: 4px solid #dc3545; color: #7f1d1d; }
+    .guidance-warn { background: #fffbeb; border-left: 4px solid #f59e0b; color: #78350f; }
+    .guidance-green { background: #ecfdf5; border-left: 4px solid #20c997; color: #065f46; }
+
+    /* Check-in log */
+    .checkin-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid #f5f5f5; font-size: 0.88rem;
+    }
+    .checkin-row:last-child { border-bottom: none; }
+    .checkin-dot { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .checkin-date { font-weight: 600; color: #444; min-width: 90px; }
+    .checkin-mood { color: #666; }
+    .checkin-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+    .badge-sm {
+      font-size: 0.7rem; padding: 2px 7px; border-radius: 10px;
+      background: #e8f5ee; color: #2e6b4f; border: 1px solid #c9e4d8;
+    }
+    .badge-sm.bad { background: #fef2f2; color: #b91c1c; border-color: #fca5a5; }
+    .checkin-notes { color: #777; font-style: italic; margin-top: 3px; font-size: 0.82rem; }
+
+    /* Flower quiz */
+    .quiz-progress-wrap { margin: 10px 0 4px; }
+    .quiz-bar-bg { background: #e8f5ee; border-radius: 20px; height: 14px; overflow: hidden; }
+    .quiz-bar-fill { background: #4a7f82; height: 100%; border-radius: 20px; transition: width 0.5s; }
+    .quiz-count { font-size: 1.3rem; font-weight: 700; color: #4a7f82; margin-top: 6px; }
+    .quiz-sub { font-size: 0.82rem; color: #aaa; }
+
+    /* Meals */
+    .meal-row { display: flex; align-items: baseline; gap: 8px; padding: 7px 0; border-bottom: 1px solid #f5f5f5; font-size: 0.88rem; }
+    .meal-row:last-child { border-bottom: none; }
+    .meal-type-tag { font-size: 0.72rem; background: #e8f5ee; color: #2e6b4f; border-radius: 4px; padding: 1px 7px; font-weight: 600; flex-shrink: 0; }
+    .meal-name { color: #333; }
+    .meal-time { font-size: 0.78rem; color: #aaa; margin-left: auto; flex-shrink: 0; }
+
+    /* Message button */
+    .msg-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #4a7f82; color: #fff; text-decoration: none;
+      padding: 10px 22px; border-radius: 8px; font-size: 0.95rem; font-weight: 600;
+      transition: background 0.15s;
+    }
+    .msg-btn:hover { background: #3d6e71; }
+
+    /* Mirror banner */
+    .mirror-notice {
+      border-radius: 10px;
+      padding: 12px 18px; margin-bottom: 18px; font-size: 0.88rem;
+    }
+    .mirror-notice.mirror-readonly {
+      background: linear-gradient(135deg, #e8eeff, #f0f4ff);
+      border: 2px solid #a5b4fc; color: #4338ca;
+    }
+    .mirror-notice.mirror-nl {
+      background: linear-gradient(135deg, #e6f4ea 0%, #f0faf2 100%);
+      border: 2px solid #6abf7b; color: #2d6a4f;
+    }
+    .nl-action-links { margin-top: 10px; }
+    .nl-action-links a {
+      display: inline-block; margin-right: 8px; margin-bottom: 6px;
+      padding: 5px 12px; background: #fff; color: #2d6a4f;
+      border: 1px solid #6abf7b; border-radius: 6px;
+      font-size: 0.8rem; text-decoration: none; font-weight: 600;
+    }
+    .nl-action-links a:hover { background: #e6f4ea; }
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    /* Claude: 2026-03-11 — missing check-in alert banner */
+    .checkin-alert-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 18px; margin-bottom: 16px;
+      background: #fffbeb; border-left: 4px solid #f59e0b;
+      border-radius: 0 8px 8px 0; font-size: 0.9rem; color: #92400e;
+    }
+    .checkin-alert-bar .alert-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .checkin-alert-bar .alert-body { flex: 1; }
+    .checkin-alert-bar .alert-body strong { display: block; margin-bottom: 2px; }
+    .checkin-alert-bar .alert-dismiss {
+      background: none; border: 1px solid #d97706; border-radius: 4px;
+      padding: 4px 10px; font-size: 0.78rem; color: #92400e; cursor: pointer;
+      flex-shrink: 0;
+    }
+    .checkin-alert-bar .alert-dismiss:hover { background: #fef3c7; }
+    .checkin-alert-bar .alert-view-btn {
+      display: inline-block; margin-top: 6px;
+      padding: 5px 14px; background: #f59e0b; color: #fff;
+      border: none; border-radius: 6px; font-size: 0.82rem;
+      font-weight: 600; text-decoration: none; cursor: pointer;
+    }
+    .checkin-alert-bar .alert-view-btn:hover { background: #d97706; }
+
+    /* Claude: 2026-03-23 — Quiet Alert styling. Two levels:
+       .quiet-alert-amber = been quiet, worth checking
+       .quiet-alert-red = been very quiet AND last signals were bad */
+    .quiet-alert-bar {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 18px; margin-bottom: 16px;
+      border-radius: 0 8px 8px 0; font-size: 0.9rem;
+    }
+    .quiet-alert-bar.amber {
+      background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e;
+    }
+    .quiet-alert-bar.red {
+      background: #fef2f2; border-left: 4px solid #dc3545; color: #7f1d1d;
+    }
+    .quiet-alert-bar .qa-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; }
+    .quiet-alert-bar .qa-body { flex: 1; }
+    .quiet-alert-bar .qa-body strong { display: block; margin-bottom: 4px; font-size: 0.95rem; }
+    .quiet-alert-bar .qa-signals { margin: 6px 0 0; padding: 0; list-style: none; font-size: 0.85rem; }
+    .quiet-alert-bar .qa-signals li { padding: 2px 0; }
+    .quiet-alert-bar .qa-signals li::before { content: '• '; }
+    .quiet-alert-bar .qa-dismiss {
+      background: none; border: 1px solid currentColor; border-radius: 4px;
+      padding: 4px 10px; font-size: 0.78rem; color: inherit; cursor: pointer;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .quiet-alert-bar .qa-dismiss:hover { opacity: 0.7; }
+
+    /* Claude: 2026-03-12 — notification items */
+    .notif-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; margin-bottom: 6px;
+      background: #fffbeb; border: 1px solid #fde68a;
+      border-radius: 8px; font-size: 0.88rem; color: #78350f;
+    }
+    .notif-item.type-red_flag { border-left: 4px solid #dc3545; background: #fef2f2; }
+    .notif-item.type-yellow_flag { border-left: 4px solid #ffc107; background: #fffbeb; }
+    .notif-item.type-nope_activated { border-left: 4px solid #6b21a8; background: #faf5ff; color: #581c87; }
+    .notif-item.type-nope_canceled { border-left: 4px solid #22c55e; background: #f0fdf4; color: #166534; }
+    .notif-item.type-mode_recovery { border-left: 4px solid #20c997; background: #ecfdf5; color: #065f46; }
+    .notif-item.type-mode_bad_brain { border-left: 4px solid #8b5cf6; background: #f5f3ff; color: #5b21b6; }
+    .notif-item.type-missed_meal { border-left: 4px solid #f97316; background: #fff7ed; color: #9a3412; }
+    .notif-item.type-low_spoons { border-left: 4px solid #eab308; background: #fefce8; color: #854d0e; }
+    .notif-time { font-size: 0.72rem; color: #aaa; margin-left: auto; flex-shrink: 0; }
+
+    /* Claude: 2026-03-12 — last-seen indicator */
+    .last-seen-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 16px; margin-bottom: 14px;
+      background: #f0f8ff; border: 1px solid #bde0fe; border-radius: 10px;
+      font-size: 0.85rem; color: #1e6091;
+    }
+    .last-seen-bar .ls-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .last-seen-bar .ls-dot.recent { background: #22c55e; }
+    .last-seen-bar .ls-dot.stale  { background: #f59e0b; }
+    .last-seen-bar .ls-dot.old    { background: #9ca3af; }
+
+    /* Loading / states */
+    #loading-msg, #signin-msg { text-align: center; padding: 50px; color: #aaa; font-size: 1rem; }
+    #loading-msg::after {
+      content: ''; display: block; width: 28px; height: 28px; margin: 14px auto 0;
+      border: 3px solid #e1e5e9; border-top-color: #4a7f82; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-msg { color: #bbb; font-size: 0.88rem; text-align: center; padding: 14px 0; }
+
+    /* Claude: 2026-03-14 — touch targets + focus-visible for accessibility */
+    .msg-btn:focus-visible, .msc-item:focus-visible, .nl-action-links a:focus-visible,
+    .toggle-bar label:focus-visible, .checkin-alert-bar .alert-dismiss:focus-visible,
+    .checkin-alert-bar .alert-view-btn:focus-visible, #notif-clear-btn:focus-visible {
+      outline: 2px solid #4a7f82; outline-offset: 2px;
+    }
+    .checkin-alert-bar .alert-dismiss,
+    .checkin-alert-bar .alert-view-btn,
+    #notif-clear-btn,
+    .nl-action-links a { min-height: 44px; display: inline-flex; align-items: center; }
+
+    /* Claude: 2026-03-14 — My Students compact status grid (moved from index.html) */
+    .ssc-dot {
+      width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.08);
+    }
+    .ssc-dot.nope    { background: #dc3545; animation: pulse-dot 1.4s ease-in-out infinite; }
+    .ssc-dot.red     { background: #dc3545; }
+    .ssc-dot.orange  { background: #fd7e14; }
+    .ssc-dot.yellow  { background: #ffc107; }
+    .ssc-dot.green   { background: #28a745; }
+    .ssc-dot.unknown { background: #ccc; }
+    /* Claude: 2026-03-16 — caution diamond for stale check-in (matches status circle) */
+    .ssc-dot.caution {
+      background: #f5c518; border-radius: 0; transform: rotate(45deg);
+      border: 1.5px solid #1a1a1a; width: 16px; height: 16px;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(220,53,69,0.2); }
+      50%       { box-shadow: 0 0 0 7px rgba(220,53,69,0.1); }
+    }
+    .my-students-grid {
+      display: flex; flex-wrap: wrap; gap: 10px;
+    }
+    .msc-item {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff; border: 1px solid #e1e5e9; border-radius: 10px;
+      padding: 12px 18px; cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-size: 0.95rem; font-weight: 600; color: #222; min-width: 160px;
+    }
+    .msc-item:hover {
+      border-color: #6CA0A3;
+      box-shadow: 0 2px 8px rgba(108,160,163,0.15);
+    }
+    .msc-item.active {
+      border-color: #4a7f82;
+      background: #e8f5ee;
+    }
+    #my-students-section { margin-bottom: 18px; }
+    #my-students-section .section-label {
+      font-weight: 700; font-size: 0.95rem; color: #4a7f82; margin-bottom: 10px;
+    }
+
+    /* Claude: 2026-03-19 — config status indicator for network leads */
+    #configStatus {
+      background: #f0f7f8; border: 1px solid #d0e8eb; color: #555;
+      line-height: 1.5;
+    }
+    #configStatus.has-config { background: #e8f2f3; border-color: #c5dfe3; }
+    #configStatus.default-only { background: #f5f5f5; border-color: #e0e0e0; }
+
+    html.aa-dark #configStatus {
+      background: #1a2e30; border-color: #2a4447; color: #c9d9db;
+    }
+    html.aa-dark #configStatus.has-config { background: #1e3a3e; border-color: #2d4d52; }
+    html.aa-dark #configStatus.default-only { background: #262626; border-color: #3a3a3a; }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="page-wrap">
+    <div id="loading-msg">Loading dashboard…</div>
+    <div id="signin-msg" style="display:none;">Please sign in to access the support dashboard.</div>
+
+    <div id="dash-body" style="display:none;">
+
+      <!-- Claude: 2026-03-14 — My Students compact status grid (moved from index.html to top of dashboard) -->
+      <div id="my-students-section" style="display:none;">
+        <div class="section-label">My Students</div>
+        <div id="my-students-grid" class="my-students-grid">
+          <p style="color:#aaa;font-size:0.9rem;padding:10px 0;">Loading…</p>
+        </div>
+      </div>
+
+      <!-- Mirror notice — Claude 2026-03-07: NL-aware -->
+      <div class="mirror-notice mirror-readonly" id="dash-mirror-notice">
+        🪞 <span>You're in <strong>read-only mirror mode</strong> — you can view but not change anything here.</span>
+      </div>
+
+      <!-- Claude: 2026-03-12 — last-seen indicator -->
+      <div id="last-seen-bar" class="last-seen-bar" style="display:none;">
+        <span class="ls-dot" id="ls-dot"></span>
+        <span id="ls-text">Checking last activity…</span>
+      </div>
+
+      <!-- Claude: 2026-03-11 — missing check-in alert banner -->
+      <div id="checkin-alert-banner" style="display:none;"></div>
+
+      <!-- Claude: 2026-03-23 — Quiet Alert banner. Detects when a student goes
+           dark (no app activity + bad last signals) and nudges the support network
+           to reach out. Not a diagnosis — just "she's been quiet, maybe check in." -->
+      <div id="quiet-alert-banner" style="display:none;"></div>
+
+      <!-- Claude: 2026-03-12 — real-time notification panel for active alerts -->
+      <div id="notif-panel" style="display:none;margin-bottom:18px;">
+        <div style="font-weight:700;font-size:0.95rem;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          🔔 <span>Active Alerts</span>
+          <button id="notif-clear-btn" onclick="clearAllNotifs()"
+            style="margin-left:auto;font-size:0.75rem;padding:4px 10px;background:#fff;border:1px solid #d97706;border-radius:4px;color:#92400e;cursor:pointer;">
+            Mark all read
+          </button>
+        </div>
+        <div id="notif-list"></div>
+      </div>
+
+      <!-- Student picker (shown when in multiple networks) -->
+      <div id="student-picker-wrap" style="display:none;">
+        <label for="student-picker">Viewing:</label>
+        <select id="student-picker" onchange="switchStudent(this.value)"></select>
+      </div>
+
+      <!-- Header with student name -->
+      <div class="dash-header">
+        <h1 id="dash-title">📊 Support Dashboard</h1>
+        <div class="student-badge" id="student-badge" style="display:none;">
+          <img id="student-icon" src="/Academic-Allies/modular/icons/icon-user-student.png" alt="">
+          <span id="student-name-badge">Loading…</span>
+        </div>
+      </div>
+      <p class="sub">Real-time read-only view of <span id="student-name-sub">your student</span>'s wellness data.</p>
+
+      <!-- Section toggles -->
+      <div class="toggle-bar" id="toggle-bar">
+        <strong style="font-size:0.82rem;color:#4a7f82;margin-right:4px;">Show:</strong>
+        <!-- Claude: 2026-03-13 — aria-labels on toggle checkboxes -->
+        <label><input type="checkbox" id="tog-status"  onchange="savePrefs()" checked aria-label="Show status section"> 🔴 Status</label>
+        <label><input type="checkbox" id="tog-checkins" onchange="savePrefs()" checked aria-label="Show check-ins section"> 📝 Check-ins</label>
+        <label><input type="checkbox" id="tog-quiz"    onchange="savePrefs()" checked aria-label="Show flower quiz section"> 🌸 Flower Quiz</label>
+        <label><input type="checkbox" id="tog-meals"   onchange="savePrefs()" checked aria-label="Show meals section"> 🍽 Today's Meals</label>
+        <label><input type="checkbox" id="tog-message" onchange="savePrefs()" checked aria-label="Show message section"> 💬 Message</label>
+      </div>
+
+      <!-- ① Status / Nope mode -->
+      <div class="dash-section" id="sec-status">
+        <div class="section-header">🔴 Current Status</div>
+        <div class="section-body" id="status-body">
+          <div class="status-row">
+            <span class="status-dot" id="status-dot" style="background:#9E9E9E;"></span>
+            <span class="status-label" id="status-label">Loading…</span>
+          </div>
+          <div class="status-since" id="status-since"></div>
+          <div id="nope-details" style="display:none;"></div>
+          <!-- Claude: 2026-03-21 — Supporter guidance: actionable tips per mode -->
+          <div id="supporter-guidance" class="supporter-guidance" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- ② Check-in log -->
+      <div class="dash-section" id="sec-checkins">
+        <div class="section-header">📝 Recent Check-ins <span style="font-size:0.75rem;font-weight:400;color:#aaa;margin-left:6px;">last 7 days</span></div>
+        <div class="section-body" id="checkins-body">
+          <div class="empty-msg">Loading check-ins…</div>
+        </div>
+      </div>
+
+      <!-- ③ Flower quiz -->
+      <div class="dash-section" id="sec-quiz">
+        <div class="section-header">🌸 Flower Quiz Progress</div>
+        <div class="section-body" id="quiz-body">
+          <div class="empty-msg">Loading…</div>
+        </div>
+      </div>
+
+      <!-- ④ Today's meals -->
+      <div class="dash-section" id="sec-meals">
+        <div class="section-header">🍽 Today's Meals <span style="font-size:0.75rem;font-weight:400;color:#aaa;margin-left:6px;" id="meals-date"></span></div>
+        <div class="section-body" id="meals-body">
+          <div class="empty-msg">Loading meals…</div>
+        </div>
+      </div>
+
+      <!-- ⑤ Message -->
+      <!-- Claude: 2026-03-18 — Customize Student card for network-leads -->
+      <div class="dash-section" id="sec-customize-student" style="display:none;">
+        <div class="section-header">⚙️ Customize Student</div>
+        <div class="section-body">
+          <a id="customize-link" href="/Academic-Allies/modular/components/student-config/student-config-editor.html" class="msg-btn">
+            ⚙️ Configure App Experience
+          </a>
+          <p style="font-size:0.82rem;color:#aaa;margin:10px 0 0;">Customize modes, spoon plan, meals, quizzes, and alerts for this student.</p>
+          <!-- Claude: 2026-03-19 — Config status indicator showing customization level -->
+          <div id="configStatus" style="display:none; margin-top:8px; padding:10px 14px; background:#f0f7f8; border-radius:8px; font-size:11pt; color:#555;">
+            <span id="configStatusText">Loading config...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-section" id="sec-message">
+        <div class="section-header">💬 Message</div>
+        <div class="section-body">
+          <a id="msg-link" href="/Academic-Allies/modular/components/message-system/message-system.html" class="msg-btn">
+            💬 Open Messages
+          </a>
+          <p style="font-size:0.82rem;color:#aaa;margin:10px 0 0;">Opens your full message thread with <span id="msg-student-name">this student</span>.</p>
+        </div>
+      </div>
+
+    </div><!-- /dash-body -->
+  </div>
+
+  <!-- Shared header loader -->
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          Array.from(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        });
+      })
+      .catch(function() { /* Claude: 2026-03-14 — silent catch for header fetch failure */ })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+
+  <!-- Claude: 2026-03-19 — student config loader for status indicator -->
+  <script src="/Academic-Allies/modular/js/student-config.js?v=20260322"></script>
+
+  <script>
+    /* ── State ─────────────────────────────────────────── */
+    var viewerUid      = null;
+    var _sdUid         = null; // UID guard — prevents findStudents() re-run on 45-min token refresh. Claude, 2026-03-07.
+    var viewerName     = null;
+    var studentUid     = null;
+    var studentName    = null;
+    var studentsInNetwork = [];  // [{uid, name, tier}] — all students this viewer is in
+
+    var unsubNope      = null;
+    var unsubMeals     = null;
+
+    // FUNCTIONAL FIX 2026-03-07 by Claude: local date not UTC (toISOString flips day after ~7 PM EST)
+    var _sd = new Date();
+    var dateKey = _sd.getFullYear() + '-' + String(_sd.getMonth()+1).padStart(2,'0') + '-' + String(_sd.getDate()).padStart(2,'0');
+
+    /* ── Wait for AA ──────────────────────────────────── */
+    function waitForAA(cb, tries) {
+      tries = tries || 0;
+      if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+      if (tries > 40) { document.getElementById('loading-msg').textContent = 'Could not connect — please refresh.'; return; }
+      setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
+    }
+
+    /* ── Boot ─────────────────────────────────────────── */
+    function boot() {
+      AA.auth.onAuthStateChanged(function(user) {
+        if (!user) {
+          document.getElementById('loading-msg').style.display = 'none';
+          document.getElementById('signin-msg').style.display  = 'block';
+          return;
+        }
+        if (user.uid === _sdUid) return; // token refresh — skip re-init
+        _sdUid = user.uid;
+        viewerUid  = user.uid;
+        viewerName = user.displayName || user.email;
+
+        loadPrefs();
+        findStudents();
+      });
+    }
+
+    /* ── Find which student(s) this viewer is in ──────── */
+    /* Claude: 2026-03-16 — loading timeout with retry */
+    var _loadingTimerMain = null;
+    function findStudents() {
+      /* Start timeout for initial data load */
+      if (_loadingTimerMain) clearTimeout(_loadingTimerMain);
+      _loadingTimerMain = setTimeout(function () {
+        var el = document.getElementById('loading-msg');
+        if (el && el.style.display !== 'none') {
+          el.innerHTML = '⚠️ Having trouble loading. Check your connection and try again.<br>' +
+            '<button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
+        }
+      }, 15000);
+      /* Scan all users for supportNetwork entries containing this viewer */
+      AA.db.collection('users').get().then(function(snap) {
+        studentsInNetwork = [];
+        /* Claude: 2026-03-14 — deduplicate by UID to prevent the same student
+           appearing twice if they have multiple supportNetwork entries */
+        var seen = {};
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          if (d.role === 'student' && d.supportNetwork && d.supportNetwork[viewerUid]) {
+            if (!seen[doc.id]) {
+              seen[doc.id] = true;
+              studentsInNetwork.push({
+                uid:  doc.id,
+                name: d.displayName || d.email,
+                tier: d.supportNetwork[viewerUid]
+              });
+            }
+          }
+        });
+
+        if (studentsInNetwork.length === 0) {
+          document.getElementById('loading-msg').textContent =
+            'You\'re not in any student\'s support network yet. Ask your student to add you via User Roles & Tiers.';
+          return;
+        }
+
+        /* Self-heal: if viewer is a student who got here, make sure isSupporter flag is set
+           so the Support Dashboard card shows on their home page going forward */
+        /* Claude: 2026-03-13 — only self-heal the viewer's own doc, never in mirror mode */
+        if (!window.AA_MIRROR_UID) {
+          AA.getUserDoc(viewerUid).then(function(vDoc) {
+            if (vDoc.exists && vDoc.data().role === 'student' && !vDoc.data().isSupporter) {
+              AA.db.collection('users').doc(viewerUid).update({ isSupporter: true }).catch(function(){});
+            }
+          }).catch(function(){});
+        }
+
+        if (studentsInNetwork.length > 1) {
+          buildStudentPicker();
+        }
+
+        clearTimeout(_loadingTimerMain);
+
+        /* Claude: 2026-03-21 — Auto-select the student with the most urgent status.
+           Checks each student's active mode in Firestore (nope > migraine > bad-brain
+           > semi > recovery > normal). Falls back to first student if no modes found.
+           Archive: modular/archive/support-dashboard_2026-03-21_pre-mode-upgrade.bak.html */
+        _autoSelectMostUrgent(function(bestStudent) {
+          showDashboard(bestStudent.uid, bestStudent.name);
+          /* Update the dropdown picker if it exists */
+          var sel = document.getElementById('student-picker');
+          if (sel) sel.value = bestStudent.uid;
+          loadStudentGrid();
+        });
+      }).catch(function(err) {
+        document.getElementById('loading-msg').textContent = 'Error: ' + err.message;
+      });
+    }
+
+    /* Claude: 2026-03-21 — Auto-select the most urgent student.
+       Checks each student's active mode in Firestore.
+       Priority: nope(0) > migraine(1) > bad-brain(2) > semi(3) > recovery(5) > normal(10) */
+    var _MODE_PRIORITY = {
+      'nope': 0, 'migraine': 1, 'bad-brain': 2, 'semi': 3, 'recovery': 5
+    };
+    function _autoSelectMostUrgent(callback) {
+      if (studentsInNetwork.length <= 1) {
+        callback(studentsInNetwork[0]);
+        return;
+      }
+      Promise.all(studentsInNetwork.map(function(s) {
+        return AA.db.collection('nope').doc(s.uid).get().then(function(doc) {
+          /* Claude: 2026-03-23 — must check .active before reading mode.
+             Deactivated modes (active:false) should not affect priority.
+             Same fix applied to grid rendering (line 1527) and quiet alert. */
+          var data = doc.exists ? doc.data() : null;
+          var mode = (data && data.active) ? data.mode : null;
+          var priority = (mode && _MODE_PRIORITY[mode] !== undefined) ? _MODE_PRIORITY[mode] : 10;
+          return { uid: s.uid, name: s.name, priority: priority, mode: mode };
+        }).catch(function() {
+          return { uid: s.uid, name: s.name, priority: 10, mode: null };
+        });
+      })).then(function(results) {
+        /* Claude: 2026-03-24 — When priorities are equal (both students have no active
+           mode), fetch the latest check-in flag to break the tie. A student with a
+           yellow/orange/red flag should be shown before a green one.
+           Archive: support-dashboard_2026-03-23_pre-quiet-alert-fix.bak.html */
+        var FLAG_SCORE = { green: 0, yellow: 1, orange: 2, red: 3 };
+        return Promise.all(results.map(function(r) {
+          return AA.db.collection('checkins').doc(r.uid).collection('days')
+            .orderBy('date', 'desc').limit(1).get()
+            .then(function(snap) {
+              if (!snap.empty) {
+                var d = snap.docs[0].data();
+                r.flagScore = FLAG_SCORE[d.latestFlag || 'green'] || 0;
+              } else {
+                r.flagScore = 0;
+              }
+              return r;
+            }).catch(function() { r.flagScore = 0; return r; });
+        })).then(function(scored) {
+          scored.sort(function(a, b) {
+            if (a.priority !== b.priority) return a.priority - b.priority;
+            return b.flagScore - a.flagScore; // higher flag score = more urgent
+          });
+          callback(scored[0]);
+        });
+      }).catch(function() {
+        callback(studentsInNetwork[0]);
+      });
+    }
+
+    /* ── Build student picker dropdown (multiple students) */
+    /* Claude: 2026-03-21 — populate names IMMEDIATELY (sync), then upgrade
+       with mode emojis async. Fixes empty dropdown from previous async-only version. */
+    var _PICKER_MODE_EMOJI = {
+      'nope': '🔴 ', 'semi': '🟠 ', 'bad-brain': '🧠 ',
+      'migraine': '🔴 ', 'recovery': '🌿 '
+    };
+    function buildStudentPicker() {
+      var sel = document.getElementById('student-picker');
+      sel.innerHTML = '';
+      /* Step 1: populate immediately with plain names (always works) */
+      studentsInNetwork.forEach(function(s) {
+        var opt = document.createElement('option');
+        opt.value       = s.uid;
+        opt.textContent = s.name;
+        opt.id          = 'picker-opt-' + s.uid;
+        sel.appendChild(opt);
+      });
+      document.getElementById('student-picker-wrap').style.display = 'block';
+
+      /* Step 2: async upgrade — add mode emojis once Firestore responds */
+      Promise.all(studentsInNetwork.map(function(s) {
+        return AA.db.collection('nope').doc(s.uid).get().then(function(doc) {
+          /* Claude: 2026-03-23 — check .active before reading mode (same pattern as grid + auto-select) */
+          var data = doc.exists ? doc.data() : null;
+          var mode = (data && data.active) ? data.mode : null;
+          var opt = document.getElementById('picker-opt-' + s.uid);
+          if (opt) opt.textContent = (_PICKER_MODE_EMOJI[mode] || '🟢 ') + s.name;
+        }).catch(function() {});
+      })).catch(function() {});
+    }
+
+    function switchStudent(uid) {
+      var s = studentsInNetwork.find(function(x) { return x.uid === uid; });
+      if (!s) return;
+      /* Claude: 2026-03-12 — update mirror globals so the header banner shows the right name */
+      window.AA_MIRROR_UID = s.uid;
+      if (window.AA_MIRROR) window.AA_MIRROR.studentName = s.name;
+      try { sessionStorage.setItem('AA_MIRROR_STUDENT_NAME', s.name); } catch(e) {}
+      /* Update the mirror banner if it exists */
+      var mirrorBanner = document.getElementById('aa-mirror-banner');
+      if (mirrorBanner) {
+        /* Claude: 2026-03-23 — use textContent to prevent XSS via malicious studentName */
+        mirrorBanner.textContent = '👁️ Viewing ' + (s.name || 'Student') + '\'s data (read-only)';
+      }
+      showDashboard(s.uid, s.name);
+    }
+
+    /* ── Show dashboard for a specific student ────────── */
+    function showDashboard(uid, name) {
+      studentUid  = uid;
+      studentName = name;
+
+      document.getElementById('loading-msg').style.display  = 'none';
+      document.getElementById('dash-body').style.display    = 'block';
+      document.getElementById('student-badge').style.display = 'flex';
+      document.getElementById('student-name-badge').textContent = name;
+      document.getElementById('student-name-sub').textContent   = name;
+      document.getElementById('msg-student-name').textContent   = name;
+      document.getElementById('meals-date').textContent = dateKey;
+
+      /* Claude: 2026-03-07 — NL-aware banner and subtitle */
+      var notice = document.getElementById('dash-mirror-notice');
+      var subEl  = document.querySelector('.sub');
+      if (window.AA_MIRROR_CAN_WRITE) {
+        if (notice) {
+          notice.className = 'mirror-notice mirror-nl';
+          notice.innerHTML = '🌟 <strong>Network Lead</strong> — managing ' +
+            esc(name) + '\'s data · full access' +
+            '<div class="nl-action-links">' +
+              '<a href="/Academic-Allies/modular/components/meal-planner/meal-planner.html">🍽 Edit Meal Plan</a>' +
+              '<a href="/Academic-Allies/modular/nope-mode.html">🚫 Manage NOPE</a>' +
+              '<a href="/Academic-Allies/modular/emergency.html">🚨 Emergency Contacts</a>' +
+            '</div>';
+        }
+        if (subEl) subEl.innerHTML = 'Real-time view of <span id="student-name-sub">' + esc(name) + '\'s</span> wellness data.';
+        /* Claude: 2026-03-18 — show Customize Student card for network-leads */
+        var customizeSection = document.getElementById('sec-customize-student');
+        if (customizeSection) customizeSection.style.display = 'block';
+        /* Claude: 2026-03-19 — load and display config status for network-lead */
+        loadConfigStatus(uid);
+      } else {
+        /* Hide customize section if not a network-lead with write access */
+        var customizeSection = document.getElementById('sec-customize-student');
+        if (customizeSection) customizeSection.style.display = 'none';
+      }
+
+      applyToggles();
+      startNopeListener();
+      loadCheckins();
+      loadQuizProgress();
+      startMealListener();
+      startNotificationListener(); /* Claude: 2026-03-12 — active alert notifications */
+      loadLastSeen(uid); /* Claude: 2026-03-12 — last activity indicator */
+      checkCheckinAlert(uid, name); /* Claude: 2026-03-11 — missing check-in alert */
+      checkQuietAlert(uid, name); /* Claude: 2026-03-23 — quiet alert: she's been dark */
+    }
+
+    /* ── ① Nope / Status real-time listener ───────────── */
+    /* Claude: 2026-03-12 — combined mode + alert count in status label.
+       _currentMode and _activeAlertCount are updated by their respective
+       listeners; refreshStatusLabel() merges them into a single display. */
+    var _currentMode = null;
+    var _activeAlertCount = 0;
+
+    /* Claude: 2026-03-21 — expanded mode recognition: Bad Brain Day, Migraine,
+       Recovery now all show properly instead of gray "Normal".
+       Archive: modular/archive/support-dashboard_2026-03-21_pre-mode-upgrade.bak.html */
+    var STATUS_COLORS = {
+      'nope':      '#dc3545',
+      'semi':      '#fd7e14',
+      'bad-brain': '#8b5cf6',
+      'migraine':  '#dc3545',
+      'recovery':  '#20c997',
+      null:        '#9E9E9E'
+    };
+    var MODE_LABELS = {
+      'nope':      '🔴 NOPE Mode — Full shutdown',
+      'semi':      '🟠 Semi-Nope — Coming back slowly',
+      'bad-brain': '🧠 Bad Brain Day — Struggling but choosing',
+      'migraine':  '🔴 Migraine Mode — Sensory shutdown',
+      'recovery':  '🌿 Recovery Mode — Rebuilding gently'
+    };
+    /* Supporter guidance — what to DO when you see each mode */
+    var MODE_GUIDANCE = {
+      'nope':      'Do NOT contact unless emergency. They have shut down completely. Send a gentle message they can read later — no pressure to reply.',
+      'semi':      'They are slowly coming back. Keep messages short and simple. Don\u2019t overwhelm. Let them set the pace.',
+      'bad-brain': 'They\u2019re having a rough day but are still trying. Check in gently. Offer help with meals or tasks. Don\u2019t push — just be present.',
+      'migraine':  'Sensory overload — lights, sound, and screens are painful. Do NOT call or video chat. Text only if urgent. Send a short "thinking of you" message.',
+      'recovery':  'They\u2019re rebuilding. Encourage small steps. Celebrate any progress. Don\u2019t rush them back to normal.'
+    };
+
+    /* Claude: 2026-03-21 — refreshStatusLabel now shows guidance tips for supporters */
+    function refreshStatusLabel() {
+      var dotEl      = document.getElementById('status-dot');
+      var labelEl    = document.getElementById('status-label');
+      var detailsEl  = document.getElementById('nope-details');
+      var guidanceEl = document.getElementById('supporter-guidance');
+      if (!dotEl || !labelEl) return;
+
+      if (_currentMode) {
+        /* Active mode takes priority */
+        dotEl.style.background = STATUS_COLORS[_currentMode] || STATUS_COLORS[null];
+        var modeText = MODE_LABELS[_currentMode] || ('⚪ ' + _currentMode);
+        if (_activeAlertCount > 0) {
+          modeText += ' · ' + _activeAlertCount + ' alert' + (_activeAlertCount > 1 ? 's' : '');
+        }
+        labelEl.textContent = modeText;
+
+        /* Show supporter guidance */
+        if (guidanceEl && MODE_GUIDANCE[_currentMode]) {
+          guidanceEl.innerHTML = '<strong>How to support:</strong> ' + esc(MODE_GUIDANCE[_currentMode]);
+          guidanceEl.style.display = 'block';
+          /* Color the guidance box to match mode severity */
+          if (_currentMode === 'nope' || _currentMode === 'migraine') {
+            guidanceEl.className = 'supporter-guidance guidance-red';
+          } else if (_currentMode === 'bad-brain' || _currentMode === 'semi') {
+            guidanceEl.className = 'supporter-guidance guidance-warn';
+          } else {
+            guidanceEl.className = 'supporter-guidance guidance-green';
+          }
+        }
+      } else if (_activeAlertCount > 0) {
+        /* No mode but alerts exist */
+        dotEl.style.background = '#ffc107';
+        labelEl.textContent = '🔔 ' + _activeAlertCount + ' active alert' + (_activeAlertCount > 1 ? 's' : '');
+        if (guidanceEl) {
+          guidanceEl.innerHTML = '<strong>How to support:</strong> Check the alerts below for details. Consider sending a gentle message.';
+          guidanceEl.style.display = 'block';
+          guidanceEl.className = 'supporter-guidance guidance-warn';
+        }
+      } else {
+        /* All clear */
+        dotEl.style.background = STATUS_COLORS[null];
+        labelEl.textContent = '🟢 Normal mode — no active concerns';
+        if (guidanceEl) guidanceEl.style.display = 'none';
+      }
+    }
+
+    function startNopeListener() {
+      if (unsubNope) { unsubNope(); }
+      unsubNope = AA.watchNope(studentUid, function(data) {
+        /* Claude: 2026-03-24 — check .active before reading mode (same fix as
+           grid, auto-select, picker, and quiet alert). Without this, deactivated
+           modes show red/orange status dots even in Normal mode.
+           Archive: support-dashboard_2026-03-23_pre-quiet-alert-fix.bak.html */
+        _currentMode = (data && data.active) ? data.mode : null;
+        refreshStatusLabel();
+
+        var sinceEl   = document.getElementById('status-since');
+        var detailsEl = document.getElementById('nope-details');
+
+        if (data && data.activatedAt) {
+          var d = data.activatedAt.toDate ? data.activatedAt.toDate() : new Date(data.activatedAt);
+          sinceEl.textContent = 'Since ' + d.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+        } else {
+          sinceEl.textContent = '';
+        }
+
+        /* Claude: 2026-03-21 — show context details for ALL modes, not just nope/semi */
+        if (_currentMode) {
+          /* Claude: 2026-03-23 — escape studentName to prevent XSS via Firestore displayName */
+        var safeName = esc(studentName);
+        var MODE_DETAIL = {
+            'nope':      '<strong>Full Nope</strong> — ' + safeName + ' has completely shut down. Respect the boundary.',
+            'semi':      '<strong>Semi-Nope</strong> — ' + safeName + ' is slowly coming back. Limited capacity.',
+            'bad-brain': '<strong>Bad Brain Day</strong> — ' + safeName + ' is struggling but still choosing what to engage with.',
+            'migraine':  '<strong>Migraine Mode</strong> — ' + safeName + ' is in sensory shutdown. Minimize all contact.',
+            'recovery':  '<strong>Recovery Mode</strong> — ' + safeName + ' is rebuilding. Gentle encouragement helps.'
+          };
+          detailsEl.style.display = 'block';
+          /* Claude: 2026-03-23 — escape studentName in fallback to prevent XSS */
+          detailsEl.innerHTML = MODE_DETAIL[_currentMode] || ('<strong>' + esc(_currentMode) + '</strong> — ' + esc(studentName) + ' is in a special mode.');
+          detailsEl.className = 'nope-details';
+        } else {
+          detailsEl.style.display = 'none';
+        }
+      });
+    }
+
+    /* ── ② Check-in log (last 7 days) ────────────────── */
+    function loadCheckins() {
+      var body = document.getElementById('checkins-body');
+      body.innerHTML = '<div class="empty-msg">Loading…</div>';
+
+      AA.getRecentCheckins(studentUid, 7).then(function(days) {
+        if (!days || days.length === 0) {
+          body.innerHTML = '<div class="empty-msg">No check-ins in the last 7 days.</div>';
+          return;
+        }
+
+        body.innerHTML = days.map(function(day) {
+          /* Use the last entry of that day */
+          var entry = Array.isArray(day.entries) && day.entries.length > 0
+            ? day.entries[day.entries.length - 1] : null;
+          if (!entry) return '';
+
+          var dot   = day.latestFlag === 'red' ? '🔴' : day.latestFlag === 'yellow' ? '🟡' : '🟢';
+          var badges = [];
+          if (entry.ate   === true)  badges.push('<span class="badge-sm">ate ✓</span>');
+          if (entry.ate   === false) badges.push('<span class="badge-sm bad">missed meal</span>');
+          if (entry.water === false) badges.push('<span class="badge-sm bad">low water</span>');
+          if (entry.meds  === false) badges.push('<span class="badge-sm bad">missed meds</span>');
+          if (entry.symptoms === 'yes' && entry.symptomList && entry.symptomList.length)
+            badges.push('<span class="badge-sm bad">' + esc(entry.symptomList.slice(0,2).join(', ')) + '</span>');
+
+          return '<div class="checkin-row">' +
+            '<span class="checkin-dot">' + dot + '</span>' +
+            '<div style="flex:1;min-width:0;">' +
+              '<span class="checkin-date">' + esc(day.date) + '</span>' +
+              (entry.mood ? ' <span class="checkin-mood">— ' + esc(entry.mood) + '</span>' : '') +
+              (badges.length ? '<div class="checkin-badges">' + badges.join('') + '</div>' : '') +
+              (entry.notes ? '<div class="checkin-notes">' + esc(entry.notes) + '</div>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }).catch(function(err) {
+        body.innerHTML = '<div class="empty-msg" style="color:#c0392b;">Could not load check-ins: ' + esc(err.message) + '</div>';
+      });
+    }
+
+    /* ── ③ Flower quiz progress ───────────────────────── */
+    function loadQuizProgress() {
+      var body = document.getElementById('quiz-body');
+      AA.getFlowerQuiz(studentUid).then(function(doc) {
+        var count = doc.exists ? (doc.data().flowerCount || 0) : 0;
+        /* Updated 2026-03-01 by Claude: changed total from 40→31 to match TOTAL_FLOWERS in admin.html */
+        var pct   = Math.min(Math.round(count / 31 * 100), 100);
+        body.innerHTML =
+          '<div class="quiz-count">' + count + ' <span style="font-size:0.9rem;font-weight:400;color:#aaa;">/ 31 flowers</span></div>' +
+          '<div class="quiz-progress-wrap">' +
+            '<div class="quiz-bar-bg"><div class="quiz-bar-fill" style="width:' + pct + '%;"></div></div>' +
+          '</div>' +
+          '<div class="quiz-sub">' + pct + '% through the full set</div>';
+      }).catch(function(err) {
+        body.innerHTML = '<div class="empty-msg" style="color:#c0392b;">Could not load quiz data: ' + esc(err.message) + '</div>';
+      });
+    }
+
+    /* ── ④ Today's meals real-time listener ───────────── */
+    function startMealListener() {
+      if (unsubMeals) { unsubMeals(); }
+      unsubMeals = AA.watchMealLog(studentUid, dateKey, function(data) {
+        var body   = document.getElementById('meals-body');
+        var meals  = data && Array.isArray(data.meals) ? data.meals : [];
+        if (meals.length === 0) {
+          body.innerHTML = '<div class="empty-msg">Nothing logged yet today.</div>';
+          return;
+        }
+        body.innerHTML = meals.map(function(m) {
+          var timeStr = m.time ? to12H(m.time) : '';
+          return '<div class="meal-row">' +
+            (m.type ? '<span class="meal-type-tag">' + esc(m.type) + '</span>' : '') +
+            '<span class="meal-name">' + esc(m.name || '(unnamed)') + '</span>' +
+            (timeStr ? '<span class="meal-time">🕐 ' + timeStr + '</span>' : '') +
+          '</div>';
+        }).join('');
+      });
+    }
+
+    /* Claude: 2026-03-19 — load and display student config status for network-lead */
+    function loadConfigStatus(uid) {
+      if (!window.AA_CONFIG) return;
+      window.AA_CONFIG.load(uid).then(function(config) {
+        var parts = [];
+        var quizCount = (config.quizzes || []).length;
+        if (quizCount > 0) parts.push(quizCount + ' custom quiz' + (quizCount > 1 ? 'zes' : ''));
+        var taskCount = config.spoonPlan && config.spoonPlan.tasks ? config.spoonPlan.tasks.length : 0;
+        if (taskCount > 0 && taskCount !== 17) parts.push(taskCount + ' spoon task' + (taskCount > 1 ? 's' : ''));
+        if (config.meals && config.meals.dietaryNote) parts.push('Dietary: ' + config.meals.dietaryNote);
+        var hiddenCount = (config.hiddenTools || []).length;
+        if (hiddenCount > 0) parts.push(hiddenCount + ' hidden tool' + (hiddenCount > 1 ? 's' : ''));
+        var modeCustom = config.modes && config.modes.custom ? Object.keys(config.modes.custom).length : 0;
+        if (modeCustom > 0) parts.push(modeCustom + ' custom mode' + (modeCustom > 1 ? 's' : ''));
+        var statusEl = document.getElementById('configStatusText');
+        var statusWrap = document.getElementById('configStatus');
+        if (statusEl && statusWrap) {
+          if (parts.length > 0) {
+            statusEl.textContent = 'Custom config: ' + parts.join(' · ');
+            statusWrap.className = 'has-config';
+          } else {
+            statusEl.textContent = 'Using default configuration';
+            statusWrap.className = 'default-only';
+          }
+          statusWrap.style.display = 'block';
+        }
+      }).catch(function(err) {
+        var statusEl = document.getElementById('configStatusText');
+        var statusWrap = document.getElementById('configStatus');
+        if (statusEl && statusWrap) {
+          statusEl.textContent = 'Unable to load config status';
+          statusWrap.style.display = 'block';
+        }
+      });
+    }
+
+    /* ── Section toggles ──────────────────────────────── */
+    var SECTION_MAP = {
+      'tog-status':   'sec-status',
+      'tog-checkins': 'sec-checkins',
+      'tog-quiz':     'sec-quiz',
+      'tog-meals':    'sec-meals',
+      'tog-message':  'sec-message'
+    };
+
+    function applyToggles() {
+      Object.keys(SECTION_MAP).forEach(function(togId) {
+        var cb  = document.getElementById(togId);
+        var sec = document.getElementById(SECTION_MAP[togId]);
+        if (cb && sec) sec.style.display = cb.checked ? 'block' : 'none';
+      });
+    }
+
+    function savePrefs() {
+      applyToggles();
+      if (!viewerUid) return;
+      var prefs = {};
+      Object.keys(SECTION_MAP).forEach(function(togId) {
+        var cb = document.getElementById(togId);
+        if (cb) prefs[togId] = cb.checked;
+      });
+      try { localStorage.setItem('supportDashPrefs_' + viewerUid, JSON.stringify(prefs)); } catch(e) {}
+    }
+
+    function loadPrefs() {
+      if (!viewerUid) return;
+      try {
+        var raw = localStorage.getItem('supportDashPrefs_' + viewerUid);
+        if (!raw) return;
+        var prefs = JSON.parse(raw);
+        Object.keys(SECTION_MAP).forEach(function(togId) {
+          var cb = document.getElementById(togId);
+          if (cb && typeof prefs[togId] === 'boolean') cb.checked = prefs[togId];
+        });
+      } catch(e) {}
+    }
+
+    /* ── Helpers ──────────────────────────────────────── */
+    function to12H(t) {
+      if (!t) return '';
+      var parts = t.split(':');
+      var h = parseInt(parts[0], 10), m = parts[1];
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return h + ':' + m + ' ' + ampm;
+    }
+
+    function esc(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    /* Claude: 2026-03-11 — check-in alert for support viewers */
+    function checkCheckinAlert(uid, name) {
+      var banner = document.getElementById('checkin-alert-banner');
+      if (!banner) return;
+      banner.style.display = 'none';
+      banner.innerHTML = '';
+
+      /* Claude: 2026-03-14 — added .catch() handlers to prevent silent failures */
+      AA.db.collection('users').doc(uid).get().then(function (doc) {
+        if (!doc.exists) return;
+        var data = doc.data();
+        var threshold = data.alertThreshold || 5;
+        var recipients = data.alertRecipients || ['family', 'network-lead'];
+
+        /* Check if viewer's role is in alertRecipients */
+        AA.db.collection('users').doc(viewerUid).get().then(function (vDoc) {
+          if (!vDoc.exists) return;
+          var viewerRole = vDoc.data().role || '';
+          if (recipients.indexOf(viewerRole) === -1 && viewerRole !== 'backstage-manager') return;
+
+          AA.getRecentCheckins(uid, 1).then(function (days) {
+            if (!days || days.length === 0) return; /* no check-ins ever */
+            var lastDate = days[0].date;
+            var now = new Date();
+            var todayStr = now.getFullYear() + '-' +
+              String(now.getMonth() + 1).padStart(2, '0') + '-' +
+              String(now.getDate()).padStart(2, '0');
+            var last = new Date(lastDate + 'T00:00:00');
+            var today = new Date(todayStr + 'T00:00:00');
+            var diffDays = Math.round((today - last) / (1000 * 60 * 60 * 24));
+
+            if (diffDays < threshold) return;
+
+            /* Claude: 2026-03-24 — If the student used the app within the last 24h,
+               skipping a check-in is a choice, not a crisis. Suppress the alert.
+               Same logic as the quiet alert system.
+               Archive: support-dashboard_2026-03-23_pre-quiet-alert-fix.bak.html */
+            var lsData = data.lastSeen || null;
+            if (lsData && lsData.timestamp) {
+              var lsTs = lsData.timestamp.toDate ? lsData.timestamp.toDate() : new Date(lsData.timestamp);
+              var hoursSince = Math.round((Date.now() - lsTs.getTime()) / (1000 * 60 * 60));
+              if (hoursSince < 24) return; /* active on app — not missing, just skipping check-in */
+            }
+
+            banner.innerHTML =
+              '<div class="checkin-alert-bar">' +
+                '<span class="alert-icon">⚠️</span>' +
+                '<div class="alert-body">' +
+                  '<strong>' + esc(name) + ' — Check-In Missing</strong>' +
+                  diffDays + ' days without a check-in (threshold: ' + threshold + ' days).' +
+                  '<br><a class="alert-view-btn" href="/Academic-Allies/modular/components/user-tiers/user-tiers.html">View Profile</a>' +
+                '</div>' +
+                '<button class="alert-dismiss" onclick="this.closest(\'.checkin-alert-bar\').remove()" title="Dismiss">✕ Dismiss</button>' +
+              '</div>';
+            banner.style.display = 'block';
+          }).catch(function() { /* checkin read failed — banner stays hidden */ });
+        }).catch(function() { /* viewer doc read failed — banner stays hidden */ });
+      }).catch(function() { /* student doc read failed — banner stays hidden */ });
+    }
+
+    /* ── Claude: 2026-03-23 — Quiet Alert (baseline-aware) ─────────────────
+       Detects when a student's behavior CHANGES from their personal normal.
+       NOT "she hasn't checked in = bad." Instead: "she usually opens the app
+       every 2 days but it's been 6" or "her flags are worse than her average."
+       Learns each student's baseline from their last 30 days, stores it in
+       Firestore, and only fires when the deviation is significant.
+       Writes a notification so ALL network members see it (24h dedup). */
+
+    function checkQuietAlert(uid, name) {
+      var banner = document.getElementById('quiet-alert-banner');
+      if (!banner) return;
+      banner.style.display = 'none';
+      banner.innerHTML = '';
+
+      /* Gather data: lastSeen, recent check-ins, and stored baseline */
+      var lastSeenPromise = AA.getLastSeen ? AA.getLastSeen(uid) : Promise.resolve(null);
+      var checkinsPromise = AA.getRecentCheckins(uid, 30); /* 30 days for baseline */
+      var baselinePromise = AA.db.collection('quietBaseline').doc(uid).get();
+
+      Promise.all([lastSeenPromise, checkinsPromise, baselinePromise]).then(function(results) {
+        var ls = results[0];
+        var checkins = results[1] || [];
+        var baselineDoc = results[2];
+        var baseline = (baselineDoc.exists && baselineDoc.data()) || null;
+
+        /* ── Calculate current baseline from data ── */
+        var computed = _computeBaseline(checkins, ls);
+
+        /* ── Save/update baseline if we have enough data (5+ check-ins) ── */
+        /* Claude: 2026-03-25 — mirror mode write guard: supporters viewing dashboard
+           should NOT modify the student's quiet baseline. Read-only in mirror mode. */
+        if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
+          /* skip baseline write — supporter is viewing, not owning */
+        } else if (computed.checkinCount >= 5 && (!baseline || _baselineStale(baseline))) {
+          AA.db.collection('quietBaseline').doc(uid).set({
+            avgCheckinGapDays: computed.avgCheckinGapDays,
+            avgFlag:           computed.avgFlag,
+            avgAppGapHours:    computed.avgAppGapHours,
+            checkinCount:      computed.checkinCount,
+            updatedAt:         firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true }).catch(function() {});
+          baseline = computed; /* use fresh computed values */
+        }
+
+        /* Claude: 2026-03-23 — Don't assume a pattern exists for students
+           with very few check-ins. The old default of 3 days triggered false
+           red alerts for students like Mary who rarely use check-in features
+           but are active on other pages (Study Tools, etc.).
+           Now: require at least 3 check-ins before comparing against a baseline.
+           Without enough data, we still show flag/trend signals if available
+           but skip the gap-based "pattern change" alerts entirely.
+           Archive: support-dashboard_2026-03-23_pre-nope-active-fix.bak.html */
+        var hasCheckinBaseline = (computed.checkinCount >= 3 && computed.avgCheckinGapDays);
+        if (!baseline || !baseline.avgCheckinGapDays) {
+          baseline = {
+            avgCheckinGapDays: hasCheckinBaseline ? computed.avgCheckinGapDays : null,
+            avgFlag: computed.avgFlag || 0.5,
+            avgAppGapHours: hasCheckinBaseline ? (computed.avgCheckinGapDays * 24) : null
+          };
+        }
+
+        /* ── Compare current state against THEIR baseline ── */
+        var signals = [];
+        var severity = 'none';
+
+        /* Signal 1: App silence — is the gap 2x+ their normal? */
+        var currentAppGapHours = null;
+        if (ls && ls.timestamp) {
+          var ts = ls.timestamp.toDate ? ls.timestamp.toDate() : new Date(ls.timestamp);
+          currentAppGapHours = Math.round((Date.now() - ts.getTime()) / (1000 * 60 * 60));
+        }
+
+        if (currentAppGapHours !== null && baseline.avgAppGapHours) {
+          var normalGap = baseline.avgAppGapHours;
+          var ratio = currentAppGapHours / Math.max(normalGap, 1);
+          if (ratio >= 3) {
+            severity = 'red';
+            signals.push('No app activity in ' + _friendlyDuration(currentAppGapHours) +
+              ' (normally active every ' + _friendlyDuration(Math.round(normalGap)) + ')');
+          } else if (ratio >= 2) {
+            severity = 'amber';
+            signals.push('Last active ' + _friendlyDuration(currentAppGapHours) +
+              ' ago (usually every ' + _friendlyDuration(Math.round(normalGap)) + ')');
+          }
+        }
+
+        /* Signal 2: Check-in gap — is it 2x+ their normal spacing? */
+        var currentCheckinGapDays = null;
+        if (checkins.length > 0 && checkins[0].date) {
+          var lastDate = new Date(checkins[0].date + 'T00:00:00');
+          currentCheckinGapDays = Math.round((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+        }
+
+        /* Claude: 2026-03-23 — If the student is active on the app (within 24h),
+           a missed check-in is a CHOICE, not a crisis. Suppress the check-in gap
+           signal entirely when app activity is recent. The check-in gap only matters
+           when COMBINED with app silence — that's when someone might actually need
+           someone to reach out.
+           Archive: support-dashboard_2026-03-23_pre-quiet-alert-fix.bak.html */
+        var studentIsAppActive = (currentAppGapHours !== null && currentAppGapHours < 24);
+        if (currentCheckinGapDays !== null && baseline.avgCheckinGapDays && !studentIsAppActive) {
+          var normalCheckinGap = baseline.avgCheckinGapDays;
+          var checkinRatio = currentCheckinGapDays / Math.max(normalCheckinGap, 1);
+          if (checkinRatio >= 3) {
+            if (severity !== 'red') severity = 'red';
+            signals.push(currentCheckinGapDays + ' days since last check-in' +
+              ' (normally every ' + Math.round(normalCheckinGap) + ' days)');
+          } else if (checkinRatio >= 2) {
+            if (severity === 'none') severity = 'amber';
+            signals.push(currentCheckinGapDays + ' days since last check-in' +
+              ' (usually every ' + Math.round(normalCheckinGap) + ' days)');
+          }
+        }
+
+        /* Signal 3: Last flag worse than their average */
+        var FLAG_SCORE = { green: 0, yellow: 1, orange: 2, red: 3 };
+        var lastFlag = null;
+        if (checkins.length > 0) {
+          lastFlag = checkins[0].latestFlag || 'green';
+        }
+        if (lastFlag) {
+          var lastFlagScore = FLAG_SCORE[lastFlag] || 0;
+          var avgFlag = baseline.avgFlag || 0.5;
+          /* Flag is significantly worse than their average */
+          if (lastFlagScore >= 2 && lastFlagScore > avgFlag + 1) {
+            if (severity !== 'red' && lastFlagScore >= 3) severity = 'red';
+            else if (severity === 'none') severity = 'amber';
+            var FLAG_NAMES = { green: 'green', yellow: 'yellow', orange: 'orange', red: 'red' };
+            signals.push('Last check-in was ' + FLAG_NAMES[lastFlag] +
+              ' (her average is closer to ' + _flagName(avgFlag) + ')');
+          }
+        }
+
+        /* Signal 4: Declining trend (3+ recent check-ins getting progressively worse) */
+        if (checkins.length >= 3) {
+          var scores = [];
+          for (var c = 0; c < Math.min(checkins.length, 3); c++) {
+            scores.push(FLAG_SCORE[checkins[c].latestFlag || 'green'] || 0);
+          }
+          if (scores[0] > scores[1] && scores[1] > scores[2] && scores[0] >= 2) {
+            if (severity === 'none') severity = 'amber';
+            signals.push('Check-in flags are trending worse');
+          }
+        }
+
+        /* ── No signals? Nothing to show ── */
+        if (severity === 'none' || signals.length === 0) return;
+
+        /* ── Render the banner ── */
+        var icon = severity === 'red' ? '🚨' : '🔔';
+        var heading = severity === 'red'
+          ? esc(name) + ' may need someone to reach out'
+          : esc(name) + ' seems different than usual';
+
+        var signalHtml = '<ul class="qa-signals">';
+        for (var s = 0; s < signals.length; s++) {
+          signalHtml += '<li>' + esc(signals[s]) + '</li>';
+        }
+        signalHtml += '</ul>';
+
+        banner.innerHTML =
+          '<div class="quiet-alert-bar ' + severity + '">' +
+            '<span class="qa-icon">' + icon + '</span>' +
+            '<div class="qa-body">' +
+              '<strong>' + heading + '</strong>' +
+              signalHtml +
+              '<div style="margin-top:8px;font-size:0.82rem;font-style:italic;opacity:0.8;">' +
+                'This isn\'t a diagnosis — just the data saying her pattern has changed.' +
+              '</div>' +
+            '</div>' +
+            '<button class="qa-dismiss" onclick="this.closest(\'.quiet-alert-bar\').remove()" title="Dismiss">✕</button>' +
+          '</div>';
+        banner.style.display = 'block';
+
+        _writeQuietNotification(uid, name, severity, signals);
+      }).catch(function(err) {
+        console.warn('[AA] quiet alert check failed:', err.message);
+      });
+    }
+
+    /* ── Compute personal baseline from 30 days of data ── */
+    function _computeBaseline(checkins, lastSeen) {
+      var result = { avgCheckinGapDays: null, avgFlag: null, avgAppGapHours: null, checkinCount: 0 };
+      if (!checkins || checkins.length === 0) return result;
+
+      result.checkinCount = checkins.length;
+
+      /* Average flag score */
+      var FLAG_SCORE = { green: 0, yellow: 1, orange: 2, red: 3 };
+      var flagSum = 0;
+      for (var i = 0; i < checkins.length; i++) {
+        flagSum += FLAG_SCORE[checkins[i].latestFlag || 'green'] || 0;
+      }
+      result.avgFlag = flagSum / checkins.length;
+
+      /* Average gap between check-ins (days) */
+      if (checkins.length >= 2) {
+        var gaps = [];
+        for (var g = 0; g < checkins.length - 1; g++) {
+          var d1 = new Date(checkins[g].date + 'T00:00:00');
+          var d2 = new Date(checkins[g + 1].date + 'T00:00:00');
+          var gapDays = Math.abs(d1 - d2) / (1000 * 60 * 60 * 24);
+          if (gapDays > 0) gaps.push(gapDays);
+        }
+        if (gaps.length > 0) {
+          var gapSum = 0;
+          for (var j = 0; j < gaps.length; j++) gapSum += gaps[j];
+          result.avgCheckinGapDays = gapSum / gaps.length;
+        }
+      }
+
+      /* Average app gap — estimate from check-in frequency as proxy.
+         Real app usage data would need lastSeen history, which we don't have.
+         Use check-in gap as a reasonable proxy since check-ins require app opens. */
+      if (result.avgCheckinGapDays) {
+        result.avgAppGapHours = result.avgCheckinGapDays * 24;
+      }
+
+      return result;
+    }
+
+    /* Check if stored baseline is stale (older than 7 days) */
+    function _baselineStale(baseline) {
+      if (!baseline || !baseline.updatedAt) return true;
+      var ts = baseline.updatedAt.toDate ? baseline.updatedAt.toDate() : new Date(baseline.updatedAt);
+      return (Date.now() - ts.getTime()) > (7 * 24 * 60 * 60 * 1000);
+    }
+
+    /* Friendly duration: "26 hours" or "3 days" */
+    function _friendlyDuration(hours) {
+      if (hours < 48) return hours + ' hours';
+      return Math.round(hours / 24) + ' days';
+    }
+
+    /* Map numeric flag average to friendly name */
+    function _flagName(avg) {
+      if (avg < 0.5) return 'green';
+      if (avg < 1.5) return 'green-yellow';
+      if (avg < 2.5) return 'yellow-orange';
+      return 'orange-red';
+    }
+
+    /* Write quiet alert notification with 24-hour dedup */
+    function _writeQuietNotification(uid, name, severity, signals) {
+      if (!AA.addNotification) return;
+      var type = severity === 'red' ? 'quiet_alert_red' : 'quiet_alert_amber';
+      var msg = (severity === 'red' ? '🚨' : '🔔') + ' ' +
+        (name || 'Student') + ' seems different than usual — ' + signals[0];
+
+      AA.db.collection('notifications').doc(uid).collection('entries')
+        .where('type', 'in', ['quiet_alert_red', 'quiet_alert_amber'])
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get()
+        .then(function(snap) {
+          if (!snap.empty) {
+            var last = snap.docs[0].data();
+            if (last.createdAt && last.createdAt.toDate) {
+              var hoursSince = (Date.now() - last.createdAt.toDate().getTime()) / (1000 * 60 * 60);
+              if (hoursSince < 24) return;
+            }
+          }
+          AA.addNotification(uid, type, msg).catch(function() {});
+        })
+        .catch(function() {
+          AA.addNotification(uid, type, msg).catch(function() {});
+        });
+    }
+
+    /* ── Claude: 2026-03-12 — Real-time notification listener ──────────────
+       Shows active alerts (red/yellow flags, nope activated/canceled) for the
+       student being viewed. Supporters see these instantly without refreshing. */
+    var unsubNotif = null;
+
+    function startNotificationListener() {
+      if (unsubNotif) { unsubNotif(); }
+      var panel = document.getElementById('notif-panel');
+      var list  = document.getElementById('notif-list');
+      if (!panel || !list) return;
+
+      /* Claude: 2026-03-13 — dedup notifications by message text to prevent
+         identical entries (e.g., two "Red Flag — check-in at 09:52 PM").
+         Also debounce the onSnapshot callback to avoid flicker. */
+      var _notifDebounce = null;
+      unsubNotif = AA.watchNotifications(studentUid, function (notifs) {
+        clearTimeout(_notifDebounce);
+        _notifDebounce = setTimeout(function () {
+          /* Deduplicate by message text — keep only the first (newest) of each */
+          var seen = {};
+          var unique = [];
+          (notifs || []).forEach(function (n) {
+            var key = (n.message || n.type || '') + '|' + (n.type || '');
+            if (!seen[key]) {
+              seen[key] = true;
+              unique.push(n);
+            }
+          });
+
+          /* Claude: 2026-03-12 — update alert count and refresh status label */
+          _activeAlertCount = unique.length;
+          refreshStatusLabel();
+
+          if (unique.length === 0) {
+            panel.style.display = 'none';
+            list.innerHTML = '';
+            return;
+          }
+          panel.style.display = 'block';
+          list.innerHTML = '';
+          /* Claude: 2026-03-21 — add contextual explanations to each notification type */
+          var NOTIF_EXPLAIN = {
+            'red_flag':        'Urgent — check on your student as soon as possible.',
+            'yellow_flag':     'Moderate concern — check in when you can.',
+            'nope_activated':  'Student has shut down completely. Respect the boundary.',
+            'nope_canceled':   'Student is leaving Nope mode — good sign.',
+            'mode_recovery':   'Student entered Recovery Mode — rebuilding.',
+            'mode_bad_brain':  'Student is having a Bad Brain Day — be gentle.',
+            'missed_meal':     'No meals logged — consider checking in about food.',
+            'low_spoons':      'Running low on energy — keep demands minimal.',
+            'semi_nope_started': 'Student is slowly coming back from Nope.'
+          };
+          unique.forEach(function (n) {
+            var timeStr = '';
+            if (n.createdAt && n.createdAt.toDate) {
+              timeStr = n.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            var explain = NOTIF_EXPLAIN[n.type] || '';
+            var div = document.createElement('div');
+            div.className = 'notif-item type-' + (n.type || '');
+            div.innerHTML = '<div style="flex:1;min-width:0;">' +
+              '<span>' + esc(n.message || n.type) + '</span>' +
+              (explain ? '<div style="font-size:0.78rem;margin-top:3px;opacity:0.8;font-style:italic;">' + esc(explain) + '</div>' : '') +
+              '</div>' +
+              '<span class="notif-time">' + timeStr + '</span>';
+            list.appendChild(div);
+          });
+        }, 300);
+      });
+    }
+
+    function clearAllNotifs() {
+      if (!studentUid) return;
+      AA.markAllNotificationsRead(studentUid).then(function () {
+        var panel = document.getElementById('notif-panel');
+        if (panel) panel.style.display = 'none';
+      }).catch(function (err) {
+        console.warn('[AA] clear notifs failed:', err.message);
+      });
+    }
+
+    /* ── Claude: 2026-03-12 — Last-seen indicator ─────────────────────────
+       Shows when the student was last active and what page they were on.
+       Green dot = active in last 15 min, amber = last hour, grey = older. */
+    function loadLastSeen(uid) {
+      var bar  = document.getElementById('last-seen-bar');
+      var dot  = document.getElementById('ls-dot');
+      var text = document.getElementById('ls-text');
+      if (!bar || !AA.getLastSeen) return;
+
+      AA.getLastSeen(uid).then(function (ls) {
+        if (!ls || !ls.timestamp) {
+          bar.style.display = 'none';
+          return;
+        }
+        var ts = ls.timestamp.toDate ? ls.timestamp.toDate() : new Date(ls.timestamp);
+        var diffMs  = Date.now() - ts.getTime();
+        var diffMin = Math.floor(diffMs / 60000);
+        var diffHr  = Math.floor(diffMin / 60);
+
+        /* Dot color */
+        if (diffMin < 15) {
+          dot.className = 'ls-dot recent';
+        } else if (diffMin < 60) {
+          dot.className = 'ls-dot stale';
+        } else {
+          dot.className = 'ls-dot old';
+        }
+
+        /* Time label */
+        var agoStr;
+        if (diffMin < 1)       agoStr = 'just now';
+        else if (diffMin < 60) agoStr = diffMin + ' min ago';
+        else if (diffHr < 24)  agoStr = diffHr + 'h ago';
+        else                   agoStr = ts.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+        /* Page label */
+        var pageName = ls.pageName || '';
+        if (!pageName && ls.page) {
+          /* Extract friendly name from path */
+          var parts = ls.page.replace(/\.html$/, '').split('/');
+          pageName = parts[parts.length - 1].replace(/-/g, ' ');
+          pageName = pageName.charAt(0).toUpperCase() + pageName.slice(1);
+        }
+
+        text.textContent = 'Last active: ' + agoStr + (pageName ? ' on ' + pageName : '');
+        bar.style.display = 'flex';
+      }).catch(function (err) {
+        console.warn('[AA] lastSeen load failed:', err.message);
+        bar.style.display = 'none';
+      });
+    }
+
+    /* ── Claude: 2026-03-14 — My Students compact status grid ────────────────
+       Renders a row of student cards with urgency dots at the very top of the
+       dashboard. Clicking a card switches the dashboard to that student.
+       Adapted from index.html support-view grid (moved per user request). */
+    /* Claude: 2026-03-16 — REWRITTEN to match status circle logic.
+       OLD: only checked today's check-in flag → showed gray "unknown" if no check-in today.
+       NEW: uses rolling 7-check-in average (same as status-circle.js), plus caution diamond
+       for stale data, plus nope mode detection. Dot now matches the status circle color. */
+    var URGENCY = { nope: 0, red: 0, caution: 0.5, orange: 1, yellow: 2, green: 3, unknown: 4 };
+    var CAUTION_DAYS_DEFAULT = 5;
+    var MAX_LOOKBACK = 30;
+    var ROLLING_COUNT = 7;
+
+    /* Color score mapping — matches status-circle.js weighted average */
+    var C_SCORE = { '#dc3545': 4, '#fd7e14': 3, '#ffc107': 2, '#28a745': 1 };
+    /* Claude: 2026-03-20 — hex → score map for AA.avgEntryColor() results */
+    var _SCORE_MAP = { '#dc3545': 4, '#fd7e14': 3, '#ffc107': 2, '#28a745': 1 };
+
+    function _flagToScore(flag) {
+      if (flag === 'red') return 4;
+      if (flag === 'orange') return 3;
+      if (flag === 'yellow') return 2;
+      if (flag === 'green') return 1;
+      return 1;
+    }
+
+    function _scoreToClass(avg) {
+      if (avg >= 3.3) return 'red';
+      if (avg >= 2.5) return 'orange';
+      if (avg >= 1.8) return 'yellow';
+      return 'green';
+    }
+
+    function _makeDateKey(d) {
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+    }
+
+    /* Claude: 2026-03-20 — returns full entries (not just flag) so we can
+       use AA.avgEntryColor() for detailed per-segment color computation. */
+    function _fetchStudentStatus(uid) {
+      var now = new Date();
+      var hits = []; /* { entry, daysAgo } */
+      var promises = [];
+      for (var i = 0; i < MAX_LOOKBACK; i++) {
+        (function(daysAgo) {
+          var d = new Date(now); d.setDate(d.getDate() - daysAgo);
+          var key = _makeDateKey(d);
+          promises.push(
+            AA.db.collection('checkins').doc(uid).collection('days').doc(key).get()
+              .then(function(doc) {
+                if (doc.exists) {
+                  var entries = doc.data().entries || [];
+                  entries.forEach(function(e) {
+                    hits.push({ entry: e, flag: e.flag || 'green', daysAgo: daysAgo });
+                  });
+                }
+              }).catch(function() {})
+          );
+        })(i);
+      }
+      return Promise.all(promises).then(function() {
+        hits.sort(function(a, b) { return a.daysAgo - b.daysAgo; });
+        return hits;
+      });
+    }
+
+    function loadStudentGrid() {
+      var section = document.getElementById('my-students-section');
+      var grid    = document.getElementById('my-students-grid');
+      if (!section || !grid) return;
+
+      if (studentsInNetwork.length < 1) {
+        section.style.display = 'none';
+        return;
+      }
+
+      section.style.display = 'block';
+      grid.innerHTML = '';
+
+      Promise.all(studentsInNetwork.map(function (s) {
+        return Promise.all([
+          AA.db.collection('nope').doc(s.uid).get(),
+          _fetchStudentStatus(s.uid),
+          AA.shouldSuppressCaution(s.uid)
+        ]).then(function (res) {
+          var nopeData = res[0].exists ? res[0].data() : null;
+          /* Claude: 2026-03-23 — MUST check nopeData.active before reading mode.
+             BUG: was reading nopeData.mode without checking .active, so students who
+             EVER activated a mode showed permanent red/orange dots on the support dashboard
+             even after deactivating. status-circle.js already checks .active (line 909).
+             This caused false red alerts for students like Mary (Study Tools only user
+             who once had a mode set). Archive: support-dashboard_2026-03-23_pre-nope-active-fix.bak.html */
+          var activeMode = (nopeData && nopeData.active) ? nopeData.mode : null;
+          var isCrisis   = activeMode === 'nope' || activeMode === 'semi' || activeMode === 'semi-nope'
+                        || activeMode === 'bad-brain' || activeMode === 'migraine';
+          var hits     = res[1];
+          var suppressResult = res[2]; /* { suppress: bool, cautionDays: number, reason: string } */
+          var cautionDays = suppressResult.cautionDays || CAUTION_DAYS_DEFAULT;
+
+          var dot = 'unknown';
+          if (isCrisis) {
+            dot = (activeMode === 'nope' || activeMode === 'migraine') ? 'nope' : 'orange';
+          } else if (hits.length > 0) {
+            var newestDaysAgo = hits[0].daysAgo;
+            /* Claude: 2026-03-20 — uses AA.shouldSuppressCaution() from aa-firebase.js
+               (single source of truth shared with status-circle + home page) */
+            if (newestDaysAgo > cautionDays && !suppressResult.suppress) {
+              dot = 'caution';
+            } else {
+              /* Claude: 2026-03-20 — uses AA.avgEntryColor() for per-segment
+                 detail (same algorithm as status-circle.js), averaged across
+                 the most recent check-ins. Single source of truth. */
+              var recent = hits.slice(0, ROLLING_COUNT);
+              var total = 0;
+              recent.forEach(function(h) {
+                var hex = AA.avgEntryColor ? AA.avgEntryColor(h.entry) : null;
+                total += (hex ? (_SCORE_MAP[hex] || 1) : _flagToScore(h.flag));
+              });
+              var avg = total / recent.length;
+              dot = AA.scoreToClass ? AA.scoreToClass(avg) : _scoreToClass(avg);
+            }
+          }
+
+          return { uid: s.uid, name: s.name, dot: dot, urgency: URGENCY[dot] };
+        }).catch(function () {
+          return { uid: s.uid, name: s.name, dot: 'unknown', urgency: 4 };
+        });
+      })).then(function (results) {
+        results.sort(function (a, b) { return a.urgency - b.urgency; });
+        results.forEach(function (s) {
+          var item = document.createElement('div');
+          item.className = 'msc-item' + (s.uid === studentUid ? ' active' : '');
+          item.title     = 'View ' + s.name + '\'s dashboard';
+          item.innerHTML =
+            '<span class="ssc-dot ' + s.dot + '"></span>' +
+            '<span>' + esc(s.name) + '</span>';
+          item.addEventListener('click', function () {
+            switchStudent(s.uid);
+            grid.querySelectorAll('.msc-item').forEach(function (el) { el.classList.remove('active'); });
+            item.classList.add('active');
+          });
+          grid.appendChild(item);
+        });
+      }).catch(function() {
+        grid.innerHTML = '<p style="color:#888;text-align:center;padding:1rem;">Could not load student grid — please refresh.</p>';
+      });
+    }
+
+    waitForAA(boot);
+  </script>
+</body>
+</html>

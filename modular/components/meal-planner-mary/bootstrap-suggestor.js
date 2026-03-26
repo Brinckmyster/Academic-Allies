@@ -43,36 +43,37 @@ window.components = window.components || (window.modular && window.modular.compo
   onReady(function(){
     // If suggestor created suggestion buttons, delegate click handling for time override
     document.body.addEventListener('click', function(e){
-      const btn = e.target;
+      /* Claude: 2026-03-25 — converted const/let to var for ES5 compat */
+      var btn = e.target;
       if(!btn || !btn.textContent) return;
       // Match both "Add: X" and "Add to Plan" patterns
       if(/^Add: /.test(btn.textContent) || btn.classList.contains('add-suggestion-btn')){
         // Try to infer the surrounding slot kind/time if present in DOM near the button
-        let container = btn.closest('div');
-        let inferredTime = '';
-        let inferredKind = '';
+        var container = btn.closest('div');
+        var inferredTime = '';
+        var inferredKind = '';
         if(container){
-          const timeEl = container.querySelector('.suggestion-time');
-          const nameEl = container.querySelector('b, .suggestion-name');
+          var timeEl = container.querySelector('.suggestion-time');
+          var nameEl = container.querySelector('b, .suggestion-name');
           if(timeEl && timeEl.textContent){
-            const m = timeEl.textContent.match(/\b(\d{1,2}:\d{2})\b/);
+            var m = timeEl.textContent.match(/\b(\d{1,2}:\d{2})\b/);
             if(m) inferredTime = m[1];
           }
           if(nameEl && nameEl.textContent){
-            const k = nameEl.textContent.replace(/\d{1,2}:\d{2}\s*[·\-–]\s*/,'').trim();
+            var k = nameEl.textContent.replace(/\d{1,2}:\d{2}\s*[·\-–]\s*/,'').trim();
             if(k) inferredKind = k;
           }
         }
         // Prompt for a time override
-        const chosenTime = prompt('Enter time for this meal (HH:MM) or leave blank to use suggested time:', inferredTime || '');
+        var chosenTime = prompt('Enter time for this meal (HH:MM) or leave blank to use suggested time:', inferredTime || '');
         // Try to extract label text for the meal
-        let label = btn.textContent.replace(/^Add:\s*/,'').trim();
+        var label = btn.textContent.replace(/^Add:\s*/,'').trim();
         if(!label && container){
-          const name = container.querySelector('.suggestion-name');
+          var name = container.querySelector('.suggestion-name');
           if(name) label = name.textContent.trim();
         }
         // Fallback kind
-        const kind = inferredKind || 'Meal';
+        var kind = inferredKind || 'Meal';
         // Use addPlannedMeal if present
         try{
           if(typeof addPlannedMeal === 'function'){
@@ -106,7 +107,7 @@ window.meal = window.meal || {};
     try{
       var root = document.getElementById('suggestions-list') || document.getElementById('suggestion-list');
       if(!root) return;
-      var blocks = Array.from(root.querySelectorAll('div'));
+      var blocks = [].slice.call(root.querySelectorAll('div'));
       // Build a map by kind -> container blocks
       var groups = {};
       blocks.forEach(function(b){
@@ -140,13 +141,17 @@ window.meal = window.meal || {};
             return d;
           })();
           // Count existing buttons (Add: X…)
-          var existing = Array.from(b.querySelectorAll('button')).filter(function(x){ return /^Add: /.test(x.textContent||''); });
+          var existing = [].slice.call(b.querySelectorAll('button')).filter(function(x){ return /^Add: /.test(x.textContent||''); });
           // If fewer than 3, add more unique options
-          var have = new Set(existing.map(function(x){ return (x.textContent||'').replace(/^Add:\s*/,'').trim(); }));
-          var needed = Math.max(0, 3 - have.size);
+          /* Claude: 2026-03-25 — replaced new Set() (ES2015) with object lookup for ES5 compat */
+          var have = {};
+          var _haveArr = existing.map(function(x){ return (x.textContent||'').replace(/^Add:\s*/,'').trim(); });
+          for(var _hi=0; _hi<_haveArr.length; _hi++){ have[_haveArr[_hi]] = true; }
+          var haveCount = Object.keys(have).length;
+          var needed = Math.max(0, 3 - haveCount);
           for(var i=0, added=0; i < cat.length && added < needed; i++){
             var opt = cat[i];
-            if(!opt || have.has(opt)) continue;
+            if(!opt || have[opt]) continue;
             var btn = document.createElement('button');
             btn.textContent = 'Add: ' + opt;
             btn.className = 'add-suggestion-btn';
@@ -253,7 +258,19 @@ try{ localStorage.setItem('aa_active_studentId','mary'); }catch(_){ }
   function onReady(fn){
     if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fn,{once:true});} else { fn(); }
   }
-  function setIfMissing(obj, key, arr){ obj[key] = Array.isArray(obj[key]) ? Array.from(new Set(obj[key].concat(arr))) : arr.slice(); }
+  /* Claude: 2026-03-25 — replaced new Set() (ES2015) with manual dedup for ES5 compat */
+  function setIfMissing(obj, key, arr){
+    if (Array.isArray(obj[key])) {
+      var combined = obj[key].concat(arr);
+      var seen = {}; var unique = [];
+      for (var _d = 0; _d < combined.length; _d++) {
+        if (!seen[combined[_d]]) { seen[combined[_d]] = true; unique.push(combined[_d]); }
+      }
+      obj[key] = unique;
+    } else {
+      obj[key] = arr.slice();
+    }
+  }
 
   onReady(function(){
     try{
@@ -312,16 +329,21 @@ try{ localStorage.setItem('aa_active_studentId','mary'); }catch(_){ }
     try{
       var bad='/Academic-Allies/Academic-Allies/';
       var good='/Academic-Allies/';
-      ['script','link','img','a'].forEach(function(tag){
-        document.querySelectorAll(tag).forEach(function(el){
-          ['src','href'].forEach(function(attr){
+      /* Claude: 2026-03-25 — replaced NodeList.forEach with for loop for ES5 compat */
+      var _tags = ['script','link','img','a'];
+      for (var _tgi = 0; _tgi < _tags.length; _tgi++) { var tag = _tags[_tgi];
+        var _nodes = document.querySelectorAll(tag);
+        for (var _ni = 0; _ni < _nodes.length; _ni++) { var el = _nodes[_ni];
+          /* Claude: 2026-03-25 — replaced NodeList.forEach with for loop for ES5 compat */
+          var _attrs = ['src','href'];
+          for (var _ai = 0; _ai < _attrs.length; _ai++) { var attr = _attrs[_ai];
             var v = el.getAttribute && el.getAttribute(attr);
             if(v && v.indexOf(bad) !== -1){
               el.setAttribute(attr, v.replace(bad, good));
             }
-          });
-        });
-      });
+          }
+        }
+      }
     }catch(_){}
   });
 })();

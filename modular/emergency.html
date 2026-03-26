@@ -164,6 +164,22 @@
       .contact-photo { width: 80px; height: 80px; }
       .edit-card { padding: .75rem; }
     }
+
+    /* Claude: 2026-03-25 — dark mode overrides for emergency contacts */
+    html.aa-dark .page-wrap { background: #1a1a2e; }
+    html.aa-dark .contact-card { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .contact-name { color: #e0e0e0; }
+    html.aa-dark .contact-msg { color: #999; }
+    html.aa-dark .btn-call { background: #1a2e20; color: #6ecf9a; border-color: #2a5a3a; }
+    html.aa-dark .btn-email { background: #1a2040; color: #64b5f6; border-color: #2a4070; }
+    html.aa-dark .edit-card { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .edit-card input,
+    html.aa-dark .edit-card select,
+    html.aa-dark .edit-card textarea { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .edit-card label { color: #ccc; }
+    html.aa-dark .btn-byui { background: #1a2e30; color: #a8d8db; border-color: #2a4447; }
+    html.aa-dark .seed-defaults-btn { background: #2a2820; color: #d4b060; border-color: #5a5030; }
+    html.aa-dark .quote-note { background: #1e2a2e; border-color: #2a4447; color: #a8d8db; }
   </style>
 </head>
 <body>
@@ -185,9 +201,10 @@
 
   <div id="mirror-notice">👁 Viewing <strong id="mirror-name">student</strong>'s emergency contacts in read-only mode.</div>
 
-  <div id="ec-loading">Loading contacts…</div>
+  <!-- Claude: 2026-03-25 — aria-live so screen readers announce when contacts load -->
+  <div id="ec-loading" aria-live="polite">Loading contacts…</div>
 
-  <div id="ec-view" style="display:none">
+  <div id="ec-view" style="display:none" aria-live="polite">
     <div id="ec-empty">
       <div class="empty-box">
         No emergency contacts have been added yet.<br>
@@ -343,8 +360,9 @@ function renderEditForms() {
     return;
   }
   container.innerHTML = _contacts.map(function(c, i) {
+    /* Claude: 2026-03-25 — added alt text for a11y on contact photo */
     var photoPreview = c.photo
-      ? '<img src="' + esc(c.photo) + '" style="width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:.4rem;display:block">'
+      ? '<img src="' + esc(c.photo) + '" alt="Photo of ' + esc(c.name || 'contact') + '" style="width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:.4rem;display:block">'
       : '';
     return '<div class="edit-card" data-idx="' + i + '">' +
       '<label>Name</label>' +
@@ -413,15 +431,20 @@ function addContactForm() {
   if (cards.length) cards[cards.length-1].scrollIntoView({ behavior:'smooth' });
 }
 
+/* Claude: 2026-03-25 — null-safe querySelector helper for form fields */
+function _qVal(card, sel, fallback) {
+  var el = card.querySelector(sel);
+  return el ? (el.value || '').trim() : (fallback || '');
+}
 function readCardData(card) {
   var idx = parseInt(card.getAttribute('data-idx'), 10);
   return {
-    name:         (card.querySelector('[name=name]').value         || '').trim(),
-    relationship: (card.querySelector('[name=relationship]').value || '').trim(),
-    type:         (card.querySelector('[name=type]').value         || 'emergency'),
-    phone:        (card.querySelector('[name=phone]').value        || '').trim(),
-    email:        (card.querySelector('[name=email]').value        || '').trim(),
-    message:      (card.querySelector('[name=message]').value      || '').trim(),
+    name:         _qVal(card, '[name=name]'),
+    relationship: _qVal(card, '[name=relationship]'),
+    type:         _qVal(card, '[name=type]', 'emergency'),
+    phone:        _qVal(card, '[name=phone]'),
+    email:        _qVal(card, '[name=email]'),
+    message:      _qVal(card, '[name=message]'),
     photo:        (_contacts[idx] && _contacts[idx].photo) ? _contacts[idx].photo : ''
   };
 }
@@ -435,6 +458,7 @@ function addByuiContact(name, type, phone, email) {
 }
 
 /* Claude: 2026-03-14 — validate name is not empty before saving */
+/* Claude: 2026-03-25 — added field length limits and phone format validation */
 function saveContact(idx, btn) {
   var card = btn.closest('.edit-card');
   var data = readCardData(card);
@@ -442,6 +466,12 @@ function saveContact(idx, btn) {
     alert('Please enter a name for this emergency contact.');
     return;
   }
+  /* Length limits to prevent oversized Firestore docs */
+  if (data.name.length > 100) { alert('Name is too long (max 100 characters).'); return; }
+  if (data.phone && data.phone.length > 30) { alert('Phone number is too long (max 30 characters).'); return; }
+  if (data.email && data.email.length > 254) { alert('Email is too long (max 254 characters).'); return; }
+  if (data.message && data.message.length > 500) { alert('Emergency message is too long (max 500 characters).'); return; }
+  if (data.relationship && data.relationship.length > 100) { alert('Relationship is too long (max 100 characters).'); return; }
   _contacts[idx] = data;
   persistContacts();
 }
@@ -519,10 +549,19 @@ function loadSupportNetwork() {
   if (_networkUsers.length > 0) { renderNetworkPicker(); return; }
   body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">Loading network…</em>';
 
+  /* Claude: 2026-03-25 — loading timeout with retry button */
+  var _networkLoadTimer = setTimeout(function() {
+    if (body && body.textContent.indexOf('Loading') !== -1) {
+      body.innerHTML = '⚠️ Having trouble loading. Check your connection and try again.<br>' +
+        '<button onclick="loadSupportNetwork()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
+    }
+  }, 8000);
+
   /* AA is guaranteed ready here — loadSupportNetwork() only fires after auth
      completes and _studentUid is set. No waitForAA wrapper needed. */
   AA.db.collection('users').doc(_studentUid).get()
       .then(function(doc) {
+        clearTimeout(_networkLoadTimer);
         if (!doc.exists) {
           body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">No support network found.</em>';
           return Promise.resolve([]);
@@ -541,7 +580,8 @@ function loadSupportNetwork() {
                 uid:   uid,
                 name:  d.displayName || d.name || uid,
                 email: d.email || '',
-                role:  (doc.data().supportNetwork)[uid] || 'member'
+                /* Claude: 2026-03-25 — C3 fix: use cached network var instead of re-reading doc.data() */
+                role:  network[uid] || 'member'
               };
             });
         }));
@@ -552,6 +592,7 @@ function loadSupportNetwork() {
         renderNetworkPicker();
       })
       .catch(function(err) {
+        clearTimeout(_networkLoadTimer);
         console.error('[AA] loadSupportNetwork:', err);
         body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">Error loading network.</em>';
       });
@@ -666,7 +707,9 @@ AA.auth.onAuthStateChanged(function(user) {
       var timeoutMsg = document.createElement('div');
       timeoutMsg.style.cssText = 'text-align:center;color:#999;padding:2rem;';
       timeoutMsg.innerHTML = '<p style="margin-bottom:1rem;">Taking longer than expected…</p><button onclick="location.reload()" style="color:#6CA0A3;background:none;border:none;cursor:pointer;font-weight:700;text-decoration:underline;">Retry</button>';
-      document.querySelector('.page-wrap').insertBefore(timeoutMsg, container.nextSibling);
+      /* Claude: 2026-03-25 — null guard for querySelector */
+      var _pw = document.querySelector('.page-wrap');
+      if (_pw) _pw.insertBefore(timeoutMsg, container.nextSibling);
     }
   }, 15000);
   _unsubContacts = AA.db.collection('emergencyContacts').doc(_studentUid)
@@ -717,16 +760,16 @@ fetch('/Academic-Allies/modular/shared-header.html?v=20260324')
     container.innerHTML = html;
     container.querySelectorAll('script').forEach(function(old) {
       var s = document.createElement('script');
-      Array.from(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      [].slice.call(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
       s.textContent = old.textContent;
-      old.replaceWith(s);
+      old.parentNode.replaceChild(s, old);
     });
     var drag = document.createElement('script');
     drag.src = '/Academic-Allies/modular/js/draggable.js';
     drag.onload = function(){ if (typeof initDrag === 'function') initDrag(); };
     document.body.appendChild(drag);
   })
-  .catch(function(){})
+  /* Claude: 2026-03-25 — merged duplicate .catch() into one handler */
   .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
 </script>
 

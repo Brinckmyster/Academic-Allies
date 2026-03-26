@@ -16,6 +16,10 @@
 (function() {
   'use strict';
 
+  /* Claude: 2026-03-25 — guard against double-loading (e.g. duplicate script tag) */
+  if (window._AA_MODE_ENFORCER_LOADED) return;
+  window._AA_MODE_ENFORCER_LOADED = true;
+
   /* ── Feature → DOM selector map ─────────────────────────────
      Each feature key maps to selectors for elements that should
      be hidden when that feature is OFF. Multiple selectors per
@@ -306,8 +310,9 @@
             applyMode(mode);
           }
         }, 300);
-      }).catch(function() {
-        /* Firestore failed — defaults already applied */
+      /* Claude: 2026-03-25 — added console.warn to Firestore catch */
+      }).catch(function(e) {
+        console.warn('[AA ModeEnforcer] Firestore read failed — using defaults:', e.message || e);
       });
     });
   });
