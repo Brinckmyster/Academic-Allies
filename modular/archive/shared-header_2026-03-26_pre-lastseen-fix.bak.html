@@ -1033,12 +1033,9 @@ Your disability accommodations and support network">Your disability accommodatio
               var now = Date.now();
               var prev = parseInt(localStorage.getItem(lsKey) || '0', 10);
               if (now - prev < 60000) return; /* throttle: max once per minute */
-              /* Claude: 2026-03-26 — lastSeen cache fix: throttle advances only on actual write */
+              localStorage.setItem(lsKey, String(now));
               if (window.AA && window.AA.updateLastSeen) {
-                localStorage.setItem(lsKey, String(now));
-                window.AA.updateLastSeen(user.uid).then(function () {
-                  if (window.AA_DEBUG) { console.log('[AA] lastSeen updated for', user.uid); }
-                }).catch(function (e) {
+                window.AA.updateLastSeen(user.uid).catch(function (e) {
                   console.warn('[AA] lastSeen write failed:', e.message);
                 });
               }

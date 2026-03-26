@@ -1825,9 +1825,8 @@
    * Get the lastSeen data for a student (supporters call this).
    * Returns { timestamp, page, pageName } or null.
    */
-  /* Claude: 2026-03-26 — lastSeen cache fix */
   window.AA.getLastSeen = function (uid) {
-    return db.collection('users').doc(uid).get({ source: 'server' }).then(function (doc) {
+    return db.collection('users').doc(uid).get().then(function (doc) {
       if (!doc.exists) return null;
       return doc.data().lastSeen || null;
     });
