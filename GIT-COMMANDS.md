@@ -377,50 +377,19 @@ rm -f .claude.json.backup
 ```
 
 ### Step 4: Move root markdown files to docs/ (Housekeeping #10)
-# Files already COPIED to docs/ by Claude. Now remove originals from root:
+# Claude already COPIED them to docs/ (files exist at both locations on disk).
+# Use git rm on root originals + git add on docs/ copies (git mv fails when dest exists).
 ```bash
-git mv AUDIT-2026-03-01.md docs/AUDIT-2026-03-01.md
-git mv AUDIT-2026-03-02.md docs/AUDIT-2026-03-02.md
-git mv AUDIT-2026-03-03-EXTENDED.md docs/AUDIT-2026-03-03-EXTENDED.md
-git mv AUDIT-2026-03-03.md docs/AUDIT-2026-03-03.md
-git mv AUDIT-2026-03-05.md docs/AUDIT-2026-03-05.md
-git mv AUDIT-2026-03-06.md docs/AUDIT-2026-03-06.md
-git mv AUDIT-2026-03-07.md docs/AUDIT-2026-03-07.md
-git mv AUDIT-2026-03-10.md docs/AUDIT-2026-03-10.md
-git mv IMPROVEMENT-AUDIT-2026-03-25.md docs/IMPROVEMENT-AUDIT-2026-03-25.md
-git mv NIGHTLY-SUMMARY-2026-03-19.md docs/NIGHTLY-SUMMARY-2026-03-19.md
-git mv NIGHTLY-SUMMARY-2026-03-21.md docs/NIGHTLY-SUMMARY-2026-03-21.md
-git mv NIGHTLY-SUMMARY-2026-03-22.md docs/NIGHTLY-SUMMARY-2026-03-22.md
-git mv NIGHTLY-SUMMARY-2026-03-23.md docs/NIGHTLY-SUMMARY-2026-03-23.md
-git mv NIGHTLY-SUMMARY-2026-03-24.md docs/NIGHTLY-SUMMARY-2026-03-24.md
-git mv NIGHTLY-SUMMARY-2026-03-26.md docs/NIGHTLY-SUMMARY-2026-03-26.md
-git mv PERSISTENCE_INVESTIGATION.md docs/PERSISTENCE_INVESTIGATION.md
+git rm AUDIT-2026-03-01.md AUDIT-2026-03-02.md "AUDIT-2026-03-03-EXTENDED.md" AUDIT-2026-03-03.md AUDIT-2026-03-05.md AUDIT-2026-03-06.md AUDIT-2026-03-07.md AUDIT-2026-03-10.md IMPROVEMENT-AUDIT-2026-03-25.md NIGHTLY-SUMMARY-2026-03-19.md NIGHTLY-SUMMARY-2026-03-21.md NIGHTLY-SUMMARY-2026-03-22.md NIGHTLY-SUMMARY-2026-03-23.md NIGHTLY-SUMMARY-2026-03-24.md NIGHTLY-SUMMARY-2026-03-26.md PERSISTENCE_INVESTIGATION.md
+git add docs/AUDIT-2026-03-01.md docs/AUDIT-2026-03-02.md docs/AUDIT-2026-03-03-EXTENDED.md docs/AUDIT-2026-03-03.md docs/AUDIT-2026-03-05.md docs/AUDIT-2026-03-06.md docs/AUDIT-2026-03-07.md docs/AUDIT-2026-03-10.md docs/IMPROVEMENT-AUDIT-2026-03-25.md docs/NIGHTLY-SUMMARY-2026-03-19.md docs/NIGHTLY-SUMMARY-2026-03-21.md docs/NIGHTLY-SUMMARY-2026-03-22.md docs/NIGHTLY-SUMMARY-2026-03-23.md docs/NIGHTLY-SUMMARY-2026-03-24.md docs/NIGHTLY-SUMMARY-2026-03-26.md docs/PERSISTENCE_INVESTIGATION.md
 ```
-# Then clean up the stale copies Claude made (docs/ already had them after git mv):
-```bash
-rm -f docs/AUDIT-2026-03-01.md.bak 2>/dev/null || true
-```
-# Note: the docs/ copies made by Claude before this git mv will result in duplicates.
-# After git mv, remove the Claude-copied files if git mv didn't handle them:
-# (git mv creates the target so Claude's pre-copies become the same file — no action needed)
 
 ### Step 5: Move quiz/data files to modular/js/ (Housekeeping #11)
-# Already COPIED to modular/js/ by Claude. Now move originals:
+# Claude already COPIED them to modular/js/ (files exist at both locations on disk).
+# Use git rm on root originals + git add on modular/js/ copies.
 ```bash
-git mv load-mary-quizzes.js modular/js/load-mary-quizzes.js
-git mv tag-mary-trimester.js modular/js/tag-mary-trimester.js
-git mv triple-mary-quizzes.js modular/js/triple-mary-quizzes.js
-git mv bonus-quizzes.json modular/js/bonus-quizzes.json
-git mv mary-quizzes.json modular/js/mary-quizzes.json
-```
-# Note: git mv will fail if source == destination (file already there). If so, delete extras:
-```bash
-rm -f modular/js/load-mary-quizzes.js modular/js/tag-mary-trimester.js modular/js/triple-mary-quizzes.js modular/js/bonus-quizzes.json modular/js/mary-quizzes.json
-git mv load-mary-quizzes.js modular/js/load-mary-quizzes.js
-git mv tag-mary-trimester.js modular/js/tag-mary-trimester.js
-git mv triple-mary-quizzes.js modular/js/triple-mary-quizzes.js
-git mv bonus-quizzes.json modular/js/bonus-quizzes.json
-git mv mary-quizzes.json modular/js/mary-quizzes.json
+git rm load-mary-quizzes.js tag-mary-trimester.js triple-mary-quizzes.js bonus-quizzes.json mary-quizzes.json
+git add modular/js/load-mary-quizzes.js modular/js/tag-mary-trimester.js modular/js/triple-mary-quizzes.js modular/js/bonus-quizzes.json modular/js/mary-quizzes.json
 ```
 
 ### Step 6: Archive dead-code ES6 files (Warning #5)
