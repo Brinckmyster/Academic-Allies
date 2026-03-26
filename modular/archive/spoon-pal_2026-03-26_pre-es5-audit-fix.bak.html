@@ -12,13 +12,6 @@
   <!-- Note: Firebase was added 2026-03-02 because SpoonPal was missing it, causing waitForAA() to poll forever. -->
   <!-- Claude: 2026-03-13 — aligned aa-mirror.js cache-bust -->
   <!-- Claude: 2026-03-14 — removed duplicate aa-mirror.js; shared-header loads it -->
-  <!-- Claude: 2026-03-26 — Fixed 3 mangled ES5 conversions from Mar 25 bulk audit:
-       1. timeline.sortfunction → timeline.sort(function  (renderTimeline, broke task display)
-       2. timeline.reducefunction (×2) → timeline.reduce(function  (calculateSpoons + calculateEndOfDayBalance)
-       Also fixed: IIFE closure bug in renderTimeline loop (buttons called wrong index),
-       ES6 shorthand prop lmj, → lmj: lmj (addFromTemplate), ES6 default params in
-       findNextAvailableSlot → ES5 guard pattern, 4× shorthand props in rolloverDay Firestore write.
-       Archive: spoon-pal_2026-03-26_pre-es5-audit-fix.bak.html -->
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1021,7 +1014,7 @@
     base = Math.max(1, base);
 
     var planned = timeline.reduce(function(acc, t) { return acc + (t.spoon || 0); }, 0);
-    var spent = timeline.reduce(function(acc, t) {
+    var spent = timeline.reducefunction((acc, t) {
       if (t.status === 'complete') return acc + (t.spoon || 0);
       else if (t.status === 'partial') return acc + (t.spoon || 0) / 2;
       else return acc;
@@ -1103,7 +1096,7 @@
   function renderTimeline() {
     var tbody = document.getElementById('timelineBody');
     tbody.innerHTML = '';
-    timeline.sort(function(a, b) {
+    timeline.sortfunction((a, b) {
       var aM = parseTime(a.time);
       var bM = parseTime(b.time);
       if (aM < dayStart * 60) aM += 1440;
@@ -1150,57 +1143,50 @@
       lmjTd.textContent = t.lmj + deriveEmoji(t);
       tr.appendChild(lmjTd);
 
-      /* Claude: 2026-03-26 — IIFE-wrap all onclick handlers in renderTimeline() loop.
-         Pre-existing closure bug: all handlers captured the loop var `i` by reference,
-         so by the time any button was tapped, `i` equalled timeline.length and every
-         handler called openTaskModal/deleteTask with an out-of-bounds index.
-         Fix: factory IIFE (function(idx, task){...})(i, t) captures the current values. */
-      (function(idx, task) {
-        var descTd = document.createElement('td');
-        // stripLeadingEmoji: old Firestore data may have emoji baked into description;
-        // deriveEmoji() already adds the emoji in the LMJ column, so strip it here. (2026-03-02 by Claude)
-        descTd.textContent = stripLeadingEmoji(task.description) + ' (' + task.priority + ')';
-        descTd.classList.add('clickable');
-        descTd.onclick = function() { openTaskModal(idx); };
-        tr.appendChild(descTd);
+      var descTd = document.createElement('td');
+      // stripLeadingEmoji: old Firestore data may have emoji baked into description;
+      // deriveEmoji() already adds the emoji in the LMJ column, so strip it here. (2026-03-02 by Claude)
+      descTd.textContent = stripLeadingEmoji(t.description) + ' (' + t.priority + ')';
+      descTd.classList.add('clickable');
+      descTd.onclick = function() { openTaskModal(i); };
+      tr.appendChild(descTd);
 
-        var spoonTd = document.createElement('td');
-        spoonTd.textContent = task.spoon.toFixed(1);
-        spoonTd.classList.add('clickable');
-        spoonTd.onclick = function() { openTaskModal(idx); };
-        tr.appendChild(spoonTd);
+      var spoonTd = document.createElement('td');
+      spoonTd.textContent = t.spoon.toFixed(1);
+      spoonTd.classList.add('clickable');
+      spoonTd.onclick = function() { openTaskModal(i); };
+      tr.appendChild(spoonTd);
 
-        var statusTd = document.createElement('td');
-        statusTd.textContent = STATUS_ICONS[task.status] || STATUS_ICONS['incomplete'];
-        statusTd.classList.add('clickable');
-        statusTd.title = 'Tap to change status';
-        // Claude 2026-03-06: open picker instead of cycling
-        statusTd.onclick = function(e) { e.stopPropagation(); openStatusPicker(idx, statusTd); };
-        tr.appendChild(statusTd);
+      var statusTd = document.createElement('td');
+      statusTd.textContent = STATUS_ICONS[t.status] || STATUS_ICONS['incomplete'];
+      statusTd.classList.add('clickable');
+      statusTd.title = 'Tap to change status';
+      // Claude 2026-03-06: open picker instead of cycling
+      statusTd.onclick = function(e) { e.stopPropagation(); openStatusPicker(i, statusTd); };
+      tr.appendChild(statusTd);
 
-        var noteTd = document.createElement('td');
-        noteTd.textContent = task.notes || '';
-        noteTd.classList.add('clickable');
-        noteTd.onclick = function() { openTaskModal(idx); };
-        tr.appendChild(noteTd);
+      var noteTd = document.createElement('td');
+      noteTd.textContent = t.notes || '';
+      noteTd.classList.add('clickable');
+      noteTd.onclick = function() { openTaskModal(i); };
+      tr.appendChild(noteTd);
 
-        var actionTd = document.createElement('td');
-        var editBtn = document.createElement('button');
-        editBtn.textContent = 'Edit';
-        editBtn.onclick = function(e) { e.stopPropagation(); openTaskModal(idx); };
-        actionTd.appendChild(editBtn);
-        var cloneBtn = document.createElement('button');
-        cloneBtn.textContent = 'Clone';
-        cloneBtn.style.background = '#28a745';
-        cloneBtn.onclick = function(e) { e.stopPropagation(); addFromTemplate(task); };
-        actionTd.appendChild(cloneBtn);
-        var delBtn = document.createElement('button');
-        delBtn.textContent = 'Delete';
-        delBtn.style.background = '#d9534f';
-        delBtn.onclick = function(e) { e.stopPropagation(); deleteTask(idx); };
-        actionTd.appendChild(delBtn);
-        tr.appendChild(actionTd);
-      })(i, t);
+      var actionTd = document.createElement('td');
+      var editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = function(e) { e.stopPropagation(); openTaskModal(i); };
+      actionTd.appendChild(editBtn);
+      var cloneBtn = document.createElement('button');
+      cloneBtn.textContent = 'Clone';
+      cloneBtn.style.background = '#28a745';
+      cloneBtn.onclick = function(e) { e.stopPropagation(); addFromTemplate(t); };
+      actionTd.appendChild(cloneBtn);
+      var delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.style.background = '#d9534f';
+      delBtn.onclick = function(e) { e.stopPropagation(); deleteTask(i); };
+      actionTd.appendChild(delBtn);
+      tr.appendChild(actionTd);
 
       tbody.appendChild(tr);
     }
@@ -1466,7 +1452,7 @@
     var lmj = uniqueLMJ();
     timeline.push({
       time: task.time,
-      lmj: lmj,
+      lmj,
       // Claude 2026-03-06: strip emoji from cloned description to prevent accumulation
       description: stripLeadingEmoji(task.description || ''),
       spoon: task.spoon,
@@ -1726,9 +1712,7 @@
   // Fix: search starts from max(startHour, now+15min) — always in the future.
   // forNewDay=true bypasses the "must be in future" guard — used by rolloverDay()
   // so tomorrow's tasks are placed from dayStart (e.g. 9am), not from tonight's time.
-  function findNextAvailableSlot(existingTasks, startHour, forNewDay) {
-    if (startHour === undefined) startHour = 9;
-    if (forNewDay === undefined) forNewDay = false;
+  function findNextAvailableSlot(existingTasks, startHour = 9, forNewDay = false) {
     // Convert time string "HH:MM AM/PM" to minutes since midnight
     function timeToMinutes(timeStr) {
       var match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -1874,13 +1858,13 @@
         // Claude: Archive full snapshot to subcollection spoonPal/{uid}/days/{dateKey}
         /* Claude: 2026-03-16 — merge:true for data safety */
         window.AA.db.collection('spoonPal').doc(currentUid).collection('days').doc(dateKey).set({
-          timeline: timeline,
-          checkIn: checkIn,
-          spoonDebtHistory: spoonDebtHistory,
+          timeline,
+          checkIn,
+          spoonDebtHistory,
           endOfDayBalance: _eodBal,
           borrowedSpoons: _borr,
           dailyBudget: _budget,
-          dateKey: dateKey,
+          dateKey,
           archivedAt: new Date().toISOString()
         }, { merge: true }).catch(function(err) { console.error('[SpoonPal] Rollover archive error:', err); });
       }
@@ -1935,7 +1919,7 @@
   // Claude: Helper to calculate end-of-day spoon balance
   function calculateEndOfDayBalance() {
     var dailyBudget = calculateDailyBudget();
-    var totalSpent = timeline.reduce(function(acc, t) {
+    var totalSpent = timeline.reducefunction((acc, t) {
       if (t.status === 'complete') return acc + (t.spoon || 0);
       else if (t.status === 'partial') return acc + (t.spoon || 0) / 2;
       return acc;

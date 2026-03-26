@@ -415,21 +415,7 @@
   /* Claude: 2026-03-16 — REDUNDANCY LAYER: double-check doc.exists inside the
      function itself. If doc already exists, only fill in missing fields (never
      overwrite role, supportNetwork, etc.). This is the Mary Brinck safety net. */
-  /* Claude: 2026-03-26 — valid role list for write-time validation */
-  var VALID_ROLES = ['student', 'network-lead', 'backstage-manager', 'support', 'family', 'nearby-help', 'pending'];
-
   function createUserDoc(user, role) {
-    /* Claude: 2026-03-26 — validate uid, email, role before writing to Firestore */
-    if (!user || typeof user.uid !== 'string' || !user.uid) {
-      return Promise.reject(new Error('[AA] createUserDoc: invalid uid'));
-    }
-    if (typeof user.email !== 'string' || user.email.indexOf('@') === -1) {
-      return Promise.reject(new Error('[AA] createUserDoc: invalid email'));
-    }
-    if (typeof role !== 'string' || VALID_ROLES.indexOf(role) === -1) {
-      console.warn('[AA] createUserDoc: unexpected role "' + role + '" — defaulting to pending');
-      role = 'pending';
-    }
     return db.collection('users').doc(user.uid).get().then(function (existing) {
       if (existing.exists) {
         /* Doc exists — only patch missing fields, never overwrite */
@@ -757,14 +743,6 @@
   /* Claude: 2026-03-16 — enforce backstage-manager cap on pre-registration */
   window.AA.preRegisterEmail = function (email, role) {
     if (!auth.currentUser) return Promise.reject(new Error('Must be signed in as admin'));
-    /* Claude: 2026-03-26 — validate email and role before Firestore write */
-    if (typeof email !== 'string' || email.indexOf('@') === -1 || email.length > 254) {
-      return Promise.reject(new Error('[AA] preRegisterEmail: invalid email'));
-    }
-    var INVITE_ROLES = ['student', 'network-lead', 'backstage-manager', 'support', 'family', 'nearby-help'];
-    if (typeof role !== 'string' || INVITE_ROLES.indexOf(role) === -1) {
-      return Promise.reject(new Error('[AA] preRegisterEmail: invalid role "' + role + '"'));
-    }
 
     var capCheck = (role === 'backstage-manager')
       ? window.AA.countBackstageManagers().then(function (count) {

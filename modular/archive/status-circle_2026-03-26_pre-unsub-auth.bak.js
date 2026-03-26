@@ -53,7 +53,6 @@
   var _nope         = false;
   var _unsubNope    = null;
   var _unsubDay     = null;
-  var _unsubAuth    = null; /* Claude: 2026-03-26 — store onAuthStateChanged unsub handle */
   var _lastCheckinTs = null;  /* Date | null — timestamp of latest check-in entry */
   /* Claude: rolling average flag — true when displaying historical avg instead of today's data */
   var _isRollingAvg = false;
@@ -768,7 +767,6 @@
   function teardown() {
     if (_unsubNope) { _unsubNope(); _unsubNope = null; }
     if (_unsubDay)  { _unsubDay();  _unsubDay  = null; }
-    if (_unsubAuth) { _unsubAuth(); _unsubAuth = null; } /* Claude: 2026-03-26 — clean up auth listener */
   }
 
   function localData() {
@@ -995,7 +993,7 @@
       tries++;
       if (window.AA && window.AA.auth) {
         clearInterval(poll);
-        _unsubAuth = window.AA.auth.onAuthStateChanged(function (user) { /* Claude: 2026-03-26 — store unsub handle */
+        window.AA.auth.onAuthStateChanged(function (user) {
           if (!user) {
             teardown();
             _nope = false;

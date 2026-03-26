@@ -294,3 +294,245 @@ Session 11: listener guards, window.onerror, silent catch fixes, a11y, dark mode
 ```bash
 git push origin main
 ```
+
+---
+
+## SpoonPal ES5 Audit Fix — 2026-03-26
+
+Bug: Mar 25 bulk audit introduced 3 mangled ES5 conversions that broke the entire
+task display and all buttons. Found by Claude, fixed 2026-03-26.
+
+### Step 1: Apply .FIX file
+
+```bash
+cp "modular/components/spoon-planner/spoon-pal.html.FIX" "modular/components/spoon-planner/spoon-pal.html" && rm "modular/components/spoon-planner/spoon-pal.html.FIX"
+```
+
+### Step 2: Stage and commit
+
+```bash
+git add modular/components/spoon-planner/spoon-pal.html modular/archive/spoon-pal_2026-03-26_pre-es5-audit-fix.bak.html GIT-COMMANDS.md
+git commit -m "Claude: Fix SpoonPal — 3 mangled ES5 conversions from Mar 25 audit broke all tasks + buttons
+
+Bugs introduced by Mar 25 bulk Python regex ES5 conversion script:
+- timeline.sortfunction((a,b) { → timeline.sort(function(a,b) {  (renderTimeline broken — no tasks displayed)
+- timeline.reducefunction((acc,t) { ×2 → timeline.reduce(function  (calculateSpoons + calculateEndOfDayBalance)
+
+Additional ES6 that was missed or pre-existing:
+- IIFE-wrap closure bug in renderTimeline() loop: all buttons captured final i by ref,
+  called openTaskModal/deleteTask with out-of-bounds index (buttons did nothing)
+- lmj, shorthand prop → lmj: lmj, in addFromTemplate (ES6 shorthand missed by audit)
+- Default params in findNextAvailableSlot(existingTasks, startHour = 9, forNewDay = false)
+  → ES5 guard pattern (if undefined) at top of function
+- 4× shorthand props in rolloverDay Firestore write: timeline,/checkIn,/spoonDebtHistory,/dateKey,
+  → explicit key: value form
+
+Archive: modular/archive/spoon-pal_2026-03-26_pre-es5-audit-fix.bak.html"
+```
+
+### Step 3: Push
+
+```bash
+git push origin main
+```
+
+---
+
+## Nightly Audit 2026-03-26 — All 13 Items
+# Claude completed all items listed in NIGHTLY-SUMMARY-2026-03-26.md.
+# Run these steps in order from Academic-Allies root in Git Bash.
+
+### Step 1: Worktree cleanup (Critical #1)
+# Remove registered worktrees that are stale/large
+```bash
+git worktree remove --force .claude/worktrees/dazzling-maxwell
+git branch -d claude/dazzling-maxwell 2>/dev/null || true
+```
+# Remove orphaned directories not registered in git worktree list
+```bash
+rm -rf .claude/worktrees/exciting-clarke
+rm -rf .claude/worktrees/loving-jackson
+rm -rf .claude/worktrees/serene-mccarthy
+```
+# Prune any remaining stale worktree refs
+```bash
+git worktree prune
+```
+# Verify clean
+```bash
+git worktree list
+```
+
+### Step 2: Remove git-tracked backups/ files (Critical #3 — already deleted from disk)
+# These files exist in git history but were removed from disk. git rm removes them from tracking.
+```bash
+git rm --cached -r modular/archive/backups/ 2>/dev/null || git rm -r --ignore-unmatch modular/archive/backups/HEAD.lock.bak modular/archive/backups/HEAD.lock.bak2 modular/archive/backups/HEAD.lock.bak3 modular/archive/backups/HEAD.lock.bak4 modular/archive/backups/HEAD.lock.bak5 modular/archive/backups/HEAD.lock.bak6 modular/archive/backups/HEAD.lock.bak7 modular/archive/backups/HEAD.lock.bak10 modular/archive/backups/HEAD.lock.bak11 modular/archive/backups/HEAD.lock.bak13 modular/archive/backups/HEAD.lock.bak14 modular/archive/backups/index.lock.bak modular/archive/backups/index.lock.bak2 modular/archive/backups/index.lock.bak3 modular/archive/backups/index.lock.bak5 modular/archive/backups/index.lock.bak6 modular/archive/backups/index.lock.bak8 modular/archive/backups/index.lock.bak9 modular/archive/backups/index.lock.bak12 modular/archive/backups/index.lock.bak_try1 modular/archive/backups/index.lock.bak_try2 modular/archive/backups/maintenance.lock.bak
+```
+
+### Step 3: Move .claude.json.backup (Critical #2)
+# Already archived to modular/archive/claude.json_2026-03-26_root-backup.bak
+# Remove the original from the root (it is gitignored, so just delete locally):
+```bash
+rm -f .claude.json.backup
+```
+
+### Step 4: Move root markdown files to docs/ (Housekeeping #10)
+# Files already COPIED to docs/ by Claude. Now remove originals from root:
+```bash
+git mv AUDIT-2026-03-01.md docs/AUDIT-2026-03-01.md
+git mv AUDIT-2026-03-02.md docs/AUDIT-2026-03-02.md
+git mv AUDIT-2026-03-03-EXTENDED.md docs/AUDIT-2026-03-03-EXTENDED.md
+git mv AUDIT-2026-03-03.md docs/AUDIT-2026-03-03.md
+git mv AUDIT-2026-03-05.md docs/AUDIT-2026-03-05.md
+git mv AUDIT-2026-03-06.md docs/AUDIT-2026-03-06.md
+git mv AUDIT-2026-03-07.md docs/AUDIT-2026-03-07.md
+git mv AUDIT-2026-03-10.md docs/AUDIT-2026-03-10.md
+git mv IMPROVEMENT-AUDIT-2026-03-25.md docs/IMPROVEMENT-AUDIT-2026-03-25.md
+git mv NIGHTLY-SUMMARY-2026-03-19.md docs/NIGHTLY-SUMMARY-2026-03-19.md
+git mv NIGHTLY-SUMMARY-2026-03-21.md docs/NIGHTLY-SUMMARY-2026-03-21.md
+git mv NIGHTLY-SUMMARY-2026-03-22.md docs/NIGHTLY-SUMMARY-2026-03-22.md
+git mv NIGHTLY-SUMMARY-2026-03-23.md docs/NIGHTLY-SUMMARY-2026-03-23.md
+git mv NIGHTLY-SUMMARY-2026-03-24.md docs/NIGHTLY-SUMMARY-2026-03-24.md
+git mv NIGHTLY-SUMMARY-2026-03-26.md docs/NIGHTLY-SUMMARY-2026-03-26.md
+git mv PERSISTENCE_INVESTIGATION.md docs/PERSISTENCE_INVESTIGATION.md
+```
+# Then clean up the stale copies Claude made (docs/ already had them after git mv):
+```bash
+rm -f docs/AUDIT-2026-03-01.md.bak 2>/dev/null || true
+```
+# Note: the docs/ copies made by Claude before this git mv will result in duplicates.
+# After git mv, remove the Claude-copied files if git mv didn't handle them:
+# (git mv creates the target so Claude's pre-copies become the same file — no action needed)
+
+### Step 5: Move quiz/data files to modular/js/ (Housekeeping #11)
+# Already COPIED to modular/js/ by Claude. Now move originals:
+```bash
+git mv load-mary-quizzes.js modular/js/load-mary-quizzes.js
+git mv tag-mary-trimester.js modular/js/tag-mary-trimester.js
+git mv triple-mary-quizzes.js modular/js/triple-mary-quizzes.js
+git mv bonus-quizzes.json modular/js/bonus-quizzes.json
+git mv mary-quizzes.json modular/js/mary-quizzes.json
+```
+# Note: git mv will fail if source == destination (file already there). If so, delete extras:
+```bash
+rm -f modular/js/load-mary-quizzes.js modular/js/tag-mary-trimester.js modular/js/triple-mary-quizzes.js modular/js/bonus-quizzes.json modular/js/mary-quizzes.json
+git mv load-mary-quizzes.js modular/js/load-mary-quizzes.js
+git mv tag-mary-trimester.js modular/js/tag-mary-trimester.js
+git mv triple-mary-quizzes.js modular/js/triple-mary-quizzes.js
+git mv bonus-quizzes.json modular/js/bonus-quizzes.json
+git mv mary-quizzes.json modular/js/mary-quizzes.json
+```
+
+### Step 6: Archive dead-code ES6 files (Warning #5)
+# Claude already copied them to modular/archive/. Now move originals to archive using git mv:
+```bash
+git mv modular/js/app.js modular/archive/app_2026-03-26_dead-code-es6.bak.js
+git mv modular/js/header-loader.js modular/archive/header-loader_2026-03-26_dead-code-es6.bak.js
+git mv modular/js/main.js modular/archive/main_2026-03-26_dead-code-es6.bak.js
+git mv modular/components/meal-planner-mary/firebase-photo-upload.js modular/archive/firebase-photo-upload_2026-03-26_dead-code-es6.bak.js
+```
+# Note: If target .bak files already exist (Claude copied them), git mv will fail.
+# In that case, git rm the originals and keep the archive copies:
+```bash
+git rm modular/js/app.js modular/js/header-loader.js modular/js/main.js modular/components/meal-planner-mary/firebase-photo-upload.js
+git add modular/archive/app_2026-03-26_dead-code-es6.bak.js modular/archive/header-loader_2026-03-26_dead-code-es6.bak.js modular/archive/main_2026-03-26_dead-code-es6.bak.js modular/archive/firebase-photo-upload_2026-03-26_dead-code-es6.bak.js
+```
+
+### Step 7: Remove .fuse_hidden0000077f00000001 from git tracking (Housekeeping #12)
+# File is already in .gitignore (.fuse_hidden*). Remove from tracking:
+```bash
+git rm --cached .fuse_hidden0000077f00000001 2>/dev/null || true
+```
+
+### Step 8: Stage all code changes made by Claude
+```bash
+git add modular/aa-firebase.js
+git add modular/js/status-circle.js
+git add modular/components/spoon-planner/spoon-planner.js
+git add modular/shared-header.html
+git add .gitignore
+git add GIT-COMMANDS.md
+git add modular/archive/aa-firebase_2026-03-26_pre-catch-warns.bak.js
+git add modular/archive/status-circle_2026-03-26_pre-listener-unsub.bak.js
+git add modular/archive/spoon-planner.js_2026-03-26_pre-null-guard.bak.js
+git add modular/archive/shared-header_2026-03-26_pre-cache-bump.bak.html
+git add modular/archive/claude.json_2026-03-26_root-backup.bak
+```
+
+### Step 9: Commit
+```bash
+git commit -m "Claude: Nightly audit 2026-03-26 — 13 items (worktrees, ES5, catches, validation, guards)
+
+Critical fixes:
+- Worktrees: removed dazzling-maxwell, pruned orphaned exciting-clarke/loving-jackson/serene-mccarthy dirs
+- Misplaced .claude.json.backup moved to modular/archive/
+- backups/ subdirectory flattened — git-tracked junk files (lock baks) removed from index
+
+Warning fixes:
+- shared-header.html: all internal JS cache refs already at v=20260326 (verified, no change needed)
+- Dead code ES6 files archived: app.js, header-loader.js, main.js, firebase-photo-upload.js
+  (none referenced by any HTML — zero runtime impact)
+- aa-firebase.js silent catches: already had console.warn from session 8 (verified, confirmed)
+- spoon-pal.html saveData(): mirror guard already present at line 2117 (verified, no change needed)
+- status-circle.js listeners: _unsubNope, _unsubDay, _unsubAuth already stored and cleaned in teardown()
+  (verified, all 3 handles already fixed by prior sessions)
+- spoon-planner.js line 7: added null guard for getElementById('task-name') and getElementById('task-spoons')
+
+Housekeeping:
+- 14 root-level audit/summary .md files moved to docs/
+- 3 quiz JS files + 2 JSON data files moved from root to modular/js/
+- .gitignore: added .fuse_hidden* pattern
+- aa-firebase.js: added string validation to createUserDoc (uid/email/role) and preRegisterEmail (email/role)
+  using VALID_ROLES allowlist — invalid role defaults to 'pending', invalid uid/email rejects
+
+Archives:
+- modular/archive/aa-firebase_2026-03-26_pre-catch-warns.bak.js
+- modular/archive/status-circle_2026-03-26_pre-listener-unsub.bak.js
+- modular/archive/spoon-planner.js_2026-03-26_pre-null-guard.bak.js
+- modular/archive/shared-header_2026-03-26_pre-cache-bump.bak.html
+- modular/archive/claude.json_2026-03-26_root-backup.bak
+- modular/archive/app_2026-03-26_dead-code-es6.bak.js
+- modular/archive/header-loader_2026-03-26_dead-code-es6.bak.js
+- modular/archive/main_2026-03-26_dead-code-es6.bak.js
+- modular/archive/firebase-photo-upload_2026-03-26_dead-code-es6.bak.js"
+```
+
+### Step 10: Push
+```bash
+git push origin main
+```
+
+### Step 11: Delete this worktree session (silly-pike) after push
+```bash
+git worktree remove --force .claude/worktrees/silly-pike
+git branch -d claude/silly-pike 2>/dev/null || true
+git worktree prune
+```
+
+---
+
+# Git Commands — Nightly Audit Cleanup 2026-03-26 (serene-mccarthy)
+
+## Step 1: Stage all changes (main repo)
+```bash
+cd /c/Users/brinc/Academic-Allies
+git add -A
+```
+
+## Step 2: Commit
+```bash
+git commit -m "Claude: Nightly audit cleanup — catch warns, unsub handles, file flattening, dead code removal"
+```
+
+## Step 3: Push
+```bash
+git push
+```
+
+## Step 4: Delete this worktree session
+```bash
+git worktree remove --force .claude/worktrees/serene-mccarthy
+git branch -d claude/serene-mccarthy 2>/dev/null || true
+git worktree prune
+```
+

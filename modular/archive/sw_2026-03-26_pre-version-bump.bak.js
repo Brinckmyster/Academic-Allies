@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260326a'; /* Claude: 2026-03-26 — Nightly audit: catch warn fixes, unsub handles, cache bumps, dead code removal */
+var CACHE   = 'aa-shell-20260325i'; /* Claude: 2026-03-25 — Round 8: listener guards, window.onerror, silent catch fixes, a11y labels, remaining dark mode */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.

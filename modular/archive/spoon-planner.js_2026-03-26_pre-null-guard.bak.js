@@ -4,12 +4,8 @@ var btn = document.getElementById("add-task-btn");
   var taskList = document.getElementById("task-list");
   if(btn && taskList){
     btn.addEventListener("click", function(){
-      /* Claude: 2026-03-26 — null guard before accessing .value (audit fix) */
-      var nameEl = document.getElementById("task-name");
-      var spoonsEl = document.getElementById("task-spoons");
-      if (!nameEl || !spoonsEl) return;
-      var name = nameEl.value.trim();
-      var spoons = parseInt(spoonsEl.value, 10);
+      var name = document.getElementById("task-name").value.trim();
+      var spoons = parseInt(document.getElementById("task-spoons").value,10);
       if(!name||isNaN(spoons)){
         alert("Task and spoons required.");
         return;
