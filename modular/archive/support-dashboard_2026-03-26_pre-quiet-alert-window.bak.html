@@ -1267,14 +1267,13 @@
           currentCheckinGapDays = Math.round((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
         }
 
-        /* Claude: 2026-03-26 — If the student has used the app within the last
-           7 days, a missed check-in is a CHOICE, not a crisis. Suppress the
-           check-in gap signal when there's recent app activity. The check-in
-           gap only matters when COMBINED with real radio silence — no app usage
-           AND no check-ins. 24h was too tight; Mary was active 2 days ago and
-           still got a red alert about not checking in.
-           Archive: support-dashboard_2026-03-26_pre-quiet-alert-window.bak.html */
-        var studentIsAppActive = (currentAppGapHours !== null && currentAppGapHours < (7 * 24));
+        /* Claude: 2026-03-23 — If the student is active on the app (within 24h),
+           a missed check-in is a CHOICE, not a crisis. Suppress the check-in gap
+           signal entirely when app activity is recent. The check-in gap only matters
+           when COMBINED with app silence — that's when someone might actually need
+           someone to reach out.
+           Archive: support-dashboard_2026-03-23_pre-quiet-alert-fix.bak.html */
+        var studentIsAppActive = (currentAppGapHours !== null && currentAppGapHours < 24);
         if (currentCheckinGapDays !== null && baseline.avgCheckinGapDays && !studentIsAppActive) {
           var normalCheckinGap = baseline.avgCheckinGapDays;
           var checkinRatio = currentCheckinGapDays / Math.max(normalCheckinGap, 1);
