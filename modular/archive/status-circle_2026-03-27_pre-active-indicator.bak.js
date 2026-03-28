@@ -4,8 +4,6 @@
    Updated:  2026-02-21 by Claude — 5-segment ring, day logic, click toggle
    Updated:  2026-02-25 by Claude — Mary's confirmed 10-point energy scale
    Updated:  2026-02-26 by Claude — reads new categories object from gateway
-   Updated:  2026-03-27 by Claude — blue circle for recently active users with no check-in;
-             multi-signal fallback (lastSeen + studyActivity + alt timestamps)
              check-in (mental/physical/school/spiritual/social); legacy field
              fallback retained for entries saved before gateway rebuild;
              Spiritual segment now live; thumping flag bumps Mental+Physical;
@@ -72,14 +70,6 @@
      which is the single source of truth (in aa-firebase.js). All three consumers
      (status-circle, support dashboard, home page) call the same function. */
   var _suppressCaution = false;
-  /* Claude: 2026-03-27 — multi-signal recently active state.
-     Grey shows ONLY when ALL signals confirm no recent activity.
-     Signal 1: lastSeen.timestamp from user doc
-     Signal 2: studyActivity.lastActivity from studyActivity doc
-     Signal 3: fallback timestamps (lastLogin, lastActive, lastCheckIn) from user doc */
-  var _lastSeenTs          = null; /* Signal 1 */
-  var _studyLastActivityTs = null; /* Signal 2 */
-  var _altActivityTs       = null; /* Signal 3 */
 
   /* ── Day-of-week → eligible segments (0=Sun … 6=Sat) ───── */
   var DAY_SEGS = [
@@ -400,8 +390,7 @@
     } else if (_isRollingAvg) {
       timeLabel = 'Avg of last ' + ROLLING_DAYS + ' days';
     } else if (!_lastCheckinTs) {
-      /* Claude: 2026-03-27 — show active state instead of plain "no check-in" when recently online */
-      timeLabel = _isRecentlyActive() ? 'Active on site \u2014 no check-in today' : 'No check-in today';
+      timeLabel = 'No check-in today';
     } else {
       var now     = new Date();
       var diffMin = Math.round((now - _lastCheckinTs) / 60000);
@@ -510,12 +499,6 @@
     '<circle cx="20" cy="20" r="18" fill="#e0e0e0" opacity="0.4"/>' +
     '</svg>';
 
-  /* Claude: 2026-03-27 — blue circle for recently active users with no check-in */
-  var ACTIVE_NO_CHECKIN_SVG =
-    '<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">' +
-    '<circle cx="20" cy="20" r="18" fill="#42A5F5" opacity="0.7"/>' +
-    '</svg>';
-
   /* Claude: 2026-03-20 — uniform 5-slot pie. Each segment has a fixed 72° slot
      regardless of how many segments have data. Empty slots are simply not drawn,
      so segments stay in consistent positions and never change size. */
@@ -589,21 +572,14 @@
     var effectiveCaution = _isCaution && !_suppressCaution;
 
     if (_view === 'ring') {
+      el.innerHTML = makeSVG(_segData);
       var keys = Object.keys(_segData);
-      /* Claude: 2026-03-27 — show blue circle when no check-in data but recently active */
-      if (keys.length === 0 && _isRecentlyActive()) {
-        el.innerHTML = ACTIVE_NO_CHECKIN_SVG;
-        el.setAttribute('aria-label', 'Status: Active on site');
-        el.title = 'Active on site — no check-in today · click for overall view · double-click to reset position';
-      } else {
-        el.innerHTML = makeSVG(_segData);
-        var w    = avgColor(_segData);
-        var lbl  = keys.length
-          ? keys.join(', ') + ' — ' + (STATUS_LABEL[w] || 'all clear')
-          : 'No check-in yet';
-        el.setAttribute('aria-label', 'Status: ' + lbl);
-        el.title = lbl + ' · click for overall view · double-click to reset position';
-      }
+      var w    = avgColor(_segData);
+      var lbl  = keys.length
+        ? keys.join(', ') + ' — ' + (STATUS_LABEL[w] || 'all clear')
+        : 'No check-in yet';
+      el.setAttribute('aria-label', 'Status: ' + lbl);
+      el.title = lbl + ' · click for overall view · double-click to reset position';
     } else {
       /* Solid overall view */
       /* Claude: 2026-03-12 — when no check-in within CAUTION_DAYS, solid view
@@ -627,11 +603,6 @@
           el.setAttribute('aria-label', 'Status: ' + (SOLID_LABEL[color] || ''));
           el.title = (SOLID_LABEL[color] || '') +
                      ' · click for segments · double-click to reset position';
-        } else if (_isRecentlyActive()) {
-          /* Claude: 2026-03-27 — blue circle when no check-in data but recently active */
-          el.innerHTML = ACTIVE_NO_CHECKIN_SVG;
-          el.setAttribute('aria-label', 'Status: Active on site');
-          el.title = 'Active on site — no check-in today · click for segments · double-click to reset position';
         } else {
           el.innerHTML = EMPTY_SVG;
           el.setAttribute('aria-label', 'Status: No check-in yet');
@@ -678,51 +649,19 @@
     return sd;
   }
 
-  /* Claude: 2026-03-27 — true when ANY activity signal shows activity within 48 hours.
-     Grey shows ONLY when ALL three signals confirm no recent activity.
-     Protects against silent Firestore write failures on unreliable connections. */
-  function _isRecentlyActive() {
-    var WINDOW_MS = 48 * 60 * 60 * 1000;
-    var now = Date.now();
-    /* Signal 1: lastSeen.timestamp from user doc */
-    if (_lastSeenTs && (now - _lastSeenTs.getTime()) < WINDOW_MS) return true;
-    /* Signal 2: studyActivity.lastActivity from studyActivity doc */
-    if (_studyLastActivityTs && (now - _studyLastActivityTs.getTime()) < WINDOW_MS) return true;
-    /* Signal 3: fallback fields on user doc (lastLogin, lastActive, lastCheckIn) */
-    if (_altActivityTs && (now - _altActivityTs.getTime()) < WINDOW_MS) return true;
-    return false;
-  }
-
   /* Fetch study activity for a UID and store in module state.
-     Called after auth is ready. Returns a Promise.
-     Claude: 2026-03-27 — also reads studyActivity doc directly for lastActivity
-     timestamp (Signal 2 of _isRecentlyActive multi-signal check). */
+     Called after auth is ready. Returns a Promise. */
   function _fetchStudyActivity(uid) {
     if (!window.AA || !window.AA.study || !window.AA.study.wasActiveToday) {
       _studyActive = false;
-      _studyLastActivityTs = null;
       return Promise.resolve();
     }
     return window.AA.study.wasActiveToday(uid).then(function (result) {
       _studyActive = result.active;
       _studyTools = result.tools || [];
       _studySessions = result.sessions || 0;
-      /* Claude: 2026-03-27 — also fetch raw studyActivity doc for lastActivity timestamp */
-      if (window.AA && window.AA.db) {
-        return window.AA.db.collection('studyActivity').doc(uid).get()
-          .then(function (sdoc) {
-            var la = sdoc.exists ? (sdoc.data().lastActivity || null) : null;
-            if (la) {
-              _studyLastActivityTs = (typeof la.toDate === 'function')
-                ? la.toDate() : new Date(la);
-            } else {
-              _studyLastActivityTs = null;
-            }
-          }).catch(function () { _studyLastActivityTs = null; });
-      }
     }).catch(function () {
       _studyActive = false;
-      _studyLastActivityTs = null;
     });
   }
 
@@ -917,10 +856,6 @@
   function startWatching(user, forceRestart) {
     if (!forceRestart && user.uid === _scUid) return; // token refresh — skip re-init + listener re-stack. Claude, 2026-03-07.
     _scUid = user.uid;
-    /* Claude: 2026-03-27 — reset all activity signals until their async reads resolve */
-    _lastSeenTs          = null;
-    _studyLastActivityTs = null;
-    _altActivityTs       = null;
     var uid     = window.AA_MIRROR_UID || user.uid;  /* mirror UID if active */
     /* Claude: 2026-03-12 — skip if already watching this exact data UID (avoids duplicate listeners) */
     if (!forceRestart && uid === _watchingDataUid) return;
@@ -942,34 +877,6 @@
       if (doc.exists && doc.data().alertThreshold) {
         CAUTION_DAYS = doc.data().alertThreshold;
       }
-      /* Claude: 2026-03-27 — Signal 1: store lastSeen timestamp */
-      var docData = doc.exists ? doc.data() : {};
-      var ls = docData.lastSeen || null;
-      if (ls && ls.timestamp) {
-        _lastSeenTs = (typeof ls.timestamp.toDate === 'function')
-          ? ls.timestamp.toDate() : new Date(ls.timestamp);
-      } else {
-        _lastSeenTs = null;
-      }
-      /* Claude: 2026-03-27 — Signal 3: scan fallback timestamp fields on user doc.
-         Handles both plain Firestore Timestamps and nested {timestamp:...} objects.
-         Picks the most recent valid timestamp across lastLogin, lastActive, lastCheckIn. */
-      var altFields = [docData.lastLogin, docData.lastActive, docData.lastCheckIn];
-      var bestAlt = null;
-      var fi;
-      for (fi = 0; fi < altFields.length; fi++) {
-        var fv = altFields[fi];
-        if (!fv) continue;
-        var fts = null;
-        if (typeof fv.toDate === 'function') {
-          fts = fv.toDate();
-        } else if (fv.timestamp) {
-          fts = (typeof fv.timestamp.toDate === 'function')
-            ? fv.timestamp.toDate() : new Date(fv.timestamp);
-        }
-        if (fts && (!bestAlt || fts > bestAlt)) bestAlt = fts;
-      }
-      _altActivityTs = bestAlt;
       /* Claude: 2026-03-12 — skip caution diamond for non-student roles
          (backstage-manager, support, family etc. don't do check-ins) */
       var targetRole = (doc.exists && doc.data().role) || 'student';
