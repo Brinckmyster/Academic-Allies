@@ -682,7 +682,7 @@
      Grey shows ONLY when ALL three signals confirm no recent activity.
      Protects against silent Firestore write failures on unreliable connections. */
   function _isRecentlyActive() {
-    var WINDOW_MS = 7 * 24 * 60 * 60 * 1000; /* Claude: 2026-03-27 — widened from 48h to 7 days to match quiet alert window */
+    var WINDOW_MS = 48 * 60 * 60 * 1000;
     var now = Date.now();
     /* Signal 1: lastSeen.timestamp from user doc */
     if (_lastSeenTs && (now - _lastSeenTs.getTime()) < WINDOW_MS) return true;

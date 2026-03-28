@@ -254,7 +254,6 @@
     .ssc-dot.green   { background: #28a745; }
     .ssc-dot.unknown { background: #ccc; }
     /* Claude: 2026-03-16 — caution diamond for stale check-in (matches status circle) */
-    .ssc-dot.active-no-checkin { background: #42A5F5; }
     .ssc-dot.caution {
       background: #f5c518; border-radius: 0; transform: rotate(45deg);
       border: 1.5px solid #1a1a1a; width: 16px; height: 16px;
@@ -731,34 +730,13 @@
       /* Step 2: async upgrade — add mode emojis once Firestore responds */
       Promise.all(studentsInNetwork.map(function(s) {
         return AA.db.collection('nope').doc(s.uid).get().then(function(doc) {
-          /* Claude: 2026-03-27 — fetch both mode and check-in status for accurate emoji display */
-          return Promise.all([
-            doc,
-            _fetchStudentStatus(s.uid)
-          ]).then(function(res) {
-            var modeData = res[0].exists ? res[0].data() : null;
-            var hits = res[1];
-            var mode = (modeData && modeData.active) ? modeData.mode : null;
-            /* Emoji priority: active mode > check-in status > unknown */
-            var emoji = _PICKER_MODE_EMOJI[mode] || '⚪';
-            if (!mode && hits.length > 0) {
-              var h = hits[0];
-              var hex = window.AA && window.AA.avgEntryColor ? window.AA.avgEntryColor(h.entry) : null;
-              if (!hex && h.flag) {
-                emoji = (h.flag === 'red') ? '🔴' : (h.flag === 'orange') ? '🟠' : (h.flag === 'yellow') ? '🟡' : '🟢';
-              } else if (hex === '#dc3545') {
-                emoji = '🔴';
-              } else if (hex === '#fd7e14') {
-                emoji = '🟠';
-              } else if (hex === '#ffc107') {
-                emoji = '🟡';
-              } else if (hex === '#28a745') {
-                emoji = '🟢';
-              }
-            }
-            var opt = document.getElementById('picker-opt-' + s.uid);
-            if (opt) opt.textContent = emoji + ' ' + s.name;
-          }).catch(function(err) { console.warn('[SupportDash] picker status fetch failed:', err.message); });
+          /* Claude: 2026-03-23 — check .active before reading mode (same pattern as grid + auto-select) */
+          var data = doc.exists ? doc.data() : null;
+          var mode = (data && data.active) ? data.mode : null;
+          var opt = document.getElementById('picker-opt-' + s.uid);
+          if (opt) opt.textContent = (_PICKER_MODE_EMOJI[mode] || '🟢 ') + s.name;
+        /* Claude: 2026-03-25 — replaced empty .catch() with logging */
+        }).catch(function(err) { console.warn('[SupportDash] mode fetch failed:', err.message); });
       })).catch(function(err) { console.warn('[SupportDash] picker refresh failed:', err.message); });
     }
 
@@ -1610,7 +1588,7 @@
        OLD: only checked today's check-in flag → showed gray "unknown" if no check-in today.
        NEW: uses rolling 7-check-in average (same as status-circle.js), plus caution diamond
        for stale data, plus nope mode detection. Dot now matches the status circle color. */
-    var URGENCY = { nope: 0, red: 0, caution: 0.5, orange: 1, yellow: 2, green: 3, 'active-no-checkin': 3.5, unknown: 4 }; /* Claude: 2026-03-27 — added active-no-checkin for recently active users with no check-in */
+    var URGENCY = { nope: 0, red: 0, caution: 0.5, orange: 1, yellow: 2, green: 3, unknown: 4 };
     var CAUTION_DAYS_DEFAULT = 5;
     var MAX_LOOKBACK = 30;
     var ROLLING_COUNT = 7;
@@ -1705,15 +1683,6 @@
           var cautionDays = suppressResult.cautionDays || CAUTION_DAYS_DEFAULT;
 
           var dot = 'unknown';
-          /* Claude: 2026-03-27 — show blue dot if recently active within 7 days even with no check-in */
-          if (hits.length === 0 && s.lastSeenTs) {
-            var now = Date.now();
-            var SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-            var lastSeenMs = (typeof s.lastSeenTs.getTime === 'function') ? s.lastSeenTs.getTime() : s.lastSeenTs;
-            if ((now - lastSeenMs) < SEVEN_DAYS_MS) {
-              dot = 'active-no-checkin';
-            }
-          }
           if (isCrisis) {
             dot = (activeMode === 'nope' || activeMode === 'migraine') ? 'nope' : 'orange';
           } else if (hits.length > 0) {
