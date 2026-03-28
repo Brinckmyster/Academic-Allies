@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260328a'; /* Claude: 2026-03-28 — W5 cache-bust bump; archive bedroom-planner (W3); remove from NEVER_CACHE */
+var CACHE   = 'aa-shell-20260327e'; /* Claude: 2026-03-27 — unified status colors: index.html + status-circle.js + truncation fix */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -52,6 +52,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/admin.html', /* Claude: 2026-03-25 — role-based access, must be fresh */
   '/Academic-Allies/modular/components/audit-log/audit-log.html', /* Claude: 2026-03-25 — compliance data, must be fresh */
   '/Academic-Allies/modular/components/audio-notes/audio-converter.html', /* Claude: 2026-03-25 — file I/O tool */
+  '/Academic-Allies/modular/components/bedroom-planner/bedroom-planner.html', /* Claude: 2026-03-27 — W4 audit fix: prevent stale cache */
   '/Academic-Allies/sw.js'
 ];
 

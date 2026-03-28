@@ -1,137 +1,142 @@
-# Nightly Deep Audit Summary — 2026-03-27
-
+# Academic Allies — Nightly Deep Audit Summary
+**Date:** 2026-03-27 (late run)
 **Auditor:** Claude
-**Scope:** Full codebase audit (all HTML pages, all JS files, icons, sw.js, git branches/worktrees)
-**Branch:** main (commit 433ec81)
-**Audit time:** ~2026-03-27 (automated scheduled task)
-
----
-
-## Overall Health: GOOD — No Critical Issues
-
-The app is functional and secure. Auth guards, mirror mode write-guards, and onSnapshot cleanup handles are all in good shape. No broken resource references. The issues below are all in the Warning or Housekeeping tier.
+**Overall Health:** GOOD — No critical vulnerabilities. A handful of medium-priority housekeeping items.
 
 ---
 
 ## CRITICAL ISSUES
-
-None.
+**None found.** Auth, security, mirror guards, and Firestore write protections are all solid.
 
 ---
 
-## WARNINGS
+## WARNINGS (Medium Priority)
 
-### W1 — 6 Stale Prunable Worktrees (Git Hygiene)
+### 1. Stale Cache-Bust Versions (2 files)
+Two pages are fetching shared-header.html with an outdated `?v=20260324` while the rest of the codebase uses `?v=20260327`:
 
-Six local worktrees remain in `C:/Users/brinc/Academic-Allies/.claude/worktrees/` and all are marked **prunable** with no unique commits ahead of main:
+- `modular/components/bedroom-planner/bedroom-planner.html` (line 99)
+- `modular/static/sitemap.html` (line 170)
 
-- `claude/confident-black`
-- `claude/dazzling-maxwell`
-- `claude/flamboyant-shannon`
-- `claude/inspiring-brown`
-- `claude/silly-pike`
-- `claude/zealous-turing`
+**Fix:** Update the `?v=` parameter to `20260327` in both files.
 
-These are safe to prune. Run these commands when ready:
+### 2. Stale Worktrees (2 orphaned)
+Two Claude worktrees point to non-existent Windows paths and are marked PRUNABLE:
+
+- `nice-jang` -> branch `claude/nice-jang` (commit 433ec81)
+- `vigilant-poincare` -> branch `claude/vigilant-poincare` (commit 433ec81)
+
+**Fix (run in Git Bash):**
 
 ```bash
 git worktree prune
-git branch -D claude/confident-black claude/dazzling-maxwell claude/flamboyant-shannon claude/inspiring-brown claude/silly-pike claude/zealous-turing
+git branch -d claude/nice-jang
+git branch -d claude/vigilant-poincare
 ```
+
+### 3. Misplaced .FIX / .NEW Files in Repo (3 files)
+These temp files are sitting in the source tree instead of the archive:
+
+- `index.html.FIX` (root, 48K)
+- `sw.js.NEW` (root, 11K)
+- `modular/js/status-circle.js.NEW` (52K)
+
+**Fix:** Move to `modular/archive/` or delete after confirming they are no longer needed.
+
+### 4. Misplaced Backup in Root
+- `.claude.json.backup` (root, 4K) — should be in `modular/archive/`
 
 ---
 
-### W2 — Misplaced React JSX File (Dead Code)
+## HOUSEKEEPING (Low Priority)
 
-**File:** `modular/components/status-circle/status-circle.html`
+### 5. Broken Images in Icon Gallery (Cosmetic)
+`modular/icon-gallery.html` references 4 home icon variants that don't exist on disk:
+- `icons/home.jpeg` (line 108)
+- `icons/home.jpg` (line 112)
+- `icons/home.svg` (line 120)
+- `icons/home.webp` (line 124)
 
-This file is a React component (`import React from 'react'; const UserNotRegisteredError = () => { ... }`). It is:
-- Not a valid HTML page
-- Not linked from any navigation, index.html, or shared-header
-- Incompatible with the vanilla JS / no-framework architecture
-- Dead code — no user can reach it
+Only `icons/home.png` exists. This is purely cosmetic — icon-gallery is a dev/test page.
 
-It appears to have landed here by mistake (possibly from a Cowork artifact). It should be archived. When ready:
+### 6. FUSE Filesystem Artifact
+- `.fuse_hidden0000077f00000001` (root, 3.2K) — leftover from an interrupted file operation. Safe to ignore.
+
+### 7. Duplicate DOMContentLoaded Listeners
+`meal-planner/bootstrap-suggestor.js` and `meal-planner-mary/bootstrap-suggestor.js` each register 7-8 separate `onReady()` wrappers. Not a bug (they use `{once:true}`), but could be consolidated for maintainability.
+
+---
+
+## AUDIT RESULTS BY CATEGORY
+
+### 1. Broken Resources — PASS
+All script/CSS/manifest references resolve. All fetch() calls to shared components are valid. Only the icon-gallery cosmetic issue noted above.
+
+### 2. Auth & Security — PASS
+- Firebase persistence defaults to LOCAL with explicit SESSION opt-out via "Keep me signed in" checkbox
+- All 15+ pages with Firestore writes are protected by mirror mode guards
+- `AA_MIRROR_CAN_WRITE` is true ONLY for network-lead role
+- All pages that access user data check `onAuthStateChanged`
+- No unprotected write paths found
+
+### 3. Cache Consistency — PASS (with 2 stale files noted above)
+- sw.js CACHE_VERSION: `aa-shell-20260327d` — current
+- NEVER_CACHE list is comprehensive and up-to-date (includes bedroom-planner added today)
+- Shared-footer cache-bust: `?v=20260326` (fetched via shared-header only)
+
+### 4. Code Quality — PASS
+- **ES5 compliance:** No violations found. No let/const/arrow functions/template literals/classes in production code.
+- **Unused variables:** None detected
+- **Event listener patterns:** Acceptable with minor consolidation opportunity (see #7 above)
+
+### 5. Archive Hygiene — PASS (with items noted above)
+- All `.bak` files in `modular/archive/` are properly stored and named
+- No dot-file archives found
+- The 3 misplaced .FIX/.NEW files and 1 root backup are the only issues
+
+### 6. Redundancy Checks — DETAILED RESULTS
+
+| Check | Grade | Notes |
+|-------|-------|-------|
+| Error handling coverage | A | 94/94 Firestore ops have .catch(); 7/7 fetch calls have .catch() |
+| Offline fallbacks | B+ | Status, Meals, Migraine, Study have offline queues; Calendar/Messages/Settings lack offline support (acceptable) |
+| Retry logic | B+ | Token refresh and write queues work well; initial user doc retries implicitly on next session |
+| Null/undefined guards | A- | 99% guarded; 3-4 edge cases safe due to upstream existence checks |
+| Race condition prevention | A | Documented listener inventory; teardown before resubscribe; UID guards on token refresh |
+| Duplicate listener prevention | A | Flags prevent stacking; teardown() called before re-subscribing |
+| Graceful degradation | A | Each feature fails independently; no cascading failures; localStorage fallbacks work |
+| Data validation on write | A | Critical writes (user doc, emails, roles) validated; non-critical writes trust UI + Firestore rules |
+| Service worker staleness | PASS | CACHE_VERSION current; NEVER_CACHE list up-to-date |
+
+### 7. Misplaced Files — NOTED
+- 3 .FIX/.NEW temp files (see Warning #3)
+- 1 misplaced root backup (see Warning #4)
+- 1 FUSE artifact (see #6)
+- 2 orphaned worktrees (see Warning #2)
+- No stale remote branches (Brinckmyster-Aestas is off-limits and untouched)
+
+---
+
+## RECOMMENDED GIT COMMANDS (DO NOT RUN — for Bruise to execute)
 
 ```bash
-cp modular/components/status-circle/status-circle.html modular/archive/status-circle_2026-03-27_misplaced-react-component.bak.html
-git rm modular/components/status-circle/status-circle.html
-git commit -m "Claude: Archive misplaced React JSX stub in status-circle — dead code, not linked"
+# 1. Prune orphaned worktrees and stale branches
+git worktree prune
+git branch -d claude/nice-jang
+git branch -d claude/vigilant-poincare
+
+# 2. Archive misplaced files (after confirming they are no longer needed)
+mv index.html.FIX modular/archive/index_2026-03-27_FIX-variant.bak.html
+mv sw.js.NEW modular/archive/sw_2026-03-27_NEW-variant.bak.js
+mv modular/js/status-circle.js.NEW modular/archive/status-circle_2026-03-27_NEW-variant.bak.js
+mv .claude.json.backup modular/archive/claude-json_2026-03-27.bak.json
+
+# 3. Stage and commit cleanup
+git add -A
+git commit -m "Claude: Nightly housekeeping — archive misplaced files, prune stale worktrees"
+git push origin main
 ```
 
 ---
 
-### W3 — ES6 Violations in bedroom-planner.html
-
-**File:** `modular/components/bedroom-planner/bedroom-planner.html`
-
-This page uses `const`, `let`, and arrow functions (`const ROOM = {...}`, `const def = id => ...`, `let placed={}`, etc.) throughout its script block. The project rule is ES5-compatible `var`/`function` style only. This page was last updated in commit `155a466` (Mar 25 audit batch) but the ES6 was not caught then.
-
-Additionally: this page does not appear in any navigation link (index.html, shared-header.html, study-tools.html, or sitemap.html). It is functionally orphaned — a user cannot navigate to it through the UI.
-
-**Action needed:** Either link it in the nav, or archive it. If keeping, convert to ES5 first. No git commands provided here since this requires a decision call.
-
----
-
-### W4 — bedroom-planner.html Not in NEVER_CACHE or SHELL
-
-Because bedroom-planner.html is in neither list, the service worker will cache it indefinitely on first visit (cache-first strategy with stale-while-revalidate). If the file is later updated, users may receive stale versions. If the page is kept and linked, add it to NEVER_CACHE.
-
----
-
-### W5 — Cache-Bust Version Strings Are 2 Days Stale
-
-All pages (index.html, all modular/*.html, all component/*.html) request shared-header with `?v=20260324`. The actual shared-header.html was updated and the footer/sw.js were bumped to `20260326` after that. The SW bypasses the cache for shared-header regardless of query string (it uses `url.pathname` for NEVER_CACHE matching, stripping the `?v=` part), so this is **not a functional bug**. However the version strings are misleading documentation. Low priority.
-
----
-
-### W6 — study-notes.html Has No localStorage Offline Fallback
-
-**File:** `modular/components/study-notes/study-notes.html`
-
-The page reads and writes to Firestore (class notes, study notes collections) and has solid `.catch()` coverage on all Firestore operations. However, unlike calendar.html and meal-planner.html, there is no `localStorage` read-first or write-backup pattern. If the user is offline, the page will simply show empty content with a logged error — no cached data surfaced.
-
-Since study-notes.html IS in NEVER_CACHE (fetched fresh), this means the page is also more exposed to offline failure than cached pages. Low urgency but worth adding a draft/cache layer for the notes list in a future session.
-
----
-
-## HOUSEKEEPING ITEMS
-
-### H1 — 5 Duplicate Home Icon Formats
-
-`modular/icons/` contains: `home.jpeg`, `home.jpg`, `home.png`, `home.svg`, `home.webp`. Only `home.png` is referenced in shared-header.html. The other four variants appear to be leftover from format testing. Consider archiving the unused formats when it's convenient.
-
----
-
-## CHECKS THAT PASSED ✓
-
-- **Broken resources**: All icons referenced in shared-header.html and index.html exist on disk. No 404-prone image or script paths found.
-- **Broken fetch() paths**: All `fetch('/Academic-Allies/modular/shared-header.html?v=...')` calls reference a valid file. No dead fetch targets.
-- **Mirror mode write guards**: Properly implemented across checkin, spoon-planner, spoon-pal, user-tiers, support-dashboard, message-system, nope-mode, semi-nope. Guard pattern `if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;` found consistently.
-- **Auth gate coverage**: All Firestore-reading pages use `AA.auth.onAuthStateChanged()` or the `_waitBoot()` pattern. No page skips auth before reading user data.
-- **Error handling**: Good `.catch()` coverage on all key pages audited (meal-planner, audio-notes, support-dashboard, checkin-log, calendar, message-system). No critical unhandled promise chains found.
-- **Null/undefined guards**: `||{}`, `||null`, `||''`, `isNaN()` guards present on Firestore read paths in checkin.html and spoon-planner. Spoon math has explicit NaN protection (commit 091f1a2 fix).
-- **onSnapshot cleanup**: message-system, user-tiers, support-dashboard, and spoon-planner all use named unsub handles (`unsubMessages = null`, `_unsubStatusNope = null`, etc.) and clean up before re-subscribing.
-- **Duplicate listener prevention**: No stacking onAuthStateChanged calls found. The two in semi-nope.html are for separate purposes (main auth + config loading) and use the `_waitBoot()` guard pattern.
-- **NEVER_CACHE completeness**: All actively-changing pages (audio-notes, spoon-planner, support-dashboard, user-tiers, message-system, calendar, checkin, recovery-mode, etc.) are in the NEVER_CACHE list. sw.js is at `aa-shell-20260326c`.
-- **Archive hygiene**: No `.bak` files found outside `modular/archive/`. Archive directory is clean and properly organized (1,458 files — all correctly named).
-- **ES5 compliance**: All core files (aa-firebase.js, aa-mirror.js, mode-enforcer.js, mode-gate.js, dark-mode.js, status-circle.js, student-config.js, study-activity.js) are clean ES5. bedroom-planner.html is the only outlier.
-- **Data validation on write**: spoon-planner validates NaN/undefined before Firestore writes. checkin.html uses `|| null` and `|| ''` guards on all entry fields.
-- **Graceful feature degradation**: Each page wraps its feature init in `.catch()` that shows user-facing messages rather than crashing the page.
-- **Service worker staleness**: CACHE name `aa-shell-20260326c` reflects the most recent change (support-dashboard quiet alert window). NEVER_CACHE list is comprehensive.
-- **Remote branch safety**: `remotes/origin/Brinckmyster-Aestas` untouched. No audit actions were taken against it.
-
----
-
-## SUMMARY TABLE
-
-| Category | Status | Count |
-|---|---|---|
-| Critical issues | ✅ None | 0 |
-| Warnings | ⚠️ See above | 6 |
-| Housekeeping | 🧹 Minor | 1 |
-| Checks passed | ✅ All clear | 14 |
-
----
-
-*Claude — automated nightly audit, 2026-03-27*
+*Report generated by Claude — 2026-03-27 nightly deep audit (late run)*
