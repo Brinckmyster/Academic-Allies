@@ -275,7 +275,7 @@
    Stores class list in Firestore: studyNotes/{uid}/classes collection.
    Stores note metadata in Firestore: studyNotes/{uid}/notes collection.
    Uploads files to Google Drive: "Academic Allies Study Notes/{className}/" folder.
-   Claude: 2026-03-27 — W6 audit fix: localStorage offline fallback */
+   Archive: NEW FILE — no archive needed. */
 (function() {
   'use strict';
 
@@ -293,7 +293,6 @@
   var notes = {};       /* className → [{id, title, driveId, driveLink, date, fileName}] */
   var currentUid = null;
   var pasteTargetClass = null;
-  var _offlineMode = false; /* Claude: 2026-03-27 — track if we're showing cached data */
 
   /* ── Helpers ────────────────────────────────────────────────── */
   function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -440,48 +439,7 @@
     });
   }
 
-  /* ── Firestore operations with offline fallback ─────────────── */
-  /* Claude: 2026-03-27 — localStorage cache helpers */
-  function saveClassesToCache(uid) {
-    try {
-      localStorage.setItem('AA_STUDY_CLASSES_' + uid, JSON.stringify(classes));
-    } catch(e) {
-      console.warn('[StudyNotes] localStorage write failed:', e);
-    }
-  }
-
-  function saveNotesToCache(uid) {
-    try {
-      localStorage.setItem('AA_STUDY_NOTES_' + uid, JSON.stringify(notes));
-    } catch(e) {
-      console.warn('[StudyNotes] localStorage write failed:', e);
-    }
-  }
-
-  function loadCachedClasses(uid) {
-    try {
-      var cached = localStorage.getItem('AA_STUDY_CLASSES_' + uid);
-      if (cached) {
-        return JSON.parse(cached);
-      }
-    } catch(e) {
-      console.warn('[StudyNotes] localStorage read failed:', e);
-    }
-    return null;
-  }
-
-  function loadCachedNotes(uid) {
-    try {
-      var cached = localStorage.getItem('AA_STUDY_NOTES_' + uid);
-      if (cached) {
-        return JSON.parse(cached);
-      }
-    } catch(e) {
-      console.warn('[StudyNotes] localStorage read failed:', e);
-    }
-    return null;
-  }
-
+  /* ── Firestore operations ──────────────────────────────────── */
   function loadClasses() {
     return AA.db.collection('studyNotes').doc(currentUid).collection('classes')
       .orderBy('createdAt', 'asc').get()
@@ -491,9 +449,6 @@
           var d = doc.data();
           classes.push({ id: doc.id, name: d.name, createdAt: d.createdAt });
         });
-        /* Claude: 2026-03-27 — save successful load to localStorage */
-        saveClassesToCache(currentUid);
-        _offlineMode = false;
       });
   }
 
@@ -515,9 +470,6 @@
             date: d.date
           });
         });
-        /* Claude: 2026-03-27 — save successful load to localStorage */
-        saveNotesToCache(currentUid);
-        _offlineMode = false;
       });
   }
 
@@ -608,12 +560,6 @@
       html += '</div>'; /* class-body */
       html += '</div>'; /* class-card */
     });
-
-    /* Claude: 2026-03-27 — add offline banner if showing cached data */
-    if (_offlineMode) {
-      html = '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#856404;display:flex;align-items:center;gap:8px;">' +
-        '<span>⚠️</span><span>Showing cached data — you may be offline</span></div>' + html;
-    }
 
     container.innerHTML = html;
 
@@ -913,40 +859,13 @@
 
       currentUid = window.AA_MIRROR_UID || window.AA.auth.currentUser.uid;
 
-      /* Claude: 2026-03-27 — load cached data first for instant render */
-      var cachedClasses = loadCachedClasses(currentUid);
-      var cachedNotes = loadCachedNotes(currentUid);
-      if (cachedClasses && cachedNotes) {
-        classes = cachedClasses;
-        notes = cachedNotes;
-        _offlineMode = true;
-        render();
-      }
-
-      /* Load fresh data from Firestore */
+      /* Load data */
       Promise.all([loadClasses(), loadNotes()])
         .then(render)
         .catch(function(err) {
           console.error('[StudyNotes] Init failed:', err);
-          /* Claude: 2026-03-27 — if Firestore fails, try cached data */
-          if (_offlineMode) {
-            /* Already rendered cached data above, just warn user */
-            console.warn('[StudyNotes] Firestore fetch failed, using offline cache');
-          } else {
-            /* No cached data available */
-            var cachedClasses2 = loadCachedClasses(currentUid);
-            var cachedNotes2 = loadCachedNotes(currentUid);
-            if (cachedClasses2 && cachedNotes2) {
-              classes = cachedClasses2;
-              notes = cachedNotes2;
-              _offlineMode = true;
-              render();
-            } else {
-              /* No cache at all */
-              document.getElementById('classesContainer').innerHTML =
-                '<div class="sn-empty">Failed to load — please refresh.</div>';
-            }
-          }
+          document.getElementById('classesContainer').innerHTML =
+            '<div class="sn-empty">Failed to load — please refresh.</div>';
         });
     }, 250);
 
