@@ -744,9 +744,16 @@
       /* Claude: 2026-03-12 — update mirror globals so the header banner shows the right name */
       window.AA_MIRROR_UID = s.uid;
       if (window.AA_MIRROR) window.AA_MIRROR.studentName = s.name;
-      /* Claude: 2026-03-28 — sync the dropdown so it matches whichever grid card was clicked */
+      /* Claude: 2026-03-28 — sync dropdown + grid card highlight so both follow the switch */
       var picker = document.getElementById('student-picker');
       if (picker) picker.value = s.uid;
+      var grid = document.getElementById('my-students-grid');
+      if (grid) {
+        grid.querySelectorAll('.msc-item').forEach(function (el) { el.classList.remove('active'); });
+        grid.querySelectorAll('.msc-item').forEach(function (el) {
+          if (el.getAttribute('data-uid') === s.uid) el.classList.add('active');
+        });
+      }
       try { sessionStorage.setItem('AA_MIRROR_STUDENT_NAME', s.name); } catch(e) {}
       /* Update the mirror banner if it exists */
       var mirrorBanner = document.getElementById('aa-mirror-banner');
@@ -1614,14 +1621,13 @@
         results.forEach(function (s) {
           var item = document.createElement('div');
           item.className = 'msc-item' + (s.uid === studentUid ? ' active' : '');
+          item.setAttribute('data-uid', s.uid); /* Claude: 2026-03-28 — for switchStudent highlight sync */
           item.title     = 'View ' + s.name + '\'s dashboard';
           item.innerHTML =
             '<span class="ssc-dot ' + s.dot + '"></span>' +
             '<span>' + esc(s.name) + '</span>';
           item.addEventListener('click', function () {
             switchStudent(s.uid);
-            grid.querySelectorAll('.msc-item').forEach(function (el) { el.classList.remove('active'); });
-            item.classList.add('active');
           });
           grid.appendChild(item);
         });
