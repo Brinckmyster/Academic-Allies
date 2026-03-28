@@ -934,48 +934,6 @@
     _watchingDataUid = uid;
     var dateKey = _localDateKey();
 
-    /* Claude: 2026-03-27 — initial render from AA.getStudentStatus() (centralized, single
-       source of truth). This ensures the circle shows the correct color immediately,
-       especially for mirror targets where the onSnapshot listener may take time to resolve.
-       The onSnapshot listeners below will refine with full segment detail once they fire. */
-    if (window.AA && window.AA.getStudentStatus) {
-      window.AA.getStudentStatus(uid).then(function (status) {
-        /* Only apply if this is still the same uid we're watching (guard against race) */
-        if (uid !== _watchingDataUid) return;
-        /* Don't overwrite if onSnapshot already delivered real segment data */
-        var currentKeys = Object.keys(_segData);
-        if (currentKeys.length > 0 && currentKeys[0] !== 'rolling') return;
-        /* Map centralized result back to status circle state */
-        _isCaution = status.isCaution && !status.suppressCaution;
-        _suppressCaution = status.suppressCaution;
-        _isRollingAvg = status.isRollingAvg;
-        if (status.lastCheckinTs) _lastCheckinTs = status.lastCheckinTs;
-        /* If centralized returned segment data, use it for initial render */
-        if (status.dotClass === 'nope') {
-          _nope = true;
-        } else if (status.segData && Object.keys(status.segData).length > 0) {
-          /* Map rolling hex to a single-key segData that render() can color */
-          var rollingHex = status.segData['rolling'];
-          if (rollingHex && Object.keys(_segData).length === 0) {
-            /* Build fake per-segment data using the rolling color so the circle isn't empty */
-            var segs = eligibleSegs();
-            var tmpSeg = {};
-            for (var si = 0; si < segs.length; si++) {
-              tmpSeg[segs[si]] = rollingHex;
-            }
-            _segData = tmpSeg;
-          }
-        }
-        /* If active-no-checkin, set activity signals so _isRecentlyActive() returns true */
-        if (status.isRecentlyActive) {
-          _lastSeenTs = new Date(); /* synthetic recent timestamp */
-        }
-        render();
-      }).catch(function (err) {
-        console.warn('[StatusCircle] initial AA.getStudentStatus failed:', err);
-      });
-    }
-
     /* Claude: 2026-03-20 — fetch study tool activity for this user.
        Runs in parallel with check-in listener setup. When it completes,
        re-renders to inject Academic segment if tools were used today. */
@@ -1076,33 +1034,74 @@
           _isCaution = false;  /* Claude: 2026-03-12 — checked in today, no caution */
           render();
         } else {
-          /* Claude: 2026-03-12 — no check-in today: fetch all recent data, then
-             decide scenario 2 (last 7 days) vs scenario 3 (last 7 check-ins) */
-          fetchAllRecent(uid).then(function (result) {
-            /* Claude: 2026-03-12 — non-students never show caution (they don't check in) */
-            _isCaution = window._scTargetIsStudent !== false && result.newestDaysAgo > CAUTION_DAYS;
-            _lastCheckinTs = null;
-
-            if (_isCaution) {
-              /* Scenario 3: stale data — average last 7 CHECK-INS */
-              var checkins = filterByCount(result.hits);
-              _segData = fromRollingEntries(checkins);
-              _isRollingAvg = checkins.length > 0;
-            } else {
-              /* Scenario 2: recent data — average last 7 CALENDAR DAYS */
-              var dayEntries = filterByDays(result.hits);
-              _segData = fromRollingEntries(dayEntries);
-              _isRollingAvg = dayEntries.length > 0;
-            }
-            render();
-          }).catch(function (err) {
-            console.warn('[status-circle] rolling average fetch failed:', err);
-            _segData = {};
-            _isRollingAvg = false;
-            _isCaution = false;
-            _lastCheckinTs = null;
-            render();
-          });
+          /* Claude: 2026-03-28 — REWRITTEN to use AA.getStudentStatus() (single source of truth).
+             OLD: fetchAllRecent() did its own 30-day lookback + scenario logic, which raced
+             with other async calls and could produce different colors than the dashboard.
+             NEW: one call to the centralized function — same result everywhere.
+             Falls back to fetchAllRecent if AA.getStudentStatus isn't available yet.
+             Archive: status-circle_2026-03-27_pre-unified-main-circle.bak.js */
+          if (window.AA && window.AA.getStudentStatus) {
+            window.AA.getStudentStatus(uid).then(function (status) {
+              /* Guard: make sure we're still watching this uid */
+              if (uid !== _watchingDataUid) return;
+              _isCaution = status.isCaution && !status.suppressCaution;
+              _suppressCaution = status.suppressCaution;
+              _isRollingAvg = status.isRollingAvg;
+              _lastCheckinTs = status.lastCheckinTs || null;
+              if (status.dotClass === 'nope') {
+                _nope = true;
+                _segData = {};
+              } else if (status.segData && Object.keys(status.segData).length > 0) {
+                /* Build per-segment data from rolling color for the pie chart */
+                var rollingHex = status.segData['rolling'];
+                if (rollingHex) {
+                  var segs = eligibleSegs();
+                  var tmpSeg = {};
+                  for (var si = 0; si < segs.length; si++) {
+                    tmpSeg[segs[si]] = rollingHex;
+                  }
+                  _segData = tmpSeg;
+                }
+              } else if (status.isRecentlyActive) {
+                /* Active but no check-in data — set signal for blue circle */
+                _lastSeenTs = new Date();
+                _segData = {};
+              } else {
+                _segData = {};
+              }
+              render();
+            }).catch(function (err) {
+              console.warn('[status-circle] AA.getStudentStatus failed, falling back:', err);
+              _segData = {};
+              _isRollingAvg = false;
+              _isCaution = false;
+              _lastCheckinTs = null;
+              render();
+            });
+          } else {
+            /* Fallback: AA.getStudentStatus not loaded yet — use old method */
+            fetchAllRecent(uid).then(function (result) {
+              _isCaution = window._scTargetIsStudent !== false && result.newestDaysAgo > CAUTION_DAYS;
+              _lastCheckinTs = null;
+              if (_isCaution) {
+                var checkins = filterByCount(result.hits);
+                _segData = fromRollingEntries(checkins);
+                _isRollingAvg = checkins.length > 0;
+              } else {
+                var dayEntries = filterByDays(result.hits);
+                _segData = fromRollingEntries(dayEntries);
+                _isRollingAvg = dayEntries.length > 0;
+              }
+              render();
+            }).catch(function (err) {
+              console.warn('[status-circle] rolling average fetch failed:', err);
+              _segData = {};
+              _isRollingAvg = false;
+              _isCaution = false;
+              _lastCheckinTs = null;
+              render();
+            });
+          }
         }
       }, function (err) {
         console.warn('[status-circle] checkin listener ERROR:', err.code, err.message);
