@@ -924,15 +924,29 @@
   function startWatching(user, forceRestart) {
     if (!forceRestart && user.uid === _scUid) return; // token refresh — skip re-init + listener re-stack. Claude, 2026-03-07.
     _scUid = user.uid;
-    /* Claude: 2026-03-27 — reset all activity signals until their async reads resolve */
+    /* Claude: 2026-03-28 — reset ALL state when switching students.
+       Without this, stale segData from the previous student flashes
+       (e.g. FHC Director's yellow shows briefly when switching to Mary). */
     _lastSeenTs          = null;
     _studyLastActivityTs = null;
     _altActivityTs       = null;
+    _segData             = {};
+    _nope                = false;
+    _isCaution           = false;
+    _suppressCaution     = false;
+    _isRollingAvg        = false;
+    _lastCheckinTs       = null;
+    _studyActive         = false;
+    _studyTools          = [];
+    _studySessions       = 0;
     var uid     = window.AA_MIRROR_UID || user.uid;  /* mirror UID if active */
     /* Claude: 2026-03-12 — skip if already watching this exact data UID (avoids duplicate listeners) */
     if (!forceRestart && uid === _watchingDataUid) return;
     _watchingDataUid = uid;
     var dateKey = _localDateKey();
+    /* Claude: 2026-03-28 — show processing spinner immediately while data loads.
+       Prevents stale colors from previous student flashing. */
+    renderProcessing();
 
     /* Claude: 2026-03-20 — fetch study tool activity for this user.
        Runs in parallel with check-in listener setup. When it completes,
@@ -1019,8 +1033,11 @@
 
     _unsubNope = window.AA.db.collection('nope').doc(uid)
       .onSnapshot(function (doc) {
+        var wasNope = _nope;
         _nope = !!(doc.exists && doc.data().active);
-        render();
+        /* Claude: 2026-03-28 — only render if nope actually changed or data is loaded.
+           Prevents blue/grey flash when nope fires before segData is populated. */
+        if (_nope || wasNope !== _nope) render();
       }, function (err) {
         console.warn('[status-circle] nope listener:', err);
       });
