@@ -934,48 +934,6 @@
     _watchingDataUid = uid;
     var dateKey = _localDateKey();
 
-    /* Claude: 2026-03-27 — initial render from AA.getStudentStatus() (centralized, single
-       source of truth). This ensures the circle shows the correct color immediately,
-       especially for mirror targets where the onSnapshot listener may take time to resolve.
-       The onSnapshot listeners below will refine with full segment detail once they fire. */
-    if (window.AA && window.AA.getStudentStatus) {
-      window.AA.getStudentStatus(uid).then(function (status) {
-        /* Only apply if this is still the same uid we're watching (guard against race) */
-        if (uid !== _watchingDataUid) return;
-        /* Don't overwrite if onSnapshot already delivered real segment data */
-        var currentKeys = Object.keys(_segData);
-        if (currentKeys.length > 0 && currentKeys[0] !== 'rolling') return;
-        /* Map centralized result back to status circle state */
-        _isCaution = status.isCaution && !status.suppressCaution;
-        _suppressCaution = status.suppressCaution;
-        _isRollingAvg = status.isRollingAvg;
-        if (status.lastCheckinTs) _lastCheckinTs = status.lastCheckinTs;
-        /* If centralized returned segment data, use it for initial render */
-        if (status.dotClass === 'nope') {
-          _nope = true;
-        } else if (status.segData && Object.keys(status.segData).length > 0) {
-          /* Map rolling hex to a single-key segData that render() can color */
-          var rollingHex = status.segData['rolling'];
-          if (rollingHex && Object.keys(_segData).length === 0) {
-            /* Build fake per-segment data using the rolling color so the circle isn't empty */
-            var segs = eligibleSegs();
-            var tmpSeg = {};
-            for (var si = 0; si < segs.length; si++) {
-              tmpSeg[segs[si]] = rollingHex;
-            }
-            _segData = tmpSeg;
-          }
-        }
-        /* If active-no-checkin, set activity signals so _isRecentlyActive() returns true */
-        if (status.isRecentlyActive) {
-          _lastSeenTs = new Date(); /* synthetic recent timestamp */
-        }
-        render();
-      }).catch(function (err) {
-        console.warn('[StatusCircle] initial AA.getStudentStatus failed:', err);
-      });
-    }
-
     /* Claude: 2026-03-20 — fetch study tool activity for this user.
        Runs in parallel with check-in listener setup. When it completes,
        re-renders to inject Academic segment if tools were used today. */
@@ -1246,9 +1204,4 @@
   injectCSS();
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-})();
+   

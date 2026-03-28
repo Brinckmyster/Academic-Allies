@@ -205,8 +205,6 @@
     .ssc-dot.yellow  { background: #ffc107; }
     .ssc-dot.green   { background: #28a745; }
     .ssc-dot.unknown { background: #ccc; }
-    /* Claude: 2026-03-27 — blue dot for active-no-checkin (matches dashboard + status circle) */
-    .ssc-dot.active-no-checkin { background: #42A5F5; }
     /* Claude: 2026-03-16 — caution diamond for stale check-in (matches status circle) */
     .ssc-dot.caution {
       background: #f5c518; border-radius: 0; transform: rotate(45deg);
@@ -957,11 +955,60 @@
   /* Claude: 2026-02-28 — backstage-manager re-added; they see all students */
   var SUPPORT_ROLES = ['support', 'family', 'nearby-help', 'network-lead', 'backstage-manager'];
 
-  /* Claude: 2026-03-27 — REWRITTEN to use centralized AA.getStudentStatus().
-     OLD: duplicate rolling-average logic (~100 lines).
-     NEW: single source of truth from aa-firebase.js — same as support dashboard.
-     Archive: index_2026-03-27_pre-unified-home-grid.bak.html */
-  var URGENCY = { nope: 0, red: 0, caution: 0.5, orange: 1, yellow: 2, green: 3, 'active-no-checkin': 3.5, unknown: 4 };
+  /* Claude: 2026-03-16 — REWRITTEN to match status circle rolling-average logic.
+     OLD: only checked today's check-in → gray unknown if no check-in today.
+     NEW: rolling 7-check-in average, caution diamond for stale, nope detection. */
+  var URGENCY = { nope: 0, red: 0, caution: 0.5, orange: 1, yellow: 2, green: 3, unknown: 4 };
+  var CAUTION_DAYS_DEFAULT = 5;
+  var MAX_LOOKBACK = 30;
+  var ROLLING_COUNT = 7;
+
+  function _flagToScore(flag) {
+    if (flag === 'red') return 4;
+    if (flag === 'orange') return 3;
+    if (flag === 'yellow') return 2;
+    return 1;
+  }
+  function _scoreToClass(avg) {
+    if (avg >= 3.3) return 'red';
+    if (avg >= 2.5) return 'orange';
+    if (avg >= 1.8) return 'yellow';
+    return 'green';
+  }
+  function _makeDateKey(d) {
+    return d.getFullYear() + '-' +
+      ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+      ('0' + d.getDate()).slice(-2);
+  }
+  /* Claude: 2026-03-20 — returns full entries so AA.avgEntryColor() can
+     compute detailed per-segment colors (same as status-circle.js). */
+  var _SCORE_MAP = { '#dc3545': 4, '#fd7e14': 3, '#ffc107': 2, '#28a745': 1 };
+  function _fetchStudentStatus(uid) {
+    var now = new Date();
+    var hits = [];
+    var promises = [];
+    for (var i = 0; i < MAX_LOOKBACK; i++) {
+      (function(daysAgo) {
+        var d = new Date(now); d.setDate(d.getDate() - daysAgo);
+        var key = _makeDateKey(d);
+        promises.push(
+          window.AA.db.collection('checkins').doc(uid).collection('days').doc(key).get()
+            .then(function(doc) {
+              if (doc.exists) {
+                var entries = doc.data().entries || [];
+                entries.forEach(function(e) {
+                  hits.push({ entry: e, flag: e.flag || 'green', daysAgo: daysAgo });
+                });
+              }
+            }).catch(function() {})
+        );
+      })(i);
+    }
+    return Promise.all(promises).then(function() {
+      hits.sort(function(a, b) { return a.daysAgo - b.daysAgo; });
+      return hits;
+    });
+  }
 
   function waitForAA(cb, tries) {
     tries = tries || 0;
@@ -1059,13 +1106,55 @@
             if (sectionLbl) sectionLbl.textContent = isStudentSupporter ? 'My Peers' : 'My Students';
             grid.innerHTML = '';
 
-            /* Claude: 2026-03-27 — REWRITTEN to use AA.getStudentStatus() (single source of truth).
-               OLD: ~50 lines of duplicate nope/rolling-avg/caution logic.
-               NEW: one call per student to the centralized function in aa-firebase.js.
-               Archive: index_2026-03-27_pre-unified-home-grid.bak.html */
+            /* Claude: 2026-03-16 — rolling-average status dots (matches status-circle.js).
+               Fetches nope status + up to 30 days of check-ins per student, computes
+               weighted average, shows caution diamond if data is stale (>5 days). */
             Promise.all(myStudents.map(function (s) {
-              return AA.getStudentStatus(s.uid).then(function (status) {
-                return { uid: s.uid, name: s.name, dot: status.dotClass, urgency: URGENCY[status.dotClass] || 4 };
+              return Promise.all([
+                window.AA.db.collection('nope').doc(s.uid).get(),
+                _fetchStudentStatus(s.uid),
+                window.AA.shouldSuppressCaution(s.uid)
+              ]).then(function (res) {
+                var nopeData = res[0].exists ? res[0].data() : null;
+                /* Claude: 2026-03-23 — MUST check nopeData.active before reading mode.
+                   Same bug as support-dashboard: was treating ANY nope doc with a mode field
+                   as active crisis, even when active=false (deactivated). This caused false
+                   red dots for students like Mary who once had a mode set.
+                   Archive: index_2026-03-23_pre-nope-active-fix.bak.html */
+                var isNope   = nopeData && nopeData.active && (nopeData.mode === 'nope' || nopeData.mode === 'semi-nope');
+
+                if (isNope) {
+                  return { uid: s.uid, name: s.name, dot: 'nope', urgency: URGENCY.nope };
+                }
+
+                var hits = res[1];
+                /* Claude: 2026-03-20 — uses AA.shouldSuppressCaution() from aa-firebase.js
+                   (single source of truth shared with status-circle + dashboard) */
+                var suppressResult = res[2];
+                var cautionDays = suppressResult.cautionDays || CAUTION_DAYS_DEFAULT;
+
+                if (hits.length === 0) {
+                  return { uid: s.uid, name: s.name, dot: 'unknown', urgency: URGENCY.unknown };
+                }
+
+                /* Check if most recent check-in is stale */
+                var newestDaysAgo = hits[0].daysAgo;
+                if (newestDaysAgo >= cautionDays && !suppressResult.suppress) {
+                  return { uid: s.uid, name: s.name, dot: 'caution', urgency: URGENCY.caution };
+                }
+
+                /* Claude: 2026-03-20 — uses AA.avgEntryColor() for per-segment
+                   detail (same algorithm as status-circle.js). Single source of truth. */
+                var recent = hits.slice(0, ROLLING_COUNT);
+                var total = 0;
+                recent.forEach(function (h) {
+                  var hex = window.AA.avgEntryColor ? window.AA.avgEntryColor(h.entry) : null;
+                  total += (hex ? (_SCORE_MAP[hex] || 1) : _flagToScore(h.flag));
+                });
+                var avg = total / recent.length;
+                var dot = window.AA.scoreToClass ? window.AA.scoreToClass(avg) : _scoreToClass(avg);
+
+                return { uid: s.uid, name: s.name, dot: dot, urgency: URGENCY[dot] };
               }).catch(function () {
                 return { uid: s.uid, name: s.name, dot: 'unknown', urgency: URGENCY.unknown };
               });
