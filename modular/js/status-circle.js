@@ -938,8 +938,11 @@
        Runs in parallel with check-in listener setup. When it completes,
        re-renders to inject Academic segment if tools were used today. */
     /* Claude: 2026-03-25 — added .catch() for unhandled rejection */
+    /* Claude: 2026-03-28 — removed render() from this callback to prevent race condition.
+       Study activity flags are set by _fetchStudyActivity; the main data callback
+       (onSnapshot/AA.getStudentStatus) will call render() with all flags ready. */
     _fetchStudyActivity(uid).then(function () {
-      render(); /* re-render with study data merged in */
+      /* flags set — next data-driven render() will pick them up */
     }).catch(function (err) { console.warn('[StatusCircle] study activity fetch failed:', err); });
 
     /* Claude: hide sc-banner for student role — support/admin see it, student doesn't — 2026-02-28 */
@@ -994,9 +997,11 @@
        Single source of truth — same logic used by dashboard + home page dots. */
     if (window.AA && window.AA.shouldSuppressCaution) {
       /* Claude: 2026-03-25 — added .catch() for unhandled rejection */
+      /* Claude: 2026-03-28 — removed render() from this callback to prevent race condition.
+         AA.getStudentStatus already returns suppressCaution, so this just sets the flag
+         for the rare case where onSnapshot fires with today's entries (caution N/A anyway). */
       window.AA.shouldSuppressCaution(uid, CAUTION_DAYS).then(function (result) {
         _suppressCaution = result.suppress;
-        render();
       }).catch(function (err) { console.warn('[StatusCircle] caution check failed:', err); });
     }
 
