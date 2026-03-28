@@ -2255,6 +2255,236 @@
     return 'green';
   };
 
+  /* Claude: 2026-03-27 — Centralized student status computation.
+     Single source of truth for all status colors. Used by support-dashboard,
+     status-circle, and home page dots.
+     Returns a Promise that resolves to a status object with all needed data:
+     { mode, modeActive, dotClass, dotHex, emoji, label, isCaution,
+       suppressCaution, isRecentlyActive, segData, lastCheckinTs,
+       isRollingAvg, studyActive, studyTools, studySessions }
+
+     Consumers: status-circle.js, support-dashboard.html
+     Dependencies: AA.avgEntryColor, AA.scoreToClass, AA.shouldSuppressCaution */
+  window.AA.getStudentStatus = function (uid) {
+    var MAX_LOOKBACK = 30;
+    var ROLLING_COUNT = 7;
+
+    function _makeDateKey(d) {
+      return d.getFullYear() + '-' +
+        ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+        ('0' + d.getDate()).slice(-2);
+    }
+
+    /* Fetch recent check-in history (last 30 days) */
+    var now = new Date();
+    var hits = [];
+    var promises = [];
+    for (var i = 0; i < MAX_LOOKBACK; i++) {
+      (function(daysAgo) {
+        var d = new Date(now);
+        d.setDate(d.getDate() - daysAgo);
+        var key = _makeDateKey(d);
+        promises.push(
+          db.collection('checkins').doc(uid).collection('days').doc(key).get()
+            .then(function(doc) {
+              if (doc.exists) {
+                var entries = doc.data().entries || [];
+                entries.forEach(function(e) {
+                  hits.push({ entry: e, daysAgo: daysAgo });
+                });
+              }
+            })
+            .catch(function(err) {
+              /* Silent fail — checkin history is optional */
+            })
+        );
+      })(i);
+    }
+
+    return Promise.all([
+      db.collection('nope').doc(uid).get(),
+      Promise.all(promises),
+      window.AA.shouldSuppressCaution(uid)
+    ]).then(function(res) {
+      var nopeDoc = res[0];
+      var suppressResult = res[2];
+
+      /* Default result object */
+      var result = {
+        mode: null,
+        modeActive: false,
+        dotClass: 'unknown',
+        dotHex: '#ccc',
+        emoji: '⚪',
+        label: 'No data',
+        isCaution: false,
+        suppressCaution: suppressResult.suppress,
+        isRecentlyActive: false,
+        segData: {},
+        lastCheckinTs: null,
+        isRollingAvg: false,
+        studyActive: false,
+        studyTools: [],
+        studySessions: 0
+      };
+
+      /* Extract active nope mode */
+      var nopeData = nopeDoc.exists ? nopeDoc.data() : null;
+      var activeMode = (nopeData && nopeData.active) ? nopeData.mode : null;
+      result.mode = activeMode;
+      result.modeActive = !!activeMode;
+
+      /* Crisis modes override everything */
+      if (activeMode === 'nope' || activeMode === 'migraine') {
+        result.dotClass = 'nope';
+        result.dotHex = '#dc3545';
+        result.emoji = '🔴';
+        result.label = 'Urgent';
+        return result;
+      }
+      if (activeMode === 'semi' || activeMode === 'semi-nope' || activeMode === 'bad-brain') {
+        result.dotClass = 'orange';
+        result.dotHex = '#fd7e14';
+        result.emoji = '🟠';
+        result.label = 'Needs attention';
+        return result;
+      }
+      if (activeMode === 'recovery') {
+        result.dotClass = 'yellow';
+        result.dotHex = '#ffc107';
+        result.emoji = '🟡';
+        result.label = 'Moderate concern';
+        return result;
+      }
+
+      /* Sort hits by daysAgo (newest first) */
+      hits.sort(function(a, b) { return a.daysAgo - b.daysAgo; });
+
+      /* No check-ins — still need to check recently active signal */
+      if (hits.length === 0) {
+        /* Check user doc for recently active signals */
+        return db.collection('users').doc(uid).get().then(function(userDoc) {
+          if (userDoc.exists) {
+            var data = userDoc.data();
+            var ls = data.lastSeen;
+            if (ls && ls.timestamp) {
+              var lsDate = (typeof ls.timestamp.toDate === 'function')
+                ? ls.timestamp.toDate() : new Date(ls.timestamp);
+              var SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+              if ((Date.now() - lsDate.getTime()) < SEVEN_DAYS_MS) {
+                result.isRecentlyActive = true;
+                result.dotClass = 'active-no-checkin';
+                result.dotHex = '#42A5F5';
+                result.emoji = '🔵';
+                result.label = 'Active on site';
+                return result;
+              }
+            }
+          }
+          return result;
+        }).catch(function() {
+          return result;
+        });
+      }
+
+      /* Have check-ins — compute color */
+      var cautionDays = suppressResult.cautionDays || 5;
+      var newestDaysAgo = hits[0].daysAgo;
+
+      /* Capture last check-in timestamp */
+      var mostRecent = hits[0].entry;
+      if (mostRecent && mostRecent.timestamp) {
+        result.lastCheckinTs = (typeof mostRecent.timestamp.toDate === 'function')
+          ? mostRecent.timestamp.toDate() : new Date(mostRecent.timestamp);
+      }
+
+      /* Check caution condition */
+      if (newestDaysAgo > cautionDays && !suppressResult.suppress) {
+        result.isCaution = true;
+        result.dotClass = 'caution';
+        result.dotHex = '#f5c518';
+        result.emoji = '⚠️';
+        result.label = 'Caution';
+        result.isRollingAvg = true;
+
+        /* Compute rolling color for reference */
+        var recent = [];
+        for (var j = 0; j < Math.min(ROLLING_COUNT, hits.length); j++) {
+          recent.push(hits[j].entry);
+        }
+        var hex = _computeRollingColor(recent);
+        if (hex) {
+          result.segData = { 'rolling': hex };
+        }
+        return result;
+      }
+
+      /* Normal case: compute color from rolling average */
+      var recent = [];
+      for (var k = 0; k < Math.min(ROLLING_COUNT, hits.length); k++) {
+        recent.push(hits[k].entry);
+      }
+      var hex = _computeRollingColor(recent);
+
+      if (hex) {
+        result.dotHex = hex;
+        var COLOR_TO_EMOJI = { '#dc3545': '🔴', '#fd7e14': '🟠', '#ffc107': '🟡', '#28a745': '🟢' };
+        var LABELS = { '#dc3545': 'Urgent', '#fd7e14': 'Needs attention', '#ffc107': 'Moderate concern', '#28a745': 'All clear' };
+        result.emoji = COLOR_TO_EMOJI[hex] || '⚪';
+        result.label = LABELS[hex] || 'Unknown';
+        result.dotClass = (hex === '#dc3545') ? 'red' :
+                         (hex === '#fd7e14') ? 'orange' :
+                         (hex === '#ffc107') ? 'yellow' : 'green';
+        result.segData = { 'rolling': hex };
+        result.isRollingAvg = true;
+      }
+
+      return result;
+    }).catch(function(err) {
+      console.warn('[AA.getStudentStatus] Error for', uid, ':', err);
+      return {
+        mode: null,
+        modeActive: false,
+        dotClass: 'unknown',
+        dotHex: '#ccc',
+        emoji: '⚪',
+        label: 'Error loading',
+        isCaution: false,
+        suppressCaution: false,
+        isRecentlyActive: false,
+        segData: {},
+        lastCheckinTs: null,
+        isRollingAvg: false,
+        studyActive: false,
+        studyTools: [],
+        studySessions: 0
+      };
+    });
+  };
+
+  /* Helper: compute rolling average color from multiple entries */
+  function _computeRollingColor(entries) {
+    if (!entries || entries.length === 0) return null;
+
+    var colors = [];
+    entries.forEach(function(e) {
+      var hex = window.AA.avgEntryColor(e);
+      if (hex) colors.push(hex);
+    });
+
+    if (colors.length === 0) return null;
+
+    var SCORE = { '#dc3545': 4, '#fd7e14': 3, '#ffc107': 2, '#28a745': 1 };
+    var total = 0;
+    colors.forEach(function(c) { total += (SCORE[c] || 1); });
+    var avg = total / colors.length;
+
+    if (avg >= 3.3) return '#dc3545';
+    if (avg >= 2.5) return '#fd7e14';
+    if (avg >= 1.8) return '#ffc107';
+    return '#28a745';
+  }
+
   if (window.AA_DEBUG) console.log('[AA] Firebase ready — project:', FIREBASE_CONFIG.projectId);
 
   /* Claude: 2026-03-25 — Global unhandled rejection handler.
