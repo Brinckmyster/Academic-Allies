@@ -1259,59 +1259,13 @@
         ];
 
         /* Claude: 2026-03-29 — custom prompts stored per user in Firestore,
-           merged into the rotation alongside built-in prompts.
-           Prompts can be plain strings (always show) or objects with:
-             { text, label, scripture, showDate } — only show on matching date */
+           merged into the rotation alongside built-in prompts */
         var _customPrompts = [];
-        var _allPrompts = JOURNAL_PROMPTS.slice(); /* combined list: built-in + filtered custom */
+        var _allPrompts = JOURNAL_PROMPTS.slice(); /* combined list: built-in + custom */
         var _jIdx = Math.floor(Math.random() * _allPrompts.length);
 
-        /* Claude: 2026-03-29 — get today's date as YYYY-MM-DD for date filtering */
-        function _todayStr() {
-            var d = new Date();
-            var mm = ('0' + (d.getMonth() + 1)).slice(-2);
-            var dd = ('0' + d.getDate()).slice(-2);
-            return d.getFullYear() + '-' + mm + '-' + dd;
-        }
-
-        /* Claude: 2026-03-29 — get display text from a prompt (string or object) */
-        function _promptDisplay(p) {
-            if (typeof p === 'string') return p;
-            if (typeof p === 'object' && p !== null) {
-                var parts = [];
-                if (p.label) parts.push(p.label);
-                if (p.text) parts.push(p.text);
-                if (p.scripture) parts.push(p.scripture);
-                return parts.join('\n');
-            }
-            return '';
-        }
-
-        /* Claude: 2026-03-29 — get plain text for saving to journal entries */
-        function _promptPlain(p) {
-            if (typeof p === 'string') return p;
-            if (typeof p === 'object' && p !== null) return p.text || '';
-            return '';
-        }
-
         function _rebuildAllPrompts() {
-            var today = _todayStr();
-            var filtered = [];
-            var i;
-            for (i = 0; i < _customPrompts.length; i++) {
-                var cp = _customPrompts[i];
-                if (typeof cp === 'string') {
-                    filtered.push(cp);
-                } else if (typeof cp === 'object' && cp !== null) {
-                    /* Only include dated prompts if today matches showDate */
-                    if (cp.showDate) {
-                        if (cp.showDate === today) filtered.push(cp);
-                    } else {
-                        filtered.push(cp);
-                    }
-                }
-            }
-            _allPrompts = JOURNAL_PROMPTS.concat(filtered);
+            _allPrompts = JOURNAL_PROMPTS.concat(_customPrompts);
         }
 
         function journalShowPrompt() {
@@ -1319,17 +1273,7 @@
             if (!el) return;
             if (_allPrompts.length === 0) { el.textContent = ''; return; }
             if (_jIdx >= _allPrompts.length) _jIdx = 0;
-            var p = _allPrompts[_jIdx];
-            if (typeof p === 'object' && p !== null) {
-                /* Claude: 2026-03-29 — rich display for labeled prompts */
-                var html = '';
-                if (p.label) html += '<div style="font-size:13pt;font-weight:600;color:#6CA0A3;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">' + _escHtml(p.label) + '</div>';
-                if (p.text) html += '<div style="font-size:16pt;">' + _escHtml(p.text) + '</div>';
-                if (p.scripture) html += '<div style="font-size:12pt;color:#888;margin-top:6px;font-style:italic;">' + _escHtml(p.scripture) + '</div>';
-                el.innerHTML = html;
-            } else {
-                el.textContent = p;
-            }
+            el.textContent = _allPrompts[_jIdx];
         }
 
         function journalNext() {
@@ -1386,28 +1330,12 @@
                 container.innerHTML = '<p style="font-size:13pt;color:#888;font-style:italic;">No custom prompts yet.</p>';
                 return;
             }
-            var today = _todayStr();
             var html = '<p style="font-size:13pt;color:#666;margin-bottom:6px;">Your prompts:</p>';
             var i;
             for (i = 0; i < _customPrompts.length; i++) {
-                var cp = _customPrompts[i];
-                var displayText = '';
-                var isDated = false;
-                var isToday = false;
-                if (typeof cp === 'string') {
-                    displayText = _escHtml(cp);
-                } else if (typeof cp === 'object' && cp !== null) {
-                    isDated = !!cp.showDate;
-                    isToday = cp.showDate === today;
-                    displayText = '';
-                    if (cp.label) displayText += '<strong>' + _escHtml(cp.label) + '</strong> — ';
-                    displayText += _escHtml(cp.text || '');
-                    if (cp.showDate) displayText += ' <span style="font-size:11pt;color:#999;">(' + cp.showDate + ')</span>';
-                }
-                var opacity = (isDated && !isToday) ? 'opacity:0.4;' : '';
-                html += '<div class="journal-custom-item" style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:14pt;' + opacity + '">';
-                html += '<span style="flex:1;margin-right:8px;">' + displayText + '</span>';
-                html += '<button onclick="journalDeleteCustom(' + i + ')" style="background:none;border:none;color:#c44;font-size:16pt;cursor:pointer;padding:2px 6px;" title="Remove this prompt">\u2715</button>';
+                html += '<div class="journal-custom-item" style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:14pt;">';
+                html += '<span style="flex:1;margin-right:8px;">' + _escHtml(_customPrompts[i]) + '</span>';
+                html += '<button onclick="journalDeleteCustom(' + i + ')" style="background:none;border:none;color:#c44;font-size:16pt;cursor:pointer;padding:2px 6px;" title="Remove this prompt">✕</button>';
                 html += '</div>';
             }
             container.innerHTML = html;
@@ -1459,7 +1387,7 @@
             var journalUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
             var entry = {
                 uid: journalUid,
-                prompt: _promptPlain(_allPrompts[_jIdx]) || '',
+                prompt: _allPrompts[_jIdx] || '',
                 response: text,
                 savedAt: new Date().toISOString()
             };
