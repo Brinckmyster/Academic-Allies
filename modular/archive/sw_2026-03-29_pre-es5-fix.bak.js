@@ -105,8 +105,7 @@ self.addEventListener('install', function (e) {
       /* Claude: 2026-03-16 — bypass HTTP cache on install so we always get
          fresh copies from the network, not stale copies from the browser's
          HTTP cache. This prevents the old-cache-serves-old-files problem. */
-      /* Claude: 2026-03-29 — replaced Promise.allSettled (ES2020) with Promise.all wrapping .catch for ES5 compat */
-      return Promise.all(
+      return Promise.allSettled(
         SHELL.map(function (url) {
           return fetch(url, { cache: 'reload' }).then(function (resp) {
             if (resp.ok) return cache.put(url, resp);
