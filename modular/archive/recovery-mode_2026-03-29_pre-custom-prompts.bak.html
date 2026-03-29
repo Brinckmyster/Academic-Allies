@@ -341,11 +341,6 @@
         html.aa-dark .todo-item.todo-completed .todo-text { color: #666; }
         html.aa-dark .journal-textarea { background: #0f1117; color: #e0e0e0; border-color: #3d6a6d; }
         html.aa-dark .journal-textarea:focus { outline-color: #7abfc2; }
-        /* Claude: 2026-03-29 — dark mode for custom prompt panel */
-        html.aa-dark #journal-custom-panel { background: #1a2e30; }
-        html.aa-dark #journal-custom-panel label { color: #aaa; }
-        html.aa-dark #journal-custom-input { background: #0f1117; color: #e0e0e0; border-color: #3d6a6d; }
-        html.aa-dark .journal-custom-item { background: #0f1117 !important; border-color: #3d6a6d !important; color: #e0e0e0 !important; }
         html.aa-dark .energy-option:hover { background: #1a2e30; border-color: #3d6a6d; }
         html.aa-dark .energy-option.selected { background: #1a3035; border-color: #4a7f82; }
     </style>
@@ -595,17 +590,8 @@
             <div id="journal-prompt" style="background:#f0f7f8;border-left:4px solid #6CA0A3;border-radius:0 10px 10px 0;padding:14px 16px;font-size:16pt;color:#444;line-height:1.6;margin-bottom:4px;"></div>
             <!-- Claude: 2026-03-25 — added maxlength -->
             <textarea id="journal-textarea" class="journal-textarea" rows="4" placeholder="Write here if you'd like… or just sit with the thought 💚" maxlength="2000"></textarea>
-            <!-- Claude: 2026-03-29 — added custom prompt support -->
-            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="margin-top:10px;">
                 <button onclick="journalNext()" style="background:#f0f7f8;color:#6CA0A3;border:1px solid #c5dfe1;border-radius:8px;padding:6px 14px;font-size:14pt;font-family:inherit;cursor:pointer;">🔄 Different prompt</button>
-                <button id="journal-add-prompt-btn" onclick="journalToggleCustom()" style="background:#f0f7f8;color:#6CA0A3;border:1px solid #c5dfe1;border-radius:8px;padding:6px 14px;font-size:14pt;font-family:inherit;cursor:pointer;">✏️ Add your own</button>
-            </div>
-            <!-- Claude: 2026-03-29 — custom prompt panel -->
-            <div id="journal-custom-panel" style="display:none;margin-top:12px;background:#f0f7f8;border-radius:10px;padding:14px;">
-                <label for="journal-custom-input" style="font-size:14pt;color:#555;display:block;margin-bottom:6px;">Write your own reflection prompt:</label>
-                <input id="journal-custom-input" type="text" maxlength="200" placeholder="e.g. What am I grateful for today?" style="width:100%;padding:10px;font-size:16pt;font-family:inherit;border:1px solid #c5dfe1;border-radius:8px;box-sizing:border-box;">
-                <button onclick="journalSaveCustom()" style="margin-top:8px;background:#6CA0A3;color:white;border:none;border-radius:8px;padding:8px 20px;font-size:14pt;font-family:inherit;cursor:pointer;">💾 Save prompt</button>
-                <div id="journal-custom-list" style="margin-top:12px;"></div>
             </div>
             <!-- Claude: auto-save status — 2026-02-27 -->
             <!-- Claude: 2026-03-14 — contrast fix: #aaa → #777 for WCAG AA -->
@@ -1258,117 +1244,17 @@
             "What's one kind thought you could offer yourself right now?"
         ];
 
-        /* Claude: 2026-03-29 — custom prompts stored per user in Firestore,
-           merged into the rotation alongside built-in prompts */
-        var _customPrompts = [];
-        var _allPrompts = JOURNAL_PROMPTS.slice(); /* combined list: built-in + custom */
-        var _jIdx = Math.floor(Math.random() * _allPrompts.length);
-
-        function _rebuildAllPrompts() {
-            _allPrompts = JOURNAL_PROMPTS.concat(_customPrompts);
-        }
+        var _jIdx = Math.floor(Math.random() * JOURNAL_PROMPTS.length);
 
         function journalShowPrompt() {
             var el = document.getElementById('journal-prompt');
-            if (!el) return;
-            if (_allPrompts.length === 0) { el.textContent = ''; return; }
-            if (_jIdx >= _allPrompts.length) _jIdx = 0;
-            el.textContent = _allPrompts[_jIdx];
+            if (el) el.textContent = JOURNAL_PROMPTS[_jIdx];
         }
 
         function journalNext() {
-            _jIdx = (_jIdx + 1) % _allPrompts.length;
+            _jIdx = (_jIdx + 1) % JOURNAL_PROMPTS.length;
             journalShowPrompt();
             document.getElementById('journal-saved').style.display = 'none';
-        }
-
-        /* Claude: 2026-03-29 — toggle custom prompt panel */
-        function journalToggleCustom() {
-            var panel = document.getElementById('journal-custom-panel');
-            if (!panel) return;
-            panel.style.display = (panel.style.display === 'none') ? 'block' : 'none';
-        }
-
-        /* Claude: 2026-03-29 — save a new custom prompt to Firestore */
-        function journalSaveCustom() {
-            if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
-            var input = document.getElementById('journal-custom-input');
-            var text = (input.value || '').trim();
-            if (!text) return;
-            if (text.length > 200) { text = text.substring(0, 200); }
-            /* Prevent duplicates */
-            var ci;
-            for (ci = 0; ci < _customPrompts.length; ci++) {
-                if (_customPrompts[ci] === text) { input.value = ''; return; }
-            }
-            _customPrompts.push(text);
-            _rebuildAllPrompts();
-            input.value = '';
-            _renderCustomList();
-            journalShowPrompt();
-            /* Persist to Firestore */
-            _saveCustomPromptsToFirestore();
-        }
-
-        /* Claude: 2026-03-29 — delete a custom prompt */
-        function journalDeleteCustom(idx) {
-            if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
-            if (idx < 0 || idx >= _customPrompts.length) return;
-            _customPrompts.splice(idx, 1);
-            _rebuildAllPrompts();
-            if (_jIdx >= _allPrompts.length) _jIdx = 0;
-            _renderCustomList();
-            journalShowPrompt();
-            _saveCustomPromptsToFirestore();
-        }
-
-        /* Claude: 2026-03-29 — render the saved custom prompts list */
-        function _renderCustomList() {
-            var container = document.getElementById('journal-custom-list');
-            if (!container) return;
-            if (_customPrompts.length === 0) {
-                container.innerHTML = '<p style="font-size:13pt;color:#888;font-style:italic;">No custom prompts yet.</p>';
-                return;
-            }
-            var html = '<p style="font-size:13pt;color:#666;margin-bottom:6px;">Your prompts:</p>';
-            var i;
-            for (i = 0; i < _customPrompts.length; i++) {
-                html += '<div class="journal-custom-item" style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:14pt;">';
-                html += '<span style="flex:1;margin-right:8px;">' + _escHtml(_customPrompts[i]) + '</span>';
-                html += '<button onclick="journalDeleteCustom(' + i + ')" style="background:none;border:none;color:#c44;font-size:16pt;cursor:pointer;padding:2px 6px;" title="Remove this prompt">✕</button>';
-                html += '</div>';
-            }
-            container.innerHTML = html;
-        }
-
-        function _escHtml(s) {
-            var d = document.createElement('div');
-            d.appendChild(document.createTextNode(s));
-            return d.innerHTML;
-        }
-
-        /* Claude: 2026-03-29 — persist custom prompts to Firestore */
-        function _saveCustomPromptsToFirestore() {
-            if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
-            var uid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
-            AA.db.collection('users').doc(uid).set(
-                { customJournalPrompts: _customPrompts },
-                { merge: true }
-            ).catch(function(err) { console.warn('[AA] custom prompts save:', err); });
-        }
-
-        /* Claude: 2026-03-29 — load custom prompts from Firestore on auth */
-        function _loadCustomPrompts(uid) {
-            if (!window.AA || !AA.db) return;
-            var dataUid = (window.AA_uid ? window.AA_uid(uid) : uid);
-            AA.db.collection('users').doc(dataUid).get().then(function(doc) {
-                if (doc.exists && Array.isArray(doc.data().customJournalPrompts)) {
-                    _customPrompts = doc.data().customJournalPrompts;
-                    _rebuildAllPrompts();
-                    _renderCustomList();
-                    journalShowPrompt();
-                }
-            }).catch(function(err) { console.warn('[AA] custom prompts load:', err); });
         }
 
         /* Claude: auto-save with 2s debounce — 2026-02-27 */
@@ -1387,7 +1273,7 @@
             var journalUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
             var entry = {
                 uid: journalUid,
-                prompt: _allPrompts[_jIdx] || '',
+                prompt: JOURNAL_PROMPTS[_jIdx],
                 response: text,
                 savedAt: new Date().toISOString()
             };
@@ -1414,11 +1300,6 @@
                 var statusEl = document.getElementById('journal-saved');
                 if (statusEl) statusEl.style.display = 'none';
             }
-            /* Claude: 2026-03-29 — load custom prompts when signed in */
-            if (user) _loadCustomPrompts(user.uid);
-            /* Claude: 2026-03-29 — hide add-your-own for supporters in mirror mode */
-            var addBtn = document.getElementById('journal-add-prompt-btn');
-            if (addBtn) addBtn.style.display = (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) ? 'none' : '';
         }
 
         document.addEventListener('DOMContentLoaded', function() {
