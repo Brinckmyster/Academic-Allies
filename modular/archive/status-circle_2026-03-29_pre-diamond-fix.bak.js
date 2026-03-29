@@ -595,24 +595,6 @@
        (single source of truth in aa-firebase.js). */
     var effectiveCaution = _isCaution && !_suppressCaution;
 
-    /* Claude: 2026-03-29 — caution diamond overrides BOTH views.
-       Previously the diamond only showed in solid view; ring view just showed
-       yellow segments that looked like a plain circle. The diamond must always
-       appear when a student hasn't checked in within CAUTION_DAYS. */
-    if (effectiveCaution) {
-      el.style.borderRadius = '0';
-      el.style.transform    = 'rotate(45deg)';
-      el.style.background   = '#f5c518';
-      el.style.border       = '2px solid #1a1a1a';
-      el.style.display      = 'flex';
-      el.style.alignItems   = 'center';
-      el.style.justifyContent = 'center';
-      el.innerHTML = '<span style="transform:rotate(-45deg);font-size:18px;line-height:1;">\u26A0\uFE0F</span>';
-      el.setAttribute('aria-label', 'Caution: No check-in in ' + CAUTION_DAYS + '+ days');
-      el.title = 'No check-in in ' + CAUTION_DAYS + '+ days · click to toggle view · double-click to reset position';
-      return;
-    }
-
     if (_view === 'ring') {
       var keys = Object.keys(_segData);
       /* Claude: 2026-03-27 — show blue circle when no check-in data but recently active */
@@ -631,9 +613,21 @@
       }
     } else {
       /* Solid overall view */
-      /* Claude: 2026-03-29 — caution diamond moved above both view branches so it
-         shows regardless of ring vs solid view. effectiveCaution already returned above. */
-      {
+      /* Claude: 2026-03-12 — when no check-in within CAUTION_DAYS, solid view
+         shows a caution diamond instead of a plain average color. This makes it
+         visually obvious that check-in data is stale. */
+      if (effectiveCaution) {
+        el.style.borderRadius = '0';
+        el.style.transform    = 'rotate(45deg)';
+        el.style.background   = '#f5c518';
+        el.style.border       = '2px solid #1a1a1a';
+        el.style.display      = 'flex';
+        el.style.alignItems   = 'center';
+        el.style.justifyContent = 'center';
+        el.innerHTML = '<span style="transform:rotate(-45deg);font-size:18px;line-height:1;">\u26A0\uFE0F</span>';
+        el.setAttribute('aria-label', 'Caution: No check-in in ' + CAUTION_DAYS + '+ days');
+        el.title = 'No check-in in ' + CAUTION_DAYS + '+ days · click for 7-day segments · double-click to reset position';
+      } else {
         var color = avgColor(_segData);
         if (color) {
           el.style.background = color;
