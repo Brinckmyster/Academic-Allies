@@ -242,9 +242,6 @@
         <!-- Claude: 2026-03-16 — video toggle: tap to switch between audio-only and video recording -->
         <button id="videoToggleBtn" title="Switch to video recording" aria-label="Toggle video recording mode"
           style="font-size:1.3rem;background:transparent;border:1px solid #555;border-radius:50%;width:44px;height:44px;cursor:pointer;margin-left:8px;vertical-align:middle;color:#aaa;">🎥</button>
-        <!-- Claude: 2026-03-29 — camera flip button: switch between front and rear camera -->
-        <button id="cameraFlipBtn" title="Flip camera" aria-label="Switch between front and rear camera"
-          style="display:none;font-size:1.3rem;background:transparent;border:1px solid #555;border-radius:50%;width:44px;height:44px;cursor:pointer;margin-left:8px;vertical-align:middle;color:#aaa;">🔄</button>
         <div id="recordStatus" aria-live="polite">Tap to start recording</div>
         <div id="gpsStatus"></div>
         <!-- Claude: speech fallback populated by JS with Otter.ai link -->
@@ -340,14 +337,12 @@
     var unsubNotes = null;      // Firestore listener unsubscribe
     var _videoMode = false;       // Claude: 2026-03-16 — true = record video+audio, false = audio only
     var _videoPreview = null;     // Claude: 2026-03-16 — <video> element for camera preview
-    var _facingMode = 'environment'; // Claude: 2026-03-29 — default to rear camera ('environment' = back, 'user' = front)
     var _wakeLock = null;         // Claude: 2026-03-16 — Wake Lock sentinel (keeps screen alive during recording)
 
     // ── DOM refs ───────────────────────────────────────────────────────────────
     var noteTitleInput = document.getElementById('noteTitleInput'); // Claude: 2026-03-05
     var recordBtn      = document.getElementById('recordBtn');
     var videoToggleBtn = document.getElementById('videoToggleBtn');
-    var cameraFlipBtn  = document.getElementById('cameraFlipBtn'); // Claude: 2026-03-29
     var recordStatus   = document.getElementById('recordStatus');
     var gpsStatusEl    = document.getElementById('gpsStatus');
     var speechWarning  = document.getElementById('speechWarning');
@@ -419,33 +414,7 @@
         videoToggleBtn.style.borderColor = _videoMode ? '#4a7f82' : '#555';
         videoToggleBtn.title = _videoMode ? 'Switch to audio-only' : 'Switch to video recording';
         recordStatus.textContent = _videoMode ? 'Video mode — tap 🎙️ to start' : 'Tap to start recording';
-        showToast(_videoMode ? 'Video mode ON — rear camera will record' : 'Audio-only mode', 2000);
-        /* Claude: 2026-03-29 — show/hide camera flip button with video mode */
-        if (cameraFlipBtn) cameraFlipBtn.style.display = _videoMode ? 'inline-block' : 'none';
-      };
-    }
-
-    /* Claude: 2026-03-29 — camera flip: switch between front and rear camera.
-       Only visible when video mode is active. If recording, stops and restarts
-       with the new camera so the stream switches cleanly. */
-    if (cameraFlipBtn) {
-      cameraFlipBtn.onclick = function () {
-        _facingMode = (_facingMode === 'environment') ? 'user' : 'environment';
-        var label = (_facingMode === 'environment') ? 'rear' : 'front';
-        cameraFlipBtn.title = 'Switch to ' + ((_facingMode === 'environment') ? 'front' : 'rear') + ' camera';
-        showToast('Switched to ' + label + ' camera', 2000);
-        /* If currently recording, restart the stream with the new camera */
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          showToast('Camera will switch on next recording', 3000);
-        }
-        /* If preview is showing but not recording, restart preview */
-        if (_videoPreview && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
-          if (_videoPreview.srcObject) {
-            _videoPreview.srcObject.getTracks().forEach(function(t) { t.stop(); });
-          }
-          if (_videoPreview.parentNode) _videoPreview.parentNode.removeChild(_videoPreview);
-          _videoPreview = null;
-        }
+        showToast(_videoMode ? 'Video mode ON — front camera will record' : 'Audio-only mode', 2000);
       };
     }
 
@@ -1072,8 +1041,7 @@
          exists, use that instead (future native camera bridge). */
       var _mediaConstraints = { audio: true };
       if (_videoMode) {
-        /* Claude: 2026-03-29 — use _facingMode variable so flip button works. Default: 'environment' (rear camera) */
-        _mediaConstraints.video = { facingMode: _facingMode, width: { ideal: 1280 }, height: { ideal: 720 } };
+        _mediaConstraints.video = { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } };
       }
       (window.AA_NATIVE && window.AA_NATIVE.getStream
         ? window.AA_NATIVE.getStream(_mediaConstraints)
