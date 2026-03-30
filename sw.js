@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260329b'; /* Claude: 2026-03-29 — camera flip button + rear camera default in audio notes */
+var CACHE   = 'aa-shell-20260330d'; /* Claude: 2026-03-30 — Brain Bloom per-student toggle (disabled by default) */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -41,6 +41,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/audio-notes/audio-notes.html', /* Claude: 2026-03-25 — loading states + save button fixes */
   '/Academic-Allies/modular/components/modes/modes.html', /* Claude: 2026-03-25 — mobile mode grid fix */
   '/Academic-Allies/modular/components/recovery-mode.html', /* Claude: 2026-03-25 — energy radiogroup a11y + keyboard nav */
+  '/Academic-Allies/modular/components/brain-bloom/brain-bloom.html', /* Claude: 2026-03-29 — Brain Bloom recovery games */
   '/Academic-Allies/modular/checkin-log.html', /* Claude: 2026-03-25 — clickable div keyboard a11y */
   '/Academic-Allies/modular/components/student-config/student-config-editor.html', /* Claude: 2026-03-25 — tab scroll hint */
   '/Academic-Allies/modular/components/calendar/calendar.html', /* Claude: 2026-03-25 — mobile responsive + offline cache */
@@ -166,7 +167,8 @@ self.addEventListener('fetch', function (e) {
      These are the files that change most often (shared-header, aa-firebase, etc).
      Falls back to cache only when fully offline. */
   var path = url.pathname;
-  var isNeverCache = NEVER_CACHE.some(function (nc) { return path === nc || path.endsWith(nc); });
+  /* Claude: 2026-03-30 — W5 fix: replaced .endsWith() (ES6) with .slice() for ES5 compliance */
+  var isNeverCache = NEVER_CACHE.some(function (nc) { return path === nc || path.slice(-nc.length) === nc; });
 
   if (isNeverCache) {
     e.respondWith(
@@ -201,7 +203,4 @@ self.addEventListener('fetch', function (e) {
         }
         return response;
       }).catch(function () {
-        /* Fully offline and not cached — return offline fallback for navigation
-           Claude: 2026-03-16 — offline fallback page */
-        if (req.mode === 'navigate') {
-          r
+    

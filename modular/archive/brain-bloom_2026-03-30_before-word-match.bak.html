@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Claude: 2026-03-29 — early dark mode detect to prevent FOUC -->
+    <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Bloom — Recovery Games</title>
+    <link rel="icon" href="../../icons/mode-recovery.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            font-size: 18pt;
+            line-height: 1.5;
+            background: linear-gradient(180deg, #e8f5e9 0%, #f1f8e9 40%, #fafaf9 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        .bb-wrap { max-width: 500px; margin: 0 auto; text-align: center; }
+
+        /* ── Header ────────────────────────────────────── */
+        .bb-back { display: inline-block; color: #6CA0A3; font-size: 14pt; text-decoration: none; margin-bottom: 8px; text-align: left; width: 100%; }
+        .bb-back:hover { text-decoration: underline; }
+        .bb-title { font-size: 26pt; color: #4a7f4a; margin-bottom: 2px; }
+        .bb-subtitle { font-size: 14pt; color: #888; margin-bottom: 16px; }
+
+        /* ── Garden scene (top decoration) ─────────────── */
+        .bb-garden {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 16px;
+            font-size: 28pt;
+            min-height: 50px;
+            flex-wrap: wrap;
+        }
+        .bb-flower {
+            transition: transform 0.5s, opacity 0.5s;
+            display: inline-block;
+        }
+        .bb-flower.bloomed { transform: scale(1.2); }
+        .bb-flower.wilted { opacity: 0.3; transform: scale(0.8); }
+
+        /* ── Score bar ─────────────────────────────────── */
+        .bb-scorebar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            font-size: 14pt;
+            color: #666;
+            margin-bottom: 14px;
+        }
+
+        /* ── Card grid ─────────────────────────────────── */
+        .bb-grid {
+            display: grid;
+            gap: 10px;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+        .bb-card {
+            aspect-ratio: 1;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32pt;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: transform 0.4s;
+            transform-style: preserve-3d;
+            background: transparent;
+        }
+        .bb-card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: hidden;
+        }
+        .bb-card-back {
+            background: linear-gradient(135deg, #66bb6a, #43a047);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .bb-card-back::after {
+            content: '🌱';
+            font-size: 24pt;
+        }
+        .bb-card-front {
+            background: #fff;
+            transform: rotateY(180deg);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 32pt;
+        }
+        .bb-card.flipped { transform: rotateY(180deg); }
+        .bb-card.matched .bb-card-front {
+            background: #e8f5e9;
+            box-shadow: 0 0 12px rgba(76,175,80,0.3);
+        }
+        .bb-card.matched { pointer-events: none; }
+        .bb-card.shake {
+            animation: bb-shake 0.4s;
+        }
+        @keyframes bb-shake {
+            0%, 100% { transform: rotateY(180deg) translateX(0); }
+            25% { transform: rotateY(180deg) translateX(-6px); }
+            75% { transform: rotateY(180deg) translateX(6px); }
+        }
+
+        /* ── Bloom burst animation ─────────────────────── */
+        @keyframes bb-bloom {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .bb-bloom-burst { animation: bb-bloom 0.6s ease-out; }
+
+        /* ── Message ───────────────────────────────────── */
+        .bb-msg {
+            font-size: 18pt;
+            min-height: 36px;
+            margin: 10px 0;
+            transition: opacity 0.3s;
+        }
+
+        /* ── Buttons ───────────────────────────────────── */
+        .bb-btn {
+            background: linear-gradient(135deg, #66bb6a, #43a047);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 30px;
+            font-size: 18pt;
+            font-family: inherit;
+            cursor: pointer;
+            margin: 6px;
+            box-shadow: 0 3px 10px rgba(67,160,71,0.3);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .bb-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(67,160,71,0.4); }
+        .bb-btn:active { transform: translateY(1px); }
+        .bb-btn-sm {
+            background: #f0f7f0;
+            color: #4a7f4a;
+            border: 1px solid #c5e1c5;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 14pt;
+            font-family: inherit;
+            cursor: pointer;
+            margin: 3px;
+        }
+        .bb-btn-sm.active { background: #4a7f4a; color: white; border-color: #4a7f4a; }
+
+        /* ── Results card ──────────────────────────────── */
+        .bb-results {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin: 16px 0;
+        }
+        .bb-bloom-score {
+            font-size: 48pt;
+            margin: 8px 0;
+        }
+        .bb-bloom-label {
+            font-size: 16pt;
+            color: #4a7f4a;
+            font-weight: 600;
+        }
+        .bb-bloom-detail {
+            font-size: 13pt;
+            color: #888;
+            margin-top: 8px;
+        }
+        .bb-history {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 12px;
+        }
+        .bb-history-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* ── Difficulty pills ──────────────────────────── */
+        .bb-diff-bar { margin-bottom: 12px; }
+
+        /* ── Dark mode ─────────────────────────────────── */
+        html.aa-dark body { background: linear-gradient(180deg, #0d1f0d 0%, #121a12 40%, #121212 100%); color: #e0e0e0; }
+        html.aa-dark .bb-title { color: #81c784; }
+        html.aa-dark .bb-card-back { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
+        html.aa-dark .bb-card-front { background: #1e1e2e; }
+        html.aa-dark .bb-card.matched .bb-card-front { background: #1a3a1a; }
+        html.aa-dark .bb-results { background: #1e1e2e; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        html.aa-dark .bb-bloom-label { color: #81c784; }
+        html.aa-dark .bb-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); box-shadow: 0 3px 10px rgba(30,90,30,0.4); }
+        html.aa-dark .bb-btn-sm { background: #1a2e1a; color: #81c784; border-color: #2e5e2e; }
+        html.aa-dark .bb-btn-sm.active { background: #2e7d32; color: white; }
+    </style>
+</head>
+<body>
+    <div id="shared-header"></div>
+    <div class="bb-wrap">
+        <a class="bb-back" href="../recovery-mode.html">&larr; Back to Recovery</a>
+        <div class="bb-title">🌸 Brain Bloom</div>
+        <div class="bb-subtitle">Grow your garden — one match at a time</div>
+
+        <!-- Garden scene — flowers bloom as you find pairs -->
+        <div class="bb-garden" id="bb-garden"></div>
+
+        <!-- Score bar -->
+        <div class="bb-scorebar">
+            <span id="bb-moves">Moves: 0</span>
+            <span id="bb-timer">Time: 0:00</span>
+            <span id="bb-pairs">Pairs: 0/0</span>
+        </div>
+
+        <!-- Difficulty -->
+        <div class="bb-diff-bar">
+            <button class="bb-btn-sm active" id="diff-sprout" onclick="bbDiff('sprout')">🌱 Sprout</button>
+            <button class="bb-btn-sm" id="diff-bloom" onclick="bbDiff('bloom')">🌿 Bloom</button>
+            <button class="bb-btn-sm" id="diff-garden" onclick="bbDiff('garden')">🌳 Garden</button>
+        </div>
+
+        <!-- Message area -->
+        <div class="bb-msg" id="bb-msg">Tap a card to start!</div>
+
+        <!-- Card grid -->
+        <div class="bb-grid" id="bb-grid"></div>
+
+        <!-- Play / restart -->
+        <div id="bb-controls">
+            <button class="bb-btn" onclick="bbNewGame()" id="bb-play">🌻 New Garden</button>
+        </div>
+
+        <!-- Results (hidden until game over) -->
+        <div class="bb-results" id="bb-results" style="display:none;">
+            <div class="bb-bloom-label" id="bb-result-label">Today's Bloom</div>
+            <div class="bb-bloom-score" id="bb-result-score"></div>
+            <div id="bb-result-msg" style="font-size:16pt;"></div>
+            <div class="bb-bloom-detail" id="bb-result-detail"></div>
+            <div class="bb-history" id="bb-history"></div>
+            <div style="margin-top:16px;">
+                <button class="bb-btn" onclick="bbNewGame()">🌱 Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Claude: 2026-03-29 — shared-header loader -->
+    <script>
+    (function() {
+      var hdr = document.getElementById('shared-header');
+      if (!hdr) return;
+      fetch('/Academic-Allies/modular/shared-header.html?v=20260329')
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          hdr.innerHTML = html;
+          hdr.querySelectorAll('script').forEach(function(old) {
+            var s = document.createElement('script');
+            [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+            s.textContent = old.textContent;
+            old.replaceWith(s);
+          });
+        }).catch(function() {});
+    })();
+    </script>
+
+    <script>
+    /* ================================================================
+       Brain Bloom — Garden Memory Game
+       Claude: 2026-03-29
+
+       A cozy memory card game with a garden theme.
+       Flip cards to find flower pairs. Each pair found blooms a flower
+       in your garden. Your "Bloom Score" at the end reflects how
+       sharp your recall was today — a gentle brain check wrapped
+       in something actually fun to play.
+
+       Scores save to Firestore with a 7-day rolling history,
+       so supporters can spot trends.
+       ================================================================ */
+    (function() {
+      'use strict';
+
+      /* ── Flower pairs — real flowers for Mary's HORT class ─ */
+      var FLOWERS = [
+        { emoji: '🌸', name: 'Cherry Blossom' },
+        { emoji: '🌻', name: 'Sunflower' },
+        { emoji: '🌹', name: 'Rose' },
+        { emoji: '🌷', name: 'Tulip' },
+        { emoji: '🌺', name: 'Hibiscus' },
+        { emoji: '💐', name: 'Bouquet' },
+        { emoji: '🌼', name: 'Daisy' },
+        { emoji: '🪻', name: 'Lavender' },
+        { emoji: '🌵', name: 'Cactus' },
+        { emoji: '🍀', name: 'Clover' },
+        { emoji: '🌿', name: 'Herb' },
+        { emoji: '🪷', name: 'Lotus' },
+        { emoji: '🌾', name: 'Rice Plant' },
+        { emoji: '🍃', name: 'Leaf' },
+        { emoji: '🌳', name: 'Tree' },
+        { emoji: '🍄', name: 'Mushroom' }
+      ];
+
+      /* ── Difficulty settings ──────────────────────────── */
+      var DIFF = {
+        sprout: { cols: 3, rows: 2, pairs: 3, label: '🌱 Sprout' },
+        bloom:  { cols: 4, rows: 3, pairs: 6, label: '🌿 Bloom' },
+        garden: { cols: 4, rows: 4, pairs: 8, label: '🌳 Garden' }
+      };
+      var _diff = 'sprout';
+
+      /* ── Game state ───────────────────────────────────── */
+      var _flipped = [];
+      var _matched = 0;
+      var _totalPairs = 0;
+      var _moves = 0;
+      var _locked = false;
+      var _timerStart = null;
+      var _timerInterval = null;
+      var _elapsed = 0;
+      var _gameActive = false;
+      var _gardenFlowers = [];
+      var _history = []; /* rolling 7-day bloom scores */
+
+      /* ── DOM ───────────────────────────────────────────── */
+      var grid       = document.getElementById('bb-grid');
+      var gardenEl   = document.getElementById('bb-garden');
+      var msgEl      = document.getElementById('bb-msg');
+      var movesEl    = document.getElementById('bb-moves');
+      var timerEl    = document.getElementById('bb-timer');
+      var pairsEl    = document.getElementById('bb-pairs');
+      var resultsEl  = document.getElementById('bb-results');
+      var controlsEl = document.getElementById('bb-controls');
+
+      /* ── Encouragement ─────────────────────────────────── */
+      var MATCH_MSG = ['Nice! 🌟', 'Bloom! 🌸', 'Beautiful! 💚', 'Yes! ✨', 'Growing! 🌿', 'Lovely! 🌻'];
+      var MISS_MSG = ['Hmm…', 'Not quite', 'Keep looking', 'Almost!', 'Try again'];
+      var WIN_MSG = [
+        'Your garden is in full bloom! 🌸',
+        'Every flower found its match! 🌻',
+        'What a beautiful garden! 💐',
+        'You made the garden sing! 🌷'
+      ];
+
+      function _rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+      /* ── Difficulty switch ─────────────────────────────── */
+      window.bbDiff = function(d) {
+        if (_gameActive) return;
+        _diff = d;
+        var btns = ['sprout', 'bloom', 'garden'];
+        for (var i = 0; i < btns.length; i++) {
+          var el = document.getElementById('diff-' + btns[i]);
+          if (el) el.className = 'bb-btn-sm' + (btns[i] === d ? ' active' : '');
+        }
+        bbNewGame();
+      };
+
+      /* ── New game ──────────────────────────────────────── */
+      window.bbNewGame = function() {
+        var cfg = DIFF[_diff];
+        _totalPairs = cfg.pairs;
+        _matched = 0;
+        _moves = 0;
+        _flipped = [];
+        _locked = false;
+        _gameActive = true;
+        _timerStart = null;
+        _elapsed = 0;
+        if (_timerInterval) clearInterval(_timerInterval);
+        _timerInterval = null;
+
+        resultsEl.style.display = 'none';
+        controlsEl.style.display = 'block';
+        movesEl.textContent = 'Moves: 0';
+        timerEl.textContent = 'Time: 0:00';
+        pairsEl.textContent = 'Pairs: 0/' + _totalPairs;
+        msgEl.textContent = 'Tap a card to start!';
+
+        /* Set up garden flowers (all seeds initially) */
+        _gardenFlowers = [];
+        gardenEl.innerHTML = '';
+        for (var g = 0; g < _totalPairs; g++) {
+          var seed = document.createElement('span');
+          seed.className = 'bb-flower';
+          seed.textContent = '🌱';
+          seed.id = 'garden-' + g;
+          gardenEl.appendChild(seed);
+          _gardenFlowers.push(seed);
+        }
+
+        /* Build deck */
+        var shuffled = FLOWERS.slice();
+        _shuffleArr(shuffled);
+        var picked = shuffled.slice(0, _totalPairs);
+        var deck = [];
+        for (var p = 0; p < picked.length; p++) {
+          deck.push({ emoji: picked[p].emoji, name: picked[p].name, idx: p });
+          deck.push({ emoji: picked[p].emoji, name: picked[p].name, idx: p });
+        }
+        _shuffleArr(deck);
+
+        /* Build grid */
+        var cardSize = cfg.cols <= 3 ? '90px' : '75px';
+        grid.style.gridTemplateColumns = 'repeat(' + cfg.cols + ', ' + cardSize + ')';
+        grid.innerHTML = '';
+
+        for (var c = 0; c < deck.length; c++) {
+          var card = document.createElement('div');
+          card.className = 'bb-card';
+          card.style.width = cardSize;
+          card.setAttribute('data-emoji', deck[c].emoji);
+          card.setAttribute('data-idx', deck[c].idx);
+          card.setAttribute('role', 'button');
+          card.setAttribute('tabindex', '0');
+          card.setAttribute('aria-label', 'Card ' + (c + 1) + ' — face down');
+
+          var back = document.createElement('div');
+          back.className = 'bb-card-face bb-card-back';
+
+          var front = document.createElement('div');
+          front.className = 'bb-card-face bb-card-front';
+          front.textContent = deck[c].emoji;
+
+          card.appendChild(back);
+          card.appendChild(front);
+
+          (function(cd) {
+            var handler = function() { _flipCard(cd); };
+            cd.addEventListener('click', handler);
+            cd.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); }
+            });
+          })(card);
+
+          grid.appendChild(card);
+        }
+      };
+
+      /* ── Flip logic ────────────────────────────────────── */
+      function _flipCard(card) {
+        if (_locked) return;
+        if (!_gameActive) return;
+        if (card.classList.contains('flipped') || card.classList.contains('matched')) return;
+
+        /* Start timer on first flip */
+        if (!_timerStart) {
+          _timerStart = Date.now();
+          _timerInterval = setInterval(function() {
+            _elapsed = Math.floor((Date.now() - _timerStart) / 1000);
+            var m = Math.floor(_elapsed / 60);
+            var s = _elapsed % 60;
+            timerEl.textContent = 'Time: ' + m + ':' + (s < 10 ? '0' : '') + s;
+          }, 500);
+        }
+
+        card.classList.add('flipped');
+        card.setAttribute('aria-label', 'Card — ' + card.getAttribute('data-emoji'));
+        _flipped.push(card);
+
+        if (_flipped.length === 2) {
+          _moves++;
+          movesEl.textContent = 'Moves: ' + _moves;
+          _locked = true;
+          var a = _flipped[0];
+          var b = _flipped[1];
+
+          if (a.getAttribute('data-idx') === b.getAttribute('data-idx')) {
+            /* Match! */
+            a.classList.add('matched');
+            b.classList.add('matched');
+            _matched++;
+            pairsEl.textContent = 'Pairs: ' + _matched + '/' + _totalPairs;
+
+            /* Bloom a garden flower */
+            var flowerEmoji = a.getAttribute('data-emoji');
+            if (_gardenFlowers[_matched - 1]) {
+              _gardenFlowers[_matched - 1].textContent = flowerEmoji;
+              _gardenFlowers[_matched - 1].classList.add('bloomed', 'bb-bloom-burst');
+            }
+
+            msgEl.textContent = _rand(MATCH_MSG);
+            _flipped = [];
+            _locked = false;
+
+            /* Check win */
+            if (_matched === _totalPairs) {
+              _gameWon();
+            }
+          } else {
+            /* Miss — shake and flip back */
+            msgEl.textContent = _rand(MISS_MSG);
+            setTimeout(function() {
+              a.classList.add('shake');
+              b.classList.add('shake');
+            }, 100);
+            setTimeout(function() {
+              a.classList.remove('flipped', 'shake');
+              b.classList.remove('flipped', 'shake');
+              a.setAttribute('aria-label', 'Card — face down');
+              b.setAttribute('aria-label', 'Card — face down');
+              _flipped = [];
+              _locked = false;
+            }, 900);
+          }
+        }
+      }
+
+      /* ── Game won ──────────────────────────────────────── */
+      function _gameWon() {
+        _gameActive = false;
+        if (_timerInterval) clearInterval(_timerInterval);
+        _elapsed = Math.floor((Date.now() - _timerStart) / 1000);
+
+        /* Calculate Bloom Score (0-100)
+           Based on efficiency: perfect = exactly _totalPairs moves.
+           Score = (pairs / moves) * time_bonus * 100
+           Time bonus: full bonus under par_time, scales down after. */
+        var efficiency = _totalPairs / _moves; /* 1.0 = perfect, lower = worse */
+        var parTime = _totalPairs * 8; /* ~8 seconds per pair as par */
+        var timeBonus = _elapsed <= parTime ? 1.0 : Math.max(0.3, parTime / _elapsed);
+        var rawScore = Math.round(efficiency * timeBonus * 100);
+        var score = Math.min(100, Math.max(0, rawScore));
+
+        /* Determine bloom level */
+        var bloomEmoji, bloomLabel;
+        if (score >= 90) { bloomEmoji = '🌸🌸🌸'; bloomLabel = 'Full Bloom!'; }
+        else if (score >= 70) { bloomEmoji = '🌸🌸'; bloomLabel = 'Blooming nicely!'; }
+        else if (score >= 50) { bloomEmoji = '🌸'; bloomLabel = 'Growing strong'; }
+        else if (score >= 30) { bloomEmoji = '🌱'; bloomLabel = 'Sprouting'; }
+        else { bloomEmoji = '🫘'; bloomLabel = 'Planting seeds'; }
+
+        /* Show results */
+        document.getElementById('bb-result-score').textContent = bloomEmoji;
+        document.getElementById('bb-result-label').textContent = 'Bloom Score: ' + score;
+        document.getElementById('bb-result-msg').textContent = bloomLabel;
+
+        var m = Math.floor(_elapsed / 60);
+        var s = _elapsed % 60;
+        document.getElementById('bb-result-detail').textContent =
+          _moves + ' moves · ' + m + ':' + (s < 10 ? '0' : '') + s + ' · ' + DIFF[_diff].label;
+
+        msgEl.textContent = _rand(WIN_MSG);
+        controlsEl.style.display = 'none';
+        resultsEl.style.display = 'block';
+
+        /* Save to history */
+        _history.push({ date: _todayStr(), score: score, diff: _diff, moves: _moves, time: _elapsed });
+        /* Keep last 7 entries */
+        if (_history.length > 7) _history = _history.slice(_history.length - 7);
+        _renderHistory();
+        _saveToFirestore(score);
+      }
+
+      /* ── History dots ──────────────────────────────────── */
+      function _renderHistory() {
+        var container = document.getElementById('bb-history');
+        if (!container) return;
+        container.innerHTML = '';
+        if (_history.length <= 1) return;
+        for (var i = 0; i < _history.length; i++) {
+          var dot = document.createElement('span');
+          dot.className = 'bb-history-dot';
+          var sc = _history[i].score;
+          if (sc >= 70) dot.style.background = '#4CAF50';
+          else if (sc >= 40) dot.style.background = '#FFC107';
+          else dot.style.background = '#FF9800';
+          dot.title = _history[i].date + ': ' + sc;
+          container.appendChild(dot);
+        }
+      }
+
+      /* ── Firestore persistence ─────────────────────────── */
+      function _saveToFirestore(score) {
+        if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
+        var uid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+        AA.db.collection('users').doc(uid).set({
+          brainBloom: {
+            history: _history,
+            lastScore: score,
+            lastPlayed: new Date().toISOString()
+          }
+        }, { merge: true }).catch(function(err) { console.warn('[BrainBloom] save:', err); });
+      }
+
+      function _loadFromFirestore() {
+        if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
+        var uid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+        AA.db.collection('users').doc(uid).get().then(function(doc) {
+          if (doc.exists && doc.data().brainBloom && Array.isArray(doc.data().brainBloom.history)) {
+            _history = doc.data().brainBloom.history;
+            _renderHistory();
+          }
+        }).catch(function() {});
+      }
+
+      /* ── Utility ───────────────────────────────────────── */
+      function _shuffleArr(arr) {
+        for (var i = arr.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = arr[i];
+          arr[i] = arr[j];
+          arr[j] = tmp;
+        }
+      }
+
+      function _todayStr() {
+        var d = new Date();
+        var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+        var dd = ('0' + d.getDate()).slice(-2);
+        return d.getFullYear() + '-' + mm + '-' + dd;
+      }
+
+      /* ── Init ──────────────────────────────────────────── */
+      function _waitForAA(cb) {
+        if (window.AA && window.AA.auth) { cb(); return; }
+        var t = setInterval(function() {
+          if (window.AA && window.AA.auth) { clearInterval(t); cb(); }
+        }, 200);
+      }
+
+      bbNewGame();
+      _waitForAA(function() {
+        AA.auth.onAuthStateChanged(function(user) {
+          if (user) _loadFromFirestore();
+        });
+      });
+
+    })();
+    </script>
+</body>
+</html>

@@ -40,8 +40,6 @@
           { id: 'scripture',  label: 'A Word of Comfort',    enabled: true },
           { id: 'youmatter',  label: 'You Matter',           enabled: true },
           { id: 'bedroom',    label: 'Bedroom Planner',      enabled: true },
-          /* Claude: 2026-03-30 — Brain Bloom disabled by default; network lead enables per student */
-          { id: 'brain-bloom', label: 'Brain Bloom',          enabled: false },
           { id: 'journal',    label: 'A Gentle Moment',      enabled: true }
         ],
         'bad-brain': [
