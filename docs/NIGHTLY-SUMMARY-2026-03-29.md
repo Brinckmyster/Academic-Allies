@@ -3,106 +3,138 @@
 **Auditor:** Claude
 **Repo:** Academic-Allies (brinckmyster.github.io/Academic-Allies)
 **Branch:** main
-**Latest commit:** ebb464c (Claude: Nightly audit 2026-03-28)
+**Run:** Evening deep audit (replaces earlier morning summary)
 
 ---
 
 ## CRITICAL ISSUES
 
-### 1. Cache-bust version mismatch — STILL UNRESOLVED (43 live pages stale)
+### 1. sw.js is truncated — fetch handler incomplete
+**File:** `sw.js` (line 206-207)
+**Impact:** The service worker's fetch event handler is cut off mid-line. The file ends with `if (req.mode === 'navigate') {\n          r` — the offline fallback return statement and closing braces are missing. This means the service worker will throw a syntax error on registration, breaking offline caching for the entire app.
+**Action:** Restore the missing closing of the fetch handler. The truncated section should return `caches.match('/Academic-Allies/offline.html')` and close out the catch/event blocks.
 
-Carried forward from 03-28 audit. The 03-28 audit commit claimed cache-bust bumps but **43 live HTML files still reference `v=20260327`** instead of `v=20260328`.
+### 2. XSS vulnerabilities — unsanitized suggestedByName in innerHTML
+**Files:** `modular/nope-mode.html` (~line 480), `modular/semi-nope.html` (~line 501)
+**Impact:** Both files insert `s.suggestedByName` directly into innerHTML without escaping. A malicious supporter could inject HTML/JS via the `suggestedByName` Firestore field that would execute in the student's browser.
+**Action:** Escape `suggestedByName` before inserting into HTML (e.g., create/use a `textContent`-based approach or an escapeHTML helper).
 
-**At `v=20260328` (2 files):** `shared-header.html`, `sitemap.html`
-
-**Still at `v=20260327` (43 live files):**
-- Root: `index.html`
-- Core: `accommodations.html`, `admin.html`, `checkin.html`, `checkin-log.html`, `emergency.html`, `resources.html`, `icon-gallery.html`
-- Components: `audio-notes.html`, `audio-converter.html`, `audit-log.html`, `calendar.html`, `meal-planner-mary/index.html`, `meal-planner.html`, `message-system.html`, `modes.html`, `recovery-mode.html`, `settings.html`, `spoon-pal.html`, `spoon-planner.html`, `streak-cat.html`, `student-config-editor.html`, `study-notes.html`, `support-dashboard.html`, `user-tiers.html`
-- Templates: `accommodation-request.html`, `counselor-outreach.html`, `network-invite.html`, `templates.html`
-- Static/quiz: All 10 floral quiz files, `custom-quiz.html`, `network-lead-guide.html`, `study-tools.html`, `utc-converter.html`
-- Docs: `TEAM-PROFILES.html`
-
-(3 archive `.bak` files also have v=20260327 — these are fine, archives don't get bumped.)
-
-**Impact:** Users on these 43 pages may load a stale shared-header from browser cache.
+### 3. Unguarded Firestore write — dark-mode.js
+**File:** `modular/js/dark-mode.js` (~line 783)
+**Impact:** `syncToFirestore()` is called without checking mirror mode. A supporter in mirror view could toggle dark mode directly on the student's account, bypassing the suggestion system.
+**Action:** Add mirror guard: `if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;` before the Firestore sync call.
 
 ---
 
 ## WARNINGS
 
-### 2. Four stale worktrees — STILL UNRESOLVED
+### 4. Cache-bust version mismatch
+All 43 HTML pages use `?v=20260328` for shared-header.html and shared-footer.html fetches, but sw.js CACHE is `aa-shell-20260329b`. These should be aligned — bump HTML pages to `?v=20260329`.
 
-Same 4 prunable worktrees from the 03-28 audit. Bruise hasn't run the cleanup commands yet.
+### 5. ES5 violation — `.endsWith()` in sw.js
+**File:** `sw.js` (line 169)
+**Code:** `path.endsWith(nc)` — `.endsWith()` is ES6.
+**Fix:** Replace with `path.slice(-nc.length) === nc`
 
-| Worktree | Branch |
-|----------|--------|
-| nice-jang | claude/nice-jang |
-| vigilant-poincare | claude/vigilant-poincare |
-| wonderful-darwin | claude/wonderful-darwin |
-| wonderful-khorana | claude/wonderful-khorana |
+### 6. Listener leaks — no cleanup on page unload
+**Files:** `modular/js/aa-mirror.js` (~line 705), `modular/js/status-circle.js` (~line 1040-1167)
+**Impact:** `onAuthStateChanged` and `onSnapshot` listeners are not unsubscribed on page unload. Repeated navigation accumulates stale listeners, causing memory leaks and redundant Firestore reads.
+**Action:** Store unsubscribe handles and call them in a `beforeunload` event.
 
-### 3. Four ES5 compliance violations — STILL UNRESOLVED
+### 7. watchSpoonPal error callback missing
+**File:** `modular/aa-firebase.js` (~line 1085)
+**Impact:** The `onSnapshot` error handler logs but doesn't notify the calling page callback. If the listener fails (permissions, network), the UI hangs indefinitely waiting for data.
 
-Same 4 violations from 03-28 (sw.js `Promise.allSettled`, admin.html `Object.values`, two `Array.from` uses).
+### 8. No offline detection on critical pages
+**Files:** `modular/checkin.html`, `modular/components/meal-planner/meal-planner.html`
+**Impact:** These pages rely on Firestore but have no `navigator.onLine` check or offline banner. Users on poor connections see frozen UI with no indication of what's happening.
+
+### 9. Shared-header fetch failure has no fallback
+**All pages** load shared-header.html via fetch with only a `console.warn` in the `.catch()`. If shared-header fails to load, pages lose navigation, auth, and header UI with no fallback content shown.
 
 ---
 
 ## HOUSEKEEPING
 
-### 4. Temp files (.FIX, .NEW, etc.)
-**Status: CLEAN.** No temp files found anywhere in the repo.
+### 10. Broken image references in icon-gallery.html
+**File:** `modular/icon-gallery.html`
+**Missing:** `icons/home.jpeg`, `icons/home.jpg`, `icons/home.svg`, `icons/home.webp` — only `icons/home.png` exists. Gallery shows broken image placeholders for 4 variants.
 
-### 5. .gitignore entries
-**Status: GOOD.** `.bash_history` and `.fuse_hidden*` are already in .gitignore (added since 03-28).
+### 11. Archive naming inconsistencies
+8 archive files use legacy `.bak.bak*` double-suffix patterns and 1 file has a `.user-tiers` suffix appended incorrectly. These are cosmetic but violate the archive naming convention (`FILENAME_YYYY-MM-DD_descriptor.bak.ext`). Not urgent — historical artifacts.
 
-### 6. Root-level files review
+### 12. .fuse_hidden file in repo root
+**File:** `.fuse_hidden0000077f00000001` (3.2KB — Firebase deploy debug logs)
+**Status:** Already in `.gitignore` — not tracked by git. Safe to delete when convenient.
 
-**Acceptable at root (required by tooling/hosting):**
-- `404.html` — GitHub Pages requires at root
-- `offline.html` — Service worker fallback page
-- `.nojekyll` — GitHub Pages config
-- `.firebaserc`, `firebase.json`, `firestore.indexes.json`, `firestore.rules`, `storage.rules` — Firebase config (must be at root)
-- `package.json`, `package-lock.json` — npm config (must be at root)
-- `favicon-16x16.png`, `favicon-32x32.png` — favicon variants (browsers expect at root)
+### 13. Unvalidated fetch responses
+**Files:** `modular/components/meal-planner/meal-planner.html` (~line 373), bootstrap-suggestor files
+**Impact:** fetch().then(r => r.json()) chains don't check `r.ok` first — HTTP 4xx/5xx responses get parsed as JSON, producing garbage data silently.
 
-**Note:** CLAUDE.md allowed list doesn't mention Firebase/npm config files. These legitimately must stay at root for their tools to find them. Consider updating the allowed list in CLAUDE.md to reflect reality.
+---
 
-### 7. Archive hygiene
-**Status: CLEAN.** No misplaced archives or dot-file archives found.
+## AUDIT RESULTS BY CATEGORY
+
+### Broken Resources
+- **Checked:** 457 local resource references across 57 HTML files
+- **Broken:** 4 (all in icon-gallery.html — missing home icon variants)
+- **Pass rate:** 99.1%
+
+### Auth & Security
+- **Mirror guards:** Properly applied in study-activity.js, migraine-mode.js, audio-notes.html, admin.html
+- **Missing guard:** dark-mode.js (syncToFirestore)
+- **XSS vectors:** 2 found (nope-mode.html, semi-nope.html)
+- **API key exposure:** None found (Firebase config is expected client-side)
+- **Auth listeners:** 3 in aa-firebase.js (intentional — 1 temporary, 2 persistent)
+
+### Cache Consistency
+- **sw.js CACHE version:** `aa-shell-20260329b`
+- **HTML cache-bust strings:** `?v=20260328` (1 day behind)
+- **NEVER_CACHE list:** 32 entries — comprehensive coverage
+- **sw.js truncation:** CRITICAL — file is incomplete
+
+### Code Quality (ES5 Compliance)
+- **Violations found:** 1 (`.endsWith()` in sw.js line 169)
+- **var/function usage:** Correct throughout
+- **No arrow functions, template literals, classes, or async/await found**
+
+### Archive Hygiene
+- **Total archive files:** 2,952
+- **All in modular/archive/:** Yes
+- **Naming violations:** ~9 legacy files with non-standard naming
+- **Dot-file archives:** None
+- **Misplaced .FIX/.NEW files:** None
+
+### Redundancy & Robustness
+- **Listener leaks:** 3 instances (aa-mirror.js, status-circle.js, watchSpoonPal)
+- **Missing offline detection:** 2 critical pages
+- **Null guard gaps:** 2 instances (audio-notes getDriveToken, status-circle colorOf)
+- **Unvalidated fetches:** 2 instances
+- **Data validation:** Adequate — maxlength enforced, emoji values guarded with fallback
+
+### Misplaced Files
+- **Repo root:** Clean (404.html and offline.html are expected)
+- **.bash_history:** In .gitignore — not tracked
+- **.fuse_hidden*:** In .gitignore — not tracked
+- **Stale worktrees:** None
+- **Stale branches:** None (Brinckmyster-Aestas is preserved per instructions)
 
 ---
 
 ## RECOMMENDED GIT COMMANDS
 
-> **DO NOT RUN** — for Bruise to execute manually in Git Bash
+> **DO NOT RUN** — for Bruise to review and execute manually.
 
 ```bash
-# 1. Prune stale worktrees and delete their branches
-git worktree prune
-git branch -D claude/nice-jang
-git branch -D claude/vigilant-poincare
-git branch -D claude/wonderful-darwin
-git branch -D claude/wonderful-khorana
+# None tonight — all issues require code changes before committing.
+# Priority fix order:
+# 1. Restore sw.js truncated fetch handler
+# 2. Escape suggestedByName in nope-mode.html and semi-nope.html
+# 3. Add mirror guard to dark-mode.js syncToFirestore
+# 4. Bump cache-bust versions to ?v=20260329 on all 43 HTML pages
+# 5. Fix .endsWith() ES5 violation in sw.js
 ```
 
-The cache-bust fix (43 files from v=20260327 → v=20260328) requires a Claude session to do the find-and-replace across all files safely. Bruise should request this in a working session.
-
 ---
 
-## SUMMARY vs. LAST NIGHT (03-28)
-
-| Issue | 03-28 | 03-29 | Status |
-|-------|-------|-------|--------|
-| Cache-bust mismatch | 42 pages stale | 43 pages stale (+index.html) | **UNRESOLVED** |
-| Stale worktrees | 4 prunable | 4 prunable | **UNRESOLVED** |
-| ES5 violations | 4 files | 4 files | **UNRESOLVED** |
-| Temp files | Clean | Clean | PASS |
-| .gitignore gaps | 2 missing | Fixed | PASS |
-| Archive hygiene | Clean | Clean | PASS |
-
-**Bottom line:** The 03-28 audit commit added .gitignore entries but the cache-bust bulk update didn't land. The worktree cleanup commands haven't been run yet. No new issues found tonight.
-
----
-
-*Report generated by Claude — Nightly Audit Review, 2026-03-29*
+*Report generated by Claude — 2026-03-29 evening audit*
