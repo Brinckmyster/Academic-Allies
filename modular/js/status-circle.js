@@ -1272,6 +1272,12 @@
   /* ── Kick off ───────────────────────────────────────────── */
   injectCSS();
 
+  /* Claude: 2026-03-30 — W6 fix: unsubscribe all Firestore/Auth listeners on unload to prevent leaks */
+  window.addEventListener('beforeunload', function () {
+    teardown();
+    if (_mirrorPollInterval) { clearInterval(_mirrorPollInterval); }
+  });
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {

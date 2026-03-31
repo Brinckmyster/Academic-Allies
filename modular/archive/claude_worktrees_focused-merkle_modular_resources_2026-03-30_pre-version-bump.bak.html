@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<!-- ============================================================
+     resources.html — Academic Allies Resource Center
+     Created: (original page, content by Bruise)
+     Updated: 2026-03-01 by Claude — applied AA standard page template:
+       shared header, teal color scheme, page-wrap layout,
+       viewport meta, Firebase scripts, cache-bust version bump.
+     Static content: BYUI campus resources and tech tools.
+     ============================================================ -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resource Center — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
+
+  <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. -->
+  <!-- Claude: 2026-03-13 — aligned aa-mirror.js cache-bust to match shared-header.html -->
+<!-- Claude: 2026-03-14 — removed duplicate aa-mirror.js; shared-header loads it -->
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 3rem;
+    }
+    #site-header { min-height: 56px; }
+    .page-wrap { max-width: 680px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+
+    h1 {
+      font-size: 1.6rem;
+      color: var(--teal-dk);
+      margin: 1rem 0 .25rem;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-bottom: 1.75rem;
+    }
+
+    /* ── Resource card ── */
+    .res-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+    .res-section h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--teal-dk);
+      margin-bottom: .75rem;
+      padding-bottom: .5rem;
+      border-bottom: 2px solid var(--border);
+    }
+    .res-section ul { list-style: none; padding: 0; }
+    .res-section ul li {
+      padding: .6rem 0;
+      border-bottom: 1px solid #f0f4f4;
+      font-size: .95rem;
+    }
+    .res-section ul li:last-child { border-bottom: none; }
+    .res-item-name { font-weight: 700; color: var(--text); display: block; margin-bottom: .15rem; }
+    .res-item-detail { color: var(--muted); font-size: .88rem; }
+    a { color: var(--teal-dk); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Claude: 2026-03-13 — search filter, mobile responsive, 44px touch targets */
+    .search-wrap {
+      margin-bottom: 1.25rem;
+    }
+    .search-input {
+      width: 100%;
+      padding: .6rem 1rem .6rem 2.25rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: .95rem;
+      background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%235a6a6b' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat .75rem center;
+      min-height: 44px;
+    }
+    .search-input:focus {
+      outline: 2px solid var(--teal);
+      border-color: var(--teal);
+    }
+    .res-section.hidden { display: none; }
+    .res-section ul li.hidden { display: none; }
+    .no-results {
+      display: none;
+      text-align: center;
+      color: var(--muted);
+      padding: 2rem 1rem;
+      font-size: .95rem;
+    }
+    /* Phone links should be easy tap targets on mobile */
+    .res-item-detail a {
+      display: inline-block;
+      min-height: 44px;
+      line-height: 44px;
+      padding: 0 .25rem;
+    }
+    /* Claude: 2026-03-25 — dark mode for resource cards and content */
+    html.aa-dark .res-section { background: #1e1e1e; border-color: #333; }
+    html.aa-dark .res-section h2 { color: #8ec5c8; border-bottom-color: #333; }
+    html.aa-dark .res-item-name { color: #e0e0e0; }
+    html.aa-dark .res-item-detail { color: #999; }
+    html.aa-dark a { color: #8ec5c8; }
+    html.aa-dark .search-input { background: #1e1e1e; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .no-results { color: #999; }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.3rem; }
+      .res-section { padding: 1rem; }
+      .res-item-detail a { display: block; padding: .25rem 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+      .then(function(r){ return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var n = document.createElement('script');
+          [].slice.call(old.attributes).forEach(function(a){ n.setAttribute(a.name, a.value); });
+          n.textContent = old.textContent;
+          old.parentNode.replaceChild(n, old);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+
+  <div class="page-wrap">
+    <h1>Resource Center</h1>
+    <p class="subtitle">BYUI campus resources and accessibility tools</p>
+
+    <!-- Claude: 2026-03-13 — live search filter -->
+    <div class="search-wrap">
+      <label for="res-search" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Search resources</label>
+      <input type="text" id="res-search" class="search-input" placeholder="Search resources..." oninput="debouncedFilter()" aria-label="Search resources" />
+    </div>
+    <div class="no-results" id="no-results" role="status">No resources match your search.</div>
+
+    <div class="res-section" role="region" aria-label="Campus offices">
+      <h2>Campus Offices</h2>
+      <ul>
+        <li>
+          <span class="res-item-name">Accessibility Services</span>
+          <span class="res-item-detail">
+            <a href="tel:2084969210">(208) 496-9210</a> ·
+            <a href="mailto:accessibility@byui.edu">accessibility@byui.edu</a>
+          </span>
+        </li>
+        <li>
+          <span class="res-item-name">Testing Center</span>
+          <span class="res-item-detail">
+            <a href="tel:2084961750">(208) 496-1750</a> ·
+            <a href="mailto:testcenter@byui.edu">testcenter@byui.edu</a>
+          </span>
+        </li>
+        <li>
+          <span class="res-item-name">Counseling Center</span>
+          <span class="res-item-detail">
+            <a href="tel:2084969370">(208) 496-9370</a>
+          </span>
+        </li>
+        <li>
+          <span class="res-item-name">Academic Advising</span>
+          <span class="res-item-detail">
+            <a href="tel:2084961411">(208) 496-1411</a>
+          </span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="res-section" role="region" aria-label="Technology tools">
+      <h2>Technology Tools</h2>
+      <ul>
+        <li>
+          <span class="res-item-name">Kurzweil 3000</span>
+          <span class="res-item-detail">Text-to-speech and reading support — available in MCK 290 Lab</span>
+        </li>
+        <li>
+          <span class="res-item-name">Camera HRV Apps</span>
+          <span class="res-item-detail">Heart rate monitoring via camera</span>
+        </li>
+        <li>
+          <span class="res-item-name">KeyStrokeCare</span>
+          <span class="res-item-detail">Typing pattern browser extension</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+  /* Claude: 2026-03-14 — debounce wrapper to avoid per-keystroke DOM churn */
+  var _resFilterTimer = null;
+  function debouncedFilter() {
+    if (_resFilterTimer) clearTimeout(_resFilterTimer);
+    _resFilterTimer = setTimeout(filterResources, 180);
+  }
+
+  /* Claude: 2026-03-13 — live search filter for resources */
+  function filterResources() {
+    var q = (document.getElementById('res-search').value || '').toLowerCase().trim();
+    var sections = document.querySelectorAll('.res-section');
+    var anyVisible = false;
+
+    sections.forEach(function (sec) {
+      var items = sec.querySelectorAll('li');
+      var secVisible = false;
+      items.forEach(function (li) {
+        var text = li.textContent.toLowerCase();
+        if (!q || text.indexOf(q) !== -1) {
+          li.classList.remove('hidden');
+          secVisible = true;
+        } else {
+          li.classList.add('hidden');
+        }
+      });
+      if (secVisible) {
+        sec.classList.remove('hidden');
+        anyVisible = true;
+      } else {
+        sec.classList.add('hidden');
+      }
+    });
+
+    var noResults = document.getElementById('no-results');
+    if (noResults) noResults.style.display = anyVisible ? 'none' : 'block';
+  }
+  </script>
+</body>
+</html>

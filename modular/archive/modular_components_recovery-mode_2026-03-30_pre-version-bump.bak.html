@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recovery Mode — Your Safe Space</title>
+    <link rel="icon" href="../icons/mode-recovery.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        body {
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            font-size: 18pt;
+            line-height: 1.5;
+            letter-spacing: 0.035em;
+            background: #FAFAF9;
+            color: #333333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .recovery-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 22pt;
+            margin-bottom: 10px;
+            color: #6CA0A3;
+        }
+        .header p {
+            font-size: 18pt;
+            opacity: 0.9;
+        }
+        .spoon-counter {
+            background: #6CA0A3;
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 20pt;
+            font-weight: 600;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #6CA0A3;
+            margin-bottom: 15px;
+            font-size: 20pt;
+        }
+        .btn {
+            background: #6CA0A3;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 18pt;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            min-height: 19mm;
+            min-width: 19mm;
+            transition: opacity 0.2s;
+            font-weight: 600;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .btn:focus {
+            outline: 3px solid #6CA0A3;
+            outline-offset: 2px;
+        }
+        .btn-emergency {
+            background: #f5576c;
+            font-size: 20pt;
+            padding: 20px;
+        }
+        .flower-image {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 15px;
+            margin: 15px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .quiz-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .quiz-btn {
+            background: #f0f4ff;
+            color: #6CA0A3;
+            border: 2px solid #6CA0A3;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16pt;
+            min-height: 19mm;
+        }
+        .quiz-btn:hover {
+            background: #6CA0A3;
+            color: white;
+        }
+        .quiz-btn.correct {
+            background: #4caf50;
+            color: white;
+            border-color: #4caf50;
+        }
+        .quiz-btn.incorrect {
+            background: #f44336;
+            color: white;
+            border-color: #f44336;
+        }
+        .hidden {
+            display: none;
+        }
+        .progress-bar {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 8px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: #6CA0A3;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .achievement {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            padding: 12px;
+            border-radius: 12px;
+            margin: 10px 0;
+            color: #2d3436;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* ── Breathing Circle ──────────────────────────────── */
+        .breathing-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            padding: 10px 0 6px;
+        }
+        .breathing-circle {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 38% 38%, #c5e8ea 0%, #6CA0A3 65%);
+            box-shadow: 0 0 0 12px rgba(108, 160, 163, 0.18);
+            animation: breathe-cycle 8s ease-in-out infinite;
+            /* aria: described by breathing-label below */
+        }
+        @keyframes breathe-cycle {
+            0%   { transform: scale(0.72); box-shadow: 0 0 0  4px rgba(108,160,163,0.25); }
+            50%  { transform: scale(1.22); box-shadow: 0 0 0 28px rgba(108,160,163,0.0);  }
+            100% { transform: scale(0.72); box-shadow: 0 0 0  4px rgba(108,160,163,0.25); }
+        }
+        .breathing-phase {
+            font-size: 18pt;
+            color: #6CA0A3;
+            font-weight: 700;
+            min-height: 34px;
+            text-align: center;
+            letter-spacing: 0.02em;
+            transition: opacity 0.6s ease;
+        }
+        .breathing-timer {
+            font-size: 13pt;
+            color: #999;
+            text-align: center;
+            min-height: 24px;
+        }
+        /* Reduced-motion fallback: no animation, show text only */
+        @media (prefers-reduced-motion: reduce) {
+            .breathing-circle {
+                animation: none;
+                transform: scale(1);
+            }
+        }
+        /* ── Session bar & new-day banner ─── Claude 2026-02-27 ── */
+        .session-bar {
+            background: #f0f7f8;
+            border: 1px solid #d0e8ea;
+            border-radius: 10px;
+            padding: 8px 14px;
+            margin-bottom: 14px;
+            font-size: 14pt;
+            color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .session-tz-btn {
+            color: #6CA0A3;
+            cursor: pointer;
+            font-size: 13pt;
+            background: none;
+            border: none;
+            font-family: inherit;
+            padding: 0;
+            text-decoration: underline;
+        }
+        .tz-picker-row {
+            display: none;
+            background: #f0f7f8;
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            font-size: 14pt;
+            color: #555;
+        }
+        .tz-picker-row select {
+            font-size: 14pt;
+            font-family: inherit;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            padding: 4px 8px;
+            margin-left: 6px;
+        }
+        .new-day-btn {
+            background: #fff8e1;
+            border: 1px solid #ffca28;
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 13pt;
+            font-family: inherit;
+            color: #8a6800;
+            cursor: pointer;
+        }
+        /* Claude: task completion styling — 2026-02-27 */
+        .todo-item.todo-completed { opacity: 0.6; background: #f5f5f5; border-radius: 8px; }
+        .todo-item.todo-completed .todo-text { text-decoration: line-through; color: #888; }
+        /* Claude: journal card — 2026-02-27 */
+        .journal-textarea {
+            width: 100%; box-sizing: border-box;
+            font-family: inherit; font-size: 16pt; line-height: 1.5;
+            border: 1px solid #c5dfe1; border-radius: 10px;
+            padding: 10px 14px; resize: vertical; min-height: 90px;
+            background: #fafffe; color: #333; margin-top: 10px;
+        }
+        .journal-textarea:focus { outline: 2px solid #6CA0A3; border-color: transparent; }
+
+        /* Claude: 2026-03-13 — focus-visible, aria improvements, mobile polish */
+        .btn:focus-visible, .quiz-btn:focus-visible { outline: 3px solid #6CA0A3; outline-offset: 3px; }
+        /* Claude: 2026-03-19 — Added missing energy-option styles so emojis look & feel clickable */
+        .energy-scale {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .energy-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: background 0.15s, border-color 0.15s;
+            font-size: 16pt;
+        }
+        .energy-option:hover {
+            background: #e8f4f5;
+            border-color: #b8d8da;
+        }
+        .energy-option.selected {
+            background: #d4edee;
+            border-color: #6CA0A3;
+            font-weight: 600;
+        }
+        .energy-emoji {
+            font-size: 26pt;
+            line-height: 1;
+        }
+        .energy-option:focus-visible { outline: 3px solid #6CA0A3; outline-offset: 2px; border-radius: 12px; }
+        .new-day-btn { min-height: 44px; }
+        .session-tz-btn { min-height: 44px; }
+
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .header h1 { font-size: 18pt; }
+            .spoon-counter { font-size: 16pt; padding: 10px; }
+            .card { padding: 18px; border-radius: 14px; }
+            .quiz-buttons { grid-template-columns: 1fr; }
+            .session-bar { flex-direction: column; align-items: flex-start; }
+        }
+
+        /* Claude: 2026-03-25 — dark mode overrides for recovery mode */
+        html.aa-dark body { background: #121212; color: #e0e0e0; }
+        html.aa-dark .header h1 { color: #7abfc2; }
+        html.aa-dark .spoon-counter { background: #3d6a6d; }
+        html.aa-dark .card { background: #1e1e2e; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        html.aa-dark .card h2 { color: #7abfc2; }
+        html.aa-dark .btn { background: #3d6a6d; }
+        html.aa-dark .btn-emergency { background: #8b2030; }
+        html.aa-dark .quiz-btn { background: #0f1117; color: #7abfc2; border-color: #3d6a6d; }
+        html.aa-dark .quiz-btn:hover { background: #3d6a6d; color: #fff; }
+        html.aa-dark .quiz-btn.correct { background: #1a3a2a; border-color: #2a6b4a; }
+        html.aa-dark .quiz-btn.incorrect { background: #3a1a1a; border-color: #6b2a2a; }
+        html.aa-dark .progress-bar { background: #2a2a3e; }
+        html.aa-dark .progress-fill { background: #4a7f82; }
+        html.aa-dark .achievement { background: linear-gradient(135deg, #1a3a2a 0%, #1a2a40 100%); color: #a8d8db; }
+        html.aa-dark .breathing-phase { color: #7abfc2; }
+        html.aa-dark .breathing-timer { color: #888; }
+        html.aa-dark .session-bar { background: #1a2e30; border-color: #2a4447; color: #ccc; }
+        html.aa-dark .session-tz-btn { color: #7abfc2; }
+        html.aa-dark .tz-picker-row { background: #1a2e30; color: #ccc; }
+        html.aa-dark .tz-picker-row select { background: #0f1117; color: #e0e0e0; border-color: #444; }
+        html.aa-dark .new-day-btn { background: #2a2510; border-color: #665a20; color: #d4c870; }
+        html.aa-dark .todo-item.todo-completed { background: #1a1a2e; }
+        html.aa-dark .todo-item.todo-completed .todo-text { color: #666; }
+        html.aa-dark .journal-textarea { background: #0f1117; color: #e0e0e0; border-color: #3d6a6d; }
+        html.aa-dark .journal-textarea:focus { outline-color: #7abfc2; }
+        /* Claude: 2026-03-29 — dark mode for custom prompt panel */
+        html.aa-dark #journal-custom-panel { background: #1a2e30; }
+        html.aa-dark #journal-custom-panel label { color: #aaa; }
+        html.aa-dark #journal-custom-input { background: #0f1117; color: #e0e0e0; border-color: #3d6a6d; }
+        html.aa-dark .journal-custom-item { background: #0f1117 !important; border-color: #3d6a6d !important; color: #e0e0e0 !important; }
+        html.aa-dark .energy-option:hover { background: #1a2e30; border-color: #3d6a6d; }
+        html.aa-dark .energy-option.selected { background: #1a3035; border-color: #4a7f82; }
+    </style>
+</head>
+<body>
+<!-- Claude: 2026-03-19 — mode-gate: blocks page if feature is off for current mode -->
+<script>var AA_MODE_GATE = 'comfort';</script>
+<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+<div id="site-header"></div>
+<script>
+    /* Claude: 2026-03-25 — converted to ES5 var/function style */
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          newScript.textContent = oldScript.textContent;
+          oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
+        var dragScript = document.createElement('script');
+        dragScript.src = '/Academic-Allies/modular/js/draggable.js';
+        dragScript.onload = function() { if(typeof initDrag === 'function') initDrag(); };
+        document.body.appendChild(dragScript);
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+    <div class="recovery-container">
+        <div class="header">
+            <img src="../icons/mode-recovery.png"
+                 alt="Recovery Mode"
+                 style="max-width:240px;width:100%;margin-bottom:14px;display:block;margin-left:auto;margin-right:auto;">
+            <p>You're safe here, <span id="rm-user-name">friend</span>. Take it one step at a time.</p>
+        </div>
+        <!-- Spoon Counter - Always Visible -->
+        <div class="spoon-counter">
+            🥄 Spoons Remaining: <span id="spoons-remaining">10</span> / 10
+        </div>
+        <!-- Session timestamp — Claude 2026-02-27 -->
+        <div class="session-bar" id="session-bar" data-rm-edit>
+            <span>🕐 Session started: <span id="session-start-display">—</span></span>
+            <button class="new-day-btn" onclick="resetSession()">🌅 Start New Day</button>
+            <button class="session-tz-btn" onclick="toggleTZPicker()">Change timezone</button>
+        </div>
+        <div class="tz-picker-row" id="tz-picker-row" data-rm-edit>
+            <label for="tz-select">Timezone:</label>
+            <select id="tz-select" onchange="saveTZ(this.value)"></select>
+        </div>
+
+        <!-- Emergency Support -->
+        <div class="card" data-card-id="emergency">
+            <!-- Claude-credit: fixed broken Aestas dev URL → production path 2026-02-26 -->
+            <!-- Claude: 2026-03-13 — aria-labels for a11y -->
+            <button class="btn btn-emergency" onclick="window.location.href='/Academic-Allies/modular/emergency.html'" aria-label="Emergency — I need help now">
+                🆘 I Need Help Now
+            </button>
+        </div>
+        <!-- Energy Check-In -->
+        <div class="card" data-rm-edit data-card-id="energy">
+            <h2>💚 How Exhausted Are You?</h2>
+            <p style="margin-bottom: 15px; font-size: 16pt;">Pick the one that feels right:</p>
+            <!-- Claude: 2026-03-25 — full radiogroup with role, aria-checked, tabindex, keyboard nav -->
+            <div class="energy-scale" id="energy-scale" role="radiogroup" aria-label="How exhausted are you? Pick an energy level">
+                <div class="energy-option" data-level="10" onclick="selectEnergy(10)" role="radio" aria-checked="false" tabindex="0">
+                    <span class="energy-emoji">😁</span>
+                    <span class="energy-label">Fully Charged</span>
+                </div>
+                <div class="energy-option" data-level="9" onclick="selectEnergy(9)" role="radio" aria-checked="false" tabindex="-1">
+                    <span class="energy-emoji">😊</span>
+                    <span class="energy-label">Energized</span>
+                </div>
+                <div class="energy-option" data-level="8" onclick="selectEnergy(8)" role="radio" aria-checked="false" tabindex="-1">
+                    <span class="energy-emoji">🙂</span>
+                    <span class="energy-label">Pretty Good</span>
+                </div>
+                <div class="energy-option" data-level="7" onclick="selectEnergy(7)" role="radio" aria-checked="false" tabindex="-1">
+                    <span class="energy-emoji">🙂</span>
+                    <span class="energy-label">Doing Okay</span>
+                </div>
+                <div class="energy-option" data-level="6" onclick="selectEnergy(6)" role="radio" aria-checked="false" tabindex="-1">
+                    <span class="energy-emoji">😐</span>
+                    <span class="energy-label">Neutral</span>
+                </div>
+                <div class="energy-option" data-level="5" onclick="selectEnergy(5)" role="radio" aria-checked="false" tabindex="-1">
+                    <span class="energy-emoji">😕</span>
+                    <span class="energy-label">Starting to Tire</span>
+                </div>
+                <div class="energy-option" data-level="4" onclick="selectEnergy(4)" role="radio" aria-checked="false" tabindex="-1">
+                    <span class="energy-emoji">😟</span>
+                    <span class="energy-label">Pretty Tired</span>
+                </div>
+                <div class="energy-option" data-level="3" onclick="selectEnergy(3)" role="radio" aria-checked="false" tabindex="-1">
+                    <span class="energy-emoji">😫</span>
+                    <span class="energy-label">Very Exhausted</span>
+                </div>
+                <div class="energy-option" data-level="2" onclick="selectEnergy(2)" role="radio" aria-checked="false" tabindex="-1">
+                    <span class="energy-emoji">😩</span>
+                    <span class="energy-label">Almost Empty</span>
+                </div>
+                <div class="energy-option" data-level="1" onclick="selectEnergy(1)" role="radio" aria-checked="false" tabindex="-1">
+                    <span class="energy-emoji">☠️</span>
+                    <span class="energy-label">Completely Depleted</span>
+                </div>
+            </div>
+        </div>
+        <!-- Minimalist To-Do List -->
+        <div class="card" data-rm-edit data-card-id="tasks">
+            <h2>✅ Today's Tasks</h2>
+            <div id="todo-list">
+                <!-- Populated by loadSpoonPlan() -->
+                <!-- Claude: 2026-03-14 — contrast fix: #aaa → #777 for WCAG AA compliance -->
+                <div style="color:#777;font-size:15pt;padding:10px 0;">Loading your plan…</div>
+            </div>
+            <button class="btn" onclick="window.location.href='/Academic-Allies/modular/components/spoon-planner/spoon-planner.html'" aria-label="Open spoon planner">📋 Plan My Spoons</button>
+        </div>
+        <!-- Gentle Breathing Exercise -->
+        <div class="card" data-card-id="breathing">
+            <h2>🫁 Breathe With Me</h2>
+            <p style="text-align: center; margin-bottom: 10px; color: #666; font-size: 16pt;">
+                Follow the circle — it grows as you breathe in, shrinks as you breathe out.
+            </p>
+            <div class="breathing-wrap">
+                <div class="breathing-circle"
+                     role="img"
+                     aria-label="Breathing guide circle — expands for 4 seconds (inhale), contracts for 4 seconds (exhale)">
+                </div>
+                <div class="breathing-phase" id="breathing-phase" aria-live="polite">Breathe in…</div>
+                <div class="breathing-timer" id="breathing-timer" aria-live="off">4</div>
+            </div>
+            <p style="text-align: center; font-size: 14pt; color: #aaa; margin-top: 10px;">
+                4 seconds in &nbsp;·&nbsp; 4 seconds out
+            </p>
+        </div>
+        <!-- Simple Meal Suggestions -->
+        <div class="card" data-rm-edit data-card-id="meals">
+            <h2>🍽️ Easy Meal Ideas</h2>
+            <div class="gentle-reminder">
+                Remember: Solids before 5pm, liquids only after 5pm
+            </div>
+           
+            <div id="meal-suggestions">
+                <div class="meal-suggestion">
+                    <strong>10:30am - Breakfast</strong>
+                    Smooth yogurt (lactose-free) with a little applesauce
+                </div>
+                <div class="meal-suggestion">
+                    <strong>1:30pm - Lunch</strong>
+                    Mashed potatoes (smooth) with soft turkey slices
+                </div>
+                <div class="meal-suggestion">
+                    <strong>4:30pm - Dinner</strong>
+                    Plain white rice with soft-cooked carrots
+                </div>
+                <div class="meal-suggestion">
+                    <strong>After 5pm - Liquids Only</strong>
+                    Water, warm water with honey, or clear broth
+                </div>
+            </div>
+           
+            <button class="btn" onclick="generateNewMeals()" aria-label="Show different meal suggestions">
+                🔄 Show Different Options
+            </button>
+        </div>
+        <!-- Claude: 2026-03-17 — Flower quizzes moved to Study Tools for Winter 2026.
+             Replaced inline Flower ID Quiz + Genus Practice with redirect card.
+             Originals archived: recovery-mode_2026-03-17_pre-quiz-extraction.bak.html -->
+        <div class="card" data-rm-edit data-card-id="flower" style="text-align:center;">
+            <h2>🌺 Flower Practice — Moved to Study Tools!</h2>
+            <p style="margin-bottom:14px; color:#555; font-size:14pt; line-height:1.6;">
+                Flower ID, Genus Practice, Match Game, Flashcards, Speed Round, and more are all in Study Tools now — organized for your Winter 2026 semester.
+            </p>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                <a href="/Academic-Allies/modular/static/study-tools.html"
+                   style="display:inline-block;padding:14px 24px;background:#6CA0A3;color:#fff;border-radius:14px;font-size:14pt;font-family:inherit;text-decoration:none;font-weight:600;min-height:19mm;line-height:19mm;">
+                    📚 Study Tools Hub
+                </a>
+                <a href="/Academic-Allies/modular/static/floral-flower-id.html"
+                   style="display:inline-block;padding:14px 24px;background:#4a7f82;color:#fff;border-radius:14px;font-size:14pt;font-family:inherit;text-decoration:none;font-weight:600;min-height:19mm;line-height:19mm;">
+                    🌺 Flower ID
+                </a>
+                <a href="/Academic-Allies/modular/static/floral-genus-practice.html"
+                   style="display:inline-block;padding:14px 24px;background:#4a7f82;color:#fff;border-radius:14px;font-size:14pt;font-family:inherit;text-decoration:none;font-weight:600;min-height:19mm;line-height:19mm;">
+                    🌿 Genus Practice
+                </a>
+            </div>
+        </div>
+
+        <!-- Tiny Self-Care Wins -->
+        <div class="card" data-card-id="selfcare">
+            <h2>💧 Tiny Self-Care Wins</h2>
+            <p style="margin-bottom: 15px; color: #666;">Pick just ONE if you can. Or none - that's okay too.</p>
+           
+            <button class="btn" onclick="markActivity('drink')">
+                💧 Drink some water
+            </button>
+            <button class="btn" onclick="markActivity('stretch')">
+                🧘 Gentle 2-minute stretch
+            </button>
+            <button class="btn" onclick="markActivity('sunlight')">
+                ☀️ Sit by a window for 5 min
+            </button>
+            <button class="btn" onclick="markActivity('music')">
+                🎵 Listen to one favorite song
+            </button>
+           
+            <div id="activity-achievements" class="hidden"></div>
+        </div>
+        <!-- Optional Scripture Comfort -->
+        <div class="card" data-card-id="scripture">
+            <h2>📖 A Word of Comfort</h2>
+            <div id="scripture-verse" style="padding: 20px; background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); border-radius: 15px; text-align: center; font-size: 18pt; line-height: 1.8; color: #2d3436; font-style: italic;">
+            </div>
+            <button class="btn" onclick="showNewScripture()">
+                ✨ Show Another Scripture
+            </button>
+        </div>
+        <!-- Support Messages -->
+        <div class="card" data-card-id="youmatter">
+            <h2>💜 You Matter</h2>
+            <div id="support-message" style="padding: 12px; background: #f0f4ff; border-radius: 12px; text-align: center; font-size: 18pt; line-height: 1.6;">
+            </div>
+            <button class="btn" onclick="showNewMessage()">
+                💌 Show Me Another
+            </button>
+        </div>
+        <!-- Claude: 2026-03-10 — bedroom layout planner link -->
+        <a href="/Academic-Allies/modular/components/bedroom-planner/bedroom-planner.html"
+           data-card-id="bedroom"
+           style="display:block;text-decoration:none;color:inherit;margin-bottom:16px;">
+            <div class="card" style="display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;transition:box-shadow .2s;">
+                <span style="font-size:24pt;">🛏️</span>
+                <div>
+                    <strong style="font-size:15pt;color:#6CA0A3;">Bedroom Layout Planner</strong>
+                    <span style="display:block;font-size:13pt;color:#888;margin-top:2px;">Drag-and-drop room planner with all your furniture measurements</span>
+                </div>
+                <!-- Claude: 2026-03-14 — contrast fix: #ccc → #888 for WCAG AA -->
+                <span style="margin-left:auto;font-size:16pt;color:#888;">→</span>
+            </div>
+        </a>
+        <!-- Claude: 2026-03-29 — Brain Bloom link card -->
+        <a href="brain-bloom/brain-bloom.html" style="text-decoration:none;color:inherit;">
+            <div class="card" style="display:flex;align-items:center;gap:16px;cursor:pointer;">
+                <div style="font-size:28pt;">🌸</div>
+                <div style="flex:1;">
+                    <h2 style="margin-bottom:2px;">Brain Bloom</h2>
+                    <p style="font-size:14pt;color:#888;margin:0;">Gentle brain warm-ups — memory, sequences &amp; word recall</p>
+                </div>
+                <span style="font-size:16pt;color:#888;">→</span>
+            </div>
+        </a>
+
+        <!-- Claude: Gentle journal prompts — 2026-02-27 -->
+        <div class="card" data-rm-edit data-card-id="journal">
+            <h2>📓 A Gentle Moment</h2>
+            <p style="font-size:14pt;color:#888;margin-bottom:14px;">No pressure. Just a thought to sit with, if you'd like.</p>
+            <div id="journal-prompt" style="background:#f0f7f8;border-left:4px solid #6CA0A3;border-radius:0 10px 10px 0;padding:14px 16px;font-size:16pt;color:#444;line-height:1.6;margin-bottom:4px;"></div>
+            <!-- Claude: 2026-03-25 — added maxlength -->
+            <textarea id="journal-textarea" class="journal-textarea" rows="4" placeholder="Write here if you'd like… or just sit with the thought 💚" maxlength="2000"></textarea>
+            <!-- Claude: 2026-03-29 — added custom prompt support -->
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button onclick="journalNext()" style="background:#f0f7f8;color:#6CA0A3;border:1px solid #c5dfe1;border-radius:8px;padding:6px 14px;font-size:14pt;font-family:inherit;cursor:pointer;">🔄 Different prompt</button>
+                <button id="journal-add-prompt-btn" onclick="journalToggleCustom()" style="background:#f0f7f8;color:#6CA0A3;border:1px solid #c5dfe1;border-radius:8px;padding:6px 14px;font-size:14pt;font-family:inherit;cursor:pointer;">✏️ Add your own</button>
+            </div>
+            <!-- Claude: 2026-03-29 — custom prompt panel -->
+            <div id="journal-custom-panel" style="display:none;margin-top:12px;background:#f0f7f8;border-radius:10px;padding:14px;">
+                <label for="journal-custom-input" style="font-size:14pt;color:#555;display:block;margin-bottom:6px;">Write your own reflection prompt:</label>
+                <input id="journal-custom-input" type="text" maxlength="200" placeholder="e.g. What am I grateful for today?" style="width:100%;padding:10px;font-size:16pt;font-family:inherit;border:1px solid #c5dfe1;border-radius:8px;box-sizing:border-box;">
+                <button onclick="journalSaveCustom()" style="margin-top:8px;background:#6CA0A3;color:white;border:none;border-radius:8px;padding:8px 20px;font-size:14pt;font-family:inherit;cursor:pointer;">💾 Save prompt</button>
+                <div id="journal-custom-list" style="margin-top:12px;"></div>
+            </div>
+            <!-- Claude: auto-save status — 2026-02-27 -->
+            <!-- Claude: 2026-03-14 — contrast fix: #aaa → #777 for WCAG AA -->
+            <div id="journal-saved" style="display:none;font-size:13pt;color:#777;text-align:right;margin-top:6px;font-style:italic;"></div>
+            <p id="journal-signin-msg" style="display:none;font-size:13pt;color:#777;text-align:center;margin-top:8px;font-style:italic;">Sign in to save your response.</p>
+        </div>
+    </div>
+
+    <!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags.
+         shared-header.html is the single source of truth for Firebase loading.
+         Old tags caused double-loading → auth/argument-error. Archived version:
+         recovery-mode_2026-03-09_pre-double-firebase-fix.html -->
+    <!-- Claude: 2026-03-14 — removed duplicate aa-mirror.js; shared-header loads it -->
+
+    <script>
+        /* Claude: 2026-03-09 — poll for window.AA (loaded by shared-header).
+           Replaces the old one-shot if(window.AA) checks that broke when
+           direct Firebase script tags were removed. */
+        /* Claude: 2026-03-14 — added max 80 retries (8s) to prevent infinite polling */
+        function _waitForAA(cb, n) {
+            n = n || 0;
+            if (window.AA && AA.auth && AA.db) { cb(); return; }
+            if (n > 80) { return; }
+            setTimeout(function() { _waitForAA(cb, n + 1); }, 100);
+        }
+    </script>
+    <!-- Claude: 2026-03-18 — Load student config system (per-student Firestore settings) -->
+    <script src="/Academic-Allies/modular/js/student-config.js"></script>
+    <script>
+        // Spoon Management
+        // UID guards — prevent full re-init on Firebase ~45-min token refresh. Claude, 2026-03-07.
+        var _rmSpoonUid   = null; // guards listener #2: spoon-plan loader
+        var _rmJournalUid = null; // guards _journalUpdateAuth
+        /* Claude: 2026-03-09 — _isSupporterRole flag: true when the signed-in
+           user is family/support/nearby-help. These users can VIEW recovery mode data
+           but all edit/save/journal controls are hidden. This flag is checked before
+           rendering any editable UI. */
+        var _isSupporterRole = false;
+
+        /* Claude: 2026-03-19 — Card layout engine.
+           Reads the cards config array from studentConfig and:
+           1. Hides cards whose enabled=false
+           2. Reorders cards to match the array order
+           Cards are identified by data-card-id attributes. */
+        function _applyCardLayout(cardsCfg) {
+          var container = document.querySelector('.recovery-container');
+          if (!container) return;
+
+          /* Build a map of id → enabled */
+          var enabledMap = {};
+          cardsCfg.forEach(function(c) { enabledMap[c.id] = c.enabled !== false; });
+
+          /* Find all card elements with data-card-id */
+          var allCards = container.querySelectorAll('[data-card-id]');
+          allCards.forEach(function(el) {
+            var id = el.getAttribute('data-card-id');
+            if (enabledMap[id] === false) {
+              el.style.display = 'none';
+            }
+          });
+
+          /* Reorder: move enabled cards in config order.
+             We collect the non-card elements (header, spoon counter, session bar, tz picker)
+             that live before the first card, then append cards in config order. */
+          var enabledCards = [];
+          cardsCfg.forEach(function(c) {
+            if (c.enabled === false) return;
+            var el = container.querySelector('[data-card-id="' + c.id + '"]');
+            if (el) enabledCards.push(el);
+          });
+
+          /* Append in order — DOM automatically moves them */
+          enabledCards.forEach(function(el) {
+            container.appendChild(el);
+          });
+
+          if (window.AA_DEBUG) console.log('[RecoveryMode] Card layout applied:', cardsCfg.filter(function(c) { return c.enabled !== false; }).length, 'cards visible');
+        }
+
+        /* Claude: 2026-03-25 — converted let to var for ES5 compat */
+        var dailySpoons = 10;
+        var remainingSpoons = 10;
+        var tasks = [
+            { text: 'Check in with myself', spoons: 1, completed: false }
+        ];
+        function updateSpoonCounter() {
+            document.getElementById('spoons-remaining').textContent = remainingSpoons;
+           
+            if (remainingSpoons <= dailySpoons * 0.25 && remainingSpoons > 0) {
+                alert('⚠️ Spoon Alert: You\'re running low on energy. Time to rest!');
+            }
+        }
+        function completeTask(index, checked) {
+            tasks[index].completed = checked;
+            if (checked) {
+                remainingSpoons -= tasks[index].spoons;
+            } else {
+                remainingSpoons += tasks[index].spoons;
+            }
+            // Claude: persist completed state so re-renders don't lose it — 2026-02-27
+            localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
+            updateSpoonCounter();
+            // Claude: toggle class directly — avoids re-render race — 2026-02-27
+            var items = document.querySelectorAll('#todo-list .todo-item');
+            if (items[index]) items[index].classList.toggle('todo-completed', checked);
+        }
+        /* Claude: 2026-03-25 — selectEnergy now manages aria-checked + tabindex for radiogroup a11y */
+        function selectEnergy(level) {
+            document.querySelectorAll('.energy-option').forEach(function(opt) {
+                opt.classList.remove('selected');
+                opt.setAttribute('aria-checked', 'false');
+                opt.setAttribute('tabindex', '-1');
+            });
+            var sel = document.querySelector('[data-level="' + level + '"]');
+            if (sel) {
+                sel.classList.add('selected');
+                sel.setAttribute('aria-checked', 'true');
+                sel.setAttribute('tabindex', '0');
+                sel.focus();
+            }
+
+            dailySpoons = level;
+            remainingSpoons = level;
+            updateSpoonCounter();
+
+            localStorage.setItem('energyLevel', level);
+            /* Claude: 2026-03-14 — replaced dorothy email check with AA_MIRROR_CAN_WRITE */
+            // Firebase sync (silent, non-blocking) — skip in read-only mirror mode
+            if (window.AA && AA.auth && AA.auth.currentUser) {
+                if (!window.AA_MIRROR_UID || window.AA_MIRROR_CAN_WRITE) {
+                    var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+                    AA.patchFlowerQuiz(writeUid, { energyLevel: level });
+                }
+            }
+        }
+        /* Claude: 2026-03-25 — keyboard navigation for energy radiogroup (arrow keys + Enter/Space) */
+        (function _energyKeyboardNav() {
+            var scale = document.getElementById('energy-scale');
+            if (!scale) return;
+            scale.addEventListener('keydown', function(e) {
+                var opts = Array.prototype.slice.call(scale.querySelectorAll('.energy-option'));
+                var curr = document.activeElement;
+                var idx = opts.indexOf(curr);
+                if (idx === -1) return;
+                if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    var next = (idx + 1) % opts.length;
+                    var lvl = parseInt(opts[next].getAttribute('data-level'));
+                    selectEnergy(lvl);
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    var prev = (idx - 1 + opts.length) % opts.length;
+                    var lvl2 = parseInt(opts[prev].getAttribute('data-level'));
+                    selectEnergy(lvl2);
+                } else if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    var lvl3 = parseInt(curr.getAttribute('data-level'));
+                    selectEnergy(lvl3);
+                }
+            });
+        })();
+        function showSpoonPlanner() {
+            /* Claude-credit: was a placeholder alert — now navigates to actual page 2026-02-26 */
+            window.location.href = '/Academic-Allies/modular/components/spoon-planner/spoon-planner.html';
+        }
+        /* Claude: 2026-03-17 — Flower Quiz JS removed (moved to standalone page:
+           modular/static/floral-flower-id.html) */
+        /* Claude: 2026-03-18 — Changed const to var for comfort arrays to allow config override */
+        // Comforting scriptures
+        var comfortingScriptures = [
+            { text: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.", reference: "Matthew 11:28" },
+            { text: "Peace I leave with you, my peace I give unto you: not as the world giveth, give I unto you. Let not your heart be troubled, neither let it be afraid.", reference: "John 14:27" },
+            { text: "Cast thy burden upon the Lord, and he shall sustain thee.", reference: "Psalm 55:22" },
+            { text: "The Lord is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit.", reference: "Psalm 34:18" },
+            { text: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee.", reference: "Isaiah 41:10" }
+        ];
+        function showNewScripture() {
+            var scripture = comfortingScriptures[Math.floor(Math.random() * comfortingScriptures.length)];
+            /* Claude: 2026-03-25 — converted template literal to ES5 string concatenation */
+            document.getElementById('scripture-verse').innerHTML =
+                '"' + scripture.text + '"' +
+                '<div style="margin-top: 15px; font-size: 16pt; font-style: normal; font-weight: 600;">' +
+                '— ' + scripture.reference +
+                '</div>';
+        }
+        // Support messages
+        var supportMessages = [
+            "You're doing better than you think. This moment doesn't define you.",
+            "Rest is not weakness. Rest is medicine.",
+            "Your body knows what it needs. Listen to it gently.",
+            "One breath at a time. One moment at a time. You're here, and that's enough.",
+            "You are loved exactly as you are, right now, in this moment.",
+            "Small steps are still steps forward. Be proud of showing up.",
+            "Heavenly Father knows your heart. He sees your efforts.",
+            "You are a daughter of God. Your worth is infinite."
+        ];
+        /* Claude: 2026-03-18 — Renamed maryMealOptions to defaultMaryMeals.
+           Legacy fallback; per-student meal config now loaded from Firestore via AA_CONFIG */
+        /* Claude: 2026-03-25 — const to var for ES5 */
+        var defaultMaryMeals = {
+            breakfast: [
+                "Post Fruity Pebbles with Lactaid 2% milk",
+                "Pop-Tarts (Frosted Cherry)",
+                "Idahoan Buttery Mashed Potatoes (instant)",
+                "King's Hawaiian Slider Buns (plain or with safe spread)",
+                "Grandma Sycamore's White Bread (plain or toasted)"
+            ],
+            lunch: [
+                "Jack's Cheese Personal Pizza",
+                "Idahoan Buttery Mashed Potatoes",
+                "Grandma Sycamore's White Bread sandwich (safe fillings)",
+                "King's Hawaiian Slider Buns with cheese",
+                "Snack Pack Chocolate Pudding"
+            ],
+            dinner: [
+                "Jack's Cheese Personal Pizza",
+                "Idahoan Buttery Mashed Potatoes",
+                "Hostess Ding Dongs (easy comfort food)",
+                "Snack Pack Chocolate Pudding",
+                "Pop-Tarts (Frosted Cherry)"
+            ],
+            liquids: [
+                "Great Value Lactose Free 2% Milk",
+                "Naked Strawberry Banana Smoothie",
+                "Gatorade Fruit Punch",
+                "Lactaid 2% Reduced Fat Milk",
+                "Great Value Distilled Water"
+            ]
+        };
+        // Generic low-effort meal options for other students — Added 2026-02-28 by Claude
+        var genericMealOptions = {
+            breakfast: [
+                "Toast with peanut butter or jam",
+                "Instant oatmeal (microwave, 2 min)",
+                "Cereal with milk or dairy-free milk",
+                "Yogurt with granola",
+                "Scrambled eggs (microwave 90 sec)"
+            ],
+            lunch: [
+                "Grilled cheese sandwich",
+                "Cup noodles or instant ramen",
+                "Peanut butter & honey wrap",
+                "Canned soup (heat & eat)",
+                "Crackers with cheese or nut butter"
+            ],
+            dinner: [
+                "Frozen meal or microwave entrée",
+                "Pasta with jarred sauce (10 min)",
+                "Rice with butter or soy sauce",
+                "Quesadilla (tortilla + cheese, microwave)",
+                "Canned soup with bread"
+            ],
+            liquids: [
+                "Water or sparkling water",
+                "Gatorade or Pedialyte",
+                "Herbal tea (no prep needed)",
+                "Apple juice or orange juice",
+                "Broth (instant or carton)"
+            ]
+        };
+        // Default to Mary's options; will be overridden by per-student Firestore config after auth.
+        // Added 2026-02-28 by Claude. Claude: 2026-03-18 — updated to use Firestore config.
+        var mealOptions = defaultMaryMeals;
+        /* Claude: 2026-03-17 — Flower quiz functions (viewReports, reportWrongCategory,
+           loadNewFlower, checkAnswer) removed — moved to standalone page:
+           modular/static/floral-flower-id.html */
+        /* Claude: 2026-03-25 — converted to ES5 var/function style + XSS escape */
+        function _escRM(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        function generateNewMeals() {
+            var suggestions = document.getElementById('meal-suggestions');
+            var breakfast = mealOptions.breakfast[Math.floor(Math.random() * mealOptions.breakfast.length)];
+            var lunch = mealOptions.lunch[Math.floor(Math.random() * mealOptions.lunch.length)];
+            var dinner = mealOptions.dinner[Math.floor(Math.random() * mealOptions.dinner.length)];
+            var liquid = mealOptions.liquids[Math.floor(Math.random() * mealOptions.liquids.length)];
+
+            suggestions.innerHTML =
+                '<div class="meal-suggestion"><strong>10:30am - Breakfast</strong> ' + _escRM(breakfast) + '</div>' +
+                '<div class="meal-suggestion"><strong>1:30pm - Lunch</strong> ' + _escRM(lunch) + '</div>' +
+                '<div class="meal-suggestion"><strong>4:30pm - Dinner</strong> ' + _escRM(dinner) + '</div>' +
+                '<div class="meal-suggestion"><strong>After 5pm - Liquids Only</strong> ' + _escRM(liquid) + '</div>';
+        }
+        function markActivity(activity) {
+            var achievements = document.getElementById('activity-achievements');
+            achievements.classList.remove('hidden');
+
+            var icons = {
+                drink: '💧',
+                stretch: '🧘',
+                sunlight: '☀️',
+                music: '🎵'
+            };
+
+            var messages = {
+                drink: "Wonderful! You're taking care of yourself!",
+                stretch: "Great job! Your body thanks you!",
+                sunlight: "Beautiful! Vitamin D is so important!",
+                music: "Perfect! Music heals the soul!"
+            };
+
+            achievements.innerHTML = '<div class="achievement">' + (icons[activity] || '') + ' ' + _escRM(messages[activity] || '') + '</div>';
+
+            remainingSpoons = Math.min(remainingSpoons + 1, dailySpoons);
+            updateSpoonCounter();
+
+            setTimeout(function() { achievements.classList.add('hidden'); }, 4000);
+        }
+        function showNewMessage() {
+            var message = supportMessages[Math.floor(Math.random() * supportMessages.length)];
+            document.getElementById('support-message').textContent = message;
+        }
+        /* Claude: 2026-03-18 — Breathing timing variables for config override */
+        var BREATHING_INHALE = 4000;  // ms
+        var BREATHING_EXHALE = 4000;  // ms
+
+        // ── Breathing circle controller ─────────────────────
+        function startBreathing() {
+            var phaseEl  = document.getElementById('breathing-phase');
+            var timerEl  = document.getElementById('breathing-timer');
+            if (!phaseEl || !timerEl) return;
+
+            // Respect prefers-reduced-motion: show text only, no countdown
+            var reducedMotion = window.matchMedia &&
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (reducedMotion) {
+                phaseEl.textContent = 'Breathe in… then out. Take your time.';
+                timerEl.textContent = '';
+                return;
+            }
+
+            var INHALE = BREATHING_INHALE;
+            var EXHALE = BREATHING_EXHALE;
+            var CYCLE  = INHALE + EXHALE;
+            var startTime = Date.now();
+
+            function tick() {
+                var elapsed  = (Date.now() - startTime) % CYCLE;
+                var isInhale = elapsed < INHALE;
+                var remaining;
+
+                if (isInhale) {
+                    phaseEl.textContent = 'Breathe in…';
+                    remaining = Math.ceil((INHALE - elapsed) / 1000);
+                } else {
+                    phaseEl.textContent = 'Breathe out…';
+                    remaining = Math.ceil((CYCLE - elapsed) / 1000);
+                }
+                timerEl.textContent = remaining > 0 ? remaining : '';
+            }
+
+            tick();
+            setInterval(tick, 250);
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            showNewMessage();
+            showNewScripture();
+            startBreathing();
+            var savedEnergy = localStorage.getItem('energyLevel');
+            if (savedEnergy) {
+                var el = document.querySelector('[data-level="' + savedEnergy + '"]');
+                if (el) el.classList.add('selected');
+            }
+
+            // ── Spoon plan: load from localStorage first, then Firebase ──
+            // Claude-credit: spoon plan Firebase sync added 2026-02-26
+            loadSpoonPlan();
+
+            // ── Firebase background sync (non-blocking) ──────────
+            // Recovery mode works fully without sign-in (localStorage).
+            // When signed in, Firebase loads the latest data and keeps
+            // it in sync across the student's devices.
+            /* Claude: 2026-03-09 — switched to _waitForAA polling (shared-header loads Firebase) */
+            _waitForAA(function() {
+                AA.auth.onAuthStateChanged(function(user) {
+                    if (!user) {
+                        // Not signed in — load from localStorage only
+                        loadSpoonPlanFromStorage();
+                        return;
+                    }
+
+                    /* Claude: 2026-03-09 — fetch user role and set _isSupporterRole flag */
+                    if (window.AA && AA.db) {
+                        AA.db.collection('users').doc(user.uid).get().then(function(doc) {
+                            var role = (doc.exists && doc.data().role) ? doc.data().role : 'pending';
+                            var supporterRoles = ['family', 'support', 'nearby-help'];
+                            _isSupporterRole = (supporterRoles.indexOf(role) !== -1);
+                            /* Hide edit/save/journal controls if supporter */
+                            if (_isSupporterRole) {
+                                var editControls = document.querySelectorAll('[data-rm-edit]');
+                                editControls.forEach(function(el) { el.style.display = 'none'; });
+                            }
+                        }).catch(function() { /* Claude: 2026-03-14 — silent catch for role read */ });
+                    }
+
+                    // ── Personalise greeting with signed-in user's name ──
+                    // Added 2026-02-28 by Claude — replace hardcoded 'Mary' with real name
+                    var firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
+                    if (firstName) {
+                        var nameEl = document.getElementById('rm-user-name');
+                        if (nameEl) nameEl.textContent = firstName;
+                        document.title = 'Recovery Mode \u2014 ' + firstName + '\u2019s Safe Space';
+                    }
+                    /* Claude: 2026-03-18 — Load per-student meal config from Firestore.
+                       Config is the source of truth. Falls back to legacy email check,
+                       then to hardcoded defaults if config not found. Respects mirror mode. */
+                    var _readUid = window.AA_MIRROR_UID || user.uid;
+                    if (window.AA_CONFIG) {
+                      window.AA_CONFIG.load(_readUid).then(function(config) {
+                        var configMeals = window.AA_CONFIG.get('meals', null);
+                        if (configMeals && configMeals.breakfast) {
+                          mealOptions = configMeals;
+                          if (window.AA_DEBUG) console.log('[RecoveryMode] Loaded meals from studentConfig for', _readUid);
+                        } else {
+                          if (window.AA_DEBUG) console.log('[RecoveryMode] No meals in studentConfig, using defaults');
+                        }
+
+                        /* Claude: 2026-03-18 — Load comfort content overrides (scriptures, messages, breathing) */
+                        var configComfort = window.AA_CONFIG.get('comfort', null);
+                        if (configComfort) {
+                          if (configComfort.scriptures && configComfort.scriptures.length > 0) {
+                            comfortingScriptures = configComfort.scriptures;
+                            if (window.AA_DEBUG) console.log('[RecoveryMode] Loaded ' + comfortingScriptures.length + ' custom scriptures from studentConfig');
+                          }
+                          if (configComfort.messages && configComfort.messages.length > 0) {
+                            supportMessages = configComfort.messages;
+                            if (window.AA_DEBUG) console.log('[RecoveryMode] Loaded ' + supportMessages.length + ' custom support messages from studentConfig');
+                          }
+                          if (configComfort.breathingIn && configComfort.breathingOut) {
+                            BREATHING_INHALE = configComfort.breathingIn;
+                            BREATHING_EXHALE = configComfort.breathingOut;
+                            if (window.AA_DEBUG) console.log('[RecoveryMode] Set custom breathing timings: ' + BREATHING_INHALE + 'ms in, ' + BREATHING_EXHALE + 'ms out');
+                          }
+                        }
+                        /* Claude: 2026-03-19 — apply card-level layout from config */
+                        var cardsCfg = window.AA_CONFIG.get('modes.cards.recovery', null);
+                        if (cardsCfg && Array.isArray(cardsCfg)) {
+                          _applyCardLayout(cardsCfg);
+                        }
+                      }).catch(function(err) {
+                        console.warn('[RecoveryMode] AA_CONFIG.load failed:', err.message);
+                      });
+                    }
+                    /* Claude: 2026-03-17 — Restore energyLevel from Firebase if not already set locally */
+                    if (window.AA && AA.db) {
+                        AA.db.collection('users').doc(_readUid).get().then(function(doc) {
+                            if (!doc.exists) return;
+                            var data = doc.data();
+                            if (data.energyLevel && !localStorage.getItem('energyLevel')) {
+                                var energyEls = document.querySelectorAll('.energy-option');
+                                energyEls.forEach(function(opt) { opt.classList.remove('selected'); });
+                                var energyEl = document.querySelector('[data-level="' + data.energyLevel + '"]');
+                                if (energyEl) energyEl.classList.add('selected');
+                            }
+                        }).catch(function(err) {
+                            console.warn('[AA] energyLevel restore error (non-critical):', err);
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+    <script>
+        /* Claude: 2026-03-25 — XSS escape helper for user/Firestore data in innerHTML */
+        function _escRM(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+        // ── Spoon Plan loader — Claude 2026-02-26 ──────────────────────────────
+        // Renders the todo-list from planTasks array.
+        // Also updates the global `tasks` so completeTask() deducts the right spoon cost.
+        // Falls back to a default "Check in with myself" task if no plan exists.
+        // Claude-credit: renamed param planTasks (was tasks) to avoid shadowing global 2026-02-26
+        function renderTodoList(planTasks) {
+            var list = document.getElementById('todo-list');
+            if (!list) return;
+            if (!planTasks || planTasks.length === 0) {
+                // Reset global tasks to default so completeTask() works correctly
+                tasks = [{ name: 'Check in with myself', text: 'Check in with myself', spoons: 1, completed: false }];
+                list.innerHTML =
+                    '<div class="todo-item">' +
+                        '<input type="checkbox" class="todo-checkbox" onchange="completeTask(0, this.checked)">' +
+                        '<span class="todo-text">Check in with myself</span>' +
+                        '<span class="todo-spoons">1🥄</span>' +
+                    '</div>';
+                return;
+            }
+            // Update global so completeTask() uses the real spoon costs
+            tasks = planTasks.slice();
+            list.innerHTML = planTasks.map(function(task, i) {
+                return '<div class="todo-item' + (task.completed ? ' todo-completed' : '') + '">' +
+                    '<input type="checkbox" class="todo-checkbox"' +
+                        (task.completed ? ' checked' : '') +
+                        ' onchange="completeTask(' + i + ', this.checked)">' +
+                    /* Claude: 2026-03-25 — XSS escape task name/text from Firestore */
+                    '<span class="todo-text">' + _escRM(task.name || task.text || '') +
+                        (task.time ? ' <span style="font-size:13pt;color:#999;">(' + _escRM(task.time) + ')</span>' : '') +
+                    '</span>' +
+                    '<span class="todo-spoons">' + (task.spoons || 1) + '🥄</span>' +
+                '</div>';
+            }).join('');
+        }
+
+        function loadSpoonPlanFromStorage() {
+            var saved = localStorage.getItem('spoonPlannerTasks');
+            renderTodoList(saved ? JSON.parse(saved) : []);
+        }
+
+        function loadSpoonPlan() {
+            // Show localStorage immediately (fast)
+            loadSpoonPlanFromStorage();
+
+            /* Claude: 2026-03-09 — switched to _waitForAA polling (shared-header loads Firebase) */
+            _waitForAA(function() {
+                AA.auth.onAuthStateChanged(function(user) {
+                    if (!user) return;
+                    if (user.uid === _rmSpoonUid) return; // token refresh — skip re-load
+                    _rmSpoonUid = user.uid;
+                    // Claude: one-time load — no live sync to avoid fighting reset — 2026-02-27
+                    // Claude: use student UID in mirror mode — 2026-02-28
+                    AA.getSpoonPlan(window.AA_MIRROR_UID || user.uid).then(function(data) {
+                        if (data && data.tasks && data.tasks.length > 0) {
+                            renderTodoList(data.tasks);
+                            localStorage.setItem('spoonPlannerTasks', JSON.stringify(data.tasks));
+                        }
+                    }).catch(function(err) {
+                        console.warn('[AA] Could not load spoon plan:', err);
+                    });
+                });
+            });
+        }
+        // ── End Spoon Plan loader ──────────────────────────────────────────────
+    </script>
+    <!-- Claude: 2026-03-17 — Genus Practice Quiz JS removed (moved to standalone page:
+         modular/static/floral-genus-practice.html). Archived in:
+         recovery-mode_2026-03-17_pre-quiz-extraction.bak.html -->
+
+    <script>
+        // ── Session tracking & new-day reset — Claude 2026-02-27 ──────────────
+        var TZ_OPTIONS = [
+            'America/New_York', 'America/Chicago', 'America/Denver',
+            'America/Los_Angeles', 'America/Phoenix', 'America/Anchorage',
+            'Pacific/Honolulu', 'Europe/London', 'Europe/Paris',
+            'Asia/Tokyo', 'Australia/Sydney'
+        ];
+
+        function getStoredTZ() {
+            return localStorage.getItem('recoveryTZ') || Intl.DateTimeFormat().resolvedOptions().timeZone;
+        }
+
+        function formatSessionStart(isoStr, tz) {
+            return new Date(isoStr).toLocaleString('en-US', {
+                timeZone: tz,
+                weekday: 'short', month: 'short', day: 'numeric',
+                hour: 'numeric', minute: '2-digit', hour12: true,
+                timeZoneName: 'short'
+            });
+        }
+
+        function populateTZSelect(selectedTZ) {
+            var sel = document.getElementById('tz-select');
+            var opts = TZ_OPTIONS.slice();
+            /* Claude: 2026-03-25 — replaced .includes() with .indexOf() for ES5 compat */
+            if (opts.indexOf(selectedTZ) === -1) opts.unshift(selectedTZ);
+            sel.innerHTML = opts.map(function(tz) {
+                return '<option value="' + tz + '"' + (tz === selectedTZ ? ' selected' : '') + '>' +
+                    tz.replace(/_/g, ' ') + '</option>';
+            }).join('');
+        }
+
+        function updateSessionDisplay(isoStr, tz) {
+            document.getElementById('session-start-display').textContent = formatSessionStart(isoStr, tz);
+        }
+
+        function toggleTZPicker() {
+            var row = document.getElementById('tz-picker-row');
+            row.style.display = row.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function saveTZ(tz) {
+            localStorage.setItem('recoveryTZ', tz);
+            var stored = localStorage.getItem('recoverySessionStart');
+            updateSessionDisplay(stored, tz);
+        }
+
+        function resetSession() {
+            // Archive completed tasks to Firebase before clearing
+            var saved = localStorage.getItem('spoonPlannerTasks');
+            var allTasks = saved ? JSON.parse(saved) : [];
+            var completed = allTasks.filter(function(t) { return t.completed; });
+
+            function _doReset() {
+                // Claude: clear plan entirely for new day — 2026-02-27
+                ['spoonPlannerTasks', 'energyLevel', 'flowerCount', 'reportedFlowers', 'recoverySessionStart'].forEach(function(k) {
+                    localStorage.removeItem(k);
+                });
+                location.reload();
+            }
+
+            if (window.AA && AA.auth && AA.auth.currentUser) {
+                // Claude: always clear Firebase tasks on new day — 2026-02-27
+                var patch = { tasks: [] };
+                if (completed.length > 0) {
+                    patch.yesterdayTasks = completed;
+                    // FUNCTIONAL FIX 2026-03-07 by Claude: local date not UTC (toISOString flips day after ~7 PM EST)
+                    var _rd = new Date();
+                    patch.yesterdayDate = _rd.getFullYear() + '-' + ('0' + (_rd.getMonth()+1)).slice(-2) + '-' + ('0' + _rd.getDate()).slice(-2);
+                }
+                /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
+                var writeUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+                /* Claude: 2026-03-14 — fixed promise chain: .then() before .catch()
+                   so _doReset only runs on success, not after error too */
+                AA.saveSpoonPlan(writeUid, patch)
+                    .then(_doReset)
+                    .catch(function(err) {
+                        console.warn('[AA] Could not reset spoon plan:', err);
+                        alert('Could not save — please try again.');
+                    });
+            } else {
+                _doReset();
+            }
+        }
+
+        function initSession() {
+            var tz = getStoredTZ();
+            var stored = localStorage.getItem('recoverySessionStart');
+            if (!stored) {
+                stored = new Date().toISOString();
+                localStorage.setItem('recoverySessionStart', stored);
+            }
+            updateSessionDisplay(stored, tz);
+            populateTZSelect(tz);
+        }
+
+        document.addEventListener('DOMContentLoaded', initSession);
+    </script>
+
+    <script>
+        /* Claude: Gentle journal prompts — 2026-02-27 */
+        var JOURNAL_PROMPTS = [
+            "What's one small thing that felt okay today, even if tiny?",
+            "What does your body need most right now?",
+            "What would feel like enough for today?",
+            "Is there anything you're proud of yourself for, however small?",
+            "What would you tell a dear friend who was having a day like this?",
+            "What's one thing that helped you get through today?",
+            "What are you looking forward to, even something very small?",
+            "What's something gentle you could do for yourself in the next hour?",
+            "What feelings are present for you right now? No need to fix them.",
+            "What does rest look like for you today?",
+            "Is there something you need to let yourself off the hook for today?",
+            "What's one kind thought you could offer yourself right now?"
+        ];
+
+        /* Claude: 2026-03-29 — custom prompts stored per user in Firestore,
+           merged into the rotation alongside built-in prompts.
+           Prompts can be plain strings (always show) or objects with:
+             { text, label, scripture, showDate } — only show on matching date */
+        var _customPrompts = [];
+        var _allPrompts = JOURNAL_PROMPTS.slice(); /* combined list: built-in + filtered custom */
+        var _jIdx = Math.floor(Math.random() * _allPrompts.length);
+
+        /* Claude: 2026-03-29 — get today's date as YYYY-MM-DD for date filtering */
+        function _todayStr() {
+            var d = new Date();
+            var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+            var dd = ('0' + d.getDate()).slice(-2);
+            return d.getFullYear() + '-' + mm + '-' + dd;
+        }
+
+        /* Claude: 2026-03-29 — get display text from a prompt (string or object) */
+        function _promptDisplay(p) {
+            if (typeof p === 'string') return p;
+            if (typeof p === 'object' && p !== null) {
+                var parts = [];
+                if (p.label) parts.push(p.label);
+                if (p.text) parts.push(p.text);
+                if (p.scripture) parts.push(p.scripture);
+                return parts.join('\n');
+            }
+            return '';
+        }
+
+        /* Claude: 2026-03-29 — get plain text for saving to journal entries */
+        function _promptPlain(p) {
+            if (typeof p === 'string') return p;
+            if (typeof p === 'object' && p !== null) return p.text || '';
+            return '';
+        }
+
+        function _rebuildAllPrompts() {
+            var today = _todayStr();
+            var filtered = [];
+            var i;
+            for (i = 0; i < _customPrompts.length; i++) {
+                var cp = _customPrompts[i];
+                if (typeof cp === 'string') {
+                    filtered.push(cp);
+                } else if (typeof cp === 'object' && cp !== null) {
+                    /* Only include dated prompts if today matches showDate */
+                    if (cp.showDate) {
+                        if (cp.showDate === today) filtered.push(cp);
+                    } else {
+                        filtered.push(cp);
+                    }
+                }
+            }
+            _allPrompts = JOURNAL_PROMPTS.concat(filtered);
+        }
+
+        function journalShowPrompt() {
+            var el = document.getElementById('journal-prompt');
+            if (!el) return;
+            if (_allPrompts.length === 0) { el.textContent = ''; return; }
+            if (_jIdx >= _allPrompts.length) _jIdx = 0;
+            var p = _allPrompts[_jIdx];
+            if (typeof p === 'object' && p !== null) {
+                /* Claude: 2026-03-29 — rich display for labeled prompts */
+                var html = '';
+                if (p.label) html += '<div style="font-size:13pt;font-weight:600;color:#6CA0A3;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">' + _escHtml(p.label) + '</div>';
+                if (p.text) html += '<div style="font-size:16pt;">' + _escHtml(p.text) + '</div>';
+                if (p.scripture) html += '<div style="font-size:12pt;color:#888;margin-top:6px;font-style:italic;">' + _escHtml(p.scripture) + '</div>';
+                el.innerHTML = html;
+            } else {
+                el.textContent = p;
+            }
+        }
+
+        function journalNext() {
+            _jIdx = (_jIdx + 1) % _allPrompts.length;
+            journalShowPrompt();
+            document.getElementById('journal-saved').style.display = 'none';
+        }
+
+        /* Claude: 2026-03-29 — toggle custom prompt panel */
+        function journalToggleCustom() {
+            var panel = document.getElementById('journal-custom-panel');
+            if (!panel) return;
+            panel.style.display = (panel.style.display === 'none') ? 'block' : 'none';
+        }
+
+        /* Claude: 2026-03-29 — save a new custom prompt to Firestore */
+        function journalSaveCustom() {
+            if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+            var input = document.getElementById('journal-custom-input');
+            var text = (input.value || '').trim();
+            if (!text) return;
+            if (text.length > 200) { text = text.substring(0, 200); }
+            /* Prevent duplicates */
+            var ci;
+            for (ci = 0; ci < _customPrompts.length; ci++) {
+                if (_customPrompts[ci] === text) { input.value = ''; return; }
+            }
+            _customPrompts.push(text);
+            _rebuildAllPrompts();
+            input.value = '';
+            _renderCustomList();
+            journalShowPrompt();
+            /* Persist to Firestore */
+            _saveCustomPromptsToFirestore();
+        }
+
+        /* Claude: 2026-03-29 — delete a custom prompt */
+        function journalDeleteCustom(idx) {
+            if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+            if (idx < 0 || idx >= _customPrompts.length) return;
+            _customPrompts.splice(idx, 1);
+            _rebuildAllPrompts();
+            if (_jIdx >= _allPrompts.length) _jIdx = 0;
+            _renderCustomList();
+            journalShowPrompt();
+            _saveCustomPromptsToFirestore();
+        }
+
+        /* Claude: 2026-03-29 — render the saved custom prompts list */
+        function _renderCustomList() {
+            var container = document.getElementById('journal-custom-list');
+            if (!container) return;
+            if (_customPrompts.length === 0) {
+                container.innerHTML = '<p style="font-size:13pt;color:#888;font-style:italic;">No custom prompts yet.</p>';
+                return;
+            }
+            var today = _todayStr();
+            var html = '<p style="font-size:13pt;color:#666;margin-bottom:6px;">Your prompts:</p>';
+            var i;
+            for (i = 0; i < _customPrompts.length; i++) {
+                var cp = _customPrompts[i];
+                var displayText = '';
+                var isDated = false;
+                var isToday = false;
+                if (typeof cp === 'string') {
+                    displayText = _escHtml(cp);
+                } else if (typeof cp === 'object' && cp !== null) {
+                    isDated = !!cp.showDate;
+                    isToday = cp.showDate === today;
+                    displayText = '';
+                    if (cp.label) displayText += '<strong>' + _escHtml(cp.label) + '</strong> — ';
+                    displayText += _escHtml(cp.text || '');
+                    if (cp.showDate) displayText += ' <span style="font-size:11pt;color:#999;">(' + cp.showDate + ')</span>';
+                }
+                var opacity = (isDated && !isToday) ? 'opacity:0.4;' : '';
+                html += '<div class="journal-custom-item" style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:14pt;' + opacity + '">';
+                html += '<span style="flex:1;margin-right:8px;">' + displayText + '</span>';
+                html += '<button onclick="journalDeleteCustom(' + i + ')" style="background:none;border:none;color:#c44;font-size:16pt;cursor:pointer;padding:2px 6px;" title="Remove this prompt">\u2715</button>';
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function _escHtml(s) {
+            var d = document.createElement('div');
+            d.appendChild(document.createTextNode(s));
+            return d.innerHTML;
+        }
+
+        /* Claude: 2026-03-29 — persist custom prompts to Firestore */
+        function _saveCustomPromptsToFirestore() {
+            if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
+            var uid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+            AA.db.collection('users').doc(uid).set(
+                { customJournalPrompts: _customPrompts },
+                { merge: true }
+            ).catch(function(err) { console.warn('[AA] custom prompts save:', err); });
+        }
+
+        /* Claude: 2026-03-29 — load custom prompts from Firestore on auth */
+        function _loadCustomPrompts(uid) {
+            if (!window.AA || !AA.db) return;
+            var dataUid = (window.AA_uid ? window.AA_uid(uid) : uid);
+            AA.db.collection('users').doc(dataUid).get().then(function(doc) {
+                if (doc.exists && Array.isArray(doc.data().customJournalPrompts)) {
+                    _customPrompts = doc.data().customJournalPrompts;
+                    _rebuildAllPrompts();
+                    _renderCustomList();
+                    journalShowPrompt();
+                }
+            }).catch(function(err) { console.warn('[AA] custom prompts load:', err); });
+        }
+
+        /* Claude: auto-save with 2s debounce — 2026-02-27 */
+        var _journalSaveTimer = null;
+        var _journalSessionId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+        function _journalAutoSave() {
+            /* Claude: 2026-03-16 — mirror guard: supporters cannot auto-save journal entries */
+            if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+            if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
+            var text = (document.getElementById('journal-textarea').value || '').trim();
+            if (!text) return;
+            var statusEl = document.getElementById('journal-saved');
+            if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.style.display = 'block'; }
+            /* Claude: 2026-03-09 — use AA_uid() for mirror mode support */
+            var journalUid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+            var entry = {
+                uid: journalUid,
+                prompt: _promptPlain(_allPrompts[_jIdx]) || '',
+                response: text,
+                savedAt: new Date().toISOString()
+            };
+            AA.db.collection('recoveryJournal').doc(_journalSessionId).set(entry, { merge: true }) /* Claude: 2026-03-16 — merge:true for data safety */
+                .then(function() {
+                    if (statusEl) {
+                        statusEl.textContent = '✓ Saved';
+                        setTimeout(function() { statusEl.style.display = 'none'; }, 3000);
+                    }
+                })
+                .catch(function(err) {
+                    console.warn('[AA] journal auto-save:', err);
+                    if (statusEl) statusEl.style.display = 'none';
+                });
+        }
+
+        /* Claude: show sign-in message when signed out — 2026-02-27 */
+        function _journalUpdateAuth(user) {
+            if (user && user.uid === _rmJournalUid) return; // token refresh — skip
+            if (user) _rmJournalUid = user.uid;
+            var msg = document.getElementById('journal-signin-msg');
+            if (msg) msg.style.display = user ? 'none' : 'block';
+            if (!user) {
+                var statusEl = document.getElementById('journal-saved');
+                if (statusEl) statusEl.style.display = 'none';
+            }
+            /* Claude: 2026-03-29 — load custom prompts when signed in */
+            if (user) _loadCustomPrompts(user.uid);
+            /* Claude: 2026-03-29 — hide add-your-own for supporters in mirror mode */
+            var addBtn = document.getElementById('journal-add-prompt-btn');
+            if (addBtn) addBtn.style.display = (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) ? 'none' : '';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            journalShowPrompt();
+            var ta = document.getElementById('journal-textarea');
+            if (ta) {
+                ta.addEventListener('input', function() {
+                    clearTimeout(_journalSaveTimer);
+                    _journalSaveTimer = setTimeout(_journalAutoSave, 2000);
+                });
+            }
+            /* Claude: 2026-03-09 — switched to _waitForAA polling (shared-header loads Firebase) */
+            _waitForAA(function() {
+                AA.auth.onAuthStateChanged(_journalUpdateAuth);
+            });
+        });
+        if (document.readyState !== 'loading') { journalShowPrompt(); }
+    </script>
+
+    <!-- Claude: 2026-03-12 — Set app mode to 'recovery' when this page loads.
+         This integrates with mode-enforcer.js so the rest of the app adjusts
+         (hides calendar, audio notes; shows check-in, meals, messages, etc.)
+         Archive: recovery-mode_2026-03-12_pre-mode-switch.bak.html -->
+    <script>
+    (function () {
+      var currentMode = localStorage.getItem('appMode');
+      if (currentMode !== 'recovery') {
+        localStorage.setItem('appMode', 'recovery');
+        window.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: 'recovery' } }));
+        if (window.AA_DEBUG) console.log('[AA] Mode set to recovery');
+        /* Claude: 2026-03-12 — notify supporters when student switches to recovery mode.
+           Archive: recovery-mode_2026-03-12_pre-mode-notif.bak.html */
+        (function _notifyRecovery() {
+          if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.addNotification) {
+            if (window._notifyRetries === undefined) window._notifyRetries = 0;
+            if (window._notifyRetries++ < 15) { setTimeout(_notifyRecovery, 400); }
+            return;
+          }
+          var uid = window.AA_MIRROR_UID || AA.auth.currentUser.uid;
+          if (window.AA_MIRROR_UID && window.AA_MIRROR_UID !== AA.auth.currentUser.uid) return;
+          AA.addNotification(uid, 'mode_recovery',
+            '🌿 Recovery Mode activated at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          ).catch(function (err) { console.warn('[AA] recovery notification failed:', err.message); });
+          /* Claude: 2026-03-21 — Write mode to Firestore so support dashboard sees it */
+          if (AA.setActiveMode) {
+            AA.setActiveMode(uid, 'recovery').catch(function(err) {
+              console.warn('[AA] setActiveMode failed:', err.message);
+            });
+          }
+        })();
+      }
+    })();
+    </script>
+</body>
+</html>

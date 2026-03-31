@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Check-In — Academic Allies</title>
+  <!-- Claude: 2026-03-25 — added favicon -->
+  <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
+  <!-- Updated: 2026-02-25 by Claude — full 5-category gateway check-in per confirmed Grok spec + Mary's energy scale -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --green:   #28a745;
+      --yellow:  #ffc107;
+      --orange:  #fd7e14;
+      --red:     #dc3545;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.08);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.6;
+      padding-bottom: 3rem;
+    }
+    body.high-contrast { background:#000; color:#fff; }
+    body.high-contrast .card { background:#111; border-color:#fff; }
+    body.dyslexia-font { font-family: 'OpenDyslexic', sans-serif; }
+    body.reduced-motion * { transition: none !important; animation: none !important; }
+
+    /* ── Header placeholder ── */
+    #site-header { min-height: 56px; } /* Claude 2026-03-07: renamed container id from shared-header → site-header (consistency) */
+
+    /* ── Layout ── */
+    .page-wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1rem 1rem 2rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: var(--teal-dk);
+      margin: 1rem 0 .25rem;
+    }
+    .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 1.25rem; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.25rem 1.25rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      color: var(--teal-dk);
+      margin-bottom: .35rem;
+    }
+    .card .gateway-q {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: .5rem 0 .25rem;
+    }
+    .reassurance {
+      font-size: .85rem;
+      color: var(--muted);
+      margin-bottom: .75rem;
+      font-style: italic;
+    }
+
+    /* ── Gateway row ── */
+    .gw-row { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
+    /* Claude: 2026-03-13 — min-height 44px for WCAG touch targets */
+    .gw-btn {
+      flex: 1; min-width: 80px; min-height: 44px;
+      padding: .55rem .5rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      font-family: inherit;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .gw-btn:hover { border-color: var(--teal); }
+    .gw-btn.sel-yes  { background: #e6f4ea; border-color: var(--green);  color: #155724; }
+    .gw-btn.sel-no   { background: #fff3cd; border-color: var(--yellow); color: #856404; }
+    .gw-btn.sel-skip { background: #f0f0f0; border-color: #aaa;         color: #555;    }
+
+    /* ── Expand sections ── */
+    .expand { display: none; margin-top: .75rem; }
+    .expand.open { display: block; }
+    .expand h3 { font-size: .95rem; color: var(--muted); margin-bottom: .5rem; }
+
+    /* ── Checklist ── */
+    .checklist { list-style: none; padding: 0; }
+    .checklist li { margin-bottom: .4rem; }
+    .checklist label {
+      display: flex; align-items: flex-start; gap: .5rem;
+      cursor: pointer; font-size: .95rem;
+    }
+    .checklist input[type=checkbox] { margin-top: .15rem; flex-shrink: 0; accent-color: var(--teal); }
+
+    /* ── Emoji row ── */
+    .emoji-row {
+      display: flex; flex-wrap: wrap; gap: .35rem;
+      margin: .75rem 0 .5rem;
+    }
+    /* Claude: 2026-03-13 — min-height 44px for WCAG touch targets */
+    .emoji-btn {
+      display: flex; flex-direction: column; align-items: center;
+      padding: .35rem .4rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-size: .8rem;
+      text-align: center;
+      min-width: 56px; min-height: 44px;
+      transition: border-color .15s, background .15s;
+      font-family: inherit;
+      justify-content: center;
+    }
+    .emoji-btn .em { font-size: 1.4rem; line-height: 1.2; }
+    .emoji-btn .lbl { font-size: .65rem; color: var(--muted); line-height: 1.2; margin-top: .1rem; }
+    .emoji-btn:hover { border-color: var(--teal); }
+    .emoji-btn.sel-g { background: #e6f4ea; border-color: var(--green); }
+    .emoji-btn.sel-y { background: #fff9e6; border-color: var(--yellow); }
+    .emoji-btn.sel-o { background: #fff3e0; border-color: var(--orange); }
+    .emoji-btn.sel-r { background: #fde8ea; border-color: var(--red); }
+
+    /* BBD mode — bigger emoji */
+    body.bbd-active .emoji-btn { min-width: 70px; padding: .5rem; }
+    body.bbd-active .emoji-btn .em { font-size: 1.8rem; }
+    body.bbd-active .expand h3,
+    body.bbd-active .checklist,
+    body.bbd-active .reassurance { display: none; }
+    body.bbd-active .expand.open { padding-top: 0; }
+
+    /* ── Note fields ── */
+    .note-wrap { margin-top: .6rem; }
+    .note-wrap label { font-size: .85rem; color: var(--muted); display: block; margin-bottom: .25rem; }
+    .note-wrap textarea {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 8px;
+      padding: .5rem; font-family: inherit; font-size: .9rem;
+      resize: vertical; min-height: 60px; background: var(--bg);
+    }
+
+    /* ── Thumping banner ── */
+    #thumping-banner {
+      display: none;
+      background: #fff3cd; border: 2px solid var(--yellow);
+      border-radius: 8px; padding: .75rem 1rem;
+      font-size: .9rem; color: #856404;
+      margin-bottom: 1rem;
+    }
+    #thumping-banner.show { display: block; }
+
+    /* ── Flag indicator ── */
+    #flag-bar {
+      display: none;
+      border-radius: 8px; padding: .6rem 1rem;
+      font-size: .9rem; font-weight: 700;
+      margin-bottom: 1rem;
+      border: 2px solid transparent;
+    }
+    #flag-bar.show { display: block; }
+    #flag-bar.flag-g { background:#e6f4ea; border-color:var(--green);  color:#155724; }
+    #flag-bar.flag-y { background:#fff9e6; border-color:var(--yellow); color:#856404; }
+    #flag-bar.flag-o { background:#fff3e0; border-color:var(--orange); color:#7a3e00; }
+    #flag-bar.flag-r { background:#fde8ea; border-color:var(--red);    color:#721c24; }
+
+    /* ── Bad Brain Day toggle card ── */
+    #bbd-card { border-color: #6CA0A3; }
+    #bbd-card h2 { color: #4d787b; }
+    .bbd-toggle-row { display: flex; align-items: center; gap: .75rem; margin-top: .5rem; }
+    #bbd-toggle-btn {
+      padding: .5rem 1.1rem;
+      border-radius: 8px; border: 2px solid var(--teal);
+      background: #fff; font-family: inherit; font-weight: 700;
+      font-size: .95rem; cursor: pointer; color: var(--teal-dk);
+      transition: background .15s;
+    }
+    #bbd-toggle-btn.active { background: var(--teal); color: #fff; }
+    #skip-all-btn {
+      display: none;
+      padding: .45rem 1rem;
+      border-radius: 8px; border: 2px solid #aaa;
+      background: #f0f0f0; font-family: inherit; font-size: .9rem;
+      cursor: pointer; color: #555;
+    }
+    body.bbd-active #skip-all-btn { display: inline-block; }
+
+    /* ── Basics card ── */
+    .basics-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .5rem; }
+    .basic-item { display: flex; align-items: center; gap: .4rem; font-size: .95rem; }
+    .basic-item input { accent-color: var(--teal); width: 1.1rem; height: 1.1rem; }
+
+    /* ── Emergency card ── */
+    #emergency-card { border-color: var(--red); }
+    #emergency-card h2 { color: #b02032; }
+    .emergency-q { font-size: 1rem; font-weight: 700; margin: .5rem 0; }
+    .emerg-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .emerg-btn {
+      flex: 1; min-width: 80px;
+      padding: .55rem .5rem;
+      border: 2px solid var(--border);
+      border-radius: 8px; background: #fff;
+      font-family: inherit; font-size: .95rem; font-weight: 700;
+      cursor: pointer; transition: background .15s, border-color .15s;
+    }
+    .emerg-btn.sel-yes { background: #fde8ea; border-color: var(--red); color: #721c24; }
+    .emerg-btn.sel-no  { background: #e6f4ea; border-color: var(--green); color: #155724; }
+
+    /* ── Save / Reset ── */
+    .save-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .75rem; }
+    #save-btn {
+      flex: 2; padding: .75rem; min-height: 48px; /* Claude: 2026-03-13 — WCAG touch target */
+      background: var(--teal); color: #fff;
+      border: none; border-radius: 8px;
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: background .15s;
+    }
+    #save-btn:hover { background: var(--teal-dk); }
+    #save-btn:disabled { background: #aaa; cursor: not-allowed; }
+    #reset-btn {
+      flex: 1; padding: .75rem;
+      background: #f0f0f0; color: #555;
+      border: 2px solid #ccc; border-radius: 8px;
+      font-family: inherit; font-size: .95rem; cursor: pointer;
+    }
+    #save-status {
+      text-align: center; font-size: .9rem; margin-top: .5rem;
+      min-height: 1.4rem; color: var(--muted);
+    }
+
+    /* ── Notes final card ── */
+    #notes-card textarea { min-height: 80px; }
+
+    /* Claude: 2026-03-25 — mobile responsive breakpoints */
+    @media (max-width: 600px) {
+      .page-wrap { padding: .75rem .75rem 2rem; }
+      h1 { font-size: 1.25rem; }
+      .card { padding: 1rem; }
+      .card h2 { font-size: 1rem; }
+      .gw-btn { min-width: 70px; font-size: .85rem; padding: .5rem .4rem; }
+      .emoji-btn { min-height: 44px; min-width: 44px; }
+      .slider-wrap input[type=range] { height: 28px; }
+      #save-btn, #reset-btn { padding: .85rem; font-size: 1rem; min-height: 48px; }
+    }
+    @media (max-width: 360px) {
+      .page-wrap { padding: .5rem .5rem 2rem; }
+      .gw-row { gap: .35rem; }
+      .gw-btn { min-width: 60px; font-size: .8rem; }
+      .emoji-row { gap: .25rem; }
+      .emoji-btn { font-size: .7rem; }
+    }
+
+    /* Claude: 2026-03-25 — dark mode overrides for daily check-in */
+    html.aa-dark .page-wrap { background: #1a1a2e; }
+    html.aa-dark .section-card { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .section-card h2 { color: #e0e0e0; }
+    html.aa-dark .gw-btn { background: #2a2a3e; color: #ccc; border-color: #444; }
+    html.aa-dark .gw-btn.selected-green { background: #1a3a2a !important; color: #6ecf9a !important; border-color: #2a6b4a !important; }
+    html.aa-dark .gw-btn.selected-yellow { background: #3a3520 !important; color: #e0c860 !important; border-color: #6b6030 !important; }
+    html.aa-dark .gw-btn.selected-red { background: #3a1a1a !important; color: #e07070 !important; border-color: #6b2a2a !important; }
+    html.aa-dark .emoji-btn { background: #2a2a3e; border-color: #444; }
+    html.aa-dark .emoji-btn.selected { border-color: #4a9eff; }
+    html.aa-dark textarea, html.aa-dark input[type="text"] { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark #save-btn { background: #4a7f82; color: #fff; }
+    html.aa-dark #save-btn:disabled { background: #333; color: #777; }
+    html.aa-dark #reset-btn { background: #2a2a3e; color: #ccc; border-color: #444; }
+    html.aa-dark #skip-all-btn { background: #2a2a3e; color: #ccc; border-color: #555; }
+    html.aa-dark .flag-bar { background: #1e2a2e; border-color: #333; }
+    html.aa-dark #emergency-card { background: #2a1a1a; border-color: #5a2a2a; }
+    html.aa-dark #emergency-card h2 { color: #e07070; }
+  </style>
+</head>
+<body>
+<!-- Claude: 2026-03-19 — mode-gate: blocks page if feature is off for current mode -->
+<script>var AA_MODE_GATE = 'checkin';</script>
+<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+
+<!-- Shared header -->
+<div id="site-header"></div>
+
+<div class="page-wrap">
+  <h1>Daily Check-In</h1>
+  <p class="subtitle">Take your time. Every section is optional — just answer what feels right today.</p>
+
+  <!-- ══ Flag bar (shown after any gateway answered) ══ -->
+  <div id="flag-bar" role="status" aria-live="polite"></div>
+
+  <!-- ══ Thumping voices banner ══ -->
+  <div id="thumping-banner" role="alert">
+    🔔 Thumping voices flagged — your support team will be gently notified.
+  </div>
+
+  <!-- ══ Bad Brain Day toggle ══ -->
+  <div class="card" id="bbd-card">
+    <h2>🧠 How are we starting today?</h2>
+    <p style="font-size:.9rem;color:var(--muted);margin:.25rem 0 .5rem;">
+      On a Bad Brain Day the form simplifies to just the essentials.
+    </p>
+    <div class="bbd-toggle-row">
+      <button id="bbd-toggle-btn" onclick="toggleBBD()">Bad Brain Day mode: OFF</button>
+      <button id="skip-all-btn" onclick="skipAll()">Skip all categories</button>
+    </div>
+  </div>
+
+  <!-- ══ 1. MENTAL / HEAD SPACE ══ -->
+  <div class="card" id="cat-mental">
+    <h2>🧠 Mental / Head Space</h2>
+    <p class="gateway-q">Is your head feeling okay enough to think and engage today?</p>
+    <p class="reassurance">There's no wrong answer here — this is just a temperature check.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-mental-yes"  onclick="selectGW('mental','yes')" aria-label="Yes, mental health is okay">✅ Yes</button>
+      <button class="gw-btn" id="gw-mental-no"   onclick="selectGW('mental','no')" aria-label="No, mental health is not okay">❌ No</button>
+      <button class="gw-btn" id="gw-mental-skip" onclick="selectGW('mental','skip')" aria-label="Skip mental health question">⏭ Skip</button>
+    </div>
+
+    <!-- Yes expand -->
+    <div class="expand" id="expand-mental-yes">
+      <h3>How's your head space? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="mental_yes" value="focused"> Feeling focused or clear-headed</label></li>
+        <li><label><input type="checkbox" name="mental_yes" value="creative"> Feeling creative or motivated</label></li>
+        <li><label><input type="checkbox" name="mental_yes" value="anxious"> Some anxiety in the background</label></li>
+        <li><label>
+          <input type="checkbox" id="thumping-mental" onchange="updateThumping()">
+          🔔 Hearing thumping voices / intrusive thoughts
+        </label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How charged are you right now?</p>
+      <div class="emoji-row" id="emoji-mental-yes"></div>
+    </div>
+
+    <!-- No expand -->
+    <div class="expand" id="expand-mental-no">
+      <h3>What's making it hard? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="mental_no" value="brain_fog"> Brain fog — hard to think clearly</label></li>
+        <li><label><input type="checkbox" name="mental_no" value="overwhelmed"> Overwhelmed or shut-down feeling</label></li>
+        <li><label><input type="checkbox" name="mental_no" value="anxiety"> Anxiety or racing thoughts</label></li>
+        <li><label><input type="checkbox" name="mental_no" value="depression"> Depression or low mood</label></li>
+        <li><label><input type="checkbox" name="mental_no" value="dissociating"> Dissociating or spacing out</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">Roughly how depleted does it feel?</p>
+      <div class="emoji-row" id="emoji-mental-no"></div>
+    </div>
+
+    <!-- Note (shown on yes/no, hidden on skip) -->
+    <div class="note-wrap" id="note-wrap-mental" style="display:none;">
+      <label for="note-mental">Anything else about your head space today? (optional)</label>
+      <textarea id="note-mental" placeholder="Optional note…" maxlength="500"></textarea>
+    </div>
+  </div>
+
+  <!-- ══ 2. PHYSICAL / BODY ══ -->
+  <div class="card" id="cat-physical">
+    <h2>🫀 Physical / Body</h2>
+    <p class="gateway-q">Is your body holding up okay today?</p>
+    <p class="reassurance">Even small stuff counts — this is about your whole body experience.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-physical-yes"  onclick="selectGW('physical','yes')" aria-label="Yes, physical health is okay">✅ Yes</button>
+      <button class="gw-btn" id="gw-physical-no"   onclick="selectGW('physical','no')" aria-label="No, physical health is not okay">❌ No</button>
+      <button class="gw-btn" id="gw-physical-skip" onclick="selectGW('physical','skip')" aria-label="Skip physical health question">⏭ Skip</button>
+    </div>
+
+    <!-- Yes expand -->
+    <div class="expand" id="expand-physical-yes">
+      <h3>Great! Any symptoms to note? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="physical_yes" value="fatigue"> Some fatigue</label></li>
+        <li><label><input type="checkbox" name="physical_yes" value="pain"> Pain or discomfort</label></li>
+        <li><label><input type="checkbox" name="physical_yes" value="headache"> Headache</label></li>
+        <li><label><input type="checkbox" name="physical_yes" value="nausea"> Nausea</label></li>
+        <li><label><input type="checkbox" name="physical_yes" value="sleep_ok"> Slept okay last night</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">Overall physical energy?</p>
+      <div class="emoji-row" id="emoji-physical-yes"></div>
+    </div>
+
+    <!-- No expand -->
+    <div class="expand" id="expand-physical-no">
+      <h3>What's going on? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="physical_no" value="exhausted"> Severely exhausted / crash</label></li>
+        <li><label><input type="checkbox" name="physical_no" value="pain_high"> High pain levels</label></li>
+        <li><label><input type="checkbox" name="physical_no" value="sick"> Feeling sick or unwell</label></li>
+        <li><label><input type="checkbox" name="physical_no" value="no_sleep"> Poor or no sleep last night</label></li>
+        <li><label><input type="checkbox" name="physical_no" value="mobility"> Mobility or sensory issues</label></li>
+        <li><label>
+          <input type="checkbox" id="thumping-physical" onchange="updateThumping()">
+          🔔 Physical symptoms feel overwhelming / hard to manage
+        </label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How depleted does your body feel?</p>
+      <div class="emoji-row" id="emoji-physical-no"></div>
+    </div>
+
+    <div class="note-wrap" id="note-wrap-physical" style="display:none;">
+      <label for="note-physical">Anything else about how your body feels? (optional)</label>
+      <textarea id="note-physical" placeholder="Optional note…" maxlength="500"></textarea>
+    </div>
+  </div>
+
+  <!-- ══ 3. SCHOOL / ACADEMIC ══ -->
+  <div class="card" id="cat-school">
+    <h2>📚 School</h2>
+    <p class="gateway-q">Do you feel able to engage with school stuff today?</p>
+    <p class="reassurance">This is about capacity, not performance — no judgment here.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-school-yes"  onclick="selectGW('school','yes')" aria-label="Yes, school readiness is okay">✅ Yes</button>
+      <button class="gw-btn" id="gw-school-no"   onclick="selectGW('school','no')" aria-label="No, school readiness is not okay">❌ No</button>
+      <button class="gw-btn" id="gw-school-skip" onclick="selectGW('school','skip')" aria-label="Skip school readiness question">⏭ Skip</button>
+    </div>
+
+    <!-- Yes expand -->
+    <div class="expand" id="expand-school-yes">
+      <h3>Good! What's on your plate? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="school_yes" value="planner"> Reviewed planner / to-do list today</label></li>
+        <li><label><input type="checkbox" name="school_yes" value="assignment"> Assignment or project to work on</label></li>
+        <li><label><input type="checkbox" name="school_yes" value="class"> Class or meeting to attend</label></li>
+        <li><label><input type="checkbox" name="school_yes" value="ahead"> Feeling ahead or on track</label></li>
+        <li><label><input type="checkbox" name="school_yes" value="behind"> Feeling a little behind</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How's your academic energy today?</p>
+      <div class="emoji-row" id="emoji-school-yes"></div>
+    </div>
+
+    <!-- No expand -->
+    <div class="expand" id="expand-school-no">
+      <h3>That's okay. What feels hardest right now? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="school_no" value="overwhelmed"> Overwhelmed by workload</label></li>
+        <li><label><input type="checkbox" name="school_no" value="deadline"> Missing deadline or already behind</label></li>
+        <li><label><input type="checkbox" name="school_no" value="executive"> Executive function / can't start tasks</label></li>
+        <li><label><input type="checkbox" name="school_no" value="prof"> Issue with professor or class</label></li>
+        <li><label><input type="checkbox" name="school_no" value="accommodation"> Need accommodation support</label></li>
+      </ul>
+    </div>
+
+    <div class="note-wrap" id="note-wrap-school" style="display:none;">
+      <label for="note-school">Anything specific about school today? (optional)</label>
+      <textarea id="note-school" placeholder="Optional note…" maxlength="500"></textarea>
+    </div>
+  </div>
+
+  <!-- ══ 4. SPIRITUAL ══ -->
+  <div class="card" id="cat-spiritual">
+    <h2>✨ Spiritual</h2>
+    <p class="gateway-q">How's your inner sense of meaning, peace, or groundedness today?</p>
+    <p class="reassurance">This can be religious, personal, or just a general sense of okay-ness.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-spiritual-yes"  onclick="selectGW('spiritual','yes')" aria-label="Yes, spiritual wellness is okay">✅ Yes</button>
+      <button class="gw-btn" id="gw-spiritual-no"   onclick="selectGW('spiritual','no')" aria-label="No, spiritual wellness is not okay">❌ No</button>
+      <button class="gw-btn" id="gw-spiritual-skip" onclick="selectGW('spiritual','skip')" aria-label="Skip spiritual wellness question">⏭ Skip</button>
+    </div>
+
+    <!-- Yes expand -->
+    <div class="expand" id="expand-spiritual-yes">
+      <h3>What's grounding you? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="spiritual_yes" value="prayer"> Prayer or meditation</label></li>
+        <li><label><input type="checkbox" name="spiritual_yes" value="scripture"> Scripture or devotional reading</label></li>
+        <li><label><input type="checkbox" name="spiritual_yes" value="nature"> Time in nature or outdoors</label></li>
+        <li><label><input type="checkbox" name="spiritual_yes" value="gratitude"> Feeling grateful or at peace</label></li>
+        <li><label><input type="checkbox" name="spiritual_yes" value="community"> Connected to faith community</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How grounded do you feel?</p>
+      <div class="emoji-row" id="emoji-spiritual-yes"></div>
+    </div>
+
+    <!-- No expand -->
+    <div class="expand" id="expand-spiritual-no">
+      <h3>That's okay. What feels off? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="spiritual_no" value="disconnected"> Feeling disconnected or empty</label></li>
+        <li><label><input type="checkbox" name="spiritual_no" value="doubt"> Doubt or spiritual struggle</label></li>
+        <li><label><input type="checkbox" name="spiritual_no" value="grief"> Grief or loss</label></li>
+        <li><label><input type="checkbox" name="spiritual_no" value="lonely"> Spiritual loneliness</label></li>
+      </ul>
+    </div>
+
+    <div class="note-wrap" id="note-wrap-spiritual" style="display:none;">
+      <label for="note-spiritual">Anything on your heart today? (optional)</label>
+      <textarea id="note-spiritual" placeholder="Optional note…" maxlength="500"></textarea>
+    </div>
+  </div>
+
+  <!-- ══ 5. SOCIAL / HEART ══ -->
+  <div class="card" id="cat-social">
+    <h2>💛 Social / Heart</h2>
+    <p class="gateway-q">Have you felt connected to people who support you recently?</p>
+    <p class="reassurance">Connection looks different for everyone — even a text counts.</p>
+    <div class="gw-row">
+      <button class="gw-btn" id="gw-social-yes"  onclick="selectGW('social','yes')" aria-label="Yes, social connection is okay">✅ Yes</button>
+      <button class="gw-btn" id="gw-social-no"   onclick="selectGW('social','no')" aria-label="No, social connection is not okay">❌ No</button>
+      <button class="gw-btn" id="gw-social-skip" onclick="selectGW('social','skip')" aria-label="Skip social connection question">⏭ Skip</button>
+    </div>
+
+    <!-- Yes expand -->
+    <div class="expand" id="expand-social-yes">
+      <h3>Great! Who or what connected you? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="social_yes" value="family"> Family</label></li>
+        <li><label><input type="checkbox" name="social_yes" value="friend"> Friend</label></li>
+        <li><label><input type="checkbox" name="social_yes" value="support_team"> Support team (counselor, coach, etc.)</label></li>
+        <li><label><input type="checkbox" name="social_yes" value="online"> Online community or group</label></li>
+        <li><label><input type="checkbox" name="social_yes" value="cozy_solo"> Enjoyed meaningful solo time</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How connected does your heart feel?</p>
+      <div class="emoji-row" id="emoji-social-yes"></div>
+    </div>
+
+    <!-- No expand -->
+    <div class="expand" id="expand-social-no">
+      <h3>What's making connection hard? (check all that apply)</h3>
+      <ul class="checklist">
+        <li><label><input type="checkbox" name="social_no" value="isolated"> Feeling isolated or alone</label></li>
+        <li><label><input type="checkbox" name="social_no" value="conflict"> Conflict or tension with someone</label></li>
+        <li><label><input type="checkbox" name="social_no" value="energy"> Not enough energy to reach out</label></li>
+        <li><label><input type="checkbox" name="social_no" value="rejection"> Fear of rejection or judgment</label></li>
+        <li><label><input type="checkbox" name="social_no" value="withdrawal"> Wanting to withdraw completely</label></li>
+      </ul>
+      <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0 .25rem;">How does your heart feel right now?</p>
+      <div class="emoji-row" id="emoji-social-no"></div>
+    </div>
+
+    <div class="note-wrap" id="note-wrap-social" style="display:none;">
+      <label for="note-social">Anything else about connections today? (optional)</label>
+      <textarea id="note-social" placeholder="Optional note…" maxlength="500"></textarea>
+    </div>
+  </div>
+
+  <!-- ══ Quick Basics ══ -->
+  <div class="card" id="basics-card">
+    <h2>🥤 Quick Basics</h2>
+    <p style="font-size:.9rem;color:var(--muted);margin-bottom:.5rem;">Check off what you've done so far today:</p>
+    <div class="basics-row">
+      <div class="basic-item">
+        <input type="checkbox" id="basics-ate" name="basics" value="ate">
+        <label for="basics-ate">🍽 Eaten something</label>
+      </div>
+      <div class="basic-item">
+        <input type="checkbox" id="basics-water" name="basics" value="water">
+        <label for="basics-water">💧 Had water</label>
+      </div>
+      <div class="basic-item">
+        <input type="checkbox" id="basics-meds" name="basics" value="meds">
+        <label for="basics-meds">💊 Took meds (if applicable)</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Emergency ══ -->
+  <div class="card" id="emergency-card">
+    <h2>🆘 Safety Check</h2>
+    <p class="emergency-q">Are you in crisis or having thoughts of harming yourself?</p>
+    <div class="emerg-row">
+      <button class="emerg-btn" id="emerg-yes" onclick="selectEmergency('yes')">Yes — I need help</button>
+      <button class="emerg-btn" id="emerg-no"  onclick="selectEmergency('no')">No — I'm okay</button>
+    </div>
+    <div id="emerg-expand" style="display:none; margin-top:.75rem;">
+      <p style="color:var(--red);font-weight:700;margin-bottom:.5rem;">
+        Your safety matters — you're not alone. Reaching out is brave. 💛
+      </p>
+      <p style="font-size:.9rem;">
+        Please call or text <strong>988</strong> (Suicide &amp; Crisis Lifeline) or text HOME to <strong>741741</strong>.
+        Your support team is being notified.
+      </p>
+    </div>
+  </div>
+
+  <!-- ══ Final notes ══ -->
+  <div class="card" id="notes-card">
+    <h2>📝 Anything else?</h2>
+    <div class="note-wrap">
+      <label for="final-note">Open notes — share anything you want your team to know:</label>
+      <!-- Claude: 2026-03-25 — added maxlength to prevent oversized Firestore writes -->
+      <textarea id="final-note" placeholder="Whatever's on your mind…" maxlength="1000"></textarea>
+    </div>
+    <div class="save-row">
+      <button id="save-btn" onclick="saveCheckin()">Save Check-In</button>
+      <button id="reset-btn" onclick="resetForm()">Start Over</button>
+    </div>
+    <div id="save-status"></div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<!-- Claude: 2026-03-09 — removed direct Firebase SDK script tags. shared-header.html is the single source of truth for Firebase loading. -->
+<!-- Claude: 2026-03-13 — aligned aa-mirror.js cache-bust to match shared-header.html -->
+<!-- Claude: 2026-03-14 — removed duplicate aa-mirror.js; shared-header loads it -->
+<!-- Claude: GPS social inference — 2026-03-03 -->
+<script src="/Academic-Allies/modular/js/gps-social.js"></script>
+
+<script>
+// ── Firebase init: aa-firebase.js owns initialisation; db set after AA is ready ──
+// Updated 2026-02-28 by Claude — removed duplicate inline initializeApp(); aa-firebase.js handles it.
+var db = null; // set in waitForAA below
+
+// ── Mary's confirmed 10-point energy scale (DO NOT CHANGE) ──
+var EMOJIS = [
+  { e:'😁', lbl:'Fully Charged',      t:'g', v:1  },
+  { e:'😊', lbl:'Energized',           t:'g', v:2  },
+  { e:'🙂', lbl:'Pretty Good',         t:'g', v:3  },
+  { e:'🙂', lbl:'Doing Okay',          t:'g', v:4  },
+  { e:'😐', lbl:'Neutral',             t:'y', v:5  },
+  { e:'😕', lbl:'Starting to Tire',    t:'o', v:6  },
+  { e:'😟', lbl:'Pretty Tired',        t:'o', v:7  },
+  { e:'😫', lbl:'Very Exhausted',      t:'r', v:8  },
+  { e:'😩', lbl:'Almost Empty',        t:'r', v:9  },
+  { e:'☠️', lbl:'Completely Depleted', t:'r', v:10 }
+];
+
+// ── State ──
+var gwState    = {};   // { mental: 'yes'|'no'|'skip', ... }
+var catEmoji   = {};   // { 'mental-yes': 3, 'physical-no': 7, ... }
+var catMood    = {};   // { mental: 'Pretty Good', ... }  (label string)
+var bbdActive  = false;
+var emergencyYes = false;
+// FUNCTIONAL FIX 2026-03-07 by Claude: use LOCAL date, not UTC.
+// toISOString() returns UTC — in US timezones this flips to the next day after 7 PM EST / 4 PM PST,
+// saving evening check-ins under tomorrow's date. Use local year/month/day instead.
+function localDateKey() {
+  var d = new Date();
+  return d.getFullYear() + '-' +
+    ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+    ('0' + d.getDate()).slice(-2);
+}
+
+// Tracks the most recent computed flag so saveCheckin() can persist it.
+// Updated by showFlag(). Added 2026-02-28 by Claude.
+var _savedFlag = 'g';
+
+// ── Build emoji rows on load ──
+var emojiTargets = [
+  'emoji-mental-yes','emoji-mental-no',
+  'emoji-physical-yes','emoji-physical-no',
+  'emoji-school-yes',
+  'emoji-spiritual-yes',
+  'emoji-social-yes','emoji-social-no'
+];
+emojiTargets.forEach(function(id) {
+  buildEmojiRow(id);
+});
+
+/* Claude: 2026-03-13 — added role, aria-label, and keyboard navigation to emoji rows */
+function buildEmojiRow(containerId) {
+  var wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.setAttribute('role', 'radiogroup');
+  wrap.setAttribute('aria-label', 'How depleted does it feel? Select a level from 1 to 10');
+  EMOJIS.forEach(function(em, idx) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'emoji-btn';
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', 'false');
+    btn.setAttribute('aria-label', em.lbl + ' (' + (idx + 1) + ' of 10)');
+    btn.setAttribute('tabindex', idx === 0 ? '0' : '-1');
+    btn.innerHTML = '<span class="em">' + em.e + '</span><span class="lbl">' + em.lbl + '</span>';
+    btn.onclick = function() { selEmoji(containerId, btn, idx); };
+    /* Claude: 2026-03-13 — arrow key navigation between emoji options */
+    btn.onkeydown = function(e) {
+      var btns = wrap.querySelectorAll('.emoji-btn');
+      var cur = idx;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        cur = (idx + 1) % btns.length;
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        cur = (idx - 1 + btns.length) % btns.length;
+      } else if (e.key === 'Home') {
+        e.preventDefault(); cur = 0;
+      } else if (e.key === 'End') {
+        e.preventDefault(); cur = btns.length - 1;
+      } else { return; }
+      btns[cur].focus();
+      btns[cur].setAttribute('tabindex', '0');
+      btn.setAttribute('tabindex', '-1');
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+// ── Gateway logic ──
+function selectGW(cat, ans) {
+  gwState[cat] = ans;
+
+  // Style buttons
+  ['yes','no','skip'].forEach(function(a) {
+    var btn = document.getElementById('gw-' + cat + '-' + a);
+    if (!btn) return;
+    btn.className = 'gw-btn' + (a === ans ? ' sel-' + a : '');
+  });
+
+  // Show/hide expands
+  ['yes','no'].forEach(function(a) {
+    var el = document.getElementById('expand-' + cat + '-' + a);
+    if (!el) return;
+    el.classList.toggle('open', a === ans && ans !== 'skip');
+  });
+
+  // Show/hide note
+  var noteWrap = document.getElementById('note-wrap-' + cat);
+  if (noteWrap) noteWrap.style.display = (ans !== 'skip') ? 'block' : 'none';
+
+  computeFlag();
+}
+
+// ── Emoji selection ──
+function selEmoji(containerId, btn, idx) {
+  var wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  // Deselect all in this row
+  wrap.querySelectorAll('.emoji-btn').forEach(function(b) {
+    b.className = 'emoji-btn';
+    b.setAttribute('aria-checked', 'false'); /* Claude: 2026-03-13 — a11y */
+    b.setAttribute('tabindex', '-1');
+  });
+  // Select clicked
+  var em = EMOJIS[idx];
+  btn.className = 'emoji-btn sel-' + em.t;
+  btn.setAttribute('aria-checked', 'true'); /* Claude: 2026-03-13 — a11y */
+  btn.setAttribute('tabindex', '0');
+  catEmoji[containerId] = em.v;
+
+  // Store mood label per category (use the container prefix)
+  var cat = containerId.replace('emoji-','').replace('-yes','').replace('-no','');
+  catMood[cat] = em.lbl;
+
+  computeFlag();
+}
+
+// ── Thumping voices ──
+function updateThumping() {
+  var mental   = document.getElementById('thumping-mental');
+  var physical = document.getElementById('thumping-physical');
+  var on = (mental && mental.checked) || (physical && physical.checked);
+  var banner = document.getElementById('thumping-banner');
+  banner.classList.toggle('show', on);
+  computeFlag();
+}
+
+// ── Flag logic ──
+// worst emoji 1-4 → green, 5-7 → yellow, 8-10 → red
+// thumping → at least yellow
+// 3+ No gateways → yellow
+// Physical Yes + emoji>=8 → red
+// Mental Yes + emoji=10 → red
+// emergency Yes → always red
+function computeFlag() {
+  var anyAnswered = Object.keys(gwState).length > 0;
+  if (!anyAnswered) {
+    document.getElementById('flag-bar').classList.remove('show');
+    return;
+  }
+
+  var flag = 'g'; // green default
+  var noCount = 0;
+  var thumping = false;
+  var mental_t = document.getElementById('thumping-mental');
+  var physical_t = document.getElementById('thumping-physical');
+  if ((mental_t && mental_t.checked) || (physical_t && physical_t.checked)) thumping = true;
+
+  Object.keys(gwState).forEach(function(cat) {
+    if (gwState[cat] === 'no') noCount++;
+  });
+
+  // Worst emoji across all answered categories
+  var worstV = 0;
+  Object.keys(catEmoji).forEach(function(k) {
+    if (catEmoji[k] > worstV) worstV = catEmoji[k];
+  });
+
+  if (emergencyYes) {
+    flag = 'r';
+  } else {
+    // emoji-based
+    if (worstV >= 8) flag = 'r';
+    else if (worstV >= 5) flag = setFlag(flag, 'y');
+
+    // thumping
+    if (thumping) flag = setFlag(flag, 'y');
+
+    // 3+ No gateways
+    if (noCount >= 3) flag = setFlag(flag, 'y');
+
+    // Physical yes + emoji >= 8
+    var physYesV = catEmoji['emoji-physical-yes'] || 0;
+    if (gwState.physical === 'yes' && physYesV >= 8) flag = 'r';
+
+    // Mental yes + emoji = 10
+    var mentalYesV = catEmoji['emoji-mental-yes'] || 0;
+    if (gwState.mental === 'yes' && mentalYesV === 10) flag = 'r';
+  }
+
+  showFlag(flag);
+}
+
+function setFlag(cur, next) {
+  var order = ['g','y','o','r'];
+  return order.indexOf(next) > order.indexOf(cur) ? next : cur;
+}
+
+function showFlag(f) {
+  _savedFlag = f; // capture for saveCheckin() — Added 2026-02-28 by Claude
+  var bar = document.getElementById('flag-bar');
+  bar.className = 'flag-bar show flag-' + f;
+  var msgs = {
+    g: '🟢 Overall: Looking good today.',
+    y: '🟡 Some concerns noted — your team will check in gently.',
+    o: '🟠 A few things to watch — support is standing by.',
+    r: '🔴 Flagged for urgent attention — you are not alone. 💛'
+  };
+  bar.textContent = msgs[f] || '';
+  bar.classList.add('show');
+}
+
+// ── Emergency ──
+function selectEmergency(ans) {
+  emergencyYes = (ans === 'yes');
+  document.getElementById('emerg-yes').className = 'emerg-btn' + (ans==='yes' ? ' sel-yes' : '');
+  document.getElementById('emerg-no').className  = 'emerg-btn' + (ans==='no'  ? ' sel-no'  : '');
+  document.getElementById('emerg-expand').style.display = emergencyYes ? 'block' : 'none';
+  computeFlag();
+}
+
+// ── Bad Brain Day ──
+function toggleBBD() {
+  bbdActive = !bbdActive;
+  document.body.classList.toggle('bbd-active', bbdActive);
+  var btn = document.getElementById('bbd-toggle-btn');
+  btn.textContent = 'Bad Brain Day mode: ' + (bbdActive ? 'ON' : 'OFF');
+  btn.classList.toggle('active', bbdActive);
+}
+
+function skipAll() {
+  ['mental','physical','school','spiritual','social'].forEach(function(cat) {
+    selectGW(cat, 'skip');
+  });
+}
+
+// ── Save ──
+function saveCheckin() {
+  var btn = document.getElementById('save-btn');
+  var status = document.getElementById('save-status');
+  /* Claude: 2026-03-16 — double-click protection: disable button and save original text */
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  status.textContent = 'Saving…';
+
+  // Collect categories object
+  var categories = {};
+  ['mental','physical','school','spiritual','social'].forEach(function(cat) {
+    if (!gwState[cat]) return;
+    var checked = [];
+    document.querySelectorAll('[name=' + cat + '_' + gwState[cat] + ']:checked').forEach(function(cb) {
+      checked.push(cb.value);
+    });
+    var emojiKey = gwState[cat] !== 'skip'
+      ? ('emoji-' + cat + '-' + gwState[cat])
+      : null;
+    categories[cat] = {
+      gateway: gwState[cat],
+      checked: checked,
+      emojiV:  emojiKey ? (catEmoji[emojiKey] || null) : null,
+      mood:    emojiKey ? (catMood[cat]        || null) : null,
+      /* Claude: 2026-03-25 — added length limit on category notes */
+      note:    ((document.getElementById('note-' + cat) || {}).value || '').slice(0, 1000)
+    };
+  });
+
+  // Basics
+  var basics = [];
+  document.querySelectorAll('[name=basics]:checked').forEach(function(cb) { basics.push(cb.value); });
+
+  // Thumping
+  var tm = document.getElementById('thumping-mental');
+  var tp = document.getElementById('thumping-physical');
+  var thumping = (tm && tm.checked) || (tp && tp.checked);
+
+  // Legacy compat fields (for status-circle.js and existing queries)
+  var mentalCat  = categories.mental  || {};
+  var physCat    = categories.physical || {};
+  var schoolCat  = categories.school  || {};
+  var socialCat  = categories.social  || {};
+
+  var entry = {
+    timestamp:    new Date(),
+    bbdMode:      bbdActive,
+    categories:   categories,
+    basics:       basics,
+    thumping:     thumping,
+    emergency:    emergencyYes,
+    /* Claude: 2026-03-25 — added length limit on final note */
+    finalNote:    (document.getElementById('final-note').value || '').slice(0, 2000),
+
+    // Legacy compat
+    energyLevel:  mentalCat.emojiV || null,
+    mood:         mentalCat.mood   || null,
+    symptoms:     physCat.gateway === 'no',
+    symptomList:  physCat.checked  || [],
+    support:      socialCat.gateway === 'yes',
+    planner:      (schoolCat.checked || []).indexOf('planner') !== -1
+  };
+
+  // ── Add the computed flag to the entry so support network can read it ──
+  // Short codes: g=green y=yellow o=orange r=red. Added 2026-02-28 by Claude.
+  var FLAG_FULL = { g: 'green', y: 'yellow', o: 'orange', r: 'red' };
+  entry.flag = FLAG_FULL[_savedFlag] || 'green';
+
+  // ── Cache in localStorage (format status-circle.js expects) ──────────
+  var dateKey = localDateKey();
+  /* Claude: 2026-03-16 — log warning if localStorage backup fails (quota exceeded on mobile) */
+  try {
+    var existing = JSON.parse(localStorage.getItem('checkins_' + dateKey) || '[]');
+    existing.push(entry);
+    localStorage.setItem('checkins_' + dateKey, JSON.stringify(existing));
+  } catch (e) {
+    console.warn('[AA] localStorage backup failed for check-in:', e.message);
+  }
+
+  // ── Save to Firestore via AA.saveCheckin ─────────────────────────────
+  // Updated 2026-02-28 by Claude: now uses waitForAA to ensure aa-firebase.js
+  // is ready before writing. Path: checkins/{uid}/days/{date} matches what
+  // status-circle.js and loadStudentStatus() both read from.
+  function doFirestoreSave() {
+    /* Claude: 2026-03-13 — mirror guard: supporters cannot submit check-ins */
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+    if (!AA.auth.currentUser) {
+      status.textContent = '✅ Saved locally! Sign in to sync with your support network. 💛';
+      btn.disabled = false;
+      /* Claude: 2026-03-16 — restore button text */
+      btn.textContent = originalText;
+      return;
+    }
+    AA.saveCheckin(AA.auth.currentUser.uid, dateKey, entry)
+      .then(function () {
+        status.textContent = '✅ Check-in saved! Great job showing up today. 💛';
+        btn.disabled = false;
+        /* Claude: 2026-03-16 — restore button text */
+        btn.textContent = originalText;
+        /* Claude: 2026-03-12 — notify supporters on red/yellow flags.
+           This is the active alerting system — supporters get a real notification
+           instead of having to check the dashboard. */
+        if (entry.flag === 'red' || entry.flag === 'yellow') {
+          var uid = AA.auth.currentUser.uid;
+          var flagLabel = entry.flag === 'red' ? '🔴 Red Flag' : '🟡 Yellow Flag';
+          var msg = flagLabel + ' — check-in at ' +
+            new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          AA.addNotification(uid, entry.flag + '_flag', msg).catch(function (err) {
+            console.warn('[AA] notification send failed:', err.message);
+          });
+        }
+
+        /* Claude: 2026-03-12 — missed meal check. Since the student just did a check-in,
+           this is a natural time to see if they've eaten today. If no meals are logged
+           past the configured alert hour, supporters get a 'missed_meal' notification.
+           Archive: checkin_2026-03-12_pre-meal-spoon-alerts.bak.html */
+        var mealUid = AA.auth.currentUser.uid;
+        if (AA.checkMissedMeal) {
+          AA.checkMissedMeal(mealUid).catch(function (err) {
+            console.warn('[AA] missed meal check failed:', err.message);
+          });
+        }
+      })
+      .catch(function (err) {
+        console.error('[AA] checkin save error:', err);
+        status.textContent = '⚠️ Saved locally — sync failed. Try again. ' + err.message;
+        btn.disabled = false;
+        /* Claude: 2026-03-16 — restore button text on error */
+        btn.textContent = originalText;
+      });
+  }
+
+  waitForAA(doFirestoreSave, function() {
+    // AA never became available — localStorage-only fallback
+    status.textContent = '✅ Saved locally! Connect to the internet to sync. 💛';
+    btn.disabled = false;
+    /* Claude: 2026-03-16 — restore button text */
+    btn.textContent = originalText;
+  });
+}
+
+// ── waitForAA: poll until window.AA is ready, then call cb. ─────────────
+// Added 2026-02-28 by Claude — needed because aa-firebase.js loads async.
+function waitForAA(cb, fallback, tries) {
+  tries = tries || 0;
+  if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+  if (tries > 30) { if (fallback) fallback(); return; }
+  setTimeout(function() { waitForAA(cb, fallback, tries + 1); }, 200);
+}
+
+// ── Custom check-in prompts ───────────────────────────────────────────────
+// Added 2026-03-02 by Claude — Priority 3 feature.
+// Reads studentProfile.checkinPrompts (string[]) from Firestore and, if set,
+// replaces the default gateway-q paragraph text for each category.
+// Categories in order: mental, physical, school, spiritual, social.
+// Safe with partial arrays: categories beyond the array length keep defaults.
+(function applyCustomPrompts() {
+  var CATS = ['mental', 'physical', 'school', 'spiritual', 'social'];
+
+  waitForAA(function() {
+    var _checkinUid = null;
+    AA.auth.onAuthStateChanged(function(user) {
+      if (!user) return;
+      // Claude: 2026-03-07 — guard against token-refresh re-fires causing getStudentProfile() to re-run
+      if (user.uid === _checkinUid) return;
+      _checkinUid = user.uid;
+      var uid = window.AA_MIRROR_UID || user.uid;
+      AA.getStudentProfile(uid)
+        .then(function(profile) {
+          var prompts = profile && Array.isArray(profile.checkinPrompts) ? profile.checkinPrompts : [];
+          if (!prompts.length) return; // no custom prompts — use defaults
+          CATS.forEach(function(cat, i) {
+            if (!prompts[i]) return; // no override for this category
+            var card = document.getElementById('cat-' + cat);
+            if (!card) return;
+            var gwQ = card.querySelector('.gateway-q');
+            if (!gwQ) return;
+            gwQ.textContent = prompts[i];
+          });
+        })
+        .catch(function(err) {
+          // Non-fatal: defaults remain in place
+          console.warn('[AA checkin] custom prompts load failed:', err);
+        });
+
+      /* Claude: 2026-03-06 — restore autosave draft if present for today */
+      _checkinRestoreDraft();
+    });
+  });
+
+  /* ── Autosave draft (presignout hook) ──────────────────────────────────────
+     Claude: 2026-03-06 — saves current check-in form state to localStorage so
+     nothing is lost if auth expires mid-check-in. Registered as window.AA_PRESIGNOUT
+     so shared-header calls it before any sign-out (intentional or forced). */
+
+  function _checkinBuildDraft() {
+    var dateKey = localDateKey();
+    var notes = {};
+    ['mental','physical','school','spiritual','social'].forEach(function(cat) {
+      var el = document.getElementById('note-' + cat);
+      notes[cat] = el ? el.value : '';
+    });
+    var basics = [];
+    document.querySelectorAll('[name=basics]:checked').forEach(function(cb) { basics.push(cb.value); });
+    var catChecked = {};
+    ['mental','physical','school','spiritual','social'].forEach(function(cat) {
+      var gw = gwState[cat];
+      if (!gw || gw === 'skip') return;
+      var checked = [];
+      document.querySelectorAll('[name=' + cat + '_' + gw + ']:checked').forEach(function(cb) {
+        checked.push(cb.value);
+      });
+      catChecked[cat] = checked;
+    });
+    return { dateKey: dateKey, gwState: gwState, catEmoji: catEmoji, catMood: catMood,
+             catChecked: catChecked, notes: notes, basics: basics,
+             bbdActive: bbdActive, emergencyYes: emergencyYes,
+             savedAt: new Date().toISOString() };
+  }
+
+  function _checkinSaveDraft() {
+    try {
+      var draft = _checkinBuildDraft();
+      if (!Object.keys(draft.gwState).length && !draft.basics.length) return;
+      localStorage.setItem('AA_CHECKIN_DRAFT', JSON.stringify(draft));
+    } catch(e) {}
+  }
+
+  function _checkinRestoreDraft() {
+    try {
+      var raw = localStorage.getItem('AA_CHECKIN_DRAFT');
+      if (!raw) return;
+      var draft = JSON.parse(raw);
+      if (!draft || !draft.dateKey) return;
+      var today = localDateKey();
+      if (draft.dateKey !== today) { localStorage.removeItem('AA_CHECKIN_DRAFT'); return; }
+
+      gwState = draft.gwState || {};
+      catEmoji = draft.catEmoji || {};
+      catMood = draft.catMood || {};
+      bbdActive = !!draft.bbdActive;
+      emergencyYes = !!draft.emergencyYes;
+
+      if (bbdActive) {
+        document.body.classList.add('bbd-active');
+        var bbdBtn = document.getElementById('bbd-toggle-btn');
+        if (bbdBtn) { bbdBtn.textContent = 'Bad Brain Day mode: ON'; bbdBtn.classList.add('active'); }
+      }
+      Object.keys(gwState).forEach(function(cat) {
+        var ans = gwState[cat];
+        /* Claude: 2026-03-23 — was setGateway (wrong name), actual function is selectGW */
+        var btn = document.querySelector('[onclick*="selectGW(\'' + cat + '\',\'' + ans + '\')"]');
+        if (btn) btn.click();
+      });
+      if (draft.catChecked) {
+        Object.keys(draft.catChecked).forEach(function(cat) {
+          (draft.catChecked[cat] || []).forEach(function(val) {
+            var cb = document.querySelector('[name=' + cat + '_' + (gwState[cat] || '') + '][value="' + val + '"]');
+            if (cb) cb.checked = true;
+          });
+        });
+      }
+      if (draft.notes) {
+        Object.keys(draft.notes).forEach(function(cat) {
+          var el = document.getElementById('note-' + cat);
+          if (el && draft.notes[cat]) el.value = draft.notes[cat];
+        });
+      }
+      (draft.basics || []).forEach(function(val) {
+        var cb = document.querySelector('[name=basics][value="' + val + '"]');
+        if (cb) cb.checked = true;
+      });
+      localStorage.removeItem('AA_CHECKIN_DRAFT');
+      var status = document.getElementById('save-status');
+      if (status) status.textContent = 'Draft restored from your last session.';
+    } catch(e) {}
+  }
+
+  window.AA_PRESIGNOUT = _checkinSaveDraft;
+
+})();
+
+// ── Reset ──
+function resetForm() {
+  if (!confirm('Start over? Your current check-in will be lost.')) return;
+
+  gwState    = {};
+  catEmoji   = {};
+  catMood    = {};
+  bbdActive  = false;
+  emergencyYes = false;
+
+  document.body.classList.remove('bbd-active');
+  document.getElementById('bbd-toggle-btn').textContent = 'Bad Brain Day mode: OFF';
+  document.getElementById('bbd-toggle-btn').classList.remove('active');
+
+  // Reset gateway buttons
+  ['mental','physical','school','spiritual','social'].forEach(function(cat) {
+    ['yes','no','skip'].forEach(function(a) {
+      var btn = document.getElementById('gw-' + cat + '-' + a);
+      if (btn) btn.className = 'gw-btn';
+    });
+    var eyEl = document.getElementById('expand-' + cat + '-yes');
+    var enEl = document.getElementById('expand-' + cat + '-no');
+    if (eyEl) eyEl.classList.remove('open');
+    if (enEl) enEl.classList.remove('open');
+    var nw = document.getElementById('note-wrap-' + cat);
+    if (nw) nw.style.display = 'none';
+  });
+
+  // Reset emoji rows
+  emojiTargets.forEach(function(id) {
+    var wrap = document.getElementById(id);
+    if (wrap) wrap.querySelectorAll('.emoji-btn').forEach(function(b) { b.className = 'emoji-btn'; });
+  });
+
+  // Reset checkboxes
+  document.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
+
+  // Reset textareas
+  document.querySelectorAll('textarea').forEach(function(ta) { ta.value = ''; });
+
+  // Reset emergency
+  document.getElementById('emerg-yes').className = 'emerg-btn';
+  document.getElementById('emerg-no').className  = 'emerg-btn';
+  document.getElementById('emerg-expand').style.display = 'none';
+
+  // Reset flag/thumping/save status
+  document.getElementById('flag-bar').classList.remove('show');
+  document.getElementById('thumping-banner').classList.remove('show');
+  document.getElementById('save-status').textContent = '';
+
+  // Reset basics
+  document.querySelectorAll('[name=basics]').forEach(function(cb) { cb.checked = false; });
+}
+
+// Claude: GPS Social inference — if no movement detected, pre-suggest Social = No
+function applyGPSSocialHint() {
+  if (!window.AA_GPS) return;
+  var result = window.AA_GPS.analyzeMovement();
+  if (result !== 'no_movement') return; // only act on clear no-movement signal
+
+  // Pre-select Social gateway as 'no' — but only if user hasn't already answered it
+  var gwNo = document.getElementById('gw-social-no');
+  var gwYes = document.getElementById('gw-social-yes');
+  if (!gwNo) return;
+  // Don't override if user already made a selection
+  if (gwNo.classList.contains('sel-no') || (gwYes && gwYes.classList.contains('sel-yes'))) return;
+
+  // Trigger the 'no' gateway selection
+  selectGW('social', 'no');
+
+  // Pre-check 'isolated' checkbox if it exists
+  var isoCheckbox = document.querySelector('input[name="social_no"][value="isolated"]');
+  if (isoCheckbox) isoCheckbox.checked = true;
+
+  // Show a gentle non-blocking hint banner above the Social card
+  var card = document.getElementById('cat-social');
+  if (card) {
+    var hint = document.createElement('div');
+    hint.id = 'gps-social-hint';
+    hint.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;border-radius:6px;' +
+                         'padding:8px 12px;margin-bottom:10px;font-size:.85rem;color:#856404;';
+    hint.innerHTML = '📍 <strong>Gentle note:</strong> It looks like you may not have gone out today — ' +
+                     'Social has been pre-filled as a suggestion. Feel free to change it.';
+    // Insert before card content, not before card itself
+    card.insertBefore(hint, card.firstChild);
+  }
+}
+
+// Claude: request GPS permission once at check-in — this is the consent moment
+// Subsequent snapshots happen silently from shared-header.js
+(function requestGPSOnce() {
+  if (!navigator.geolocation) return;
+  var PERM_KEY = 'aa_gps_permission_asked';
+  try {
+    if (localStorage.getItem(PERM_KEY)) return; // already asked
+    localStorage.setItem(PERM_KEY, '1');
+  } catch(e) {}
+  // Prompt with explanation first (not just a raw browser prompt)
+  var msg = document.createElement('div');
+  msg.id = 'gps-permission-banner';
+  msg.style.cssText = 'background:#e8f4fd;border:1px solid #4a9eff;border-radius:8px;' +
+                      'padding:12px 16px;margin-bottom:16px;font-size:.9rem;';
+  // Claude: improved GPS consent language — explicitly health context, server storage disclaimer, privacy link
+  msg.innerHTML = '<strong>📍 Optional: Location check</strong><br>' +
+                  'Academic Allies can use your device location to gently notice if you haven\'t left home today — ' +
+                  'this may be used to suggest how your Social wellbeing check-in is pre-filled. ' +
+                  '<strong>Your location never leaves your device</strong> and is not stored on any server. ' +
+                  'This is optional — tap "No thanks" and everything still works. ' +
+                  '<br><small style="color:#666">This is covered in our <a href="/Academic-Allies/modular/privacy.html" target="_blank">Privacy Policy</a>, Section 4.</small>' +
+                  '<br><br><button id="gps-allow-btn" style="padding:6px 12px;cursor:pointer;background:#4a9eff;color:#fff;border:none;border-radius:4px;">Allow location check</button>' +
+                  '<button id="gps-skip-btn" style="margin-left:8px;padding:6px 12px;cursor:pointer;background:#f0f0f0;border:1px solid #ccc;border-radius:4px;">No thanks</button>';
+  var container = document.querySelector('.container') || document.querySelector('.page-wrap') || document.body;
+  container.insertBefore(msg, container.firstChild);
+
+  document.getElementById('gps-allow-btn').onclick = function() {
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      // Store first snapshot immediately on permission grant
+      try {
+        var d = new Date();
+        var dk = d.getFullYear() + '-' + ('0' + (d.getMonth()+1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+        var snaps = JSON.parse(localStorage.getItem('aa_gps_' + dk) || '[]');
+        snaps.push({ lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now() });
+        /* Claude: 2026-03-14 — cap at 20 snapshots per day to prevent localStorage bloat */
+        if (snaps.length > 20) snaps = snaps.slice(-20);
+        localStorage.setItem('aa_gps_' + dk, JSON.stringify(snaps));
+      } catch(e) {}
+    }, function() {});
+    /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+    if (msg.parentNode) msg.parentNode.removeChild(msg);
+  };
+  /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+  document.getElementById('gps-skip-btn').onclick = function() { if (msg.parentNode) msg.parentNode.removeChild(msg); };
+})();
+</script>
+
+<!-- Shared header loader — Updated 2026-02-28 by Claude: re-executes scripts so Firebase auth initialises -->
+<script>
+/* Claude: 2026-03-20 — REMOVED early mirror block that nuked the page.
+   True mirror mode: let the form load normally so supporters see Mary's
+   check-in view (with custom prompts). The central lockdown in aa-mirror.js
+   handles disabling inputs and replacing the Save button.
+   Archive: checkin_2026-03-20_pre-true-mirror.bak.html */
+
+fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+  .then(function(r){ return r.text(); })
+  .then(function(html){
+    var container = document.getElementById('site-header') /* Claude 2026-03-07: matched standard container id */;
+    container.innerHTML = html;
+    container.querySelectorAll('script').forEach(function(old) {
+      var s = document.createElement('script');
+      [].slice.call(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      s.textContent = old.textContent;
+      old.parentNode.replaceChild(s, old);
+    });
+  })
+  .catch(function(){ /* header optional */ });
+
+// Claude: Apply GPS social hint after page fully loads
+// Schedule this to run after the DOM is fully settled and any existing check-in data is restored
+setTimeout(function() {
+  applyGPSSocialHint();
+}, 500);
+</script>
+
+</body>
+</html>

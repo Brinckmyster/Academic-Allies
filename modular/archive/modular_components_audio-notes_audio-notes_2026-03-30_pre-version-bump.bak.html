@@ -1,0 +1,2624 @@
+<!DOCTYPE html>
+<!-- ============================================================
+     audio-notes/audio-notes.html — Academic Allies Audio Notes
+     Updated: 2026-03-08 by Claude
+       - Android beep suppression via AudioContext silence buffer trick:
+         play near-silent 50ms buffer before each recognition.start()
+         to prevent Android Chrome's system chime on SR re-acquisition.
+         Non-nuclear — Speech Recognition stays enabled.
+       - Pre-warm AudioContext in startRecording() (user gesture context)
+         so mobile browsers don't auto-suspend it.
+       - aaAudioCtx closed in stopSpeechRecognition() for cleanup.
+     ============================================================ -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Notes — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <!-- Claude: Google Identity Services for Drive OAuth token (async, non-blocking) -->
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <!-- Claude: 2026-03-05 — load mirror script for student switcher dropdown -->
+  <!-- Claude: 2026-03-13 — aligned aa-mirror.js cache-bust -->
+  <!-- Claude: 2026-03-14 — removed duplicate aa-mirror.js; shared-header loads it -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Atkinson Hyperlegible', Arial, sans-serif; background: #FAFAF9; color: #333; }
+    .container { max-width: 640px; margin: 0 auto; padding: 16px; }
+    h1 { color: #6CA0A3; font-size: 20pt; margin-bottom: 4px; }
+    .sub { color: #888; font-size: 11pt; margin-bottom: 20px; }
+
+    /* ── Record button ── */
+    .record-wrap { text-align: center; margin: 20px 0; }
+    #recordBtn {
+      width: 96px; height: 96px; border-radius: 50%; border: 4px solid #ccc;
+      background: #fff; cursor: pointer; font-size: 36px; display: inline-flex;
+      align-items: center; justify-content: center; transition: all .2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    }
+    #recordBtn:hover { border-color: #6CA0A3; }
+    #recordBtn.recording {
+      border-color: #f44336; background: #fdecea;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(244,67,54,.4); } 50% { box-shadow: 0 0 0 14px rgba(244,67,54,0); } }
+    #recordStatus { margin-top: 8px; font-size: 11pt; color: #888; min-height: 20px; }
+    #recordTimer { font-weight: 600; color: #f44336; }
+    #gpsStatus { font-size: 11pt; color: #aaa; margin-top: 4px; } /* Claude: 2026-03-09 — 10pt→11pt for readability */
+    #speechWarning { font-size: 11pt; color: #c77600; margin-top: 6px; display: none; } /* Claude: 2026-03-09 — 10pt→11pt for readability */
+    /* Claude: 2026-03-05 — optional note title input */
+    #noteTitleInput {
+      display: block; width: 100%; max-width: 400px; margin: 0 auto 14px;
+      padding: 9px 14px; border: 1.5px solid #e1e5e9; border-radius: 8px;
+      font-size: 12pt; font-family: inherit; background: #fff; color: #333;
+    }
+    #noteTitleInput:focus { outline: none; border-color: #6CA0A3; }
+    #noteTitleInput::placeholder { color: #bbb; }
+    .note-title { font-weight: 700; font-size: 11pt; color: #333; margin-bottom: 3px; }
+    /* Claude: 2026-03-05 — inline rename */
+    .note-rename-btn { background: none; border: none; cursor: pointer; font-size: 13px; color: #aaa; padding: 0 0 0 6px; vertical-align: middle; }
+    .note-rename-btn:hover { color: #6CA0A3; }
+    .note-rename-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .note-rename-input { flex: 1; padding: 4px 8px; border: 1.5px solid #6CA0A3; border-radius: 6px; font-size: 11pt; font-family: inherit; }
+    .note-rename-save { background: #6CA0A3; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 11pt; } /* Claude: 2026-03-09 — 10pt→11pt for readability */
+    .note-rename-cancel { background: none; border: none; color: #aaa; cursor: pointer; font-size: 11pt; } /* Claude: 2026-03-09 — 10pt→11pt for readability */
+    /* Claude: 2026-03-08 — added max-height + overflow so recovered drafts
+       don't push the notes list off-screen */
+    #liveTranscript {
+      margin: 12px auto; max-width: 560px; min-height: 48px; padding: 10px 14px;
+      background: #fff; border: 1px solid #e1e5e9; border-radius: 8px;
+      font-size: 12pt; color: #555; white-space: pre-wrap; display: none;
+      max-height: 200px; overflow-y: auto;
+    }
+    /* Draft action buttons */
+    #draftActions button:hover { opacity: 0.9; }
+    #liveTranscript .interim { color: #aaa; font-style: italic; }
+
+    /* ── Category modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 12px; padding: 24px; width: 90%; max-width: 400px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.2);
+    }
+    .modal h2 { font-size: 14pt; color: #6CA0A3; margin-bottom: 14px; }
+    .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .cat-btn {
+      padding: 12px 8px; border: 2px solid #e1e5e9; border-radius: 8px;
+      background: #fff; cursor: pointer; font-size: 12pt; font-family: inherit;
+      transition: all .15s;
+    }
+    .cat-btn:hover { border-color: #6CA0A3; background: #f0f8f8; }
+    #cancelCat { margin-top: 12px; width: 100%; padding: 10px; border: none; background: #eee; border-radius: 8px; cursor: pointer; font-size: 11pt; font-family: inherit; }
+
+    /* ── Search / filter bar ── */
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .filter-bar input {
+      flex: 1; min-width: 160px; padding: 8px 12px; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 12pt; font-family: inherit;
+    }
+    .filter-bar select {
+      padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 12pt; font-family: inherit; background: #fff;
+    }
+
+    /* ── Notes list ── */
+    .note-card {
+      background: #fff; border: 1px solid #e1e5e9; border-radius: 10px;
+      padding: 14px 16px; margin-bottom: 10px;
+    }
+    .note-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+    .note-time { font-size: 11pt; color: #888; } /* Claude: 2026-03-09 — 10pt→11pt for readability */
+    .note-cat {
+      display: inline-block; padding: 2px 10px; border-radius: 12px;
+      font-size: 11pt; font-weight: 600; color: #fff; /* Claude: 2026-03-09 — 9pt→11pt for readability */
+    }
+    .cat-genealogy  { background: #8B6F47; }
+    .cat-medical    { background: #d32f2f; }
+    .cat-ideas      { background: #f9a825; color: #333; }
+    .cat-academic   { background: #1a73e8; }
+    .cat-personal   { background: #7b5ea7; }
+    .cat-other      { background: #888; }
+    /* Claude: 2026-03-05 — transcript preview: 100-char truncation, expand/collapse, 300px scroll cap */
+    .note-transcript { font-size: 11pt; color: #555; margin-bottom: 6px; line-height: 1.4; white-space: pre-wrap; }
+    .note-transcript.expanded { max-height: 300px; overflow-y: auto; }
+    .note-expand { font-size: 11pt; color: #1a73e8; cursor: pointer; margin-bottom: 6px; } /* Claude: 2026-03-09 — 9pt→11pt for readability */
+    .note-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .note-loc { font-size: 11pt; color: #aaa; } /* Claude: 2026-03-09 — 9pt→11pt for readability */
+    .note-delete { background: none; border: none; cursor: pointer; font-size: 14px; color: #ccc; padding: 2px 6px; min-height: 44px; min-width: 44px; }
+    .note-delete:hover { color: #f44336; }
+    #emptyState { text-align: center; color: #aaa; padding: 40px 0; font-size: 12pt; }
+
+    /* Claude: 2026-03-13 — 44px touch targets, focus-visible, mobile responsive */
+    #recordBtn:focus-visible { outline: 3px solid #6CA0A3; outline-offset: 4px; }
+    .cat-btn { min-height: 44px; }
+    .cat-btn:focus-visible { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+    #cancelCat { min-height: 44px; }
+    .filter-bar input, .filter-bar select { min-height: 44px; }
+    .note-rename-save, .note-rename-cancel { min-height: 44px; }
+    #draftActions button { min-height: 44px; }
+    #noteTitleInput { min-height: 44px; }
+
+    @media (max-width: 480px) {
+      .container { padding: 10px; }
+      h1 { font-size: 16pt; }
+      .cat-grid { grid-template-columns: 1fr; }
+      .filter-bar { flex-direction: column; }
+      .filter-bar input, .filter-bar select { width: 100%; min-width: unset; }
+      #draftActions { display: flex !important; flex-direction: column; gap: 8px; }
+      #draftActions button { width: 100%; margin-right: 0 !important; }
+      .note-footer { flex-direction: column; align-items: flex-start; }
+    }
+
+    /* ── Mirror banner ── */
+    .mirror-banner {
+      background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;
+      padding: 8px 14px; margin-bottom: 14px; font-size: 11pt; color: #856404;
+      display: none;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #333; color: #fff; padding: 10px 20px; border-radius: 8px;
+      font-size: 11pt; z-index: 2000; display: none;
+      max-width: 85vw; white-space: normal; text-align: center; /* Claude: 2026-03-09 — allow wrapping on mobile */
+    }
+
+    /* Claude: 2026-03-25 — dark mode overrides for audio notes page */
+    html.aa-dark body { background: #121212; color: #e0e0e0; }
+    html.aa-dark h1 { color: #7abfc2; }
+    html.aa-dark .sub { color: #999; }
+    html.aa-dark #recordBtn { background: #1e1e2e; border-color: #555; }
+    html.aa-dark #recordBtn:hover { border-color: #7abfc2; }
+    html.aa-dark #recordBtn.recording { border-color: #f44336; background: #2a1a1a; }
+    html.aa-dark #recordStatus { color: #999; }
+    html.aa-dark #gpsStatus { color: #777; }
+    html.aa-dark #speechWarning { color: #e0a030; }
+    html.aa-dark #noteTitleInput { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark #noteTitleInput:focus { border-color: #7abfc2; }
+    html.aa-dark #noteTitleInput::placeholder { color: #666; }
+    html.aa-dark #liveTranscript { background: #1e1e2e; border-color: #333; color: #ccc; }
+    html.aa-dark .modal { background: #1e1e2e; }
+    html.aa-dark .modal h2 { color: #7abfc2; }
+    html.aa-dark .cat-btn { background: #0f1117; border-color: #444; color: #ccc; }
+    html.aa-dark .cat-btn:hover { border-color: #7abfc2; background: #1a2e30; }
+    html.aa-dark #cancelCat { background: #2a2a3e; color: #ccc; }
+    html.aa-dark .filter-bar input { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .filter-bar select { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .note-card { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .note-time { color: #999; }
+    html.aa-dark .note-title { color: #e0e0e0; }
+    html.aa-dark .note-transcript { color: #ccc; }
+    html.aa-dark .note-expand { color: #6fa8fc; }
+    html.aa-dark .note-loc { color: #777; }
+    html.aa-dark .note-delete { color: #666; }
+    html.aa-dark .note-delete:hover { color: #f44336; }
+    html.aa-dark .note-rename-input { background: #0f1117; color: #e0e0e0; border-color: #7abfc2; }
+    html.aa-dark .note-rename-save { background: #3d6a6d; }
+    html.aa-dark .note-rename-cancel { color: #999; }
+    html.aa-dark #emptyState { color: #666; }
+    html.aa-dark .mirror-banner { background: #2a2a1a; border-color: #665a20; color: #d4c870; }
+    html.aa-dark #toast { background: #2a2a3e; color: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <!-- Claude: 2026-03-19 — mode-gate: blocks page if feature is off for current mode -->
+  <script>var AA_MODE_GATE = 'audioNotes';</script>
+  <script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <!-- Claude: 2026-03-08 — starts hidden; shown only after auth confirms no user.
+         Previously showed "Loading…" immediately which conflicted with shared-header's
+         own welcome-back/sign-in UI, creating contradictory messages. -->
+    <div id="signin-notice" style="text-align:center;padding:60px 0;color:#888;display:none;"></div>
+
+    <div id="main-body" style="display:none;">
+      <h1>🎙️ Audio Notes</h1>
+      <p class="sub">Record, transcribe, and organize voice notes</p>
+      <!-- Claude: 2026-03-09 — link to audio converter tool -->
+      <a href="/Academic-Allies/modular/components/audio-notes/audio-converter.html"
+         style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:4px;padding:8px 16px;background:#e8f4f5;border:1px solid #b2d8db;border-radius:8px;font-size:0.88rem;color:#4a7f82;text-decoration:none;font-weight:600;">
+        🔊 Audio Converter — MP3/MP4 to WAV
+      </a>
+
+      <!-- Claude: student switcher (rendered by aa-mirror.js) + mirror banner -->
+      <div id="aa-student-switcher"></div>
+      <div id="mirrorBanner" class="mirror-banner"></div>
+
+      <!-- Claude: 2026-03-05 — optional title, editable before or during recording -->
+      <!-- Claude: 2026-03-13 — ARIA labels for a11y -->
+      <input type="text" id="noteTitleInput" placeholder="Note title (optional)" maxlength="100" aria-label="Note title">
+
+      <!-- Record section -->
+      <div id="recordSection" class="record-wrap" role="region" aria-label="Recording controls">
+        <button id="recordBtn" title="Tap to record" aria-label="Start recording audio note">🎙️</button>
+        <!-- Claude: 2026-03-16 — video toggle: tap to switch between audio-only and video recording -->
+        <button id="videoToggleBtn" title="Switch to video recording" aria-label="Toggle video recording mode"
+          style="font-size:1.3rem;background:transparent;border:1px solid #555;border-radius:50%;width:44px;height:44px;cursor:pointer;margin-left:8px;vertical-align:middle;color:#aaa;">🎥</button>
+        <!-- Claude: 2026-03-29 — camera flip button: switch between front and rear camera -->
+        <button id="cameraFlipBtn" title="Flip camera" aria-label="Switch between front and rear camera"
+          style="display:none;font-size:1.3rem;background:transparent;border:1px solid #555;border-radius:50%;width:44px;height:44px;cursor:pointer;margin-left:8px;vertical-align:middle;color:#aaa;">🔄</button>
+        <div id="recordStatus" aria-live="polite">Tap to start recording</div>
+        <div id="gpsStatus"></div>
+        <!-- Claude: speech fallback populated by JS with Otter.ai link -->
+        <div id="speechWarning"></div>
+      </div>
+      <div id="liveTranscript"></div>
+      <!-- Claude: 2026-03-08 — action buttons for live/recovered transcripts -->
+      <!-- Claude: 2026-03-08 — action buttons for live/recovered transcripts
+           Three options: save transcript to Google Docs, save audio to Drive, or discard -->
+      <div id="draftActions" style="display:none;text-align:center;margin:10px auto;max-width:560px;">
+        <button id="saveToDocsBtn" onclick="window._saveTranscriptToDocs()" style="padding:8px 18px;background:#1a73e8;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-right:8px;min-height:44px;" aria-label="Save transcript to Google Docs">📄 Save transcript to Docs</button>
+        <button id="saveToDriveBtn" onclick="window._saveToDriveViaCategory()" style="padding:8px 18px;background:#34a853;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-right:8px;min-height:44px;" aria-label="Save audio recording to Google Drive">🎵 Save audio to Drive</button>
+        <button id="discardDraftBtn" onclick="window._discardDraft()" style="padding:8px 18px;background:#dc3545;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;" aria-label="Discard this recording">🗑️ Discard</button>
+      </div>
+
+      <!-- Claude: 2026-03-13 — ARIA labels on search/filter -->
+      <div class="filter-bar" role="search" aria-label="Filter audio notes">
+        <input type="text" id="searchInput" placeholder="Search notes…" aria-label="Search notes by text">
+        <select id="categoryFilter" aria-label="Filter by category">
+          <option value="">All categories</option>
+          <option value="genealogy">Genealogy</option>
+          <option value="medical">Medical</option>
+          <option value="ideas">Ideas</option>
+          <option value="academic">Academic</option>
+          <option value="personal">Personal</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <!-- Notes list -->
+      <div id="notesList"></div>
+      <div id="emptyState" style="display:none;">No audio notes yet. Tap the mic to record your first note.</div>
+    </div>
+  </div>
+
+  <!-- Category picker modal -->
+  <div id="catModal" class="modal-overlay" role="dialog" aria-label="Tag this note" aria-modal="true">
+    <div class="modal">
+      <h2>Tag this note</h2>
+      <div class="cat-grid">
+        <button class="cat-btn" data-cat="genealogy">🌳 Genealogy</button>
+        <button class="cat-btn" data-cat="medical">🏥 Medical</button>
+        <button class="cat-btn" data-cat="ideas">💡 Ideas</button>
+        <button class="cat-btn" data-cat="academic">📚 Academic</button>
+        <button class="cat-btn" data-cat="personal">🔒 Personal</button>
+        <button class="cat-btn" data-cat="other">📎 Other</button>
+      </div>
+      <button id="cancelCat">Cancel (discard recording)</button>
+    </div>
+  </div>
+
+  <!-- Claude: 2026-03-25 — A8 fix: aria-live so screen readers announce toasts -->
+  <div id="toast" role="alert" aria-live="assertive"></div>
+
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.parentNode.replaceChild(s, old);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+
+  <script>
+  (function() {
+    'use strict';
+
+    // ── Constants ──────────────────────────────────────────────────────────────
+    var CAT_LABELS = { genealogy: '🌳 Genealogy', medical: '🏥 Medical', ideas: '💡 Ideas', academic: '📚 Academic', personal: '🔒 Personal', other: '📎 Other' };
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    var writeUid = null;        // always the logged-in user
+    var readUid = null;         // mirror-aware uid for reading
+    var isMirror = false;       // true if viewing another user's data
+    var mediaRecorder = null;
+    var audioChunks = [];
+    var recognition = null;
+    var transcript = '';
+    var interimText = '';
+    var noteTitle = '';         // Claude: 2026-03-05 — optional title set before/during recording
+    var recordingGps = null;
+    var recordingAddress = null;
+    var recordStartTime = null;
+    var timerInterval = null;
+    var allNotes = [];          // cached notes from Firestore listener
+    var unsubNotes = null;      // Firestore listener unsubscribe
+    var _videoMode = false;       // Claude: 2026-03-16 — true = record video+audio, false = audio only
+    var _videoPreview = null;     // Claude: 2026-03-16 — <video> element for camera preview
+    var _facingMode = 'environment'; // Claude: 2026-03-29 — default to rear camera ('environment' = back, 'user' = front)
+    var _wakeLock = null;         // Claude: 2026-03-16 — Wake Lock sentinel (keeps screen alive during recording)
+
+    // ── DOM refs ───────────────────────────────────────────────────────────────
+    var noteTitleInput = document.getElementById('noteTitleInput'); // Claude: 2026-03-05
+    var recordBtn      = document.getElementById('recordBtn');
+    var videoToggleBtn = document.getElementById('videoToggleBtn');
+    var cameraFlipBtn  = document.getElementById('cameraFlipBtn'); // Claude: 2026-03-29
+    var recordStatus   = document.getElementById('recordStatus');
+    var gpsStatusEl    = document.getElementById('gpsStatus');
+    var speechWarning  = document.getElementById('speechWarning');
+    var liveTranscript = document.getElementById('liveTranscript');
+    var catModal       = document.getElementById('catModal');
+    var notesList      = document.getElementById('notesList');
+    var emptyState     = document.getElementById('emptyState');
+    var searchInput    = document.getElementById('searchInput');
+    var categoryFilter = document.getElementById('categoryFilter');
+    var mirrorBanner   = document.getElementById('mirrorBanner');
+    var toastEl        = document.getElementById('toast');
+
+    /* Claude: 2026-03-16 — Native app capability bridge.
+       When Academic Allies becomes a native app (e.g. via Capacitor, React Native WebView,
+       or a custom native shell), the native layer exposes window.AA_NATIVE with methods
+       that override web APIs for better performance and background support.
+
+       Expected AA_NATIVE interface (implemented by the native shell, NOT by us):
+         AA_NATIVE.getStream(constraints)   → Promise<MediaStream>  (native camera/mic)
+         AA_NATIVE.wakeLock(on)             → void  (keep screen/CPU alive)
+         AA_NATIVE.backgroundRecord(on)     → void  (keep recording when app is backgrounded)
+         AA_NATIVE.hasCamera                → boolean
+         AA_NATIVE.hasMicrophone            → boolean
+         AA_NATIVE.saveFile(blob, name)     → Promise<{path}>  (save to device storage)
+         AA_NATIVE.isNative                 → true
+
+       Until the native shell exists, all these are undefined and web APIs are used instead.
+       Every call site checks: if (AA_NATIVE && AA_NATIVE.method) use it, else fall back to web. */
+    var _isNative = !!(window.AA_NATIVE && window.AA_NATIVE.isNative);
+    if (_isNative && window.AA_DEBUG) { console.log('[AA] Native app detected — using native bridges'); }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    // Claude: duration param — errors stay visible longer (10s) than success (3s)
+    function showToast(msg, duration) {
+      toastEl.textContent = msg;
+      toastEl.style.display = 'block';
+      setTimeout(function() { toastEl.style.display = 'none'; }, duration || 3000);
+    }
+
+    function fmtTime(d) {
+      if (!d) return '';
+      if (d.toDate) d = d.toDate();
+      return d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+
+    function fmtDuration(sec) {
+      if (!sec) return '';
+      var m = Math.floor(sec / 60);
+      var s = sec % 60;
+      return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function escHtml(str) {
+      var d = document.createElement('div');
+      d.textContent = str || '';
+      return d.innerHTML;
+    }
+
+    /* Claude: 2026-03-16 — video mode toggle. Switches between audio-only and video+audio recording.
+       Native app plumbing: check AA_NATIVE.hasCamera for native camera access in future. */
+    if (videoToggleBtn) {
+      videoToggleBtn.onclick = function () {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          showToast('Stop recording first before switching modes.', 3000);
+          return;
+        }
+        _videoMode = !_videoMode;
+        videoToggleBtn.style.color = _videoMode ? '#4a7f82' : '#aaa';
+        videoToggleBtn.style.borderColor = _videoMode ? '#4a7f82' : '#555';
+        videoToggleBtn.title = _videoMode ? 'Switch to audio-only' : 'Switch to video recording';
+        recordStatus.textContent = _videoMode ? 'Video mode — tap 🎙️ to start' : 'Tap to start recording';
+        showToast(_videoMode ? 'Video mode ON — rear camera will record' : 'Audio-only mode', 2000);
+        /* Claude: 2026-03-29 — show/hide camera flip button with video mode */
+        if (cameraFlipBtn) cameraFlipBtn.style.display = _videoMode ? 'inline-block' : 'none';
+      };
+    }
+
+    /* Claude: 2026-03-29 — camera flip: switch between front and rear camera.
+       Only visible when video mode is active. If recording, stops and restarts
+       with the new camera so the stream switches cleanly. */
+    if (cameraFlipBtn) {
+      cameraFlipBtn.onclick = function () {
+        _facingMode = (_facingMode === 'environment') ? 'user' : 'environment';
+        var label = (_facingMode === 'environment') ? 'rear' : 'front';
+        cameraFlipBtn.title = 'Switch to ' + ((_facingMode === 'environment') ? 'front' : 'rear') + ' camera';
+        showToast('Switched to ' + label + ' camera', 2000);
+        /* If currently recording, restart the stream with the new camera */
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          showToast('Camera will switch on next recording', 3000);
+        }
+        /* If preview is showing but not recording, restart preview */
+        if (_videoPreview && (!mediaRecorder || mediaRecorder.state !== 'recording')) {
+          if (_videoPreview.srcObject) {
+            _videoPreview.srcObject.getTracks().forEach(function(t) { t.stop(); });
+          }
+          if (_videoPreview.parentNode) _videoPreview.parentNode.removeChild(_videoPreview);
+          _videoPreview = null;
+        }
+      };
+    }
+
+    /* Claude: 2026-03-16 — Wake Lock API: keeps the screen alive during recording.
+       Critical for Mary's phone so the screen doesn't auto-lock mid-recording.
+       Native app plumbing: AA_NATIVE.wakeLock() for future native keep-awake. */
+    function _acquireWakeLock() {
+      /* Native bridge takes priority */
+      if (window.AA_NATIVE && window.AA_NATIVE.wakeLock) {
+        try { window.AA_NATIVE.wakeLock(true); } catch(e) {}
+        return;
+      }
+      if ('wakeLock' in navigator) {
+        navigator.wakeLock.request('screen').then(function(lock) {
+          _wakeLock = lock;
+          _wakeLock.addEventListener('release', function() {
+            if (window.AA_DEBUG) console.log('[AA] Wake Lock released');
+            _wakeLock = null;
+            /* Claude: 2026-03-24 — re-acquire wake lock if still recording.
+               Android releases the lock when switching apps (e.g. opening Camera).
+               Without re-acquisition, the screen can lock and kill the recording.
+               Redundancy: 1) re-acquire on release 2) re-acquire on visibilitychange
+               3) track.onended catches stream death if re-acquire fails */
+            if (window.AA_isRecording) {
+              if (window.AA_DEBUG) console.log('[AA] Wake Lock lost during recording — re-acquiring…');
+              _acquireWakeLock();
+            }
+          });
+          if (window.AA_DEBUG) console.log('[AA] Wake Lock acquired — screen will stay on during recording');
+        }).catch(function(err) {
+          console.warn('[AA] Wake Lock failed:', err.message);
+          /* Claude: 2026-03-24 — warn user on Android that screen lock may interrupt recording */
+          if (/Android/i.test(navigator.userAgent) && typeof showToast === 'function') {
+            showToast('Keep your screen on while recording — Android may stop it if the screen locks.', 5000);
+          }
+        });
+      }
+    }
+
+    function _releaseWakeLock() {
+      if (window.AA_NATIVE && window.AA_NATIVE.wakeLock) {
+        try { window.AA_NATIVE.wakeLock(false); } catch(e) {}
+        return;
+      }
+      if (_wakeLock) {
+        _wakeLock.release().catch(function() {});
+        _wakeLock = null;
+      }
+    }
+
+    // ── Google Drive Upload ───────────────────────────────────────────────────
+    // Claude: upload recorded audio to user's Google Drive folder.
+    // Firebase Google Auth only grants profile+email scopes, so we need a
+    // separate drive.file-scoped token via Google Identity Services (GIS).
+    // GIS reuses the existing Google session — user consents to Drive once.
+    var GOOGLE_CLIENT_ID = '93996985456-ffj2euk9i4q41v88njuhpusk73mdb31j.apps.googleusercontent.com';
+    var DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+    var DRIVE_FOLDER_NAME = 'Academic Allies Audio Notes';
+    var driveToken = null;        // cached OAuth token for the session
+    var driveFolderId = null;     // cached Drive folder ID for the session
+    var driveTokenClient = null;
+    var recordingMimeType = 'audio/webm'; // Claude: captured from MediaRecorder on start
+
+    function getDriveToken() {
+      return new Promise(function(resolve, reject) {
+        if (driveToken) { resolve(driveToken); return; }
+        if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+          reject(new Error('Google Identity Services not loaded'));
+          return;
+        }
+        if (!driveTokenClient) {
+          var userEmail = (window.AA.auth.currentUser && window.AA.auth.currentUser.email) || '';
+          driveTokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: DRIVE_SCOPE,
+            hint: userEmail,    // Claude: pre-select the signed-in Google account
+            callback: function() {} // overridden per-call below
+          });
+        }
+        driveTokenClient.callback = function(resp) {
+          if (resp.error) {
+            console.error('[AudioNotes] Drive auth error:', resp.error);
+            reject(new Error('Drive auth: ' + resp.error));
+            return;
+          }
+          driveToken = resp.access_token;
+          resolve(driveToken);
+        };
+        driveTokenClient.requestAccessToken({ prompt: '' });
+      });
+    }
+
+    function getOrCreateDriveFolder(token) {
+      if (driveFolderId) return Promise.resolve(driveFolderId);
+      var q = encodeURIComponent("name='" + DRIVE_FOLDER_NAME + "' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      return fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      /* Claude: 2026-03-24 — add r.ok check so 401/403/500 doesn't silently return garbage */
+      .then(function(r) {
+        if (r.status === 401) { driveToken = null; throw new Error('Drive token expired'); }
+        if (!r.ok) throw new Error('Drive folder search HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        if (data.files && data.files.length > 0) {
+          driveFolderId = data.files[0].id;
+          return driveFolderId;
+        }
+        // Claude: folder doesn't exist — create it
+        return fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: DRIVE_FOLDER_NAME,
+            mimeType: 'application/vnd.google-apps.folder'
+          })
+        })
+        /* Claude: 2026-03-24 — add r.ok check on folder creation */
+        .then(function(r) {
+          if (r.status === 401) { driveToken = null; throw new Error('Drive token expired'); }
+          if (!r.ok) throw new Error('Drive folder create HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function(f) { driveFolderId = f.id; return driveFolderId; });
+      });
+    }
+
+    function uploadFileToDrive(token, folderId, blob, filename) {
+      // Claude: multipart/related upload — metadata + audio in one request
+      var boundary = 'aa_audio_' + Date.now();
+      var mimeType = blob.type || recordingMimeType || 'audio/webm';
+      var metadata = JSON.stringify({
+        name: filename,
+        parents: [folderId],
+        mimeType: mimeType
+      });
+      var body = new Blob([
+        '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',
+        metadata,
+        '\r\n--' + boundary + '\r\nContent-Type: ' + mimeType + '\r\n\r\n',
+        blob,
+        '\r\n--' + boundary + '--'
+      ]);
+      return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'multipart/related; boundary=' + boundary
+        },
+        body: body
+      })
+      .then(function(r) {
+        if (r.status === 401) {
+          driveToken = null; // Claude: token expired — clear cache for next attempt
+          throw new Error('Drive token expired');
+        }
+        if (!r.ok) throw new Error('Drive upload HTTP ' + r.status);
+        return r.json();
+      });
+    }
+
+    /* Claude: 2026-03-08 — WAV encoder helpers for NotebookLM compatibility.
+       Web Audio API decodes webm/ogg/mp4 → PCM, then we write a standard WAV.
+       Downsamples to 16 kHz mono (plenty for voice, keeps file size small). */
+    function _wavWriteString(view, offset, str) {
+      for (var i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    }
+    function _encodeWav(audioBuffer) {
+      var ch = 1; // mono
+      var rate = audioBuffer.sampleRate;
+      var samples = audioBuffer.getChannelData(0);
+      var buf = new ArrayBuffer(44 + samples.length * 2);
+      var v = new DataView(buf);
+      _wavWriteString(v, 0, 'RIFF');
+      v.setUint32(4, 36 + samples.length * 2, true);
+      _wavWriteString(v, 8, 'WAVE');
+      _wavWriteString(v, 12, 'fmt ');
+      v.setUint32(16, 16, true);
+      v.setUint16(20, 1, true);         // PCM
+      v.setUint16(22, ch, true);
+      v.setUint32(24, rate, true);
+      v.setUint32(28, rate * ch * 2, true);
+      v.setUint16(32, ch * 2, true);
+      v.setUint16(34, 16, true);        // 16-bit
+      _wavWriteString(v, 36, 'data');
+      v.setUint32(40, samples.length * 2, true);
+      for (var i = 0, off = 44; i < samples.length; i++, off += 2) {
+        var s = Math.max(-1, Math.min(1, samples[i]));
+        v.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+      return new Blob([buf], { type: 'audio/wav' });
+    }
+    /* convertToWav — takes any audio Blob, returns Promise<Blob> of audio/wav */
+    function convertToWav(blob) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = function() {
+          var ctx = new (window.AudioContext || window.webkitAudioContext)();
+          ctx.decodeAudioData(reader.result).then(function(decoded) {
+            /* Downsample to 16 kHz mono via OfflineAudioContext */
+            var targetRate = 16000;
+            var length = Math.ceil(decoded.duration * targetRate);
+            var offline = new OfflineAudioContext(1, length, targetRate);
+            var src = offline.createBufferSource();
+            src.buffer = decoded;
+            src.connect(offline.destination);
+            src.start(0);
+            return offline.startRendering().then(function(rendered) {
+              ctx.close();
+              resolve(_encodeWav(rendered));
+            });
+          }).catch(function(err) { ctx.close(); reject(err); });
+        };
+        reader.readAsArrayBuffer(blob);
+      });
+    }
+
+    /* Claude: 2026-03-08 — download an existing Drive file by ID and return its Blob.
+       Used by the "Convert to WAV" button on saved notes. */
+    function downloadDriveFile(fileId) {
+      return getDriveToken().then(function(token) {
+        return fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        }).then(function(r) {
+          if (!r.ok) throw new Error('Drive download HTTP ' + r.status);
+          return r.blob();
+        });
+      });
+    }
+
+    /* Claude: 2026-03-16 — updated to handle video recordings (skip WAV conversion for video) */
+    function attemptDriveUpload(blob) {
+      var isVideo = recordingMimeType && recordingMimeType.indexOf('video') !== -1;
+
+      var convertPromise = isVideo
+        ? Promise.resolve(blob) /* video: upload as-is (webm/mp4) */
+        : convertToWav(blob).catch(function(err) {
+            console.warn('[AudioNotes] WAV conversion failed, uploading original format:', err);
+            return blob;
+          });
+
+      return convertPromise
+        .then(function(uploadBlob) {
+          var isWav = uploadBlob.type === 'audio/wav';
+          return getDriveToken().then(function(token) {
+            return getOrCreateDriveFolder(token).then(function(folderId) {
+              var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+              var ext;
+              if (isVideo) {
+                ext = recordingMimeType.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
+              } else if (isWav) {
+                ext = 'wav';
+              } else {
+                if (recordingMimeType.indexOf('mp4') !== -1) ext = 'mp4';
+                else if (recordingMimeType.indexOf('ogg') !== -1) ext = 'ogg';
+                else ext = 'webm';
+              }
+              var prefix = isVideo ? 'video-note-' : 'audio-note-';
+              var filename = prefix + ts + '.' + ext;
+              return uploadFileToDrive(token, folderId, uploadBlob, filename);
+            });
+          });
+        })
+        .catch(function(err) {
+          console.warn('[AudioNotes] Drive upload failed:', err);
+          return null;
+        });
+    }
+
+    /* Claude: 2026-03-08 — create a Google Doc from transcript text.
+       Uses Drive API v3 multipart upload with convert-to-Docs mimeType.
+       Returns { id, webViewLink } or null on failure. */
+    function createGoogleDoc(title, text) {
+      return getDriveToken()
+        .then(function(token) {
+          return getOrCreateDriveFolder(token).then(function(folderId) {
+            var boundary = 'aa_doc_' + Date.now();
+            var metadata = JSON.stringify({
+              name: title || 'Audio Note Transcript',
+              parents: [folderId],
+              mimeType: 'application/vnd.google-apps.document'
+            });
+            var textBlob = new Blob([text], { type: 'text/plain' });
+            var body = new Blob([
+              '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',
+              metadata,
+              '\r\n--' + boundary + '\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n',
+              textBlob,
+              '\r\n--' + boundary + '--'
+            ]);
+            return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'multipart/related; boundary=' + boundary
+              },
+              body: body
+            }).then(function(r) {
+              if (r.status === 401) {
+                driveToken = null;
+                throw new Error('Drive token expired');
+              }
+              if (!r.ok) throw new Error('Docs create HTTP ' + r.status);
+              return r.json();
+            });
+          });
+        })
+        .catch(function(err) {
+          console.warn('[AudioNotes] Google Doc creation failed:', err);
+          return null;
+        });
+    }
+
+    // Claude: 2026-03-05 — rename a Drive file by fileId (PATCH metadata only, no re-upload)
+    function renameDriveFile(fileId, newName) {
+      return getDriveToken().then(function(token) {
+        return fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(fileId), {
+          method: 'PATCH',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: newName })
+        }).then(function(r) {
+          if (!r.ok) throw new Error('Drive rename HTTP ' + r.status);
+          return r.json();
+        });
+      }).catch(function(err) {
+        console.warn('[AudioNotes] Drive rename failed:', err);
+        return null;
+      });
+    }
+
+    // ── Speech Recognition ─────────────────────────────────────────────────────
+    // Claude: mobile Chrome fix — Speech Recognition stops after each utterance on
+    // mobile and resets its results array on restart. We accumulate all final results
+    // into `transcript` across restarts so nothing is lost.
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var speechStopping = false;        // Claude: flag to prevent auto-restart after intentional stop
+    var isRecognitionRunning = false;   // Claude: guard against "already started" error in onend
+    var isAndroid = /Android/i.test(navigator.userAgent); // Claude: Android-specific workarounds
+    var aaAudioCtx = null;             // Claude: 2026-03-05 — AudioContext for Android beep suppression
+
+    // Claude: 2026-03-05 — Android beep suppression via AudioContext silence buffer.
+    // Root cause: Android Chrome plays a system chime each time recognition.start() is
+    // called because it "re-acquires" the audio path. Trick: play a near-silent 50ms
+    // buffer through a live AudioContext right before start(), which keeps the audio
+    // output path occupied and prevents the OS from inserting its own sound.
+    // Non-nuclear — does NOT disable Speech Recognition.
+    function suppressAndroidBeep() {
+      if (!isAndroid) return;
+      try {
+        if (!aaAudioCtx || aaAudioCtx.state === 'closed') {
+          aaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (aaAudioCtx.state === 'suspended') aaAudioCtx.resume();
+        var buf = aaAudioCtx.createBuffer(1, Math.ceil(aaAudioCtx.sampleRate * 0.05), aaAudioCtx.sampleRate);
+        var src = aaAudioCtx.createBufferSource();
+        src.buffer = buf;
+        var gain = aaAudioCtx.createGain();
+        gain.gain.value = 0.001; // near-silent — not zero, which some devices ignore
+        src.connect(gain);
+        gain.connect(aaAudioCtx.destination);
+        src.start();
+      } catch(e) {
+        console.warn('[AudioNotes] AudioCtx beep suppress failed:', e);
+      }
+    }
+
+    function showSpeechFallback(msg) {
+      // Claude: Otter.ai fallback link for when Speech API unavailable or fails
+      speechWarning.innerHTML = '⚠️ ' + escHtml(msg || 'Transcript unavailable')
+        + ' — use <a href="https://otter.ai/download" target="_blank" rel="noopener" '
+        + 'style="color:#1a73e8;text-decoration:underline;">Otter.ai</a> as backup';
+      speechWarning.style.display = 'block';
+    }
+
+    function startSpeechRecognition() {
+      if (!SpeechRecognition) {
+        // Claude: graceful fallback — show warning with Otter link, recording still works
+        showSpeechFallback('Live transcription not supported in this browser');
+        return;
+      }
+      speechWarning.style.display = 'none';
+      transcript = '';
+      interimText = '';
+      speechStopping = false;
+      initRecognitionInstance();
+    }
+
+    function initRecognitionInstance() {
+      recognition = new SpeechRecognition();
+      // Claude: force continuous + interim on every instance (mobile Chrome needs both)
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1; // Claude: reduce processing load — we only need the top result
+      recognition.lang = 'en-US';
+
+      recognition.onresult = function(e) {
+        // Claude: mobile Chrome resets results array on each restart, so we only read
+        // new finals from this session and append to the accumulated `transcript`.
+        var sessionFinal = '';
+        var interim = '';
+        for (var i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) {
+            sessionFinal += e.results[i][0].transcript + ' ';
+          } else {
+            interim += e.results[i][0].transcript;
+          }
+        }
+        // Claude: accumulate — append new finals to running transcript
+        if (sessionFinal.trim()) {
+          transcript = (transcript + ' ' + sessionFinal).trim();
+        }
+        interimText = interim;
+        // Claude: show full accumulated text normally, current interim in italic gray
+        liveTranscript.innerHTML = escHtml(transcript)
+          + (interim ? ' <span class="interim">' + escHtml(interim) + '</span>' : '');
+      };
+
+      recognition.onerror = function(e) {
+        if (e.error === 'not-allowed') {
+          showSpeechFallback('Microphone permission denied for transcription');
+        } else if (e.error === 'network') {
+          showSpeechFallback('Network error — transcription requires internet');
+        } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
+          console.warn('[AudioNotes] Speech error:', e.error);
+        }
+      };
+
+      recognition.onend = function() {
+        isRecognitionRunning = false;
+      };
+
+      /* Claude: 2026-03-05 — Android: no restart. One SR session per recording,
+         no beep ever. Audio records the full session regardless. Live transcript
+         works for the first stretch; desktop/iOS still auto-restarts normally. */
+      recognition.onaudioend = function() {
+        if (speechStopping) return;
+        if (isAndroid) return; // Claude: no restart on Android — eliminates beep entirely
+        /* Claude: 2026-03-07 — do NOT restart SR when the tab is hidden.
+           Chrome stops SpeechRecognition in background tabs and will reject
+           .start() calls, flooding onerror and making the app look broken.
+           The visibilitychange handler below restarts SR when the tab returns. */
+        if (document.hidden) return;
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          setTimeout(function() {
+            if (speechStopping || isRecognitionRunning) return;
+            if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+            if (document.hidden) return; // still hidden — wait for visibilitychange
+            try {
+              initRecognitionInstance();
+            } catch(e) {
+              console.warn('[AudioNotes] Speech restart failed:', e);
+            }
+          }, 300);
+        }
+      };
+
+      // Claude: only start if not already running — prevents "already started" error
+      if (isRecognitionRunning) return;
+      try {
+        suppressAndroidBeep(); // Claude: 2026-03-05 — silence buffer trick before start()
+        recognition.start();
+        isRecognitionRunning = true;
+      } catch(e) {
+        isRecognitionRunning = false;
+        showSpeechFallback('Speech recognition failed to start');
+        console.error('[AudioNotes] Speech start error:', e);
+      }
+    }
+
+    function stopSpeechRecognition() {
+      speechStopping = true; // Claude: prevent auto-restart in onend
+      if (recognition) {
+        // Claude: capture any remaining interim text as final before stopping
+        if (interimText.trim()) {
+          transcript = (transcript + ' ' + interimText).trim();
+          interimText = '';
+        }
+        try { recognition.stop(); } catch(e) {}
+        recognition = null;
+        isRecognitionRunning = false;
+      }
+      // Claude: 2026-03-05 — close AudioContext used for beep suppression
+      if (aaAudioCtx) {
+        try { aaAudioCtx.close(); } catch(e) {}
+        aaAudioCtx = null;
+      }
+    }
+
+    // ── GPS + reverse geocode ──────────────────────────────────────────────────
+    function captureGps() {
+      recordingGps = null;
+      recordingAddress = null;
+      gpsStatusEl.textContent = '📍 Getting location…';
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          recordingGps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          gpsStatusEl.textContent = '📍 Location captured';
+          // Claude: best-effort reverse geocode via free Nominatim API (no key needed)
+          reverseGeocode(recordingGps.lat, recordingGps.lng);
+        },
+        function() { gpsStatusEl.textContent = '📍 Location unavailable'; },
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    }
+
+    function reverseGeocode(lat, lng) {
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=16')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data && data.display_name) {
+            // Claude: keep it short — city, state, country
+            var addr = data.address || {};
+            recordingAddress = [addr.city || addr.town || addr.village || '', addr.state || '', addr.country || '']
+              .filter(Boolean).join(', ');
+            if (recordingAddress) gpsStatusEl.textContent = '📍 ' + recordingAddress;
+          }
+        })
+        /* Claude: 2026-03-25 — I13 fix: show fallback coords instead of silent failure */
+        .catch(function() {
+          if (recordingGps) {
+            gpsStatusEl.textContent = '📍 ' + recordingGps.lat.toFixed(4) + ', ' + recordingGps.lng.toFixed(4);
+          }
+        });
+    }
+
+    // ── Recording timer ────────────────────────────────────────────────────────
+    function startTimer() {
+      var el = document.createElement('span');
+      el.id = 'recordTimer';
+      recordStatus.textContent = '';
+      recordStatus.appendChild(document.createTextNode('Recording '));
+      recordStatus.appendChild(el);
+      var start = Date.now();
+      timerInterval = setInterval(function() {
+        var sec = Math.floor((Date.now() - start) / 1000);
+        el.textContent = fmtDuration(sec);
+      }, 500);
+    }
+
+    function stopTimer() {
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    }
+
+    // ── Recording ──────────────────────────────────────────────────────────────
+    // Claude: pick best audio format Drive can preview — mp4 > ogg > webm fallback
+    function pickMimeType() {
+      /* Claude: 2026-03-16 — pick best mime type for audio or video recording */
+      if (_videoMode) {
+        var videoPrefs = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+        for (var i = 0; i < videoPrefs.length; i++) {
+          if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(videoPrefs[i])) return videoPrefs[i];
+        }
+        return '';
+      }
+      var prefs = ['audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm'];
+      for (var i = 0; i < prefs.length; i++) {
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(prefs[i])) return prefs[i];
+      }
+      return '';  // let browser pick default
+    }
+
+    /* Claude: 2026-03-16 — recover from a dead MediaRecorder. This happens when:
+       - User hits F5, gets beforeunload "Stay" dialog, clicks Stay — browser may kill the recorder
+       - Bluetooth headset disconnects mid-recording
+       - Browser throttles the tab and kills the audio stream
+       - Any MediaRecorder.onerror fires
+       We DON'T throw away the chunks — we show the save/discard UI with whatever we captured. */
+    function _recoverFromRecorderDeath(reason) {
+      console.warn('[AudioNotes] Recovering from recorder death:', reason);
+      /* Clean up recording state */
+      window.AA_isRecording = false;
+      try { sessionStorage.removeItem('AA_RECORDING_ACTIVE'); } catch(e) {}
+      stopSpeechRecognition();
+      stopTimer();
+      _releaseWakeLock();
+
+      /* Update UI to show what happened + offer save/discard */
+      recordBtn.textContent = '🎙️';
+      recordBtn.classList.remove('recording');
+      recordBtn.title = 'Tap to record';
+      if (noteTitleInput) noteTitleInput.disabled = false;
+
+      var hasChunks = audioChunks && audioChunks.length > 0;
+      var hasTxt = transcript && transcript.trim();
+
+      if (hasChunks || hasTxt) {
+        recordStatus.textContent = '⚠️ Recording interrupted — but your audio was saved! Choose what to do:';
+        recordStatus.style.color = '#ffc107';
+        var draftActions = document.getElementById('draftActions');
+        if (draftActions) {
+          draftActions.style.display = 'flex';
+          draftActions.style.justifyContent = 'center';
+          draftActions.style.gap = '8px';
+          draftActions.style.flexWrap = 'wrap';
+        }
+        /* Do one final emergency save to IndexedDB so it survives another crash */
+        try {
+          var blob = new Blob(audioChunks, { type: recordingMimeType });
+          _saveEmergencyDraft(blob);
+        } catch(e) {}
+        showToast('Recording interrupted — your audio is safe. Save it now!', 6000);
+      } else {
+        recordStatus.textContent = '⚠️ Recording interrupted — no audio was captured.';
+        recordStatus.style.color = '#dc3545';
+      }
+    }
+
+    function startRecording() {
+      // Claude: 2026-03-05 — capture title at start of recording
+      noteTitle = noteTitleInput ? noteTitleInput.value.trim() : '';
+      /* Claude: 2026-03-14 — null guard for defensive safety */
+      if (noteTitleInput) noteTitleInput.disabled = true; // lock while recording
+
+      /* Claude: 2026-03-16 — request video+audio in video mode, audio-only otherwise.
+         facingMode:'user' = front/selfie camera. Native app plumbing: if AA_NATIVE.getStream
+         exists, use that instead (future native camera bridge). */
+      var _mediaConstraints = { audio: true };
+      if (_videoMode) {
+        /* Claude: 2026-03-29 — use _facingMode variable so flip button works. Default: 'environment' (rear camera) */
+        _mediaConstraints.video = { facingMode: _facingMode, width: { ideal: 1280 }, height: { ideal: 720 } };
+      }
+      (window.AA_NATIVE && window.AA_NATIVE.getStream
+        ? window.AA_NATIVE.getStream(_mediaConstraints)
+        : navigator.mediaDevices.getUserMedia(_mediaConstraints))
+        .then(function(stream) {
+          audioChunks = [];
+          _lastBackedUpIndex = 0;
+          _chunkBatchCounter = 0;
+          _clearIncrementalChunks(); /* Claude: 2026-03-16 — fresh start, clear old incremental chunks */
+          // Claude: request preferred mimeType for Drive compatibility
+          var preferredMime = pickMimeType();
+          var recOpts = preferredMime ? { mimeType: preferredMime } : undefined;
+          mediaRecorder = new MediaRecorder(stream, recOpts);
+          mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
+          mediaRecorder.onstop = function() {
+            stream.getTracks().forEach(function(t) { t.stop(); });
+          };
+          /* Claude: 2026-03-16 — show camera preview in video mode */
+          if (_videoMode && stream.getVideoTracks().length > 0) {
+            _videoPreview = document.createElement('video');
+            _videoPreview.setAttribute('playsinline', '');
+            _videoPreview.setAttribute('muted', '');
+            _videoPreview.muted = true;
+            _videoPreview.autoplay = true;
+            _videoPreview.srcObject = stream;
+            _videoPreview.style.cssText = 'width:100%;max-width:400px;border-radius:12px;margin:10px auto;display:block;background:#000;';
+            var recordSection = document.getElementById('recordSection');
+            if (recordSection) recordSection.parentNode.insertBefore(_videoPreview, recordSection.nextSibling);
+          }
+          /* Claude: 2026-03-16 — detect recorder death (e.g. after beforeunload "Stay",
+             browser killing the stream, or hardware disconnection). When this fires,
+             recover whatever chunks we have and show save/discard options. */
+          mediaRecorder.onerror = function(evt) {
+            console.error('[AudioNotes] MediaRecorder error:', evt.error || evt);
+            _recoverFromRecorderDeath('The recorder encountered an error.');
+          };
+          /* Claude: 2026-03-24 — listen for track death on EVERY track (audio + video).
+             Android aggressively kills camera streams when the app backgrounds, screen locks,
+             or another app grabs the camera. Without this, chunks silently stop accumulating
+             and the user thinks they're still recording.
+             Redundancy: 1) track.onended fires immediately when OS kills stream
+                         2) mediaRecorder.onerror catches recorder-level failures
+                         3) visibilitychange health check catches anything else on page restore */
+          stream.getTracks().forEach(function(track) {
+            track.onended = function() {
+              console.warn('[AA] Track ended:', track.kind, track.label);
+              /* If we're still supposed to be recording, this is an unexpected death */
+              if (window.AA_isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+                /* For VIDEO track death: audio may still be fine. Don't kill the recording,
+                   but warn the user and remove the dead preview. */
+                if (track.kind === 'video') {
+                  if (_videoPreview) {
+                    /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+                    if (_videoPreview.parentNode) _videoPreview.parentNode.removeChild(_videoPreview);
+                    _videoPreview = null;
+                  }
+                  showToast('⚠️ Camera was disconnected — audio is still recording!', 6000);
+                  var statusEl = document.getElementById('recordStatus');
+                  if (statusEl) statusEl.textContent = '🔴 Recording (camera lost, audio continues)…';
+                } else {
+                  /* AUDIO track death = recording is truly dead */
+                  showToast('⚠️ Microphone disconnected — saving your recording!', 6000);
+                  _recoverFromRecorderDeath('Microphone stream was interrupted by your device.');
+                }
+              }
+            };
+          });
+          /* Claude 2026-03-07: 10s timeslice — ondataavailable fires every 10s so
+             audioChunks fills DURING recording, not only on stop. This means
+             pagehide/beforeunload saves contain real audio instead of empty blob.
+             Archive: mediaRecorder.start(); */
+          mediaRecorder.start(1000); /* Claude 2026-03-07: 1s timeslice (was 10s) — shorter window = chunks available sooner; a 3s recording now has 3 chunks ready in pagehide instead of 0 */
+          recordingMimeType = mediaRecorder.mimeType || preferredMime || 'audio/webm';
+          recordStartTime = Date.now();
+
+          recordBtn.textContent = '⏹️';
+          recordBtn.classList.add('recording');
+          recordBtn.title = 'Tap to stop';
+          liveTranscript.style.display = 'block';
+          liveTranscript.innerHTML = '';
+
+          startTimer();
+          captureGps();
+          // Claude: 2026-03-07 — set global flag so doLogout() blocks sign-out even if
+          // the DOM class is stale (e.g. after screen-lock on desktop or background throttle).
+          window.AA_isRecording = true;
+          // Claude: 2026-03-07 — mirror to sessionStorage so the flag survives a page
+          // refresh (JS memory is wiped on reload but sessionStorage is not).
+          try { sessionStorage.setItem('AA_RECORDING_ACTIVE', '1'); } catch(e) {}
+          // Claude: 2026-03-05 — reset session inactivity timer when recording starts
+          if (window.AA_resetSessionTimer) window.AA_resetSessionTimer();
+          // Claude: 2026-03-05 — skip SR on Android entirely; beep is OS-level and
+          // cannot be suppressed. Audio records fine; transcript stays empty on Android.
+          if (!isAndroid) {
+            startSpeechRecognition();
+          }
+          // Claude: 2026-03-06 — start periodic transcript backup (unstable-device resilience)
+          _startTranscriptBackup();
+          // Claude: 2026-03-16 — keep screen alive during recording
+          _acquireWakeLock();
+          /* Claude: 2026-03-16 — native: request background recording permission */
+          if (window.AA_NATIVE && window.AA_NATIVE.backgroundRecord) {
+            try { window.AA_NATIVE.backgroundRecord(true); } catch(e) {}
+          }
+        })
+        .catch(function(err) {
+          /* Claude: 2026-03-24 — specific error messages for video mode on Android.
+             Common failures: NotAllowedError (permission denied), NotFoundError (no camera),
+             NotReadableError (camera in use by another app), OverconstrainedError (resolution unsupported).
+             Redundancy: 1) descriptive toast 2) console error 3) recordStatus text */
+          var msg = 'Microphone access denied';
+          if (_videoMode) {
+            if (err.name === 'NotAllowedError') {
+              msg = '📹 Camera + microphone permission denied — check your browser settings';
+            } else if (err.name === 'NotFoundError') {
+              msg = '📹 No camera found — try switching to audio-only mode';
+            } else if (err.name === 'NotReadableError') {
+              msg = '📹 Camera is busy — close other apps using the camera and try again';
+            } else if (err.name === 'OverconstrainedError') {
+              msg = '📹 Camera doesn\'t support requested resolution — trying audio-only…';
+              /* Auto-fallback: retry with audio only */
+              _videoMode = false;
+              if (videoToggleBtn) {
+                videoToggleBtn.style.color = '#aaa';
+                videoToggleBtn.style.borderColor = '#555';
+              }
+              startRecording(); /* retry audio-only */
+              return;
+            } else {
+              msg = '📹 Camera/mic error: ' + (err.message || err.name);
+            }
+          } else if (err.name === 'NotAllowedError') {
+            msg = 'Microphone permission denied — check your browser settings';
+          } else if (err.name === 'NotReadableError') {
+            msg = 'Microphone is busy — close other apps using the mic';
+          }
+          showToast(msg, 6000);
+          var statusEl = document.getElementById('recordStatus');
+          if (statusEl) statusEl.textContent = msg;
+          console.error('[AudioNotes] getUserMedia error:', err.name, err.message, err);
+        });
+    }
+
+    function stopRecording() {
+      if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+      // Claude: 2026-03-07 — clear global flag and sessionStorage backup on stop
+      window.AA_isRecording = false;
+      try { sessionStorage.removeItem('AA_RECORDING_ACTIVE'); } catch(e) {}
+      stopSpeechRecognition();
+      stopTimer();
+      /* Claude: 2026-03-16 — DO NOT stop periodic backup here. Keep it running
+         until the user actually saves or discards. This protects unsaved audio
+         on mobile where beforeunload is unreliable. Previously this was the gap
+         that caused Bruise's audio recordings to be lost. */
+      mediaRecorder.stop();
+      /* Claude: 2026-03-16 — remove camera preview on stop */
+      if (_videoPreview) {
+        _videoPreview.srcObject = null;
+        if (_videoPreview.parentNode) _videoPreview.parentNode.removeChild(_videoPreview);
+        _videoPreview = null;
+      }
+      // Claude: 2026-03-16 — release wake lock when recording stops
+      _releaseWakeLock();
+      /* Claude: 2026-03-16 — native: release background recording */
+      if (window.AA_NATIVE && window.AA_NATIVE.backgroundRecord) {
+        try { window.AA_NATIVE.backgroundRecord(false); } catch(e) {}
+      }
+
+      recordBtn.textContent = '🎙️';
+      recordBtn.classList.remove('recording');
+      recordBtn.title = 'Tap to record';
+      recordStatus.textContent = 'What would you like to do with this recording?';
+      /* Claude: 2026-03-14 — null guard */
+      if (noteTitleInput) noteTitleInput.disabled = false; // re-enable title input after recording
+
+      // Claude: 2026-03-08 — show all three options (Docs / Drive / Discard)
+      // instead of auto-opening catModal. User picks their action.
+      var draftActions = document.getElementById('draftActions');
+      if (draftActions) {
+        draftActions.style.display = 'flex';
+        draftActions.style.justifyContent = 'center';
+        draftActions.style.gap = '8px';
+        draftActions.style.flexWrap = 'wrap';
+      }
+      /* Claude: 2026-03-16 — update button labels for video mode */
+      var driveBtn = document.getElementById('saveToDriveBtn');
+      if (driveBtn) {
+        driveBtn.innerHTML = _videoMode ? '🎬 Save video to Drive' : '🎵 Save audio to Drive';
+        driveBtn.setAttribute('aria-label', _videoMode ? 'Save video recording to Google Drive' : 'Save audio recording to Google Drive');
+      }
+    }
+
+    recordBtn.onclick = function() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    };
+
+    /* Claude: 2026-03-16 — FIX C: visibility change debounce */
+    var _lastVisibilitySaveTime = 0;
+    var _VISIBILITY_DEBOUNCE_MS = 2000; /* don't save more than once per 2 seconds */
+
+    /* Claude: 2026-03-07 — visibilitychange: session + SR recovery when tab returns.
+       On Windows, screen-lock makes the tab "hidden". On unlock it becomes "visible".
+       We reset the 30-min inactivity timer immediately AND restart SpeechRecognition
+       (which Chrome stops in background tabs) so transcription resumes seamlessly. */
+    document.addEventListener('visibilitychange', function () {
+      /* Claude: 2026-03-08 — when page goes HIDDEN during recording, immediately
+         save draft to IndexedDB + localStorage. This is the #1 most reliable event
+         on mobile — it fires on pull-to-refresh, tab switch, swipe-away, and
+         screen-lock. beforeunload/pagehide often DON'T fire on mobile phones.
+         Archive: previously only handled visibility-restored (SR restart). */
+      if (document.hidden) {
+        /* Claude: 2026-03-16 — debounce rapid visibility toggles */
+        var now = Date.now();
+        if (now - _lastVisibilitySaveTime < _VISIBILITY_DEBOUNCE_MS) {
+          if (window.AA_DEBUG) console.log('[AA] Visibility save debounced');
+          return;
+        }
+        _lastVisibilitySaveTime = now;
+        var isRec = mediaRecorder && mediaRecorder.state === 'recording';
+        var hasChunks = audioChunks && audioChunks.length > 0;
+        var hasTxt = transcript && transcript.trim();
+        if (isRec || hasChunks || hasTxt) {
+          // Flush any buffered partial chunk
+          if (isRec) { try { mediaRecorder.requestData(); } catch(ex) {} }
+          /* Claude: 2026-03-16 — FIX A: sync checkpoint before async save */
+          _syncCheckpoint();
+          // Sync save transcript to localStorage (always completes)
+          try {
+            localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
+              transcript: (transcript || '').trim(),
+              title: (document.getElementById('noteTitleInput') || {}).value || '',
+              hasAudio: hasChunks || isRec,
+              savedAt: new Date().toISOString()
+            }));
+          } catch(ex) {}
+          // Async save full draft (audio + transcript) to IndexedDB
+          var blob = (hasChunks || isRec)
+            ? new Blob(audioChunks, { type: recordingMimeType })
+            : null;
+          _saveEmergencyDraft(blob);
+          if (window.AA_DEBUG) console.log('[AA] Page hidden during recording — emergency draft saved');
+        }
+        return;
+      }
+
+      // ── Page becoming visible again ──
+      /* Claude: 2026-03-16 — health check: is the recorder still alive?
+         After beforeunload "Stay", the browser may have killed the MediaRecorder
+         or its audio stream. Detect this and recover instead of leaving the user
+         staring at a broken recording UI with no way to save. */
+      if (window.AA_isRecording || (recordBtn && recordBtn.classList.contains('recording'))) {
+        var recorderDead = !mediaRecorder
+          || mediaRecorder.state === 'inactive'
+          || (mediaRecorder.stream && mediaRecorder.stream.getTracks().every(function(t) { return t.readyState === 'ended'; }));
+        if (recorderDead) {
+          console.warn('[AA] Recorder found dead after visibility restore');
+          _recoverFromRecorderDeath('Recorder stopped while page was hidden or after refresh dialog.');
+          return; /* skip SR restart — recorder is dead */
+        }
+      }
+
+      // Reset session timer so screen-lock can't trigger a sign-out
+      if (window.AA_isRecording || sessionStorage.getItem('AA_RECORDING_ACTIVE')) {
+        if (window.AA_resetSessionTimer) {
+          window.AA_resetSessionTimer();
+          if (window.AA_DEBUG) console.log('[AA] Visibility restored while recording — session timer reset');
+        }
+      }
+      // Restart SR if it was paused by the browser while hidden
+      if (window.AA_isRecording && !isAndroid && !speechStopping && !isRecognitionRunning) {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          if (window.AA_DEBUG) console.log('[AA] Visibility restored — restarting speech recognition');
+          try { initRecognitionInstance(); } catch(e) {}
+        }
+      }
+    });
+
+    // ── Category selection ─────────────────────────────────────────────────────
+    document.querySelectorAll('.cat-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        var category = btn.getAttribute('data-cat');
+        catModal.classList.remove('open');
+        saveNote(category);
+      };
+    });
+
+    /* Claude: 2026-03-16 — click-outside-to-close: tapping the overlay (not the modal content)
+       closes the modal and returns to save/discard options. Recording is NOT lost. */
+    catModal.onclick = function(e) {
+      if (e.target === catModal) {
+        catModal.classList.remove('open');
+        var draftAct = document.getElementById('draftActions');
+        if (draftAct && (transcript || (audioChunks && audioChunks.length))) {
+          draftAct.style.display = 'flex';
+          draftAct.style.justifyContent = 'center';
+          draftAct.style.gap = '8px';
+          draftAct.style.flexWrap = 'wrap';
+          recordStatus.textContent = 'What would you like to do with this recording?';
+        }
+      }
+    };
+
+    /* Claude: 2026-03-25 — focus trap + Escape key for catModal accessibility */
+    var _catModalTrap = null;
+    var _catModalEsc = null;
+    var _catPrevFocus = null;
+    function _catModalOpen() {
+      _catPrevFocus = document.activeElement;
+      var focusable = catModal.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (focusable.length) setTimeout(function() { focusable[0].focus(); }, 50);
+      _catModalTrap = function(e) {
+        if (e.key !== 'Tab') return;
+        var els = catModal.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (!els.length) return;
+        var first = els[0]; var last = els[els.length - 1];
+        if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+        else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+      };
+      _catModalEsc = function(e) { if (e.key === 'Escape') { document.getElementById('cancelCat').click(); } };
+      document.addEventListener('keydown', _catModalTrap);
+      document.addEventListener('keydown', _catModalEsc);
+    }
+    function _catModalClose() {
+      if (_catModalTrap) { document.removeEventListener('keydown', _catModalTrap); _catModalTrap = null; }
+      if (_catModalEsc) { document.removeEventListener('keydown', _catModalEsc); _catModalEsc = null; }
+      if (_catPrevFocus) { try { _catPrevFocus.focus(); } catch(e) {} _catPrevFocus = null; }
+    }
+    /* Hook: observe catModal class changes */
+    (new MutationObserver(function(mutations) {
+      mutations.forEach(function(m) {
+        if (m.attributeName === 'class') {
+          if (catModal.classList.contains('open')) { _catModalOpen(); }
+          else { _catModalClose(); }
+        }
+      });
+    })).observe(catModal, { attributes: true });
+
+    document.getElementById('cancelCat').onclick = function() {
+      catModal.classList.remove('open');
+      // Claude: 2026-03-08 — re-show draftActions so user can still pick Docs or Discard
+      var draftAct = document.getElementById('draftActions');
+      if (draftAct && (transcript || (audioChunks && audioChunks.length))) {
+        draftAct.style.display = 'flex';
+        draftAct.style.justifyContent = 'center';
+        draftAct.style.gap = '8px';
+        draftAct.style.flexWrap = 'wrap';
+        recordStatus.textContent = 'What would you like to do with this recording?';
+      } else {
+        _clearIncrementalChunks();
+        audioChunks = [];
+        transcript = '';
+        interimText = '';
+        noteTitle = '';
+        noteTitleInput.value = '';
+        noteTitleInput.disabled = false;
+        liveTranscript.style.display = 'none';
+        speechWarning.style.display = 'none';
+        gpsStatusEl.textContent = '';
+        recordStatus.textContent = 'Recording discarded';
+        setTimeout(function() { recordStatus.textContent = 'Tap to start recording'; }, 2000);
+      }
+    };
+
+    // ── Save note ──────────────────────────────────────────────────────────────
+    // Claude: flow is: build blob → upload to Drive → save metadata to Firebase.
+    // If Drive upload fails, still saves to Firebase with null driveLink.
+    /* Claude: 2026-03-25 — I10 fix: reset save buttons after save completes or fails */
+    function _resetSaveButtons() {
+      var b1 = document.getElementById('saveToDocsBtn');
+      var b2 = document.getElementById('saveToDriveBtn');
+      var b3 = document.getElementById('discardDraftBtn');
+      if (b1) { b1.disabled = false; b1.textContent = '📄 Save transcript to Docs'; }
+      if (b2) { b2.disabled = false; b2.textContent = '🎵 Save audio to Drive'; }
+      if (b3) b3.disabled = false;
+    }
+
+    function saveNote(category) {
+      /* Claude: 2026-03-13 — mirror guard: supporters cannot save audio notes */
+      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+      var duration = Math.round((Date.now() - (recordStartTime || Date.now())) / 1000);
+      var localTime = new Date().toLocaleString();
+      // Claude: stopSpeechRecognition() already folds interim into transcript
+      var rawTranscript = transcript.trim() || '';
+      /* Claude: 2026-03-07 — Firestore hard-limits a string field to 1,048,487 bytes.
+         Long recordings (RootsTech-style) can produce transcripts far exceeding that.
+         Cap at 800,000 chars (~800 KB) so we're safely under the limit even with
+         multi-byte UTF-8 characters. The Drive audio file always has the complete
+         recording, so nothing is permanently lost.
+         Archive: var finalTranscript = transcript.trim() || ''; */
+      var TRANSCRIPT_MAX = 800000;
+      var transcriptTruncated = rawTranscript.length > TRANSCRIPT_MAX;
+      var finalTranscript = transcriptTruncated
+        ? rawTranscript.slice(0, TRANSCRIPT_MAX) +
+          '\n\n[⚠️ Transcript clipped at 800k characters — full audio saved to Drive.]'
+        : rawTranscript;
+      var gps = recordingGps ? { lat: recordingGps.lat, lng: recordingGps.lng } : null;
+
+      // TODO: future — integrate Otter.ai or OpenAI Whisper API for higher-quality
+      //   transcription as a fallback/upgrade from Web Speech API.
+
+      /* Claude: 2026-03-24 — wrap blob construction in try/catch (corrupted chunks → crash) */
+      var audioBlob;
+      try {
+        audioBlob = new Blob(audioChunks, { type: recordingMimeType });
+      } catch (blobErr) {
+        console.error('[AudioNotes] Blob construction failed:', blobErr);
+        showToast('⚠️ Audio data error — saving transcript only.', 6000);
+        audioBlob = null;
+      }
+
+      recordStatus.textContent = audioBlob ? 'Uploading to Drive…' : 'Saving transcript…';
+      /* Claude: 2026-03-25 — I10 fix: disable action buttons during save to prevent double-tap */
+      var _saveDocsBtn = document.getElementById('saveToDocsBtn');
+      var _saveDriveBtn = document.getElementById('saveToDriveBtn');
+      var _discardBtn = document.getElementById('discardDraftBtn');
+      if (_saveDocsBtn) _saveDocsBtn.disabled = true;
+      if (_saveDriveBtn) { _saveDriveBtn.disabled = true; _saveDriveBtn.textContent = '⏳ Saving…'; }
+      if (_discardBtn) _discardBtn.disabled = true;
+
+      /* Claude: 2026-03-24 — if blob failed, skip Drive entirely but still save to Firebase */
+      var drivePromise = audioBlob
+        ? attemptDriveUpload(audioBlob)
+        : Promise.resolve(null);
+
+      // Claude: attempt Drive upload first, then save to Firebase (with or without Drive link)
+      drivePromise.then(function(driveResult) {
+        recordStatus.textContent = driveResult ? 'Saving note…' : 'Saving (no Drive link)…';
+
+        var noteData = {
+          title: noteTitle || null,  // Claude: 2026-03-05 — optional title
+          transcript: finalTranscript,
+          // Claude: 2026-03-07 — flag long recordings so the UI can indicate clipping
+          transcriptTruncated: transcriptTruncated || false,
+          localTime: localTime,
+          gps: gps,
+          address: recordingAddress || null,
+          category: category,
+          duration: duration,
+          driveFileId: driveResult ? driveResult.id : null,
+          driveLink: driveResult ? driveResult.webViewLink : null,
+          /* Claude: 2026-03-08 — track audio format so UI knows if WAV conversion is needed */
+          audioFormat: driveResult ? 'wav' : null,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        // Claude: timeout guard — if save hangs >10s, show error
+        var saveResolved = false;
+        var saveTimer = setTimeout(function() {
+          if (!saveResolved) {
+            saveResolved = true;
+            recordStatus.textContent = 'Save failed — timed out after 10s. Check connection.';
+            showToast('Save timed out — check your internet connection', 10000);
+            console.error('[AudioNotes] Firestore save timed out after 10s. writeUid:', writeUid);
+          }
+        }, 10000);
+
+        window.AA.db.collection('audioNotes').doc(writeUid)
+          .collection('notes').add(noteData)
+          .then(function() {
+            if (saveResolved) return;
+            saveResolved = true;
+            clearTimeout(saveTimer);
+            // Claude: 2026-03-05 — audit log compliance for audio note saves
+            window.AA.logAccess('write', writeUid, 'audioNote');
+            /* Claude: 2026-03-16 — clear messaging about Drive success/failure */
+            if (driveResult) {
+              showToast('Note saved with audio link!', 4000);
+            } else {
+              showToast('⚠️ Note saved but audio upload failed — you can re-upload from the note card.', 6000);
+            }
+            recordStatus.textContent = 'Tap to start recording';
+            liveTranscript.style.display = 'none';
+            speechWarning.style.display = 'none';
+            gpsStatusEl.textContent = '';
+            // Claude: 2026-03-08 — hide draft action buttons after successful save
+            var draftAct = document.getElementById('draftActions');
+            if (draftAct) draftAct.style.display = 'none';
+            /* Claude: 2026-03-16 — NOW stop the periodic backup (audio is safely saved) */
+            _stopTranscriptBackup();
+            _clearIncrementalChunks();
+            audioChunks = [];
+            transcript = '';
+            interimText = '';
+            noteTitle = '';               // Claude: clear title after save
+            noteTitleInput.value = '';
+            noteTitleInput.disabled = false;
+            recordingAddress = null;
+            _resetSaveButtons(); /* Claude: 2026-03-25 — re-enable buttons after success */
+          })
+          .catch(function(err) {
+            if (saveResolved) return;
+            saveResolved = true;
+            clearTimeout(saveTimer);
+            var errText = err.code ? err.code + ': ' + (err.message || '') : (err.message || String(err));
+            recordStatus.textContent = 'Save failed — ' + errText;
+            showToast('Error: ' + errText, 10000);
+            console.error('[AudioNotes] Firestore save error:', err);
+            /* Claude: 2026-03-25 — sanitized console log to remove PII */
+            console.error('[AudioNotes] Save failed — check auth and data');
+            _resetSaveButtons(); /* Claude: 2026-03-25 — re-enable buttons on failure */
+          });
+      })
+      /* Claude: 2026-03-24 — CRITICAL: catch outer promise so Drive failure doesn't silently
+         kill the entire save chain. If we get here, Drive failed AND something else went wrong.
+         Redundancy layer 1: attemptDriveUpload already returns null on failure.
+         Redundancy layer 2: this .catch() catches anything else that slips through.
+         Redundancy layer 3: emergency draft is still in IndexedDB from periodic backup. */
+      .catch(function(outerErr) {
+        console.error('[AudioNotes] Outer save chain failed:', outerErr);
+        recordStatus.textContent = 'Save error — trying emergency backup…';
+        showToast('⚠️ Save failed — attempting emergency backup. Do NOT close this page!', 10000);
+        /* Emergency: try to save transcript + audio to IndexedDB so it can be recovered */
+        try { _saveEmergencyDraft(audioBlob); } catch(e2) {}
+        /* Also try localStorage transcript backup as last resort */
+        try {
+          localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
+            transcript: (transcript || '').trim(),
+            title: noteTitle || '',
+            hasAudio: !!(audioChunks && audioChunks.length),
+            savedAt: new Date().toISOString()
+          }));
+        } catch(e3) {}
+        setTimeout(function() {
+          recordStatus.textContent = '⚠️ Recording backed up locally — try saving again or reload the page.';
+        }, 3000);
+      });
+    }
+
+    // ── Load notes (real-time) ─────────────────────────────────────────────────
+    function watchNotes(uid) {
+      if (unsubNotes) unsubNotes();
+      unsubNotes = window.AA.db.collection('audioNotes').doc(uid)
+        .collection('notes').orderBy('timestamp', 'desc')
+        .onSnapshot(function(snap) {
+          allNotes = snap.docs.map(function(d) {
+            var data = d.data();
+            data._id = d.id;
+            return data;
+          });
+          renderNotes();
+        }, function(err) {
+          console.error('[AudioNotes] Watch error:', err);
+        });
+    }
+
+    // ── Render notes ───────────────────────────────────────────────────────────
+    function renderNotes() {
+      var query = (searchInput.value || '').toLowerCase().trim();
+      var catFilter = categoryFilter ? categoryFilter.value : '';
+
+      // Claude: 2026-03-05 — normalize category comparison. Old notes may have
+      // been saved with emoji prefix or different case; strip to lowercase key only.
+      var CAT_NORMALIZE = {};
+      Object.keys(CAT_LABELS).forEach(function(k) {
+        // map "🌳 Genealogy" → "genealogy", "Genealogy" → "genealogy", etc.
+        CAT_NORMALIZE[CAT_LABELS[k].replace(/^\S+\s+/, '').toLowerCase()] = k;
+        CAT_NORMALIZE[k.toLowerCase()] = k;
+      });
+      function normalizeCategory(raw) {
+        if (!raw) return '';
+        var stripped = String(raw).replace(/^\S+\s+/, '').toLowerCase().trim();
+        return CAT_NORMALIZE[stripped] || CAT_NORMALIZE[raw.toLowerCase().trim()] || raw.toLowerCase().trim();
+      }
+
+      var filtered = allNotes.filter(function(n) {
+        if (catFilter && normalizeCategory(n.category) !== catFilter) return false;
+        if (query && (n.transcript || '').toLowerCase().indexOf(query) === -1) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        notesList.innerHTML = '';
+        emptyState.style.display = 'block';
+        emptyState.textContent = allNotes.length === 0
+          ? 'No audio notes yet. Tap the mic to record your first note.'
+          : 'No notes match your search.';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      notesList.innerHTML = filtered.map(function(n) {
+        var timeStr = fmtTime(n.timestamp);
+        var catClass = 'cat-' + (n.category || 'other');
+        /* Claude: 2026-03-23 — escape fallback category to prevent XSS from Firestore */
+        var catLabel = CAT_LABELS[n.category] || escHtml(n.category) || 'Other';
+        // Claude: show address if available, else raw coords, else nothing
+        var locStr = n.address
+          ? '📍 ' + escHtml(n.address)
+          : (n.gps ? '📍 ' + n.gps.lat.toFixed(4) + ', ' + n.gps.lng.toFixed(4) : '');
+        /* Claude: 2026-03-05 — show first 100 chars as preview, "..." if longer */
+        var transcriptText = n.transcript || '(no transcript)';
+        var isLong = transcriptText.length > 100;
+        var previewText = isLong ? transcriptText.slice(0, 100) + '...' : transcriptText;
+        var deleteHtml = !isMirror
+          ? '<button class="note-delete" data-id="' + n._id + '" title="Delete note">🗑️</button>'
+          : '';
+
+        // Claude: show Drive playback link when audio was uploaded
+        var driveHtml = n.driveLink
+          ? '<a href="' + escHtml(n.driveLink) + '" target="_blank" rel="noopener" style="font-size:11pt;color:#1a73e8;text-decoration:none;">▶ Play on Drive</a>' /* Claude: 2026-03-09 — 10pt→11pt */
+          : '';
+        // Claude: 2026-03-08 — "Convert to WAV" button only for notes NOT already in WAV format
+        var wavHtml = (n.driveFileId && !isMirror && n.audioFormat !== 'wav')
+          ? '<button class="note-to-wav" data-driveid="' + escHtml(n.driveFileId) + '" data-id="' + n._id + '" data-title="' + escHtml(n.title || '').replace(/"/g,'&quot;') + '" style="font-size:11pt;color:#34a853;background:none;border:none;cursor:pointer;padding:0;text-decoration:none;margin-left:6px;">🔄 Convert to WAV</button>' /* Claude: 2026-03-09 — 10pt→11pt */
+          : (n.driveFileId && n.audioFormat === 'wav' && !isMirror ? '<span style="font-size:11pt;color:#34a853;margin-left:6px;">✅ WAV</span>' : ''); /* Claude: 2026-03-09 — 9pt→11pt */
+        // Claude: 2026-03-08 — "Send to Docs" button for each saved note
+        var docsHtml = (n.transcript && !isMirror)
+          ? '<button class="note-to-docs" data-id="' + n._id + '" data-title="' + escHtml(n.title || '').replace(/"/g,'&quot;') + '" style="font-size:11pt;color:#1a73e8;background:none;border:none;cursor:pointer;padding:0;text-decoration:none;">📄 Send to Docs</button>' /* Claude: 2026-03-09 — 10pt→11pt */
+          : '';
+
+        // Claude: 2026-03-05 — title row with inline rename button (own notes only)
+        var titleHtml = '';
+        if (!isMirror) {
+          var displayTitle = n.title ? escHtml(n.title) : '<span style="color:#bbb;font-weight:400;">Untitled</span>';
+          titleHtml = '<div class="note-rename-row">'
+            + '<span class="note-title" style="flex:1">' + displayTitle + '</span>'
+            + '<button class="note-rename-btn" data-id="' + n._id + '" data-title="' + escHtml(n.title || '').replace(/"/g,'&quot;') + '" data-driveid="' + escHtml(n.driveFileId || '') + '" title="Rename">✏️</button>'
+            + '</div>';
+        } else if (n.title) {
+          titleHtml = '<div class="note-title">' + escHtml(n.title) + '</div>';
+        }
+
+        return '<div class="note-card">'
+          + titleHtml
+          + '<div class="note-header">'
+          +   '<span class="note-time">' + timeStr + (n.duration ? ' · ' + fmtDuration(n.duration) : '') + '</span>'
+          +   '<span class="note-cat ' + catClass + '">' + catLabel + '</span>'
+          + '</div>'
+          + '<div class="note-transcript" data-nid="' + n._id + '" data-full="' + escHtml(transcriptText).replace(/"/g, '&quot;') + '">' + escHtml(previewText) + '</div>'
+          + (isLong ? '<div class="note-expand" data-nid="' + n._id + '">Show more</div>' : '')
+          + '<div class="note-footer">'
+          +   '<span class="note-loc">' + locStr + '</span>'
+          +   driveHtml
+          +   wavHtml
+          +   docsHtml
+          +   deleteHtml
+          + '</div>'
+          + '</div>';
+      }).join('');
+
+      // Claude: wire expand/collapse toggle
+      notesList.querySelectorAll('.note-expand').forEach(function(el) {
+        el.onclick = function() { toggleExpand(el.getAttribute('data-nid')); };
+      });
+
+      // Claude: wire delete buttons
+      /* Claude: 2026-03-14 — added mirror guard to prevent supporters deleting student notes */
+      notesList.querySelectorAll('.note-delete').forEach(function(btn) {
+        btn.onclick = function() {
+          if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
+            showToast('Read-only in mirror mode'); return;
+          }
+          var noteId = btn.getAttribute('data-id');
+          if (!confirm('Delete this note?')) return;
+          window.AA.db.collection('audioNotes').doc(writeUid)
+            .collection('notes').doc(noteId).delete()
+            .then(function() { showToast('Note deleted'); })
+            .catch(function(err) { showToast('Delete failed'); console.error(err); });
+        };
+      });
+
+      // Claude: 2026-03-05 — wire rename buttons (pencil icon → inline input)
+      notesList.querySelectorAll('.note-rename-btn').forEach(function(btn) {
+        btn.onclick = function() {
+          var row = btn.closest('.note-rename-row');
+          if (!row) return;
+          var noteId  = btn.getAttribute('data-id');
+          var driveId = btn.getAttribute('data-driveid');
+          var current = btn.getAttribute('data-title') || '';
+
+          // Replace the row with an inline edit field
+          row.innerHTML =
+            '<input class="note-rename-input" type="text" maxlength="100" value="' + escHtml(current).replace(/"/g,'&quot;') + '" placeholder="Note title…">'
+            + '<button class="note-rename-save">Save</button>'
+            + '<button class="note-rename-cancel">Cancel</button>';
+
+          var input  = row.querySelector('.note-rename-input');
+          var saveBtn   = row.querySelector('.note-rename-save');
+          var cancelBtn = row.querySelector('.note-rename-cancel');
+          input.focus();
+          input.select();
+
+          function doSave() {
+            /* Claude: 2026-03-13 — mirror guard: supporters cannot rename notes */
+            if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+            var newTitle = input.value.trim();
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving…';
+            // Update Firestore
+            window.AA.db.collection('audioNotes').doc(writeUid)
+              .collection('notes').doc(noteId)
+              .update({ title: newTitle })
+              .then(function() {
+                // If there's a Drive file, rename it there too
+                if (driveId) {
+                  return renameDriveFile(driveId, newTitle || ('audio-note-' + noteId));
+                }
+              })
+              .then(function() { showToast('Renamed!'); })
+              .catch(function(err) {
+                showToast('Rename failed');
+                console.error(err);
+                /* Claude: 2026-03-25 — re-enable button on error so user isn't stuck */
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+              });
+            // renderNotes() will be called by the Firestore onSnapshot listener automatically
+          }
+
+          saveBtn.onclick = doSave;
+          input.onkeydown = function(e) {
+            if (e.key === 'Enter') doSave();
+            if (e.key === 'Escape') cancelBtn.click();
+          };
+          cancelBtn.onclick = function() { renderNotes(); }; // restore view
+        };
+      });
+
+      // Claude: 2026-03-08 — wire "Convert to WAV" buttons for saved notes (NotebookLM compat)
+      /* Claude: 2026-03-14 — added mirror guard to prevent supporters converting student notes */
+      notesList.querySelectorAll('.note-to-wav').forEach(function(btn) {
+        btn.onclick = function() {
+          if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
+            showToast('Read-only in mirror mode'); return;
+          }
+          var driveId = btn.getAttribute('data-driveid');
+          var noteId = btn.getAttribute('data-id');
+          var title = btn.getAttribute('data-title') || 'audio-note';
+          if (!driveId) { showToast('No Drive file to convert'); return; }
+          btn.disabled = true;
+          btn.textContent = 'Downloading…';
+          downloadDriveFile(driveId)
+            .then(function(originalBlob) {
+              btn.textContent = 'Converting…';
+              return convertToWav(originalBlob);
+            })
+            .then(function(wavBlob) {
+              btn.textContent = 'Uploading WAV…';
+              return getDriveToken().then(function(token) {
+                return getOrCreateDriveFolder(token).then(function(folderId) {
+                  var safeName = title.replace(/[^a-zA-Z0-9_\- ]/g, '').trim() || 'audio-note';
+                  var filename = safeName + '.wav';
+                  return uploadFileToDrive(token, folderId, wavBlob, filename);
+                });
+              });
+            })
+            .then(function(result) {
+              if (result && result.webViewLink) {
+                // Claude: 2026-03-08 — update Firestore with new WAV Drive link + format tag
+                /* Claude: 2026-03-14 — added .catch() on WAV metadata update */
+                window.AA.db.collection('audioNotes').doc(writeUid)
+                  .collection('notes').doc(noteId)
+                  .update({ driveFileId: result.id, driveLink: result.webViewLink, audioFormat: 'wav' })
+                  .catch(function(e) { console.warn('[AA] WAV metadata update failed:', e.message); });
+                showToast('WAV uploaded! Old webm kept in Drive.');
+                window.open(result.webViewLink, '_blank');
+              } else {
+                showToast('WAV upload failed — check permissions');
+              }
+              btn.disabled = false;
+              btn.textContent = '🔄 Convert to WAV';
+            })
+            .catch(function(err) {
+              console.error('[AudioNotes] WAV conversion failed:', err);
+              showToast('Conversion failed: ' + (err.message || err));
+              btn.disabled = false;
+              btn.textContent = '🔄 Convert to WAV';
+            });
+        };
+      });
+
+      // Claude: 2026-03-08 — wire "Send to Docs" buttons for saved notes
+      notesList.querySelectorAll('.note-to-docs').forEach(function(btn) {
+        btn.onclick = function() {
+          var noteId = btn.getAttribute('data-id');
+          var noteTitle = btn.getAttribute('data-title') || '';
+          // Find the full transcript from the allNotes array
+          var note = allNotes.find(function(n) { return n._id === noteId; });
+          if (!note || !note.transcript) {
+            showToast('No transcript to send');
+            return;
+          }
+          btn.disabled = true;
+          btn.textContent = 'Sending…';
+          var docTitle = (noteTitle || 'Audio Note') + ' — ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); /* Claude: 2026-03-25 — added explicit locale to prevent regional format inconsistency */
+          createGoogleDoc(docTitle, note.transcript).then(function(result) {
+            if (result && result.webViewLink) {
+              showToast('Saved to Google Docs!');
+              window.open(result.webViewLink, '_blank');
+            } else {
+              showToast('Could not create Doc — check permissions');
+            }
+            btn.disabled = false;
+            btn.textContent = '📄 Send to Docs';
+          });
+        };
+      });
+    }
+
+    /* Claude: 2026-03-05 — toggle between 100-char preview and full text (300px scroll cap) */
+    function toggleExpand(nid) {
+      var el = notesList.querySelector('.note-transcript[data-nid="' + nid + '"]');
+      var btn = notesList.querySelector('.note-expand[data-nid="' + nid + '"]');
+      if (!el) return;
+      var fullText = el.getAttribute('data-full');
+      if (el.classList.contains('expanded')) {
+        el.classList.remove('expanded');
+        el.textContent = fullText.length > 100 ? fullText.slice(0, 100) + '...' : fullText;
+        if (btn) btn.textContent = 'Show more';
+      } else {
+        el.classList.add('expanded');
+        el.textContent = fullText;
+        if (btn) btn.textContent = 'Show less';
+      }
+    }
+
+    // Claude: filter listeners
+    searchInput.oninput = renderNotes;
+    categoryFilter.onchange = renderNotes;
+
+    // ── Auth + Init ────────────────────────────────────────────────────────────
+    // Claude: 2026-03-08 — on failure, show signin-notice (it starts hidden now)
+    function waitForAA(cb, n) {
+      n = n || 0;
+      if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+      if (n > 40) {
+        var el = document.getElementById('signin-notice');
+        el.textContent = 'Failed to load. Please refresh.';
+        el.style.display = 'block';
+        return;
+      }
+      setTimeout(function() { waitForAA(cb, n + 1); }, 200);
+    }
+
+    /* Claude: 2026-03-08 — MOVED to outer IIFE scope so beforeunload / pagehide /
+       visibilitychange handlers can call them. Previously these were inside the
+       waitForAA callback (block-scoped in strict mode), meaning all unload-time
+       saves silently threw ReferenceError and saved NOTHING. This was the root
+       cause of lost recordings on mobile refresh.
+       Archive: were inside waitForAA(function() { ... }) */
+    var _draftDB = null;
+    /* Claude: 2026-03-16 — REWRITTEN: DB v2 adds 'chunks' store for incremental audio backup.
+       Instead of saving one giant blob, we save small batches of audio chunks every 10 seconds.
+       This keeps memory flat and ensures even 1-hour class recordings are fully recoverable.
+       The 'drafts' store still holds transcript + metadata (no audio blob). */
+    var _DB_VERSION = 2;
+    /* Claude: 2026-03-24 — track IndexedDB availability so we only warn once */
+    var _idbUnavailableWarned = false;
+    function _openDraftDB(cb) {
+      if (_draftDB) { cb(_draftDB); return; }
+      try {
+        var req = indexedDB.open('AA_AudioDrafts', _DB_VERSION);
+        req.onupgradeneeded = function(e) {
+          var db = e.target.result;
+          /* v1 store — keep for backward compat, but audioBlob will be null going forward */
+          if (!db.objectStoreNames.contains('drafts')) {
+            db.createObjectStore('drafts', { keyPath: 'id' });
+          }
+          /* v2 store — incremental audio chunks. Each record is a small batch of chunks. */
+          if (!db.objectStoreNames.contains('chunks')) {
+            db.createObjectStore('chunks', { keyPath: 'batchId' });
+          }
+        };
+        req.onsuccess = function(e) { _draftDB = e.target.result; cb(_draftDB); };
+        req.onerror   = function()  {
+          /* Claude: 2026-03-24 — warn user that audio backup is degraded */
+          console.warn('[AA] IndexedDB open failed — audio backup degraded to localStorage-only');
+          if (!_idbUnavailableWarned && typeof showToast === 'function') {
+            _idbUnavailableWarned = true;
+            showToast('⚠️ Audio backup storage unavailable — transcript will be saved, but audio may not survive a crash. Save often!', 8000);
+          }
+          cb(null);
+        };
+      } catch(e) {
+        console.warn('[AA] IndexedDB not available:', e.message);
+        if (!_idbUnavailableWarned && typeof showToast === 'function') {
+          _idbUnavailableWarned = true;
+          showToast('⚠️ Audio backup storage unavailable — save your recording frequently!', 8000);
+        }
+        cb(null);
+      }
+    }
+
+    /* Claude: 2026-03-16 — Incremental chunk backup. Saves only the NEW chunks since
+       last backup. Each batch gets a sequential ID so we can reassemble in order.
+       A 1-hour recording = ~360 batch saves of ~10 chunks each (10 seconds of audio).
+       Each batch is ~1MB instead of one 360MB blob. */
+    var _lastBackedUpIndex = 0;  /* index into audioChunks of last backed-up chunk */
+    var _chunkBatchCounter = 0;  /* sequential batch ID for ordering on recovery */
+
+    /* Claude: 2026-03-16 — FIX A: synchronous checkpoint for mobile unload safety.
+       IndexedDB writes are async and may not complete on mobile before page dies.
+       We save metadata to localStorage synchronously so recovery knows chunks exist. */
+    function _syncCheckpoint() {
+      if (!audioChunks || audioChunks.length === 0) return;
+      try {
+        localStorage.setItem('AA_AUDIO_CHECKPOINT', JSON.stringify({
+          ts: Date.now(),
+          chunkCount: audioChunks.length,
+          backedUpIndex: _lastBackedUpIndex,
+          batchCount: _chunkBatchCounter,
+          mimeType: recordingMimeType || 'audio/webm',
+          title: (document.getElementById('audioTitle') || {}).value || (document.getElementById('noteTitleInput') || {}).value || '',
+          transcript: (document.getElementById('transcriptContent') || {}).textContent || (document.getElementById('liveTranscript') || {}).textContent || '',
+          duration: (document.getElementById('duration') || {}).textContent || ''
+        }));
+      } catch(e) {}
+    }
+
+    /* Claude: 2026-03-16 — FIX B: chunk save failure warning with retry queue */
+    var _chunkSaveFailCount = 0;
+    var _chunkSaveFailShown = false;
+
+    function _saveIncrementalChunks() {
+      if (!audioChunks || audioChunks.length <= _lastBackedUpIndex) return; /* nothing new */
+      var newChunks = audioChunks.slice(_lastBackedUpIndex);
+      var batchBlob = new Blob(newChunks, { type: recordingMimeType || 'audio/webm' });
+      var batchId = _chunkBatchCounter++;
+      _lastBackedUpIndex = audioChunks.length;
+
+      _openDraftDB(function(db) {
+        if (!db || !db.objectStoreNames.contains('chunks')) return;
+        try {
+          var tx = db.transaction('chunks', 'readwrite');
+          tx.objectStore('chunks').put({
+            batchId: batchId,
+            blob: batchBlob,
+            chunkCount: newChunks.length,
+            savedAt: new Date().toISOString()
+          });
+          /* Claude: 2026-03-24 — warn user on FIRST failure, not 3rd.
+             Redundancy: 1) user sees warning immediately 2) sync checkpoint to localStorage
+             3) transcript backup to localStorage as last resort */
+          tx.onerror = function(evt) {
+            console.warn('[AA] Incremental chunk save failed:', evt.target.error);
+            _chunkSaveFailCount++;
+            _lastBackedUpIndex -= newChunks.length; // roll back so next attempt retries these chunks
+            /* Warn on first failure — Mary's devices don't get second chances */
+            if (!_chunkSaveFailShown) {
+              _chunkSaveFailShown = true;
+              var warn = document.getElementById('recordStatus') || document.getElementById('record-status');
+              if (warn) warn.textContent = '⚠️ Storage issue — save your recording soon!';
+              if (typeof showToast === 'function') {
+                showToast('⚠️ Audio backup had a hiccup — your recording is still going, but save it when you can.', 8000);
+              }
+            }
+            /* Emergency: sync checkpoint + transcript to localStorage */
+            _syncCheckpoint();
+            try {
+              var t = (document.getElementById('transcriptContent') || {}).textContent || (document.getElementById('liveTranscript') || {}).textContent || '';
+              if (t) localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
+                transcript: t,
+                title: (document.getElementById('noteTitleInput') || {}).value || '',
+                hasAudio: true,
+                savedAt: new Date().toISOString()
+              }));
+            } catch(e) {}
+          };
+          /* Claude: 2026-03-24 — confirm success so we know the write actually landed */
+          tx.oncomplete = function() {
+            if (_chunkSaveFailCount > 0) {
+              _chunkSaveFailCount = 0; // reset on success — storage recovered
+              _chunkSaveFailShown = false;
+              var warn = document.getElementById('recordStatus') || document.getElementById('record-status');
+              if (warn && warn.textContent.indexOf('Storage') !== -1) {
+                warn.textContent = '🔴 Recording…';
+              }
+            }
+          };
+        } catch(e) {
+          console.warn('[AA] Chunk save error:', e);
+          _chunkSaveFailCount++;
+        }
+      });
+    }
+
+    /* Clear all incremental chunks (after successful save or discard) */
+    function _clearIncrementalChunks() {
+      _lastBackedUpIndex = 0;
+      _chunkBatchCounter = 0;
+      /* Claude: 2026-03-16 — clear checkpoint when saving/discarding */
+      try { localStorage.removeItem('AA_AUDIO_CHECKPOINT'); } catch(e) {}
+      _chunkSaveFailCount = 0;
+      _chunkSaveFailShown = false;
+      _openDraftDB(function(db) {
+        if (!db || !db.objectStoreNames.contains('chunks')) return;
+        try {
+          var tx = db.transaction('chunks', 'readwrite');
+          tx.objectStore('chunks').clear();
+        } catch(e) {}
+      });
+    }
+
+    /* Reassemble all backed-up chunks into a single blob (for recovery) */
+    function _reassembleChunks(cb) {
+      _openDraftDB(function(db) {
+        if (!db || !db.objectStoreNames.contains('chunks')) { cb(null); return; }
+        try {
+          var tx = db.transaction('chunks', 'readonly');
+          var store = tx.objectStore('chunks');
+          var getAll = store.getAll();
+          getAll.onsuccess = function(e) {
+            var batches = e.target.result || [];
+            if (batches.length === 0) { cb(null); return; }
+            /* Sort by batchId to ensure correct order */
+            batches.sort(function(a, b) { return a.batchId - b.batchId; });
+            var blobs = batches.map(function(b) { return b.blob; });
+            var fullBlob = new Blob(blobs, { type: recordingMimeType || 'audio/webm' });
+            var totalChunks = 0;
+            batches.forEach(function(b) { totalChunks += (b.chunkCount || 0); });
+            if (window.AA_DEBUG) console.log('[AA] Reassembled ' + batches.length + ' batches (' + totalChunks + ' chunks) into ' + Math.round(fullBlob.size / 1024) + 'KB blob');
+            cb(fullBlob);
+          };
+          getAll.onerror = function() { cb(null); };
+        } catch(e) { cb(null); }
+      });
+    }
+
+    function _saveEmergencyDraft(audioBlob) {
+      /* Claude: 2026-03-16 — save any remaining un-backed-up chunks incrementally first */
+      _saveIncrementalChunks();
+      /* Claude: 2026-03-24 — sync checkpoint FIRST (survives even if IndexedDB doesn't finish) */
+      _syncCheckpoint();
+      var draft = {
+        id: 'pending',
+        uid: writeUid || '',
+        transcript: (transcript || '').trim(),
+        audioBlob: null, /* Claude: 2026-03-16 — audio is now in incremental chunks store */
+        mimeType: recordingMimeType || 'audio/webm',
+        title: noteTitle || '',
+        gps: recordingGps || null,
+        address: recordingAddress || null,
+        duration: recordStartTime ? Math.round((Date.now() - recordStartTime) / 1000) : 0,
+        savedAt: new Date().toISOString()
+      };
+      /* Claude: 2026-03-24 — ALWAYS save transcript to localStorage first (synchronous, reliable).
+         Redundancy layer 1: localStorage transcript (sync, always completes)
+         Redundancy layer 2: IndexedDB draft metadata (async, may not complete on unload)
+         Redundancy layer 3: IndexedDB incremental chunks (already saved above) */
+      try { localStorage.setItem('AA_AUDIO_DRAFT_TEXT', draft.transcript); } catch(e) {}
+      _openDraftDB(function(db) {
+        if (!db) {
+          /* IndexedDB unavailable — localStorage already saved above */
+          console.warn('[AA] IndexedDB unavailable for emergency draft — localStorage fallback active');
+          return;
+        }
+        var tx = db.transaction('drafts', 'readwrite');
+        var store = tx.objectStore('drafts');
+        var req = store.put(draft);
+        /* Claude: 2026-03-24 — onsuccess confirms the write actually landed */
+        req.onsuccess = function() {
+          if (window.AA_DEBUG) console.log('[AA] Emergency draft saved to IndexedDB');
+        };
+        /* Claude: 2026-03-16 — detect IndexedDB quota exceeded and warn user */
+        req.onerror = function(evt) {
+          console.error('[AA] Emergency draft save failed:', evt.target.error);
+          /* localStorage transcript already saved above — just warn */
+          /* Only show toast if page is visible (not during pagehide) */
+          if (!document.hidden && typeof showToast === 'function') {
+            showToast('⚠️ Storage full — transcript saved but audio backup may be lost. Save to Drive now!', 8000);
+          }
+        };
+      });
+    }
+
+    waitForAA(function() {
+      /* Claude: 2026-03-06 — grace period for auth null events, matching shared-header.
+         Firebase fires onAuthStateChanged(null) transiently when the token expires in
+         a background tab. We wait 5s before accepting null as a real sign-out so an
+         active recording is never interrupted by a brief auth hiccup.
+         If we're genuinely signed out after 5s AND a recording was in progress,
+         we save the transcript to localStorage as an emergency draft so it is never lost. */
+      var _anGracePeriod = null;
+
+      function _restoreEmergencyDraft() {
+        _openDraftDB(function(db) {
+          if (!db) return;
+          var tx  = db.transaction('drafts', 'readwrite');
+          var req = tx.objectStore('drafts').get('pending');
+          req.onsuccess = function(e) {
+            var draft = e.target.result;
+            if (!draft) return;
+            /* Only restore if it belongs to this user (uid matches or blank) */
+            if (draft.uid && writeUid && draft.uid !== writeUid) return;
+            /* Delete the draft now — if save succeeds it won't re-appear; if
+               save fails, user will be notified and can try again. */
+            tx.objectStore('drafts').delete('pending');
+
+            var liveEl   = document.getElementById('liveTranscript');
+            var statusEl = document.getElementById('recordStatus');
+
+            /* Restore transcript state */
+            transcript = draft.transcript || '';
+            noteTitle  = draft.title || '';
+            recordingGps     = draft.gps || null;
+            recordingAddress = draft.address || null;
+            if (noteTitleInput) noteTitleInput.value = noteTitle;
+            if (liveEl && transcript) { liveEl.style.display = 'block'; liveEl.textContent = transcript; }
+
+            /* Claude: 2026-03-08 — show draft action buttons (Save to Docs + Discard) */
+            var draftActions = document.getElementById('draftActions');
+            if (draftActions) draftActions.style.display = 'flex';
+            /* Justify center */
+            if (draftActions) { draftActions.style.justifyContent = 'center'; draftActions.style.gap = '8px'; }
+
+            /* Claude: 2026-03-16 — try incremental chunks first (v2), fall back to legacy blob (v1) */
+            _reassembleChunks(function(recoveredBlob) {
+              /* Claude: 2026-03-16 — check checkpoint to warn if partial recovery */
+              var cpRaw = null;
+              try { cpRaw = localStorage.getItem('AA_AUDIO_CHECKPOINT'); } catch(e) {}
+              var checkpoint = cpRaw ? JSON.parse(cpRaw) : null;
+
+              if (recoveredBlob) {
+                audioChunks = [recoveredBlob];
+                recordingMimeType = draft.mimeType || 'audio/webm';
+                recordStartTime = Date.now() - (draft.duration || 0) * 1000;
+                if (statusEl) {
+                  var msg = 'Recording recovered! Choose what to do below.';
+                  if (checkpoint && checkpoint.chunkCount > 0) {
+                    var recovered = recoveredBlob.size > 0 ? Math.round(recoveredBlob.size / 1024) : 0;
+                    if (recovered < (checkpoint.chunkCount * 10)) { // rough heuristic: ~10KB per chunk
+                      msg = '⚠️ Partial recovery — some audio from the end may be missing. Choose what to do below.';
+                    }
+                  }
+                  statusEl.textContent = msg;
+                }
+                showToast('Recording recovered (' + Math.round(recoveredBlob.size / 1024) + 'KB)! Save to Docs, Drive, or discard.', 10000);
+              } else if (draft.audioBlob) {
+                /* Legacy v1 recovery — single blob stored in drafts */
+                audioChunks = [draft.audioBlob];
+                recordingMimeType = draft.mimeType || 'audio/webm';
+                recordStartTime = Date.now() - (draft.duration || 0) * 1000;
+                if (statusEl) statusEl.textContent = 'Recording recovered! Choose what to do below.';
+                showToast('Recording recovered! Save to Docs, Drive, or discard.', 10000);
+              } else if (transcript) {
+                if (statusEl) statusEl.textContent = 'Transcript recovered! Choose what to do below.';
+                showToast('Transcript recovered. Save to Docs or discard.', 8000);
+              }
+            });
+            /* Also add flexWrap for mobile layout */
+            if (draftActions) draftActions.style.flexWrap = 'wrap';
+          };
+        });
+        /* Also clear any old localStorage fallback draft */
+        try {
+          var oldText = localStorage.getItem('AA_AUDIO_DRAFT_TEXT');
+          if (oldText) {
+            localStorage.removeItem('AA_AUDIO_DRAFT_TEXT');
+            if (!transcript) {
+              transcript = oldText;
+              var liveEl = document.getElementById('liveTranscript');
+              if (liveEl) { liveEl.style.display = 'block'; liveEl.textContent = transcript; }
+              // Claude: 2026-03-08 — show action buttons for recovered draft
+              var da1 = document.getElementById('draftActions');
+              if (da1) { da1.style.display = 'flex'; da1.style.justifyContent = 'center'; da1.style.gap = '8px'; da1.style.flexWrap = 'wrap'; }
+              var se1 = document.getElementById('recordStatus');
+              if (se1) se1.textContent = 'Transcript recovered! Choose what to do below.';
+              showToast('Transcript recovered. Save to Docs or discard.', 8000);
+            }
+          }
+        } catch(e) {}
+        /* Claude: 2026-03-06 — also restore periodic transcript backup (device-crash fallback) */
+        try {
+          var backupRaw = localStorage.getItem('AA_AUDIO_TRANSCRIPT_BACKUP');
+          if (backupRaw) {
+            localStorage.removeItem('AA_AUDIO_TRANSCRIPT_BACKUP');
+            var backup = JSON.parse(backupRaw);
+            if ((backup.transcript || backup.hasAudio) && !transcript) {
+              transcript = backup.transcript || '';
+              var liveEl2 = document.getElementById('liveTranscript');
+              if (liveEl2 && transcript) { liveEl2.style.display = 'block'; liveEl2.textContent = transcript; }
+              if (backup.title) {
+                var titleEl = document.getElementById('noteTitleInput');
+                if (titleEl && !titleEl.value) { titleEl.value = backup.title; }
+              }
+              // Claude: 2026-03-08 — show action buttons for recovered draft
+              var da2 = document.getElementById('draftActions');
+              if (da2) { da2.style.display = 'flex'; da2.style.justifyContent = 'center'; da2.style.gap = '8px'; da2.style.flexWrap = 'wrap'; }
+              var se2 = document.getElementById('recordStatus');
+              if (se2) se2.textContent = 'Transcript recovered! Choose what to do below.';
+              showToast('Transcript recovered. Save to Docs or discard.', 8000);
+            }
+          }
+        } catch(e) {}
+      }
+
+      /* Claude: 2026-03-08 — discard recovered draft (clears transcript, audio, and UI) */
+      /* Claude: 2026-03-08 — discard recovered draft */
+      window._discardDraft = function() {
+        /* Claude: 2026-03-16 — stop periodic backup on discard (user chose to throw it away) */
+        _stopTranscriptBackup();
+        _clearIncrementalChunks();
+        transcript = '';
+        audioChunks = [];
+        noteTitle = '';
+        recordingGps = null;
+        recordingAddress = null;
+        recordStartTime = null;
+        var liveEl = document.getElementById('liveTranscript');
+        if (liveEl) { liveEl.style.display = 'none'; liveEl.textContent = ''; }
+        var statusEl = document.getElementById('recordStatus');
+        if (statusEl) statusEl.textContent = 'Tap to start recording';
+        var titleEl = document.getElementById('noteTitleInput');
+        if (titleEl) titleEl.value = '';
+        var draftActions = document.getElementById('draftActions');
+        if (draftActions) draftActions.style.display = 'none';
+        // Claude: 2026-03-08 — clear ALL draft storage so garbage doesn't come back
+        try { localStorage.removeItem('AA_AUDIO_TRANSCRIPT_BACKUP'); } catch(e) {}
+        try { localStorage.removeItem('AA_AUDIO_DRAFT_TEXT'); } catch(e) {}
+        // Also clear IndexedDB draft so it doesn't resurrect on next sign-in
+        _openDraftDB(function(db) {
+          if (!db) return;
+          try {
+            var tx = db.transaction('drafts', 'readwrite');
+            tx.objectStore('drafts').delete('pending');
+          } catch(e) {}
+        });
+        showToast('Draft discarded.', 3000);
+      };
+
+      /* Claude: 2026-03-08 — save transcript to Google Docs */
+      window._saveTranscriptToDocs = function() {
+        var text = (transcript || '').trim();
+        if (!text) {
+          showToast('No transcript to save.', 3000);
+          return;
+        }
+        var title = (noteTitle || '').trim();
+        var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        var docTitle = title
+          ? 'Audio Note — ' + title
+          : 'Audio Note Transcript — ' + ts;
+
+        var btn = document.getElementById('saveToDocsBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving to Docs…'; }
+
+        createGoogleDoc(docTitle, text).then(function(result) {
+          if (result && result.webViewLink) {
+            showToast('Transcript saved to Google Docs!', 5000);
+            /* Open the doc in a new tab */
+            window.open(result.webViewLink, '_blank');
+            /* Clear the transcript UI since it's been saved */
+            var liveEl = document.getElementById('liveTranscript');
+            if (liveEl) { liveEl.style.display = 'none'; liveEl.textContent = ''; }
+            transcript = '';
+            /* Claude: 2026-03-16 — stop periodic backup after Docs save */
+            _stopTranscriptBackup();
+            _clearIncrementalChunks();
+            audioChunks = [];
+            var draftActions = document.getElementById('draftActions');
+            if (draftActions) draftActions.style.display = 'none';
+            var statusEl = document.getElementById('recordStatus');
+            if (statusEl) statusEl.textContent = 'Tap to start recording';
+          } else {
+            showToast('Could not save to Docs. Check your Google permissions.', 5000);
+          }
+          if (btn) { btn.disabled = false; btn.textContent = '📄 Save transcript to Docs'; }
+        })
+        /* Claude: 2026-03-24 — catch createGoogleDoc rejection so it doesn't silently fail */
+        .catch(function(err) {
+          console.error('[AudioNotes] Save to Docs failed:', err);
+          showToast('⚠️ Could not save to Docs — ' + (err.message || 'check your connection'), 8000);
+          if (btn) { btn.disabled = false; btn.textContent = '📄 Save transcript to Docs'; }
+        });
+      };
+
+      /* Claude: 2026-03-08 — open category modal so user can save audio to Drive
+         (the normal save-note flow handles Drive upload after category selection) */
+      window._saveToDriveViaCategory = function() {
+        if (!audioChunks || audioChunks.length === 0) {
+          showToast('No audio recorded to save.', 3000);
+          return;
+        }
+        var draftActions = document.getElementById('draftActions');
+        if (draftActions) draftActions.style.display = 'none';
+        var statusEl = document.getElementById('recordStatus');
+        if (statusEl) statusEl.textContent = 'Select a category…';
+        catModal.classList.add('open');
+      };
+
+      window.AA.auth.onAuthStateChanged(function(user) {
+        if (!user) {
+          /* Grace period — don't immediately tear down if a recording is active */
+          if (_anGracePeriod) return; // already waiting
+          _anGracePeriod = setTimeout(function() {
+            _anGracePeriod = null;
+            if (window.AA.auth.currentUser) return; // recovered — do nothing
+            /* Still null after grace period — real sign-out. Save audio + transcript. */
+            var isActiveRecording = mediaRecorder && mediaRecorder.state === 'recording';
+            if (isActiveRecording || transcript.trim() || audioChunks.length) {
+              if (isActiveRecording) {
+                /* Stop recorder cleanly so ondataavailable fires before we save */
+                try { stopSpeechRecognition(); } catch(e) {}
+                var _mr = mediaRecorder;
+                _mr.onstop = function() {
+                  var blob = audioChunks.length
+                    ? new Blob(audioChunks, { type: recordingMimeType })
+                    : null;
+                  _saveEmergencyDraft(blob);
+                };
+                try { _mr.stop(); } catch(e) { _saveEmergencyDraft(null); }
+              } else {
+                /* Not actively recording but we have chunks or transcript */
+                var blob = audioChunks.length
+                  ? new Blob(audioChunks, { type: recordingMimeType })
+                  : null;
+                _saveEmergencyDraft(blob);
+              }
+            }
+            /* Claude: 2026-03-08 — only show sign-in notice after confirmed sign-out
+               (grace period expired). Don't flash it during transient auth nulls. */
+            var noticeEl = document.getElementById('signin-notice');
+            noticeEl.textContent = 'Please sign in to use Audio Notes.';
+            document.getElementById('main-body').style.display = 'none';
+            noticeEl.style.display = 'block';
+            if (unsubNotes) unsubNotes();
+          }, 10000); // Claude: 2026-03-08 — bumped from 5s to 10s; persistence poll in
+                    // shared-header needs up to 6s, and slow mobile connections need more.
+          return;
+        }
+
+        /* User is present — cancel any pending grace-period sign-out */
+        if (_anGracePeriod) { clearTimeout(_anGracePeriod); _anGracePeriod = null; }
+
+        // Claude: 2026-03-07 — guard against token-refresh re-fires.
+        // onAuthStateChanged fires on every ~45-min ID token refresh, not just sign-in.
+        // Without this guard each refresh stacked a new watchNotes() Firestore listener
+        // and re-ran applyMirror(), causing the visible "loading Firebase" flash.
+        if (user.uid === writeUid) return;
+
+        document.getElementById('signin-notice').style.display = 'none';
+        document.getElementById('main-body').style.display = 'block';
+
+        // Claude: 2026-03-05 — writeUid is always the signed-in user (you record your own notes).
+        // readUid follows AA_MIRROR_UID: view your own notes when on your page,
+        // student's notes when mirroring. isMirror controls UI (hide record/delete for others).
+        writeUid = user.uid;
+
+        /* Claude: 2026-03-06 — restore any emergency draft saved during a mid-recording sign-out */
+        _restoreEmergencyDraft();
+
+        function applyMirror() {
+          var mirrorUid = window.AA_MIRROR_UID;
+          isMirror = !!(mirrorUid && mirrorUid !== user.uid);
+          readUid = isMirror ? mirrorUid : user.uid;
+
+          // Update banner
+          var banner = document.getElementById('mirrorBanner');
+          if (banner) {
+            if (isMirror) {
+              banner.style.display = 'block';
+              banner.textContent = '👁 Viewing another student\'s audio notes (read-only)';
+            } else {
+              banner.style.display = 'none';
+            }
+          }
+
+          // Hide/show record section
+          var recSection = document.getElementById('recordSection');
+          var titleInput = document.getElementById('noteTitleInput');
+          if (recSection) recSection.style.display = isMirror ? 'none' : '';
+          if (titleInput) titleInput.style.display = isMirror ? 'none' : '';
+
+          watchNotes(readUid);
+        }
+
+        // Claude: AA_SWITCH_STUDENT always does a full reload, so applyMirror() once at init is enough
+        applyMirror();
+      });
+    });
+
+    /* Claude 2026-03-07: save-then-warn on unload.
+       Archive of old handler: only warned if button had 'recording' class; saved nothing.
+       New behaviour:
+         1. Sync-save transcript to localStorage (always completes before page dies)
+         2. Async-save audio blob to IndexedDB (best-effort; completes in most browsers)
+         3. Show dialog only if actively recording; unsaved transcript silently auto-saves */
+    window.addEventListener('beforeunload', function(e) {
+      /* Claude: 2026-03-16 — FIX D: stop backup timer before emergency save */
+      _stopTranscriptBackup();
+
+      var isRecording = mediaRecorder && mediaRecorder.state === 'recording';
+      var hasChunks   = audioChunks && audioChunks.length > 0;
+      var hasTxt      = transcript && transcript.trim();
+      if (!isRecording && !hasChunks && !hasTxt) return; // nothing to protect
+
+      /* Claude: 2026-03-16 — FIX A: sync checkpoint before async save */
+      _syncCheckpoint();
+
+      // 1. Synchronous localStorage save — survives even if IndexedDB doesn't finish
+      // Claude: 2026-03-08 — save even if transcript is empty (Android has no SR)
+      // so we at least mark that audio exists for recovery
+      if (hasTxt || hasChunks || isRecording) {
+        try {
+          localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
+            transcript: (transcript || '').trim(),
+            title:      (document.getElementById('noteTitleInput') || {}).value || '',
+            hasAudio:   hasChunks || isRecording,
+            savedAt:    new Date().toISOString()
+          }));
+        } catch(ex) {}
+      }
+
+      // 2. Async IndexedDB save — best-effort (most browsers honour it in beforeunload)
+      if (hasChunks || hasTxt || isRecording) {
+        if (isRecording) { try { mediaRecorder.requestData(); } catch(ex) {} }
+        var blob = audioChunks.length ? new Blob(audioChunks, { type: recordingMimeType }) : null;
+        _saveEmergencyDraft(blob);
+      }
+
+      /* Claude: 2026-03-16 — warn for BOTH active recording AND unsaved stopped audio.
+         Previously only warned during recording, so if Mary stopped recording and
+         accidentally tapped a link, no warning appeared and audio could be lost on mobile. */
+      if (isRecording || hasChunks) {
+        var msg = isRecording
+          ? 'Recording in progress — your audio is being saved. Tap "Stay" to keep recording, or leave to restore it later.'
+          : 'You have unsaved audio! Tap "Stay" to go back and save it, or leave to restore it later.';
+        e.preventDefault();
+        e.returnValue = msg;
+        return e.returnValue;
+      }
+    });
+
+    /* Claude 2026-03-07: pagehide listener — fires on hard refresh, tab close, and
+       navigate-away AFTER the user confirms the beforeunload dialog. At this point
+       audioChunks already has data (thanks to the 10s timeslice above).
+       requestData() asks the recorder for any buffered partial chunk before saving. */
+    window.addEventListener('pagehide', function() {
+      var isRecording = mediaRecorder && mediaRecorder.state === 'recording';
+      var hasChunks   = audioChunks && audioChunks.length > 0;
+      var hasTxt      = transcript && transcript.trim();
+      if (!isRecording && !hasChunks && !hasTxt) return;
+
+      // Flush any buffered partial chunk from the recorder into audioChunks
+      if (isRecording) {
+        try { mediaRecorder.requestData(); } catch(ex) {}
+      }
+
+      var blob = audioChunks.length ? new Blob(audioChunks, { type: recordingMimeType }) : null;
+      _saveEmergencyDraft(blob);
+    });
+
+    /* Claude: 2026-03-06 — register with global presignout hook.
+       If Sign Out is clicked (or forced sign-out fires) while a recording is active,
+       stop the recorder cleanly, collect the blob, and save the full audio draft to
+       IndexedDB before auth is cleared — same as the grace period path. */
+    /* Claude: 2026-03-08 — periodic FULL backup every 10s during recording.
+       Saves audio blob + transcript to IndexedDB AND transcript to localStorage.
+       Previous version only saved transcript to localStorage every 30s, which
+       meant Android (no speech recognition = no transcript) got ZERO backup,
+       and audio was only saved at unload time (too late on mobile refresh).
+       Archive: old version saved transcript-only to localStorage every 30s. */
+    var _transcriptBackupTimer = null;
+
+    /* Claude: 2026-03-16 — REWRITTEN to fix memory explosion on long recordings.
+       OLD BEHAVIOR: rebuilt the ENTIRE audio blob from all chunks every 10 seconds.
+       For a 1-hour class recording (3600 chunks × ~100KB each = 360MB), this caused
+       massive memory churn and would crash the browser on phones.
+
+       NEW BEHAVIOR:
+       - Every 10 seconds: save transcript + metadata to localStorage (fast, tiny)
+       - Every 5 minutes: save full audio blob to IndexedDB (one big write, infrequent)
+       - Critical events (visibilitychange, beforeunload, pagehide, sign-out)
+         still do a full blob save immediately — those handlers are unchanged.
+
+       This means the worst case for audio loss is 5 minutes instead of 10 seconds,
+       but memory usage stays flat instead of growing quadratically. For Mary's
+       1-hour class recordings, this is the difference between working and crashing. */
+    function _startTranscriptBackup() {
+      _stopTranscriptBackup();
+      _transcriptBackupTimer = setInterval(function () {
+        // Claude 2026-03-07: reset session timeout on every tick so a long recording
+        // is never killed by inactivity — even if the screen locked and the OS paused
+        // the recorder (which removes recordBtn.recording, breaking the shared-header guard).
+        if (window.AA_resetSessionTimer) window.AA_resetSessionTimer();
+
+        var t = (transcript || '').trim();
+        var hasChunks = audioChunks && audioChunks.length > 0;
+
+        // Every 10 seconds: save transcript + metadata to localStorage (fast, tiny)
+        if (t || hasChunks) {
+          try {
+            localStorage.setItem('AA_AUDIO_TRANSCRIPT_BACKUP', JSON.stringify({
+              transcript: t,
+              title:      (document.getElementById('noteTitleInput') || {}).value || '',
+              hasAudio:   hasChunks,
+              chunkCount: audioChunks ? audioChunks.length : 0,
+              savedAt:    new Date().toISOString()
+            }));
+          } catch (e) {
+            /* Claude: 2026-03-24 — warn user if localStorage quota exceeded instead of silent swallow */
+            console.warn('[AA] localStorage backup failed:', e.name);
+            if (e.name === 'QuotaExceededError' && typeof showToast === 'function') {
+              showToast('⚠️ Phone storage is low — save your recording to Drive soon!', 6000);
+            }
+          }
+          /* Claude: 2026-03-24 — sync checkpoint alongside transcript backup */
+          _syncCheckpoint();
+        }
+
+        /* Claude: 2026-03-16 — incremental chunk save: only NEW chunks since last backup.
+           Each save is tiny (~1MB for 10 seconds of audio), so it completes fast and
+           doesn't balloon memory. A 1-hour recording = ~360 small saves, not one 360MB blob. */
+        if (hasChunks && audioChunks.length > _lastBackedUpIndex) {
+          _saveIncrementalChunks();
+        }
+      }, 10000); // every 10 seconds for transcript; full blob only every 5 minutes
+    }
+
+    function _stopTranscriptBackup() {
+      if (_transcriptBackupTimer) {
+        clearInterval(_transcriptBackupTimer);
+        _transcriptBackupTimer = null;
+      }
+    }
+
+    window.AA_PRESIGNOUT = function() {
+      /* Claude: 2026-03-16 — FIX D: stop backup timer before emergency save */
+      _stopTranscriptBackup();
+
+      var isActiveRecording = mediaRecorder && mediaRecorder.state === 'recording';
+      if (!isActiveRecording && !audioChunks.length && !transcript.trim()) return; // nothing to save
+      return new Promise(function(resolve) {
+        if (isActiveRecording) {
+          try { stopSpeechRecognition(); } catch(e) {}
+          var _mr = mediaRecorder;
+          _mr.onstop = function() {
+            var blob = audioChunks.length ? new Blob(audioChunks, { type: recordingMimeType }) : null;
+            _saveEmergencyDraft(blob);
+            setTimeout(resolve, 300); // brief pause so IndexedDB write can start
+          };
+          try { _mr.stop(); } catch(e) { _saveEmergencyDraft(null); resolve(); }
+        } else {
+          var blob = audioChunks.length ? new Blob(audioChunks, { type: recordingMimeType }) : null;
+          _saveEmergencyDraft(blob);
+          setTimeout(resolve, 300);
+        }
+      });
+    };
+
+  })();
+  </script>
+</body>
+</html>

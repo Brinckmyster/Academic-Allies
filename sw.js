@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260330d'; /* Claude: 2026-03-30 — Brain Bloom per-student toggle (disabled by default) */
+var CACHE   = 'aa-shell-20260330e'; /* Claude: 2026-03-30 — restore offline fallback + nightly audit fixes */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -203,4 +203,15 @@ self.addEventListener('fetch', function (e) {
         }
         return response;
       }).catch(function () {
+        /* Fully offline and not cached — return offline fallback for navigation
+           Claude: 2026-03-16 — offline fallback page
+           Claude: 2026-03-30 — restored after truncation detected by nightly audit */
+        if (req.mode === 'navigate') {
+          return caches.match('/Academic-Allies/offline.html');
+        }
+        /* For other resources just fail gracefully */
+      });
+    })
+  );
+});
     

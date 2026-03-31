@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/Academic-Allies/favicon.ico">
+<!-- Claude: 2026-03-17 — early dark mode detect to prevent FOUC -->
+<script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Tools — Academic Allies</title>
+<!-- Claude: 2026-03-17 — Study Tools hub page with BYU-I trimester organization -->
+<!-- Claude: 2026-03-17 — Auto-collapses past semesters, shows current semester expanded -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    background: #FAFAF9;
+    color: #333;
+    min-height: 100vh;
+    padding: 0 12px 40px;
+  }
+  html.aa-dark body { background: #121212; color: #e0e0e0; }
+
+  .study-hub {
+    max-width: 700px;
+    margin: 0 auto;
+    padding-top: 20px;
+  }
+  .study-hub h1 {
+    color: #6CA0A3;
+    font-size: 22pt;
+    margin-bottom: 6px;
+  }
+  html.aa-dark .study-hub h1 { color: #8ec5c8; }
+  .study-hub .sub {
+    color: #888;
+    font-size: 12pt;
+    margin-bottom: 24px;
+  }
+
+  /* Semester headings */
+  .semester-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #e8f2f3;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+  }
+  html.aa-dark .semester-heading { background: #1a2a2b; }
+  .semester-heading:hover { background: #d8eaeb; }
+  html.aa-dark .semester-heading:hover { background: #223535; }
+  .semester-heading h2 {
+    color: #4a7f82;
+    font-size: 15pt;
+    margin: 0;
+  }
+  html.aa-dark .semester-heading h2 { color: #8ec5c8; }
+  .semester-heading .sem-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .semester-heading .sem-badge {
+    background: #6CA0A3;
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 9pt;
+    font-weight: 700;
+  }
+  .semester-heading .sem-badge.past {
+    background: #aaa;
+  }
+  html.aa-dark .semester-heading .sem-badge.past { background: #555; }
+  .semester-heading .toggle-arrow {
+    font-size: 12pt;
+    color: #888;
+    transition: transform 0.2s;
+  }
+  .semester-heading .toggle-arrow.collapsed { transform: rotate(-90deg); }
+
+  /* Claude: 2026-03-24 — Collapsible tool groups within a semester */
+  .tool-group-heading {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: rgba(108,160,163,0.12);
+    border-radius: 10px; margin: 12px 0 8px; cursor: pointer; user-select: none;
+  }
+  html.aa-dark .tool-group-heading { background: rgba(142,197,200,0.1); }
+  .tool-group-heading:hover { background: rgba(108,160,163,0.2); }
+  html.aa-dark .tool-group-heading:hover { background: rgba(142,197,200,0.18); }
+  .tool-group-heading strong { color: #4a7f82; font-size: 12pt; }
+  html.aa-dark .tool-group-heading strong { color: #8ec5c8; }
+  .tool-group-meta { display: flex; align-items: center; gap: 8px; }
+  .tool-group-badge { background: #6CA0A3; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 9pt; font-weight: 600; }
+  .tool-group-arrow { font-size: 11pt; color: #888; transition: transform 0.2s; }
+  .tool-group-arrow.collapsed { transform: rotate(-90deg); }
+  .tool-group-body { overflow: hidden; transition: max-height 0.3s ease; }
+  .tool-group-body.collapsed { max-height: 0 !important; }
+
+  .semester-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .semester-body.collapsed {
+    max-height: 0 !important;
+    margin-bottom: 0;
+  }
+
+  .tool-card {
+    background: #fff;
+    border: 2px solid #e8f2f3;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: all 0.2s;
+  }
+  html.aa-dark .tool-card {
+    background: #1e1e1e;
+    border-color: #333;
+  }
+  .tool-card:hover {
+    border-color: #6CA0A3;
+    box-shadow: 0 4px 12px rgba(108, 160, 163, 0.15);
+  }
+  .tool-card h3 {
+    color: #4a7f82;
+    font-size: 16pt;
+    margin-bottom: 8px;
+  }
+  html.aa-dark .tool-card h3 { color: #8ec5c8; }
+  .tool-card p {
+    color: #666;
+    font-size: 12pt;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  html.aa-dark .tool-card p { color: #aaa; }
+  .tool-card .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .tool-card .tag {
+    background: #e8f2f3;
+    color: #4a7f82;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 10pt;
+    font-weight: 600;
+  }
+  html.aa-dark .tool-card .tag {
+    background: #2a3a3b;
+    color: #8ec5c8;
+  }
+  .tool-card .play-btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #6CA0A3;
+    color: #fff;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 13pt;
+    transition: background 0.2s;
+  }
+  .tool-card .play-btn:hover {
+    background: #4a7f82;
+  }
+
+  .exam-countdown {
+    text-align: center;
+    background: linear-gradient(135deg, #e8f2f3, #f0f7f8);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 2px solid #b2d8db;
+  }
+  html.aa-dark .exam-countdown {
+    background: linear-gradient(135deg, #1a2a2b, #1e2e2f);
+    border-color: #3a5a5c;
+  }
+  .exam-countdown .days {
+    font-size: 28pt;
+    font-weight: 700;
+    color: #4a7f82;
+  }
+  html.aa-dark .exam-countdown .days { color: #8ec5c8; }
+  .exam-countdown .label {
+    font-size: 11pt;
+    color: #888;
+  }
+
+  .empty-past {
+    text-align: center;
+    color: #aaa;
+    font-style: italic;
+    padding: 12px;
+    font-size: 11pt;
+  }
+
+  .credit {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #aaa;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+<!-- Claude: 2026-03-24 — REMOVED mode-gate. Study Tools is no longer just flower quizzes —
+     it now includes Study Notes, custom quizzes, etc. Blocking the entire hub page
+     in Bad Brain Day mode locks out tools that NL configured for the student.
+     Individual flower quiz pages can still have their own gates if needed. -->
+<div id="site-header"></div>
+<!-- Claude: 2026-03-18 — Load student config system for custom quizzes -->
+<script src="/Academic-Allies/modular/js/student-config.js?v=20260322"></script>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          /* Claude: 2026-03-25 — replaced Array.from() (ES2015) with [].slice.call() for ES5 compat */
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          newScript.textContent = oldScript.textContent;
+          /* Claude: 2026-03-25 — replaced .replaceWith() with ES5-safe .replaceChild() */
+          oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<div class="study-hub">
+  <h1>📚 Study Tools</h1>
+  <p class="sub">Practice games and study aids organized by trimester</p>
+
+  <div id="semesterContent"></div>
+</div>
+
+<p class="credit">Built by Claude for Bruise — March 2026</p>
+
+<script>
+/* Claude: 2026-03-17 — Study Tools hub with BYU-I trimester organization
+   Trimesters auto-detect current vs past. Past trimesters collapse automatically.
+   BYU-I three-track system: Fall (Sep–Dec), Winter (Jan–Apr), Spring (May–Jul)
+   Plus bonus Summer Session (~7 weeks between Spring and Fall) */
+
+/* Trimester definitions — add new trimesters as classes are taken */
+var TRIMESTERS = [
+  {
+    id: "winter-2026",
+    label: "Winter 2026",
+    /* BYU-I Winter trimester: roughly Jan–Apr */
+    start: "2026-01-05",
+    end: "2026-04-11",
+    tools: [
+      /* Claude: 2026-03-24 — Study Notes hub: organize notes by class, upload to Drive, study with NotebookLM */
+      {
+        type: "card",
+        id: "study-notes",
+        icon: "📓",
+        title: "Study Notes",
+        desc: "Organize your notes and quizzes by class. Paste text or upload files — everything goes to Google Drive. Then open NotebookLM to generate quizzes, summaries, and study guides from your notes.",
+        tags: ["All Classes", "Google Drive", "NotebookLM", "Upload"],
+        href: "/Academic-Allies/modular/components/study-notes/study-notes.html",
+        btnText: "Open Study Notes"
+      },
+      /* Claude: 2026-03-24 — Floral ID tools grouped into collapsible section */
+      /* Claude: 2026-03-18 — id fields added so network leads can hide tools via config */
+      {
+        type: "countdown",
+        id: "floral-countdown",
+        group: "FCS 240 — Floral ID Final",
+        examDate: "2026-03-24",
+        label: "days until Floral ID Final (March 24)"
+      },
+      {
+        type: "card",
+        id: "floral-match",
+        group: "FCS 240 — Floral ID Final",
+        icon: "🎯",
+        title: "Floral ID Match Game",
+        desc: "Match common flower names to their genus (botanical) names. Now with reverse mode! Tap or drag to pair them up. Tracks your score and accuracy.",
+        tags: ["FCS 240", "All 5 Quizzes", "50 Flowers", "Drag & Drop", "Reverse Mode"],
+        href: "/Academic-Allies/modular/static/floral-match-game.html",
+        btnText: "Play Match Game"
+      },
+      /* Claude: 2026-03-17 — Fill-in-the-blank quiz (strict spelling for exam prep) */
+      {
+        type: "card",
+        id: "floral-fill-blank",
+        group: "FCS 240 — Floral ID Final",
+        icon: "✏️",
+        title: "Fill in the Blank",
+        desc: "Type the genus from the common name (or vice versa). Spelling counts! Strict matching to prep for the real test. Covers all 5 quiz categories.",
+        tags: ["FCS 240", "Typing", "Strict Spelling", "All 5 Quizzes"],
+        href: "/Academic-Allies/modular/static/floral-fill-blank.html",
+        btnText: "Start Fill in the Blank"
+      },
+      /* Claude: 2026-03-17 — Updated links: quizzes moved from recovery-mode to standalone pages */
+      {
+        type: "card",
+        id: "floral-genus",
+        group: "FCS 240 — Floral ID Final",
+        icon: "🌿",
+        title: "Genus Practice Quiz",
+        desc: "See a flower photo, pick the genus or common name. Tests both directions. 10 questions per round with score tracking.",
+        tags: ["FCS 240", "Photo-Based", "Multiple Choice"],
+        href: "/Academic-Allies/modular/static/floral-genus-practice.html",
+        btnText: "Start Genus Practice"
+      },
+      {
+        type: "card",
+        id: "floral-flower-id",
+        group: "FCS 240 — Floral ID Final",
+        icon: "🌺",
+        title: "Flower ID Practice",
+        desc: "Identify flowers from photos — all varieties get equal time. Includes hint system, progress tracking, and miss tracking.",
+        tags: ["FCS 240", "Photo-Based", "All Varieties"],
+        href: "/Academic-Allies/modular/static/floral-flower-id.html",
+        btnText: "Start Flower ID"
+      },
+      {
+        type: "card",
+        id: "floral-study-sheet",
+        group: "FCS 240 — Floral ID Final",
+        icon: "📋",
+        title: "Floral ID Study Sheet",
+        desc: "Quick-reference sheet with all 50 flowers organized by quiz category. Search, hide genus or common names for self-testing, collapse sections, and print-friendly.",
+        tags: ["FCS 240", "Reference", "Self-Test", "Printable"],
+        href: "/Academic-Allies/modular/static/floral-study-sheet.html",
+        btnText: "Open Study Sheet"
+      },
+      /* Claude: 2026-03-23 — Spelling Reference Sheet from Mary's spelling sheet */
+      {
+        type: "card",
+        id: "floral-spelling-sheet",
+        group: "FCS 240 — Floral ID Final",
+        icon: "🔤",
+        title: "Spelling Reference Sheet",
+        desc: "All 50 flowers with common names, genus names, and alternate names from Mary's spelling sheet. Hide columns for self-testing, tap to reveal, search, and print-friendly.",
+        tags: ["FCS 240", "Spelling", "Reference", "Self-Test", "Printable"],
+        href: "/Academic-Allies/modular/static/floral-spelling-sheet.html",
+        btnText: "Open Spelling Sheet"
+      },
+      /* Claude: 2026-03-17 — Flashcards, Speed Round, Missed Tracker */
+      {
+        type: "card",
+        id: "floral-flashcards",
+        group: "FCS 240 — Floral ID Final",
+        icon: "🃏",
+        title: "Floral Flashcards",
+        desc: "Flip-style flashcards — tap to reveal the answer, swipe to navigate. Mark each card as 'Got it' or 'Missed' to track your weak spots across sessions.",
+        tags: ["FCS 240", "Flashcards", "Swipe", "Missed Tracking"],
+        href: "/Academic-Allies/modular/static/floral-flashcards.html",
+        btnText: "Study Flashcards"
+      },
+      {
+        type: "card",
+        id: "floral-speed-round",
+        group: "FCS 240 — Floral ID Final",
+        icon: "⚡",
+        title: "Speed Round",
+        desc: "Timed multiple choice — 4 options, beat the clock! Tracks your speed (flowers per minute), streaks, and personal bests. Keyboard shortcuts: 1-4 to pick.",
+        tags: ["FCS 240", "Timed", "Multiple Choice", "Streaks"],
+        href: "/Academic-Allies/modular/static/floral-speed-round.html",
+        btnText: "Start Speed Round"
+      },
+      {
+        type: "card",
+        id: "floral-missed-tracker",
+        group: "FCS 240 — Floral ID Final",
+        icon: "📊",
+        title: "Missed Flowers Tracker",
+        desc: "See which flowers you miss most across all study sessions. Ranked by difficulty with a visual bar. Practice your weakest 10 directly from here.",
+        tags: ["FCS 240", "Analytics", "Weak Spots", "Cross-Session"],
+        href: "/Academic-Allies/modular/static/floral-missed-tracker.html",
+        btnText: "View Missed Flowers"
+      }
+    ]
+  }
+  /* Claude: BYU-I three-track system — add future trimesters here:
+  ,{
+    id: "spring-2026",
+    label: "Spring 2026",
+    start: "2026-04-27",
+    end: "2026-07-18",
+    tools: [ ... ]
+  }
+  ,{
+    id: "summer-2026",
+    label: "Summer 2026 ☀️",
+    bonus: true,  // bonus 7-week session between Spring and Fall
+    start: "2026-07-20",
+    end: "2026-09-05",
+    tools: [ ... ]
+  }
+  ,{
+    id: "fall-2026",
+    label: "Fall 2026",
+    start: "2026-09-14",
+    end: "2026-12-12",
+    tools: [ ... ]
+  }
+  */
+];
+
+function getCurrentSemesterId() {
+  var now = new Date();
+  for (var i = 0; i < TRIMESTERS.length; i++) {
+    var s = TRIMESTERS[i];
+    if (now >= new Date(s.start) && now <= new Date(s.end + "T23:59:59")) {
+      return s.id;
+    }
+  }
+  /* If between semesters, show the most recent one as current */
+  var latest = null;
+  for (var j = TRIMESTERS.length - 1; j >= 0; j--) {
+    if (now > new Date(TRIMESTERS[j].end + "T23:59:59")) {
+      return null; /* All semesters are past */
+    }
+    latest = TRIMESTERS[j].id;
+  }
+  return latest;
+}
+
+function isSemesterPast(sem) {
+  return new Date() > new Date(sem.end + "T23:59:59");
+}
+
+function buildCountdown(tool) {
+  var examDate = new Date(tool.examDate + "T00:00:00");
+  var now = new Date();
+  var diff = examDate - now;
+  var days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+  if (days < -7) return ""; /* Hide countdown more than a week after exam */
+
+  var html = '<div class="exam-countdown">';
+  if (days > 0) {
+    html += '<div class="days">' + days + '</div>';
+  } else if (days === 0) {
+    html += '<div class="days" style="color:#c62828;">TODAY</div>';
+  } else {
+    html += '<div class="days" style="color:#888;font-size:16pt;">Exam passed</div>';
+  }
+  html += '<div class="label">' + tool.label + '</div>';
+  html += '</div>';
+  return html;
+}
+
+function buildCard(tool) {
+  var html = '<div class="tool-card">';
+  html += '<h3>' + tool.icon + ' ' + tool.title + '</h3>';
+  html += '<p>' + tool.desc + '</p>';
+  html += '<div class="tags">';
+  tool.tags.forEach(function(t) {
+    html += '<span class="tag">' + t + '</span>';
+  });
+  html += '</div>';
+  html += '<a href="' + tool.href + '" class="play-btn">' + tool.btnText + '</a>';
+  html += '</div>';
+  return html;
+}
+
+/* Claude: 2026-03-25 — added aria-expanded toggle for a11y */
+function toggleSemester(id) {
+  var body = document.getElementById('sem-body-' + id);
+  var arrow = document.getElementById('sem-arrow-' + id);
+  var heading = body ? body.previousElementSibling : null;
+  if (body.classList.contains('collapsed')) {
+    body.classList.remove('collapsed');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    arrow.classList.remove('collapsed');
+    if (heading) heading.setAttribute('aria-expanded', 'true');
+  } else {
+    body.classList.add('collapsed');
+    body.style.maxHeight = '0';
+    arrow.classList.add('collapsed');
+    if (heading) heading.setAttribute('aria-expanded', 'false');
+  }
+}
+
+/* Claude: 2026-03-24 — Toggle collapsible tool groups within a semester */
+/* Claude: 2026-03-25 — added aria-expanded toggle for a11y */
+function toggleToolGroup(gId) {
+  var body = document.getElementById('tg-body-' + gId);
+  var arrow = document.getElementById('tg-arrow-' + gId);
+  var heading = body ? body.previousElementSibling : null;
+  if (!body) return;
+  if (body.classList.contains('collapsed')) {
+    body.classList.remove('collapsed');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    if (arrow) arrow.classList.remove('collapsed');
+    if (heading) heading.setAttribute('aria-expanded', 'true');
+    /* Also recalc parent semester body max-height */
+    var parent = body.closest('.semester-body');
+    if (parent && !parent.classList.contains('collapsed')) {
+      parent.style.maxHeight = parent.scrollHeight + body.scrollHeight + 'px';
+    }
+  } else {
+    body.classList.add('collapsed');
+    body.style.maxHeight = '0';
+    if (arrow) arrow.classList.add('collapsed');
+    if (heading) heading.setAttribute('aria-expanded', 'false');
+  }
+}
+
+/* Claude: 2026-03-18 — hiddenTools from student config. Network leads can hide built-in tools. */
+var _hiddenTools = [];
+var _configLoaded = false;
+
+function buildPage() {
+  var currentId = getCurrentSemesterId();
+  var html = '';
+
+  TRIMESTERS.forEach(function(sem) {
+    var past = isSemesterPast(sem);
+    var isCurrent = (sem.id === currentId);
+    var startCollapsed = past && !isCurrent;
+
+    /* Semester heading */
+    /* Claude: 2026-03-25 — added role, tabindex, aria-expanded, keyboard handler for a11y */
+    html += '<div class="semester-heading" role="button" tabindex="0" aria-expanded="' + (startCollapsed ? 'false' : 'true') + '" onclick="toggleSemester(\'' + sem.id + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleSemester(\'' + sem.id + '\');}">';
+    html += '<h2>' + sem.label + '</h2>';
+    html += '<div class="sem-meta">';
+    if (sem.bonus) {
+      html += '<span class="sem-badge" style="background:#e8a838;">Bonus</span>';
+    }
+    if (isCurrent) {
+      html += '<span class="sem-badge">Current Trimester</span>';
+    } else if (past) {
+      html += '<span class="sem-badge past">Past</span>';
+    }
+    html += '<span class="toggle-arrow' + (startCollapsed ? ' collapsed' : '') + '" id="sem-arrow-' + sem.id + '">▼</span>';
+    html += '</div></div>';
+
+    /* Semester body */
+    html += '<div class="semester-body' + (startCollapsed ? ' collapsed' : '') + '" id="sem-body-' + sem.id + '"' +
+            (startCollapsed ? ' style="max-height:0;"' : '') + '>';
+
+    /* Claude: 2026-03-24 — Group tools by group property; ungrouped render first */
+    var ungrouped = [];
+    var groups = {};     /* groupName → [tool, ...] */
+    var groupOrder = []; /* preserve first-seen order */
+    sem.tools.forEach(function(tool) {
+      if (tool.id && _hiddenTools.indexOf(tool.id) !== -1) return;
+      if (tool.group) {
+        if (!groups[tool.group]) { groups[tool.group] = []; groupOrder.push(tool.group); }
+        groups[tool.group].push(tool);
+      } else {
+        ungrouped.push(tool);
+      }
+    });
+
+    /* Render ungrouped tools first (e.g. Study Notes) */
+    ungrouped.forEach(function(tool) {
+      if (tool.type === "countdown") html += buildCountdown(tool);
+      else if (tool.type === "card") html += buildCard(tool);
+    });
+
+    /* Render each group as a collapsible section */
+    groupOrder.forEach(function(groupName) {
+      var gTools = groups[groupName];
+      var gId = 'tg-' + sem.id + '-' + groupName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+      var toolCount = gTools.filter(function(t) { return t.type === 'card'; }).length;
+
+      /* Claude: 2026-03-25 — added role, tabindex, aria-expanded, keyboard handler for a11y */
+      html += '<div class="tool-group-heading" role="button" tabindex="0" aria-expanded="true" onclick="toggleToolGroup(\'' + gId + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleToolGroup(\'' + gId + '\');}">';
+      html += '<strong>🌸 ' + groupName + '</strong>';
+      html += '<div class="tool-group-meta">';
+      html += '<span class="tool-group-badge">' + toolCount + ' tool' + (toolCount !== 1 ? 's' : '') + '</span>';
+      html += '<span class="tool-group-arrow" id="tg-arrow-' + gId + '">▼</span>';
+      html += '</div></div>';
+      html += '<div class="tool-group-body" id="tg-body-' + gId + '">';
+
+      gTools.forEach(function(tool) {
+        if (tool.type === "countdown") html += buildCountdown(tool);
+        else if (tool.type === "card") html += buildCard(tool);
+      });
+
+      html += '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  if (TRIMESTERS.length === 0) {
+    html = '<div class="empty-past">No study tools yet — they\'ll appear here as you add classes!</div>';
+  }
+
+  document.getElementById('semesterContent').innerHTML = html;
+
+  /* Set proper max-height for expanded sections and tool groups */
+  TRIMESTERS.forEach(function(sem) {
+    var body = document.getElementById('sem-body-' + sem.id);
+    if (body && !body.classList.contains('collapsed')) {
+      /* First set tool group bodies so parent can measure correctly */
+      body.querySelectorAll('.tool-group-body').forEach(function(gb) {
+        if (!gb.classList.contains('collapsed')) {
+          gb.style.maxHeight = gb.scrollHeight + 'px';
+        }
+      });
+      body.style.maxHeight = body.scrollHeight + 'px';
+    }
+  });
+
+}
+
+buildPage();
+
+/* Claude: 2026-03-20 — Wait for Firebase auth, THEN load student config.
+   buildPage() runs before shared-header finishes loading Firebase,
+   so we poll until AA.auth is ready, then load config + custom quizzes. */
+var _cfgPoll = setInterval(function() {
+  if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
+  clearInterval(_cfgPoll);
+
+  var _cfgUid = window.AA_MIRROR_UID || window.AA.auth.currentUser.uid;
+  window.AA_CONFIG.load(_cfgUid).then(function(config) {
+    /* Check for hidden tools — rebuild page if any are hidden */
+    var hidden = window.AA_CONFIG.get('hiddenTools', []);
+    if (hidden && hidden.length > 0) {
+      _hiddenTools = hidden;
+      buildPage();
+    }
+    /* Claude: 2026-03-20 — Render custom quizzes INSIDE their trimester sections.
+       Quizzes with a trimester field go into the matching semester body.
+       Quizzes without a trimester go into a fallback "Custom Quizzes" section.
+       Within each location, quizzes are grouped by class (text before the colon). */
+    var customQuizzes = window.AA_CONFIG.get('quizzes', []);
+    if (customQuizzes && customQuizzes.length > 0) {
+
+      /* Claude: 2026-03-21 — Load quiz progress for score indicators */
+      var _progressData = {};
+      var _progressUid = window.AA_MIRROR_UID || window.AA.auth.currentUser.uid;
+      firebase.firestore().collection('quizProgress').doc(_progressUid).get().then(function(doc) {
+        if (doc.exists) _progressData = doc.data();
+        renderScoreIndicators(_progressData);
+      }).catch(function() { /* ignore — indicators just won't show */ });
+
+      function renderScoreIndicators(pdata) {
+        document.querySelectorAll('[data-quiz-idx]').forEach(function(card) {
+          var qi = card.getAttribute('data-quiz-idx');
+          var key = 'quiz_' + qi;
+          var p = pdata[key];
+          if (!p) return;
+          var dot = card.querySelector('.score-dot');
+          if (!dot) return;
+          var pct = p.bestPct || 0;
+          var color = pct >= 80 ? '#4caf50' : pct >= 50 ? '#ff9800' : '#f44336';
+          var label = pct >= 80 ? 'Mastered' : pct >= 50 ? 'Learning' : 'Needs Work';
+          dot.style.display = 'inline-block';
+          dot.style.background = color;
+          dot.title = label + ' — Best: ' + pct + '%';
+          var scoreText = card.querySelector('.score-text');
+          if (scoreText) {
+            scoreText.textContent = 'Best: ' + pct + '%';
+            scoreText.style.color = color;
+          }
+        });
+      }
+
+      /* Sort quizzes by trimester, then group by class within each */
+      var byTrimester = {};  /* trimesterId → [{quiz, idx, shortTitle}] */
+      /* Claude: 2026-03-23 — escape helper for Firestore quiz data */
+      function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+      var orphans = [];       /* quizzes without a trimester field */
+
+      customQuizzes.forEach(function(quiz, idx) {
+        var title = quiz.title || 'Custom Quiz';
+        var colonIdx = title.indexOf(':');
+        var shortTitle = colonIdx > -1 ? title.substring(colonIdx + 1).trim() : title;
+        var entry = { quiz: quiz, idx: idx, shortTitle: shortTitle };
+
+        if (quiz.trimester) {
+          if (!byTrimester[quiz.trimester]) byTrimester[quiz.trimester] = [];
+          byTrimester[quiz.trimester].push(entry);
+        } else {
+          orphans.push(entry);
+        }
+      });
+
+      /* Helper: build quiz cards grouped by class prefix */
+      function buildQuizGroup(entries) {
+        var groups = {};
+        var groupOrder = [];
+        entries.forEach(function(entry) {
+          var title = entry.quiz.title || '';
+          var colonIdx = title.indexOf(':');
+          var groupName = colonIdx > -1 ? title.substring(0, colonIdx).trim() : 'Other';
+          if (!groups[groupName]) { groups[groupName] = []; groupOrder.push(groupName); }
+          groups[groupName].push(entry);
+        });
+
+        var html = '';
+        groupOrder.forEach(function(groupName) {
+          var groupId = 'quiz-group-' + groupName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() + '-' + Date.now();
+          var quizCount = groups[groupName].length;
+
+          html += '<div style="margin: 16px 0 8px; padding: 8px 12px; background: rgba(108,160,163,0.1); border-radius: 8px;">';
+          /* Claude: 2026-03-25 — added role, tabindex, aria-expanded, keyboard handler for a11y */
+          html += '<div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" role="button" tabindex="0" aria-expanded="true" onclick="var b=document.getElementById(\'' + groupId + '\');var exp=b.style.display===\'none\';b.style.display=exp?\'block\':\'none\';this.setAttribute(\'aria-expanded\',exp?\'true\':\'false\');" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}">';
+          html += '<strong style="color: #4a7f82;">' + groupName + '</strong>';
+          html += '<span style="color:#888; font-size:0.85rem;">' + quizCount + ' quiz' + (quizCount !== 1 ? 'zes' : '') + ' ▼</span>';
+          html += '</div>';
+          html += '<div id="' + groupId + '">';
+
+          groups[groupName].forEach(function(entry) {
+            var quiz = entry.quiz;
+            var typeIcon = quiz.type === 'fill-blank' ? '✏️ ' : quiz.type === 'match' ? '🎯 ' : '🃏 ';
+            var typeLabel = quiz.type === 'fill-blank' ? 'Fill-in-the-Blank' : quiz.type === 'match' ? 'Match Game' : 'Flashcards';
+            var itemCount = quiz.data ? quiz.data.length : 0;
+
+            html += '<div class="tool-card" data-quiz-idx="' + entry.idx + '">';
+            /* Claude: 2026-03-23 — escape Firestore quiz data to prevent XSS */
+            html += '<h3>' + typeIcon + esc(entry.shortTitle);
+            html += ' <span class="score-dot" style="display:none;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-left:6px;"></span>';
+            html += '</h3>';
+            html += '<p>' + esc(quiz.description || '') + '</p>';
+            html += '<div class="tags">';
+            html += '<span class="tag">' + typeLabel + '</span>';
+            if (itemCount > 0) html += '<span class="tag">' + itemCount + ' items</span>';
+            html += '<span class="tag score-text" style="font-weight:600;"></span>';
+            html += '</div>';
+            html += '<a href="/Academic-Allies/modular/static/custom-quiz.html?quiz=' + entry.idx + '" class="play-btn">Start Quiz</a>';
+            html += '</div>';
+          });
+
+          html += '</div></div>';
+        });
+        return html;
+      }
+
+      /* Inject quizzes into their trimester sections */
+      for (var trimId in byTrimester) {
+        var semBody = document.getElementById('sem-body-' + trimId);
+        if (semBody) {
+          var quizHtml = '<div style="margin-top: 16px; border-top: 2px solid #e8f2f3; padding-top: 12px;">';
+          quizHtml += '<h3 style="color: #6CA0A3; font-size: 13pt; margin-bottom: 4px;">Custom Quizzes</h3>';
+          quizHtml += buildQuizGroup(byTrimester[trimId]);
+          quizHtml += '</div>';
+          semBody.innerHTML += quizHtml;
+
+          /* Recalculate max-height if section is expanded */
+          if (!semBody.classList.contains('collapsed')) {
+            semBody.style.maxHeight = semBody.scrollHeight + 'px';
+          }
+        } else {
+          /* Trimester ID doesn't match any section — treat as orphans */
+          orphans = orphans.concat(byTrimester[trimId]);
+        }
+      }
+
+      /* Fallback section for quizzes without a trimester */
+      if (orphans.length > 0) {
+        var fallbackHtml = '<div style="margin-top: 24px;">';
+        /* Claude: 2026-03-25 — added role, tabindex, aria-expanded, keyboard handler for a11y */
+        fallbackHtml += '<div class="semester-heading" role="button" tabindex="0" aria-expanded="true" onclick="toggleSemester(\'orphan-quizzes\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleSemester(\'orphan-quizzes\');}">';
+        fallbackHtml += '<h2>Custom Quizzes</h2>';
+        fallbackHtml += '<div class="sem-meta">';
+        fallbackHtml += '<span class="sem-badge">' + orphans.length + ' quiz' + (orphans.length !== 1 ? 'zes' : '') + '</span>';
+        fallbackHtml += '<span class="toggle-arrow" id="sem-arrow-orphan-quizzes">▼</span>';
+        fallbackHtml += '</div></div>';
+        fallbackHtml += '<div class="semester-body" id="sem-body-orphan-quizzes">';
+        fallbackHtml += buildQuizGroup(orphans);
+        fallbackHtml += '</div></div>';
+        document.getElementById('semesterContent').innerHTML += fallbackHtml;
+        /* Set max-height for orphan section */
+        var orphanBody = document.getElementById('sem-body-orphan-quizzes');
+        if (orphanBody) orphanBody.style.maxHeight = orphanBody.scrollHeight + 'px';
+      }
+    }
+  }).catch(function(err) {
+    console.warn('[Study Tools] Custom quiz load failed:', err);
+  });
+}, 250);
+</script>
+</body>
+</html>

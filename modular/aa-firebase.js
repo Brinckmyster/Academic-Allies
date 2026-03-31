@@ -1086,7 +1086,9 @@
       .onSnapshot(function (doc) {
         callback(doc.exists ? doc.data() : null);
       }, function (err) {
-        console.error('[AA] watchSpoonPal error:', err);
+        /* Claude: 2026-03-30 — W7 fix: forward error to callback so UI doesn't hang indefinitely */
+        console.warn('[AA] watchSpoonPal error:', err);
+        callback(null, err);
       });
   };
 
@@ -1419,7 +1421,9 @@
       .onSnapshot(function (doc) {
         callback(doc.exists ? doc.data() : null);
       }, function (err) {
+        /* Claude: 2026-03-30 — W7 fix: forward error to callback so UI doesn't hang */
         console.error('[AA] watchSpoonPlan error:', err);
+        callback(null, err);
       });
   };
 

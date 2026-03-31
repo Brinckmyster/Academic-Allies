@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/Academic-Allies/favicon.ico">
+<!-- Claude: 2026-03-17 — early dark mode detect to prevent FOUC -->
+<script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Genus Practice — Academic Allies</title>
+<!-- Claude: 2026-03-17 — Extracted from recovery-mode.html into standalone study tool -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+    font-size: 18pt;
+    line-height: 1.5;
+    letter-spacing: 0.035em;
+    background: #FAFAF9;
+    color: #333;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  html.aa-dark body { background: #121212; color: #e0e0e0; }
+
+  .page-wrap {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .page-wrap h1 {
+    text-align: center;
+    color: #6CA0A3;
+    font-size: 22pt;
+    margin-bottom: 6px;
+  }
+  html.aa-dark .page-wrap h1 { color: #8ec5c8; }
+  .sub {
+    text-align: center;
+    color: #888;
+    font-size: 12pt;
+    margin-bottom: 20px;
+  }
+  .back-link {
+    display: inline-block;
+    margin-bottom: 16px;
+    color: #6CA0A3;
+    text-decoration: none;
+    font-size: 13pt;
+    font-weight: 600;
+  }
+  .back-link:hover { text-decoration: underline; }
+  html.aa-dark .back-link { color: #8ec5c8; }
+
+  .card {
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  html.aa-dark .card { background: #1e1e1e; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .card h2 {
+    color: #6CA0A3;
+    margin-bottom: 15px;
+    font-size: 20pt;
+  }
+  html.aa-dark .card h2 { color: #8ec5c8; }
+
+  .quiz-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 15px;
+  }
+  .quiz-btn {
+    background: #f0f4ff;
+    color: #6CA0A3;
+    border: 2px solid #6CA0A3;
+    padding: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14pt;
+    font-family: inherit;
+    min-height: 19mm;
+  }
+  html.aa-dark .quiz-btn { background: #1a2a2b; color: #8ec5c8; border-color: #8ec5c8; }
+  .quiz-btn:hover { background: #6CA0A3; color: white; }
+  html.aa-dark .quiz-btn:hover { background: #4a7f82; }
+  .quiz-btn.correct { background: #4caf50; color: white; border-color: #4caf50; }
+  .quiz-btn.incorrect { background: #f44336; color: white; border-color: #f44336; }
+
+  .mode-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14pt;
+    cursor: pointer;
+    min-height: 19mm;
+    transition: all 0.2s;
+  }
+
+  .credit {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #aaa;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
+<script>var AA_MODE_GATE = 'flowerQuiz';</script>
+<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+<div id="site-header"></div>
+<script>
+  fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+    .then(function(response) { return response.text(); })
+    .then(function(html) {
+      var container = document.getElementById('site-header');
+      container.innerHTML = html;
+      var scripts = container.querySelectorAll('script');
+      scripts.forEach(function(oldScript) {
+        var newScript = document.createElement('script');
+        [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+        newScript.textContent = oldScript.textContent;
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+      });
+    })
+    .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<!-- Claude: 2026-03-20 — Load study-activity module for Firestore integration -->
+<script src="/Academic-Allies/modular/js/study-activity.js?v=20260322"></script>
+
+<div class="page-wrap">
+  <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">← Back to Study Tools</a>
+  <h1>🌿 Genus Practice</h1>
+  <p class="sub">All quizzes — every flower tested. See a photo — pick the right answer.</p>
+
+  <div class="card">
+    <!-- Mode toggle -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;">
+      <button id="gqModeGenus" onclick="gqSetMode('genus')" class="mode-btn"
+          style="border:2px solid #6CA0A3;background:#6CA0A3;color:#fff;">
+          🔬 What's the genus?
+      </button>
+      <button id="gqModeCommon" onclick="gqSetMode('common')" class="mode-btn"
+          style="border:2px solid #ddd;background:#f0f4f5;color:#555;">
+          🌸 Common name?
+      </button>
+    </div>
+    <div id="genusQuiz"></div>
+    <!-- Claude: 2026-03-25 — aria-live for screen reader score announcement -->
+    <div id="genusScore" role="alert" aria-live="polite" style="display:none;text-align:center;font-size:18pt;color:#6CA0A3;padding:20px 0;"></div>
+    <button id="genusRestart" onclick="gqStart()"
+        style="display:none;width:100%;padding:14px;background:#6CA0A3;color:#fff;border:none;border-radius:14px;font-size:16pt;font-family:inherit;cursor:pointer;margin-top:8px;min-height:19mm;">
+        Play Again 🌱
+    </button>
+  </div>
+</div>
+
+<p class="credit">Built by Claude for Bruise — March 2026</p>
+
+<script>
+/* Claude: 2026-03-17 — Genus Practice Quiz extracted from recovery-mode.html
+   49 flowers across all 5 quizzes. Two modes: test genus from common name, or vice versa.
+   10 questions per round. Image paths use absolute paths for standalone page. */
+
+var GQ_FLOWERS = [
+  // Quiz 1–3
+  { image: "/Academic-Allies/modular/icons/flowers/flower1-1Carnation.png",              genus: "Dianthus",        common: "Carnation" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower2-1 Daisy Pom.png",             genus: "Chrysanthemum",   common: "Daisy Pom" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower3-1 Rose.png",                  genus: "Rosa",            common: "Rose" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower4-1 Alstro.png",                genus: "Alstroemeria",    common: "Alstro" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower5-1 Lisianthus.png",            genus: "Eustoma",         common: "Lisianthus" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower6-1 Hydrangea.png",             genus: "Hydrangea",       common: "Hydrangea" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower7-1 Peony.png",                 genus: "Paeonia",         common: "Peony" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower8-1 Ranunculus.png",            genus: "Ranunculus",      common: "Ranunculus" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower9-1 Safari Sunset.png",         genus: "Leucadendron",    common: "Safari Sunset" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower10-1 China Aster.png",          genus: "Callistephus",    common: "China Aster" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower11-1 Snapdragon.png",           genus: "Antirrhinum",     common: "Snapdragon" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower12-1 Larkspur.png",             genus: "Consolida",       common: "Larkspur" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower13-1 Delphinium.png",           genus: "Delphinium",      common: "Delphinium" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower14-1 Liatris.png",              genus: "Liatris",         common: "Liatris" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower15-1 Gladiola.png",             genus: "Gladiolus",       common: "Gladiola" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower16-1 Stock.png",                genus: "Matthiola",       common: "Stock" },
+  /* Claude: 2026-03-10 — genus corrected from Daucus to Ammi per Mary's note */
+  { image: "/Academic-Allies/modular/icons/flowers/flower17-1 Queen Anne's Lace.png",    genus: "Ammi",            common: "Queen Anne's Lace" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower18-1 Sea Holly.png",            genus: "Eryngium",        common: "Sea Holly" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower19-1 Hypericum Berries.png",    genus: "Hypericum",       common: "Hypericum Berries" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower20-1 Pixie Carnation.png",      genus: "Dianthus",        common: "Pixie Carnation" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower21-1 Waxflower.png",            genus: "Chamelaucium",    common: "Waxflower" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower22-1 Babies Breath.png",        genus: "Gypsophila",      common: "Babies Breath" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower23-1 Statice.png",              genus: "Limonium",        common: "Statice" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower24-1 Misty Blue.png",           genus: "Limonium",        common: "Misty Blue" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower25-1 Solidago.png",             genus: "Solidago",        common: "Solidago" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower26-1 Dendrobium Orchid.png",    genus: "Dendrobium",      common: "Dendrobium Orchid" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower27-1 Curly Willow.png",         genus: "Salix",           common: "Curly Willow" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower28-1 Baby Blue Eucalyptus.png", genus: "Eucalyptus",      common: "Baby Blue Eucalyptus" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower29-1 Bells of Ireland.png",     genus: "Moluccella",      common: "Bells of Ireland" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower30-1 Dianthus.jpg",             genus: "Dianthus",        common: "Dianthus" },
+  // Quiz 4–5
+  { image: "/Academic-Allies/modular/icons/flowers/flower31-1 Iris.jpg",                 genus: "Iris",            common: "Iris" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower32-1 Lily.jpg",                 genus: "Lilium",          common: "Lily" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower33-1 Calla Lily.jpg",           genus: "Zantedeschia",    common: "Calla Lily" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower34-1 Gerber Daisy.jpg",         genus: "Gerbera",         common: "Gerber Daisy" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower35-1 Anthurium.jpg",            genus: "Anthurium",       common: "Anthurium" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower36-1 Billy Balls.jpg",          genus: "Craspedia",       common: "Billy Balls" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower37-1 Disbud Mum.jpg",           genus: "Chrysanthemum",   common: "Disbud Mum" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower38-1 Bird of Paradise.jpg",     genus: "Strelitzia",      common: "Bird of Paradise" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower39-1 Tulip.jpg",                genus: "Tulipa",          common: "Tulip" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower40-1 Sunflower.jpg",            genus: "Helianthus",      common: "Sunflower" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower41-1 Leather leaf.jpg",         genus: "Rumohra",         common: "Leather Leaf" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower42-1 Bear Grass.jpg",           genus: "Xerophyllum",     common: "Bear Grass" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower43-1 Lilly Grass.jpg",          genus: "Liriope",         common: "Lily Grass" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower44-1 Israeli Ruscus.png",       genus: "Ruscus",          common: "Israeli Ruscus" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower45-1 Salal.jpg",                genus: "Gaultheria",      common: "Salal" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower46-1 Grevillea.jpg",            genus: "Grevillea",       common: "Grevillea" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower47-1 Pitt.jpg",                 genus: "Pittosporum",     common: "Pitt" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower48-1 Myrtle.jpg",               genus: "Myrtus",          common: "Myrtle" },
+  { image: "/Academic-Allies/modular/icons/flowers/flower49-1 Italian Ruscus.jpg",       genus: "Ruscus",          common: "Italian Ruscus" }
+];
+
+var gqMode = 'genus', gqPool = [], gqIndex = 0, gqScore = 0, GQ_ROUNDS = 10;
+
+function gqSetMode(mode) {
+  gqMode = mode;
+  var bg = document.getElementById('gqModeGenus');
+  var bc = document.getElementById('gqModeCommon');
+  bg.style.background = mode === 'genus' ? '#6CA0A3' : '#f0f4f5';
+  bg.style.color      = mode === 'genus' ? '#fff'     : '#555';
+  bg.style.border     = mode === 'genus' ? '2px solid #6CA0A3' : '2px solid #ddd';
+  bc.style.background = mode === 'common' ? '#6CA0A3' : '#f0f4f5';
+  bc.style.color      = mode === 'common' ? '#fff'     : '#555';
+  bc.style.border     = mode === 'common' ? '2px solid #6CA0A3' : '2px solid #ddd';
+  gqStart();
+}
+
+function gqShuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+function gqStart() {
+  gqPool  = gqShuffle(GQ_FLOWERS).slice(0, GQ_ROUNDS);
+  gqIndex = 0; gqScore = 0;
+  document.getElementById('genusScore').style.display   = 'none';
+  document.getElementById('genusRestart').style.display = 'none';
+  gqShowQuestion();
+}
+
+function gqShowQuestion() {
+  var container = document.getElementById('genusQuiz');
+  if (gqIndex >= gqPool.length) { gqShowScore(); return; }
+  var flower    = gqPool[gqIndex];
+  var isGenus   = (gqMode === 'genus');
+  var prompt    = isGenus ? flower.common : flower.genus;
+  var correct   = isGenus ? flower.genus  : flower.common;
+  var promptLbl = isGenus ? 'Common Name' : 'Genus';
+  var answerLbl = isGenus ? 'Genus'       : 'Common Name';
+  var others = gqShuffle(GQ_FLOWERS.filter(function(f) {
+    return (isGenus ? f.genus : f.common) !== correct;
+  })).slice(0, 3);
+  var options = gqShuffle([correct].concat(others.map(function(f) {
+    return isGenus ? f.genus : f.common;
+  })));
+  var correctIdx = options.indexOf(correct);
+  var imgSrc = flower.image;
+  var html = '<div style="text-align:center;">';
+  html += '<p style="font-size:13pt;color:#888;margin:0 0 8px;">Question ' + (gqIndex + 1) + ' of ' + gqPool.length + '</p>';
+  html += '<img src="' + imgSrc + '" '
+       +  'style="width:240px;height:240px;object-fit:contain;border-radius:14px;box-shadow:0 3px 12px rgba(0,0,0,0.12);margin-bottom:14px;" '
+       +  'alt="' + flower.common + '">';
+  html += '<p style="font-size:16pt;margin:0 0 6px;"><strong>' + promptLbl + ':</strong> ' + prompt + '</p>';
+  html += '<p style="font-size:13pt;color:#888;margin:0 0 12px;">↓ Pick the ' + answerLbl + '</p>';
+  html += '<div class="quiz-buttons">';
+  options.forEach(function(opt, i) {
+    html += '<button class="quiz-btn" onclick="gqAnswer(' + i + ',' + correctIdx + ')" '
+         +  'style="font-size:14pt;padding:12px;min-height:19mm;">' + opt + '</button>';
+  });
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+function gqAnswer(selected, correct) {
+  var btns = document.querySelectorAll('#genusQuiz .quiz-btn');
+  var flower = gqPool[gqIndex];
+  var isGenus = (gqMode === 'genus');
+  var correctName = flower.common;
+
+  btns.forEach(function(b, i) {
+    b.disabled = true;
+    if (i === correct) b.classList.add('correct');
+    else if (i === selected) b.classList.add('incorrect');
+  });
+
+  if (selected === correct) {
+    gqScore++;
+    /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+    if (window.AA && window.AA.study) {
+      AA.study.removeMiss(correctName);
+    }
+  } else {
+    /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+    if (window.AA && window.AA.study) {
+      AA.study.addMiss(correctName);
+    }
+  }
+
+  setTimeout(function() { gqIndex++; gqShowQuestion(); }, 1400);
+}
+
+function gqShowScore() {
+  document.getElementById('genusQuiz').innerHTML = '';
+  var pct = Math.round((gqScore / gqPool.length) * 100);
+  var msg = pct === 100 ? '🏆 Perfect! You know your genus!' :
+            pct >= 70  ? '🌸 Nice work — keep practicing!' :
+                         '🌱 Keep going — you\'re learning!';
+  document.getElementById('genusScore').innerHTML =
+    gqScore + ' / ' + gqPool.length + ' correct &nbsp;·&nbsp; ' + pct + '%<br>' +
+    '<span style="font-size:16pt;">' + msg + '</span>';
+  document.getElementById('genusScore').style.display   = 'block';
+  document.getElementById('genusRestart').style.display = 'block';
+
+  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+  if (window.AA && window.AA.study) {
+    AA.study.logSession('genus-practice');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() { gqStart(); });
+if (document.readyState !== 'loading') { gqStart(); }
+</script>
+</body>
+</html>

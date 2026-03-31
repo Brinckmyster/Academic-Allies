@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academic Allies - Your disability accommodations and support network</title>
+  <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
+  <!-- Claude: 2026-03-06 — PWA manifest + service worker for offline support -->
+  <link rel="manifest" href="/Academic-Allies/manifest.webmanifest">
+  <meta name="theme-color" content="#6CA0A3">
+  <link rel="apple-touch-icon" href="/Academic-Allies/apple-touch-icon-180.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: #FAFAF9;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    /* ── Hero ──────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #6CA0A3 0%, #4a7f82 100%);
+      color: white;
+      padding: 32px 24px 28px;
+      text-align: center;
+    }
+    .hero-greeting {
+      font-size: 22pt;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .hero-date {
+      font-size: 12pt;
+      opacity: 0.85;
+      margin-bottom: 20px;
+    }
+
+    /* ── Today's status bar ─────────────────────────── */
+    .status-bar {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .status-pill {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 11pt;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    a.status-pill:hover { background: rgba(255,255,255,0.35); }
+    .status-pill.alert-yellow { background: #fff3cd; border-color: #ffc107; color: #856404; }
+    .status-pill.alert-red    { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+    /* Claude: 2026-03-19 — hover darken for flag pill links */
+    a.status-pill.alert-yellow:hover { background: #ffe999; }
+    a.status-pill.alert-red:hover    { background: #f1b3b8; }
+    .status-pill.alert-green  { background: rgba(255,255,255,0.25); }
+
+    /* ── Check-in prompt ────────────────────────────── */
+    .checkin-prompt {
+      max-width: 680px;
+      margin: 20px auto 0;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 14px;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .checkin-prompt p { font-size: 13pt; opacity: 0.95; }
+    .checkin-prompt a {
+      background: white;
+      color: #4a7f82;
+      font-weight: 700;
+      padding: 10px 22px;
+      border-radius: 20px;
+      text-decoration: none;
+      font-size: 12pt;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .checkin-prompt a:hover { background: #f0f0f0; }
+
+    /* ── Main content ───────────────────────────────── */
+    .dashboard { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+    /* ── Section headers ────────────────────────────── */
+    .section-label {
+      font-size: 11pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #6CA0A3;
+      margin-bottom: 14px;
+      margin-top: 32px;
+      border-bottom: 2px solid #e8f2f3;
+      padding-bottom: 6px;
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    /* ── Module grid ────────────────────────────────── */
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+    }
+    .module-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 28px 12px;
+      background: #fff;
+      border: 1px solid #e1e5e9;
+      border-radius: 14px;
+      text-decoration: none;
+      color: #333;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+      cursor: pointer;
+    }
+    .module-card:hover {
+      box-shadow: 0 4px 16px rgba(108,160,163,0.18);
+      transform: translateY(-2px);
+      border-color: #6CA0A3;
+      color: #4a7f82;
+    }
+    /* Claude: 2026-03-14 — focus-visible for keyboard accessibility */
+    .module-card:focus-visible, .resource-link:focus-visible, .status-pill:focus-visible,
+    .nope-big-btn:focus-visible, .msc-item:focus-visible {
+      outline: 2px solid #4a7f82; outline-offset: 2px;
+    }
+    .module-icon { font-size: 2rem; line-height: 1; }
+    .module-name { text-align: center; line-height: 1.3; }
+    .admin-card { border-style: dashed; opacity: 0.75; }
+
+    /* ── Flag summary ───────────────────────────────── */
+    .flag-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .flag-card {
+      background: white;
+      border-radius: 14px;
+      border: 1px solid #e1e5e9;
+      padding: 18px 20px;
+    }
+    .flag-card .flag-label { font-size: 11pt; color: #888; margin-bottom: 4px; }
+    .flag-card .flag-value { font-size: 16pt; font-weight: 700; color: #333; }
+    .flag-card .flag-sub   { font-size: 10pt; color: #aaa; margin-top: 2px; }
+    .flag-card.green { border-left: 4px solid #28a745; }
+    .flag-card.yellow { border-left: 4px solid #ffc107; }
+    .flag-card.red    { border-left: 4px solid #dc3545; }
+
+    /* ── Resources ──────────────────────────────────── */
+    .resource-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .resource-link {
+      background: white;
+      border: 1px solid #e1e5e9;
+      border-radius: 10px;
+      padding: 12px 18px;
+      text-decoration: none;
+      color: #4a7f82;
+      font-size: 12pt;
+      font-weight: 600;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .resource-link:hover {
+      border-color: #6CA0A3;
+      box-shadow: 0 2px 8px rgba(108,160,163,0.15);
+    }
+    .resource-link .ricon { font-size: 18pt; }
+
+    /* ── Support view: My Students compact grid ──────── */
+    /* Added 2026-02-26 by Claude; reworked 2026-02-28 by Claude — compact, sorted, switch-mirror */
+    .ssc-dot {
+      width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.08);
+    }
+    .ssc-dot.nope    { background: #dc3545; animation: pulse-dot 1.4s ease-in-out infinite; }
+    .ssc-dot.red     { background: #dc3545; }
+    .ssc-dot.orange  { background: #fd7e14; }
+    .ssc-dot.yellow  { background: #ffc107; }
+    .ssc-dot.green   { background: #28a745; }
+    .ssc-dot.unknown { background: #ccc; }
+    /* Claude: 2026-03-27 — blue dot for active-no-checkin (matches dashboard + status circle) */
+    .ssc-dot.active-no-checkin { background: #42A5F5; }
+    /* Claude: 2026-03-16 — caution diamond for stale check-in (matches status circle) */
+    .ssc-dot.caution {
+      background: #f5c518; border-radius: 0; transform: rotate(45deg);
+      border: 1.5px solid #1a1a1a; width: 16px; height: 16px;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(220,53,69,0.2); }
+      50%       { box-shadow: 0 0 0 7px rgba(220,53,69,0.1); }
+    }
+    .my-students-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .msc-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      border: 1px solid #e1e5e9;
+      border-radius: 10px;
+      padding: 12px 18px;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #222;
+      min-width: 160px;
+    }
+    .msc-item:hover {
+      border-color: #6CA0A3;
+      box-shadow: 0 2px 8px rgba(108,160,163,0.15);
+    }
+
+    /* ── Footer ─────────────────────────────────────── */
+    .site-footer {
+      margin-top: 60px;
+      border-top: 1px solid #e1e5e9;
+      padding: 20px 24px;
+      background: #f8f9fa;
+    }
+    .footer-content {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      align-items: center;
+      font-size: 0.875rem;
+      color: #666;
+    }
+    .footer-content a { color: #4a7f82; text-decoration: none; }
+    .footer-content a:hover { text-decoration: underline; }
+
+    /* ── NOPE button banner ──────────────────────────── */
+    .nope-banner {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 28px;
+      padding: 18px 22px;
+      background: #1c0505;
+      border: 2px solid #8b0000;
+      border-radius: 12px;
+    }
+    .nope-big-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 32px;
+      background: #c0392b;
+      color: #fff;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-decoration: none;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 18px rgba(192,57,43,0.45);
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .nope-big-btn:hover {
+      background: #a93226;
+      transform: scale(1.04);
+      box-shadow: 0 6px 24px rgba(192,57,43,0.6);
+    }
+    .nope-big-btn:active { transform: scale(0.97); }
+    .nope-hint {
+      color: #ccc;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    @media (max-width: 600px) {
+      .nope-banner { flex-direction: column; align-items: flex-start; gap: 10px; }
+    }
+
+    @media (max-width: 600px) {
+      .module-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero-greeting { font-size: 18pt; }
+      .flag-summary { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>
+  /* Claude: 2026-03-09 — converted arrow functions to ES5 for project consistency */
+  /* Claude: 2026-03-10 — cache-bust bump for persistence fix */
+  /* Claude: 2026-03-25 — bumped stale cache-bust version */
+  fetch("/Academic-Allies/modular/shared-header.html?v=20260328")
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var c = document.getElementById("site-header");
+      c.innerHTML = html;
+      c.querySelectorAll("script").forEach(function(old) {
+        var s = document.createElement("script");
+        [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+        s.textContent = old.textContent;
+        old.parentNode.replaceChild(s, old);
+      });
+      var d = document.createElement("script");
+      d.src = "/Academic-Allies/modular/js/draggable.js";
+      d.onload = function() { if(typeof initDrag === "function") initDrag(); };
+      document.body.appendChild(d);
+    })
+    .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<!-- ── Hero ──────────────────────────────────────── -->
+<!-- Claude: 2026-03-14 — hidden by default; revealed by auth handler after role check.
+     Prevents flash-of-content when support roles auto-redirect to Support Dashboard. -->
+<div class="hero" id="mainHero" style="display:none;">
+  <div class="hero-greeting">👋 <span id="heroGreetingText"></span></div>
+  <div class="hero-date" id="heroDate"></div>
+  <!-- Claude: 2026-03-09 — removed duplicate heroName ID; JS creates it dynamically at line 490 -->
+
+  <!-- Updated 2026-03-08 by Claude — pills now clickable links -->
+  <div class="status-bar" id="statusBar">
+    <a class="status-pill" id="pillCheckin" href="/Academic-Allies/modular/checkin.html" style="text-decoration:none;color:inherit;">📋 No check-in yet today</a>
+    <!-- Claude: 2026-03-19 — flag pill now links to support dashboard so supporters can investigate -->
+    <a class="status-pill" id="pillFlag" href="/Academic-Allies/modular/components/support-dashboard/support-dashboard.html" style="display:none;text-decoration:none;color:inherit;cursor:pointer;"></a>
+    <a class="status-pill" href="/Academic-Allies/modular/resources.html" style="text-decoration:none;color:inherit;">🔋 Academic Allies</a>
+  </div>
+
+  <div class="checkin-prompt" id="checkinPrompt">
+    <p>Ready to do your daily check-in?</p>
+    <a href="/Academic-Allies/modular/checkin.html">Check In Now →</a>
+  </div>
+</div>
+
+<!-- ── Dashboard ─────────────────────────────────── -->
+<main class="dashboard" id="mainDashboard" style="display:none;">
+
+  <!-- NOPE button — always accessible, clearly placed -->
+  <div class="nope-banner" id="nopeBanner">
+    <a href="/Academic-Allies/modular/nope-mode.html" class="nope-big-btn" aria-label="Activate Nope Day — everything goes quiet">
+      🛑 NOPE
+    </a>
+    <span class="nope-hint">Need to opt out completely? Tap NOPE. Your team will be notified.</span>
+  </div>
+
+  <!-- Core modules -->
+  <div class="section-label">Your Tools</div>
+  <div class="module-grid">
+    <a class="module-card" href="/Academic-Allies/modular/checkin.html">
+      <span class="module-icon">📋</span><span class="module-name">Daily Check-In</span>
+    </a>
+    <a class="module-card" href="/Academic-Allies/modular/emergency.html">
+      <span class="module-icon">🚨</span><span class="module-name">Emergency Contacts</span>
+    </a>
+    <a class="module-card" href="/Academic-Allies/modular/components/meal-planner-mary/index.html">
+      <span class="module-icon">🍽️</span><span class="module-name">Meal Planner</span>
+    </a>
+    <a class="module-card" href="/Academic-Allies/modular/components/spoon-planner/spoon-planner.html">
+      <span class="module-icon">🥄</span><span class="module-name">Spoon Planner</span>
+    </a>
+    <!-- Claude: 2026-03-09 — SpoonPal: admin-only (hidden by default, shared-header shows for backstage-manager) -->
+    <a class="module-card" id="spoonpalCard" href="/Academic-Allies/modular/components/spoon-planner/spoon-pal.html"
+      style="display:none;">
+      <span class="module-icon">🥄✨</span><span class="module-name">SpoonPal</span>
+    </a>
+    <a class="module-card" href="/Academic-Allies/modular/components/calendar/calendar.html">
+      <span class="module-icon">📅</span><span class="module-name">Calendar</span>
+    </a>
+    <a class="module-card" href="/Academic-Allies/modular/components/message-system/message-system.html">
+      <span class="module-icon">💬</span><span class="module-name">Messages</span>
+    </a>
+    <a class="module-card" href="/Academic-Allies/modular/accommodations.html">
+      <span class="module-icon">📝</span><span class="module-name">Accommodations</span>
+    </a>
+    <!-- Claude: 2026-03-09 — added Audio Notes card (was missing from home page) -->
+    <a class="module-card" href="/Academic-Allies/modular/components/audio-notes/audio-notes.html">
+      <span class="module-icon">🎙️</span><span class="module-name">Audio Notes</span>
+    </a>
+    <!-- Claude: 2026-03-23 — Study Tools card; was completely missing from home page.
+         Students had no way to find quizzes without a direct link. -->
+    <a class="module-card" href="/Academic-Allies/modular/static/study-tools.html">
+      <span class="module-icon">📚</span><span class="module-name">Study Tools</span>
+    </a>
+    <a class="module-card" href="/Academic-Allies/modular/components/recovery-mode.html">
+      <span class="module-icon"><img src="/Academic-Allies/modular/icons/mode-recovery.png" width="48" height="48" alt="Recovery Mode" style="display:block;"></span><span class="module-name">Recovery Mode</span>
+    </a>
+    <!-- Claude: 2026-03-09 — added Modes customizer card; icon 🎛️ to avoid ⚙️ conflict with Backstage Manager -->
+    <a class="module-card" href="/Academic-Allies/modular/components/modes/modes.html">
+      <span class="module-icon">🎛️</span><span class="module-name">Modes</span>
+    </a>
+    <!-- Claude: 2026-03-09 — Templates: printable letters + invite card generator; icon 📜 to avoid 📋 conflict with Check-In -->
+    <a class="module-card" href="/Academic-Allies/modular/components/templates/templates.html">
+      <span class="module-icon">📜</span><span class="module-name">Templates</span>
+    </a>
+    <!-- Claude: 2026-03-12 — Settings card (visible to all signed-in users) -->
+    <a class="module-card" href="/Academic-Allies/modular/components/settings/settings.html" id="settingsCard" style="display:none;">
+      <span class="module-icon">⚙️</span><span class="module-name">Settings</span>
+    </a>
+    <a class="module-card" href="/Academic-Allies/modular/components/support-dashboard/support-dashboard.html" id="supportDashCard" style="display:none;">
+      <span class="module-icon">🪞</span><span class="module-name">Support Dashboard</span>
+    </a>
+    <a class="module-card" href="/Academic-Allies/modular/components/user-tiers/user-tiers.html" id="networkCard" style="display:none;">
+      <span class="module-icon">🤝</span><span class="module-name">My Support Network</span>
+    </a>
+    <!-- Updated 2026-02-26 by Claude — Admin → Backstage Manager -->
+    <!-- Claude: 2026-03-09 — Restored custom badge icon (was generic ⚙️ emoji) -->
+    <a class="module-card admin-card" href="/Academic-Allies/modular/admin.html" id="adminCard" style="display:none;">
+      <span class="module-icon"><img src="/Academic-Allies/modular/icons/badge-admin-yellow-center.png" width="48" height="48" alt="Backstage Manager" style="display:block;"></span><span class="module-name">Backstage Manager</span>
+    </a>
+  </div>
+
+  <!-- Today's snapshot -->
+  <div class="section-label">Today's Snapshot</div>
+  <div class="flag-summary" id="todaySnapshot">
+    <div class="flag-card green">
+      <div class="flag-label">Check-ins today</div>
+      <div class="flag-value" id="snapCount">—</div>
+      <div class="flag-sub">Last: <span id="snapLast">none yet</span></div>
+    </div>
+    <div class="flag-card" id="snapMoodCard">
+      <div class="flag-label">Last mood</div>
+      <div class="flag-value" id="snapMood">—</div>
+      <div class="flag-sub" id="snapSleepText">Sleep: —</div>
+    </div>
+    <div class="flag-card" id="snapFlagCard">
+      <div class="flag-label">Flag status</div>
+      <div class="flag-value" id="snapFlag">🟢 Clear</div>
+      <div class="flag-sub" id="snapFlagSub">No alerts today</div>
+    </div>
+    <div class="flag-card">
+      <div class="flag-label">Support contacted</div>
+      <div class="flag-value" id="snapSupport">—</div>
+      <div class="flag-sub">From today's check-in</div>
+    </div>
+    <!-- Claude: 2026-03-13 — current mode indicator -->
+    <div class="flag-card" id="snapModeCard">
+      <div class="flag-label">Current Mode</div>
+      <div class="flag-value" id="snapMode">Normal</div>
+      <div class="flag-sub" id="snapModeSub"><a href="/Academic-Allies/modular/components/modes/modes.html" style="color:#4a7f82;text-decoration:none;">Switch mode</a></div>
+    </div>
+    <!-- Claude: 2026-03-13 — check-in streak counter (motivational) -->
+    <div class="flag-card" id="snapStreakCard">
+      <div class="flag-label">Check-in streak</div>
+      <div class="flag-value" id="snapStreak">—</div>
+      <div class="flag-sub" id="snapStreakSub">Loading…</div>
+    </div>
+    <!-- Claude: 2026-03-13 — mini atomic clock widget -->
+    <a class="flag-card" href="/Academic-Allies/modular/static/utc-converter.html" style="text-decoration:none;color:inherit;cursor:pointer;" title="Open Atomic Clock">
+      <div class="flag-label">Atomic Clock</div>
+      <div class="flag-value" id="miniClockTime" style="font-variant-numeric:tabular-nums;">--:--:--</div>
+      <div class="flag-sub" id="miniClockSync">Syncing…</div>
+    </a>
+  </div>
+
+  <!-- Support view: shown for support-role signed-in users -->
+  <!-- Added 2026-02-26 by Claude; reworked 2026-02-28 by Claude — My Students compact grid -->
+  <div id="support-view" style="display:none;">
+    <div class="section-label">My Students</div>
+    <div id="my-students-grid" class="my-students-grid">
+      <p style="color:#aaa;font-size:0.9rem;padding:10px 0;">Loading…</p>
+    </div>
+  </div>
+
+  <!-- Resources -->
+  <div class="section-label">Resources &amp; Reference</div>
+  <div class="resource-list">
+    <a class="resource-link" href="/Academic-Allies/modular/static/sitemap.html">
+      <span class="ricon">🗺️</span> Site Map
+    </a>
+    <!-- Claude: Icon Gallery removed 2026-03-08 — still on sitemap -->
+    <a class="resource-link" href="/Academic-Allies/modular/static/docs/TEAM-PROFILES.html">
+      <span class="ricon">👥</span> About the Team
+    </a>
+    <!-- Claude: 2026-03-09 — removed duplicate Recovery Mode (already in module grid)
+         and expired Perplexity S3 link (still on sitemap for reference) -->
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="footer-content">
+    <a href="/Academic-Allies/modular/static/sitemap.html">Site Map</a>
+    <a href="/Academic-Allies/modular/static/docs/TEAM-PROFILES.html">About the Team</a>
+    <a href="/Academic-Allies/modular/privacy.html">Privacy Policy</a>
+    <span>&copy; 2026 Academic Allies &mdash; Licensed under <a href="/Academic-Allies/LICENSE">MIT</a></span>
+    <a href="#" id="footerSignOut" style="display:none; color:#dc3545;"
+       onclick="if(typeof signOut==='function'){signOut();}else{sessionStorage.removeItem('academicAlliesUser');location.reload();} return false;">Sign Out</a>
+  </div>
+</footer>
+
+<script>
+// ── Greeting & date ──────────────────────────────
+(function() {
+  var now = new Date();
+  var h = now.getHours();
+  var greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+
+  var greetEl = document.getElementById('heroGreetingText');
+  if (greetEl) greetEl.innerHTML = greeting + ', <span id="heroName">there</span>';
+
+  /* Poll until aa-firebase.js has initialised window.AA, then wait for
+     persistence to restore the session before registering our auth listener.
+     This matches the pattern shared-header and the support-view use. */
+  function _waitForAA(cb, tries) {
+    tries = tries || 0;
+    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+    if (tries > 50) return;
+    setTimeout(function () { _waitForAA(cb, tries + 1); }, 200);
+  }
+  _waitForAA(function () {
+    var ready = window.AA._persistenceReady || Promise.resolve();
+    ready.then(_attachAuthListener).catch(_attachAuthListener);
+  });
+  function _attachAuthListener() {
+    /* Claude: 2026-03-18 — Handle redirect sign-in result (critical for iOS Safari) */
+    try {
+      window.AA.auth.getRedirectResult().then(function(result) {
+        if (result && result.user) {
+          /* Claude: 2026-03-25 — sanitized console log to remove PII */
+          if (window.AA_DEBUG) console.log('[AA] Redirect sign-in completed');
+        }
+      }).catch(function(err) {
+        console.warn('[AA] getRedirectResult error (non-critical):', err.message);
+      });
+    } catch(e) {
+      console.warn('[AA] getRedirectResult not available:', e.message);
+    }
+    /* Claude: 2026-03-12 — diagnostic logs removed; persistence is stable now */
+    window.AA.auth.onAuthStateChanged(function (user) {
+      var heroName = document.getElementById('heroName');
+      var out = document.getElementById('footerSignOut');
+      if (user) {
+        var first = (user.displayName || user.email || '').split(' ')[0] || 'there';
+        if (heroName) heroName.textContent = first;
+        if (out) out.style.display = 'inline';
+      } else {
+        if (heroName) heroName.textContent = 'there';
+        if (out) out.style.display = 'none';
+        /* Claude: 2026-03-14 — no user = no redirect possible, reveal page */
+        if (typeof window._revealPage === 'function') window._revealPage();
+      }
+    });
+  }
+
+  document.getElementById('heroDate').textContent = now.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  // ── Today's check-in data ───────────────────────
+  var dateKey = now.toISOString().split('T')[0];
+  var raw = localStorage.getItem('checkins_' + dateKey);
+  var log = raw ? JSON.parse(raw) : [];
+
+  if (log.length > 0) {
+    var last = log[log.length - 1];
+    var lastTime = new Date(last.savedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+    // Hide check-in prompt since they've already checked in
+    document.getElementById('checkinPrompt').style.display = 'none';
+
+    // Update status pill
+    document.getElementById('pillCheckin').textContent = '📋 Checked in today (' + log.length + ')';
+
+    // Snapshot: count + last time
+    document.getElementById('snapCount').textContent = log.length;
+    document.getElementById('snapLast').textContent = lastTime;
+
+    // Mood
+    document.getElementById('snapMood').textContent = last.mood || '—';
+    var sleepTxt = last.sleep === 'yes' ? '✅ 6+ hrs' : last.sleep === 'no' ? '❌ Under 6 hrs' : '— not recorded';
+    document.getElementById('snapSleepText').textContent = 'Sleep: ' + sleepTxt;
+
+    // Support
+    var supTxt = last.support === 'yes' ? '✅ Yes' : last.support === 'no' ? '❌ Not yet' : '— not recorded';
+    document.getElementById('snapSupport').textContent = supTxt;
+
+    // Flag — show worst flag from today
+    var worstFlag = 'green';
+    log.forEach(function(e) {
+      if (e.flag === 'red') worstFlag = 'red';
+      else if (e.flag === 'yellow' && worstFlag !== 'red') worstFlag = 'yellow';
+    });
+
+    var flagCard = document.getElementById('snapFlagCard');
+    var flagEl = document.getElementById('snapFlag');
+    var flagSub = document.getElementById('snapFlagSub');
+    var flagPill = document.getElementById('pillFlag');
+
+    if (worstFlag === 'red') {
+      flagEl.textContent = '🔴 Red Flag';
+      flagSub.textContent = 'Emergency — please reach out';
+      flagCard.className = 'flag-card red';
+      flagPill.textContent = '🔴 Red flag — check emergency contacts';
+      flagPill.className = 'status-pill alert-red';
+      flagPill.style.display = 'flex';
+    } else if (worstFlag === 'yellow') {
+      flagEl.textContent = '🟡 Yellow Flag';
+      flagSub.textContent = 'Team notified to check in';
+      flagCard.className = 'flag-card yellow';
+      flagPill.textContent = '🟡 Yellow flag today';
+      flagPill.className = 'status-pill alert-yellow';
+      flagPill.style.display = 'flex';
+    } else {
+      flagEl.textContent = '🟢 Clear';
+      flagSub.textContent = 'No alerts today';
+      flagCard.className = 'flag-card green';
+    }
+  }
+})();
+</script>
+
+<!-- Claude: 2026-03-13 — Current Mode card in snapshot.
+     Reads appMode from localStorage + checks Firestore nope state. -->
+<script>
+(function () {
+  'use strict';
+  var MODE_LABELS = {
+    'normal': '🌞 Normal',
+    'recovery': '💜 Recovery',
+    'bad-brain-day': '🧠 Bad Brain',
+    'semi-nope': '⚡ Semi-Nope',
+    'nope': '🔴 Nope Day',
+    'migraine': '🌑 Migraine'
+  };
+  var saved = localStorage.getItem('appMode') || 'normal';
+  var modeEl = document.getElementById('snapMode');
+  if (modeEl) modeEl.textContent = MODE_LABELS[saved] || saved;
+
+  /* Also check Firestore for active nope (overrides localStorage) */
+  function _waitAA2(cb, n) {
+    n = n || 0;
+    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+    if (n < 50) setTimeout(function () { _waitAA2(cb, n + 1); }, 200);
+  }
+  _waitAA2(function () {
+    AA.auth.onAuthStateChanged(function (user) {
+      if (!user) return;
+      var uid = window.AA_uid ? window.AA_uid(user.uid) : user.uid;
+      AA.db.collection('users').doc(uid).get().then(function (doc) {
+        if (!doc.exists) return;
+        var d = doc.data();
+        /* Claude: 2026-03-23 — added nopeMode.active check. Without it, deactivated
+           modes still showed as active on the dashboard snapshot card.
+           Archive: index_2026-03-23_pre-nope-active-fix.bak.html */
+        if (d.nopeMode && d.nopeMode.active && d.nopeMode.mode === 'nope') {
+          if (modeEl) modeEl.textContent = '🔴 Nope Day';
+          var card = document.getElementById('snapModeCard');
+          if (card) card.className = 'flag-card red';
+        } else if (d.nopeMode && d.nopeMode.active && d.nopeMode.mode === 'semi-nope') {
+          if (modeEl) modeEl.textContent = '⚡ Semi-Nope';
+          var card = document.getElementById('snapModeCard');
+          if (card) card.className = 'flag-card yellow';
+        }
+      }).catch(function () { /* silent */ });
+    });
+  });
+})();
+</script>
+
+<!-- Claude: 2026-03-12 — Firestore-backed Today's Snapshot sync.
+     If localStorage has no check-in for today (e.g. checked in on another device),
+     fetch from Firestore and update the dashboard. Cross-device visibility. -->
+<script>
+(function () {
+  'use strict';
+  var now = new Date();
+  var dateKey = now.toISOString().split('T')[0];
+  var localRaw = localStorage.getItem('checkins_' + dateKey);
+  var localLog = localRaw ? JSON.parse(localRaw) : [];
+
+  /* Only fetch from Firestore if localStorage is empty — avoids redundant reads */
+  if (localLog.length > 0) return;
+
+  function _waitAA(cb, n) {
+    n = n || 0;
+    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+    if (n > 50) return;
+    setTimeout(function () { _waitAA(cb, n + 1); }, 200);
+  }
+
+  _waitAA(function () {
+    var ready = window.AA._persistenceReady || Promise.resolve();
+    ready.then(function () {
+      AA.auth.onAuthStateChanged(function (user) {
+        if (!user) return;
+        var uid = window.AA_MIRROR_UID || user.uid;
+        AA.db.collection('checkins').doc(uid).collection('days').doc(dateKey).get()
+          .then(function (doc) {
+            if (!doc.exists) return;
+            var entries = doc.data().entries || [];
+            if (entries.length === 0) return;
+
+            var last = entries[entries.length - 1];
+            var lastTime = last.savedAt
+              ? new Date(last.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : '—';
+
+            /* Update dashboard elements */
+            var prompt = document.getElementById('checkinPrompt');
+            if (prompt) prompt.style.display = 'none';
+
+            var pillCheckin = document.getElementById('pillCheckin');
+            if (pillCheckin) pillCheckin.textContent = '📋 Checked in today (' + entries.length + ')';
+
+            document.getElementById('snapCount').textContent = entries.length;
+            document.getElementById('snapLast').textContent = lastTime;
+            document.getElementById('snapMood').textContent = last.mood || '—';
+
+            var sleepTxt = last.sleep === 'yes' ? '✅ 6+ hrs' : last.sleep === 'no' ? '❌ Under 6 hrs' : '— not recorded';
+            document.getElementById('snapSleepText').textContent = 'Sleep: ' + sleepTxt;
+
+            var supTxt = last.support === 'yes' ? '✅ Yes' : last.support === 'no' ? '❌ Not yet' : '— not recorded';
+            document.getElementById('snapSupport').textContent = supTxt;
+
+            /* Flag — worst from today */
+            var worstFlag = 'green';
+            entries.forEach(function (e) {
+              if (e.flag === 'red') worstFlag = 'red';
+              else if (e.flag === 'yellow' && worstFlag !== 'red') worstFlag = 'yellow';
+            });
+
+            var flagCard = document.getElementById('snapFlagCard');
+            var flagEl = document.getElementById('snapFlag');
+            var flagSub = document.getElementById('snapFlagSub');
+            var flagPill = document.getElementById('pillFlag');
+
+            if (worstFlag === 'red') {
+              flagEl.textContent = '🔴 Red Flag';
+              flagSub.textContent = 'Emergency — please reach out';
+              flagCard.className = 'flag-card red';
+              flagPill.textContent = '🔴 Red flag — check emergency contacts';
+              flagPill.className = 'status-pill alert-red';
+              flagPill.style.display = 'flex';
+            } else if (worstFlag === 'yellow') {
+              flagEl.textContent = '🟡 Yellow Flag';
+              flagSub.textContent = 'Team notified to check in';
+              flagCard.className = 'flag-card yellow';
+              flagPill.textContent = '🟡 Yellow flag today';
+              flagPill.className = 'status-pill alert-yellow';
+              flagPill.style.display = 'flex';
+            }
+          })
+          .catch(function (err) {
+            console.warn('[AA] Firestore snapshot fetch failed:', err.message);
+          });
+      });
+    }).catch(function () {});
+  });
+})();
+</script>
+
+<!-- Claude: 2026-03-13 — Check-in streak calculator.
+     Queries last 90 days of check-ins from Firestore and counts consecutive days
+     going backwards from today. Shows motivational messages at milestone streaks. -->
+<script>
+(function () {
+  'use strict';
+
+  function _waitAA(cb, n) {
+    n = n || 0;
+    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+    if (n > 50) return;
+    setTimeout(function () { _waitAA(cb, n + 1); }, 200);
+  }
+
+  function localDate(d) {
+    return d.getFullYear() + '-' +
+      ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+      ('0' + d.getDate()).slice(-2);
+  }
+
+  _waitAA(function () {
+    var ready = window.AA._persistenceReady || Promise.resolve();
+    ready.then(function () {
+      AA.auth.onAuthStateChanged(function (user) {
+        if (!user) return;
+        var uid = window.AA_MIRROR_UID || user.uid;
+
+        /* Fetch last 90 day-docs ordered by date desc */
+        AA.db.collection('checkins').doc(uid).collection('days')
+          .orderBy('date', 'desc').limit(90).get()
+          .then(function (snap) {
+            if (snap.empty) {
+              document.getElementById('snapStreak').textContent = '0';
+              document.getElementById('snapStreakSub').textContent = 'Start today!';
+              return;
+            }
+
+            /* Build set of dates that have entries */
+            var dateSet = {};
+            snap.forEach(function (doc) {
+              var d = doc.data();
+              if (d.date && d.entries && d.entries.length > 0) {
+                dateSet[d.date] = true;
+              }
+            });
+
+            /* Count consecutive days going back from today */
+            var streak = 0;
+            var check = new Date();
+            for (var i = 0; i < 90; i++) {
+              var key = localDate(check);
+              if (dateSet[key]) {
+                streak++;
+              } else {
+                break;
+              }
+              check.setDate(check.getDate() - 1);
+            }
+
+            /* Update UI */
+            var streakEl = document.getElementById('snapStreak');
+            var streakSub = document.getElementById('snapStreakSub');
+            var streakCard = document.getElementById('snapStreakCard');
+            if (!streakEl) return;
+
+            streakEl.textContent = streak + ' day' + (streak !== 1 ? 's' : '');
+
+            /* Motivational messages at milestones */
+            if (streak === 0) {
+              streakSub.textContent = 'Check in today to start!';
+            } else if (streak === 1) {
+              streakSub.textContent = 'Great start! Keep going!';
+            } else if (streak < 7) {
+              streakSub.textContent = 'Building momentum!';
+            } else if (streak < 14) {
+              streakSub.textContent = 'One week strong!';
+              if (streakCard) streakCard.className = 'flag-card green';
+            } else if (streak < 30) {
+              streakSub.textContent = 'Two weeks — amazing!';
+              if (streakCard) streakCard.className = 'flag-card green';
+            } else {
+              streakSub.textContent = streak + ' days — you are incredible!';
+              if (streakCard) streakCard.className = 'flag-card green';
+            }
+          })
+          .catch(function (err) {
+            console.warn('[AA] Streak calculation failed:', err.message);
+            document.getElementById('snapStreakSub').textContent = '—';
+          });
+      });
+    }).catch(function () {});
+  });
+})();
+</script>
+
+<!-- Claude: 2026-03-13 — Mini atomic clock widget on home page.
+     Syncs with timeapi.io, shows drift-corrected time, updates every second.
+     Links to full Atomic Clock page for detailed view. -->
+<script>
+(function () {
+  'use strict';
+  var _drift = 0;
+  var _synced = false;
+  var clockEl = document.getElementById('miniClockTime');
+  var syncEl = document.getElementById('miniClockSync');
+  if (!clockEl) return;
+
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function correctedNow() {
+    return new Date(Date.now() - _drift);
+  }
+
+  function tick() {
+    var now = correctedNow();
+    var h = now.getHours();
+    var ap = h >= 12 ? ' PM' : ' AM';
+    var h12 = h % 12 || 12;
+    clockEl.textContent = pad2(h12) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds()) + ap;
+  }
+
+  function doSync() {
+    if (syncEl) syncEl.textContent = 'Syncing…';
+    var t1 = Date.now();
+    fetch('https://timeapi.io/api/time/current/zone?timeZone=UTC')
+      .then(function (r) { return r.ok ? r.json() : Promise.reject('fail'); })
+      .then(function (data) {
+        var t2 = Date.now();
+        var srv = new Date(data.dateTime + 'Z');
+        if (isNaN(srv.getTime())) throw new Error('bad');
+        var rtt = t2 - t1;
+        _drift = t2 - (srv.getTime() + Math.round(rtt / 2));
+        _synced = true;
+        if (syncEl) syncEl.textContent = 'Atomic-synced';
+      })
+      .catch(function () {
+        if (!_synced && syncEl) syncEl.textContent = 'Device clock';
+      });
+  }
+
+  tick();
+  setInterval(tick, 1000);
+  doSync();
+  setInterval(doSync, 5 * 60 * 1000);
+})();
+</script>
+
+<!-- ── Support view: My Students compact grid ─────────────────────────────────
+     Added 2026-02-26 by Claude; reworked 2026-02-28 by Claude
+     For support/family/nearby-help/network-lead: finds connected students,
+     fetches NOPE + today's check-in for each in parallel, sorts by urgency
+     (red → orange → yellow → green → unknown), renders compact dot+name cards.
+     Clicking a card calls AA_SWITCH_STUDENT to mirror that student.
+──────────────────────────────────────────────────────────────────────────── -->
+<script>
+(function () {
+  'use strict';
+
+  /* Claude: 2026-03-14 — reveal page (hidden by default to prevent flash-of-content
+     when support roles auto-redirect). Called after role check completes.
+     Fallback: if Firebase/AA never loads, reveal after 4s so page isn't stuck blank.
+     If AA loads but role check is slow, reveal 2s after AA is ready (enough time for
+     the Firestore role lookup + redirect). */
+  var _revealed = false;
+  function _revealPage() {
+    if (_revealed) return;
+    _revealed = true;
+    var hero = document.getElementById('mainHero');
+    var dash = document.getElementById('mainDashboard');
+    if (hero) hero.style.display = '';
+    if (dash) dash.style.display = '';
+  }
+  window._revealPage = _revealPage; /* expose for auth handler use */
+  /* Hard fallback — if AA never loads at all, don't leave the page blank forever */
+  setTimeout(_revealPage, 4000);
+
+  /* Claude: 2026-02-28 — backstage-manager re-added; they see all students */
+  var SUPPORT_ROLES = ['support', 'family', 'nearby-help', 'network-lead', 'backstage-manager'];
+
+  /* Claude: 2026-03-27 — REWRITTEN to use centralized AA.getStudentStatus().
+     OLD: duplicate rolling-average logic (~100 lines).
+     NEW: single source of truth from aa-firebase.js — same as support dashboard.
+     Archive: index_2026-03-27_pre-unified-home-grid.bak.html */
+  var URGENCY = { nope: 0, red: 0, caution: 0.5, orange: 1, yellow: 2, green: 3, 'active-no-checkin': 3.5, unknown: 4 };
+
+  function waitForAA(cb, tries) {
+    tries = tries || 0;
+    if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+    if (tries > 50) return;
+    setTimeout(function () { waitForAA(cb, tries + 1); }, 200);
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  waitForAA(function () {
+    window.AA.auth.onAuthStateChanged(function (user) {
+      if (!user) return;
+      window.AA.db.collection('users').doc(user.uid).get().then(function (doc) {
+        if (!doc.exists) return;
+        var data        = doc.data();
+        var role        = data.role || 'pending';
+
+        /* Claude: 2026-03-14 — auto-redirect support roles to Support Dashboard.
+           Support/family/nearby-help/network-lead/backstage-manager land on the dashboard
+           instead of the student home page. Use ?stay=1 param to bypass (so nav home link
+           can still bring them here if they want).
+           Claude: 2026-03-18 — wrap in setTimeout to give getRedirectResult() time to resolve first */
+        if (SUPPORT_ROLES.indexOf(role) !== -1 && !window.location.search.match(/stay=1/)) {
+          setTimeout(function() {
+            window.location.href = '/Academic-Allies/modular/components/support-dashboard/support-dashboard.html';
+          }, 1500);
+          return;
+        }
+
+        /* Claude: 2026-03-14 — reveal page content now that we know no redirect is needed */
+        _revealPage();
+
+        /* Claude: 2026-02-28 — isSupporter students see My Students (read-only, no mirror) */
+        var isStudentSupporter = (role === 'student' && data.isSupporter === true);
+        if (SUPPORT_ROLES.indexOf(role) === -1 && !isStudentSupporter) return;
+
+        /* Claude: 2026-03-16 — loading timeout with retry for My Students cards */
+        var _loadingTimerStudents = null;
+        function startStudentsLoadTimer() {
+          if (_loadingTimerStudents) clearTimeout(_loadingTimerStudents);
+          _loadingTimerStudents = setTimeout(function () {
+            var el = document.getElementById('my-students-grid');
+            if (el && el.textContent.indexOf('Loading') !== -1) {
+              el.innerHTML = '⚠️ Having trouble loading. Check your connection and try again.<br>' +
+                '<button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
+            }
+          }, 15000);
+        }
+
+        /* Find students in this user's network */
+        startStudentsLoadTimer();
+        window.AA.db.collection('users').where('role', '==', 'student').get()
+          .then(function (snap) {
+            var myStudents = [];
+            snap.forEach(function (d) {
+              var sd = d.data();
+              /* Backstage-manager sees all students; others only see their network */
+              var inNetwork = sd.supportNetwork && sd.supportNetwork[user.uid];
+              if (role === 'backstage-manager' || inNetwork) {
+                myStudents.push({ uid: d.id, name: sd.displayName || sd.email || d.id });
+              }
+            });
+
+            clearTimeout(_loadingTimerStudents);
+            var grid = document.getElementById('my-students-grid');
+
+            if (myStudents.length === 0) {
+              grid.innerHTML =
+                '<p style="color:#aaa;font-size:0.9rem;padding:10px 0;">You\'re not in any student\'s support network yet. ' +
+                'Ask your student to add you from their <a href="/Academic-Allies/modular/components/user-tiers/user-tiers.html" ' +
+                'style="color:#4a7f82;">Support Network</a> page.</p>';
+              document.getElementById('support-view').style.display = 'block';
+              return;
+            }
+
+            /* Hide student-only UI */
+            var nopeBanner    = document.getElementById('nopeBanner');
+            var checkinPrompt = document.getElementById('checkinPrompt');
+            var todaySnapshot = document.getElementById('todaySnapshot');
+            if (nopeBanner)    nopeBanner.style.display    = 'none';
+            if (checkinPrompt) checkinPrompt.style.display = 'none';
+            if (todaySnapshot) todaySnapshot.style.display = 'none';
+            document.querySelectorAll('.section-label').forEach(function (el) {
+              if (el.nextElementSibling && el.nextElementSibling.id === 'todaySnapshot') {
+                el.style.display = 'none';
+              }
+            });
+
+            document.getElementById('support-view').style.display = 'block';
+            /* Claude: 2026-02-28 — peer-supporter sees "My Peers" not "My Students" */
+            var sectionLbl = document.querySelector('#support-view .section-label');
+            if (sectionLbl) sectionLbl.textContent = isStudentSupporter ? 'My Peers' : 'My Students';
+            grid.innerHTML = '';
+
+            /* Claude: 2026-03-27 — REWRITTEN to use AA.getStudentStatus() (single source of truth).
+               OLD: ~50 lines of duplicate nope/rolling-avg/caution logic.
+               NEW: one call per student to the centralized function in aa-firebase.js.
+               Archive: index_2026-03-27_pre-unified-home-grid.bak.html */
+            Promise.all(myStudents.map(function (s) {
+              return AA.getStudentStatus(s.uid).then(function (status) {
+                return { uid: s.uid, name: s.name, dot: status.dotClass, urgency: URGENCY[status.dotClass] || 4 };
+              }).catch(function () {
+                return { uid: s.uid, name: s.name, dot: 'unknown', urgency: URGENCY.unknown };
+              });
+            })).then(function (results) {
+              /* Sort: most urgent first */
+              results.sort(function (a, b) { return a.urgency - b.urgency; });
+
+              results.forEach(function (s) {
+                var item = document.createElement('div');
+                item.className = 'msc-item';
+                item.title     = isStudentSupporter ? s.name + ' — peer status' : 'Switch mirror to ' + s.name;
+                item.innerHTML =
+                  '<span class="ssc-dot ' + s.dot + '"></span>' +
+                  '<span>' + esc(s.name) + '</span>';
+                /* Claude: 2026-02-28 — isStudentSupporter sees peers read-only;
+                   full support roles switch mirror on click */
+                if (!isStudentSupporter) {
+                  item.addEventListener('click', function () {
+                    if (typeof window.AA_SWITCH_STUDENT === 'function') {
+                      window.AA_SWITCH_STUDENT(s.uid, s.name);
+                    }
+                  });
+                } else {
+                  item.style.cursor = 'default';
+                }
+                grid.appendChild(item);
+              });
+            });
+          });
+      });
+    });
+  });
+})();
+</script>
+
+<!-- Claude: 2026-03-09 — duplicate SW registration removed; shared-header.html handles it -->
+</body>
+</html>

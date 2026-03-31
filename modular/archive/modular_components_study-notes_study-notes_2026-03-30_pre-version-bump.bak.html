@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Claude: 2026-03-24 — early dark mode detect to prevent FOUC -->
+<script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Notes — Academic Allies</title>
+<link rel="icon" href="/Academic-Allies/favicon.ico">
+<!-- Claude: 2026-03-24 — Google Identity Services for Drive uploads -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    background: #FAFAF9; color: #333;
+    min-height: 100vh; padding: 0 12px 60px;
+  }
+  html.aa-dark body { background: #121212; color: #e0e0e0; }
+
+  .sn-hub { max-width: 700px; margin: 0 auto; padding-top: 20px; }
+  .sn-hub h1 { color: #6CA0A3; font-size: 22pt; margin-bottom: 4px; }
+  html.aa-dark .sn-hub h1 { color: #8ec5c8; }
+  .sn-sub { color: #888; font-size: 12pt; margin-bottom: 20px; }
+
+  /* ── Top actions ─────────────────────────────── */
+  .sn-actions { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .sn-actions button {
+    padding: 10px 18px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    min-height: 44px; transition: all 0.15s;
+  }
+  .sn-btn-add { background: #6CA0A3; color: #fff; }
+  .sn-btn-add:hover { background: #4a7f82; }
+  .sn-btn-nlm { background: #4285f4; color: #fff; }
+  .sn-btn-nlm:hover { background: #3367d6; }
+  .sn-btn-custom { background: #7c4dff; color: #fff; }
+  .sn-btn-custom:hover { background: #651fff; }
+  .sn-btn-folders { background: #34a853; color: #fff; }
+  .sn-btn-folders:hover { background: #2d8f47; }
+
+  /* ── Class cards ─────────────────────────────── */
+  .class-card {
+    background: #fff; border: 2px solid #e8f2f3; border-radius: 12px;
+    padding: 16px; margin-bottom: 14px; transition: all 0.2s;
+  }
+  html.aa-dark .class-card { background: #1e1e1e; border-color: #333; }
+  .class-card:hover { border-color: #6CA0A3; }
+  .class-header {
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; user-select: none;
+  }
+  .class-header h2 { color: #4a7f82; font-size: 14pt; margin: 0; }
+  html.aa-dark .class-header h2 { color: #8ec5c8; }
+  .class-meta { display: flex; align-items: center; gap: 8px; }
+  .class-badge {
+    background: #e8f2f3; color: #4a7f82; padding: 2px 10px;
+    border-radius: 10px; font-size: 10pt; font-weight: 600;
+  }
+  html.aa-dark .class-badge { background: #2a3a3b; color: #8ec5c8; }
+  .class-arrow { font-size: 12pt; color: #888; transition: transform 0.2s; }
+  .class-arrow.collapsed { transform: rotate(-90deg); }
+
+  .class-body { overflow: hidden; transition: max-height 0.3s ease; }
+  .class-body.collapsed { max-height: 0 !important; }
+
+  /* ── Notes list ──────────────────────────────── */
+  .note-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid #f0f0f0;
+    font-size: 13px; gap: 8px;
+  }
+  html.aa-dark .note-item { border-bottom-color: #333; }
+  .note-item:last-child { border-bottom: none; }
+  .note-name { flex: 1; font-weight: 500; color: #333; word-break: break-word; }
+  html.aa-dark .note-name { color: #ccc; }
+  .note-date { color: #888; font-size: 11px; white-space: nowrap; }
+  .note-link {
+    color: #4285f4; text-decoration: none; font-weight: 600;
+    font-size: 12px; white-space: nowrap;
+  }
+  .note-link:hover { text-decoration: underline; }
+
+  /* ── Upload area per class ──────────────────── */
+  .upload-area {
+    margin-top: 12px; padding: 12px; background: #f8f9fa;
+    border: 2px dashed #dde3f0; border-radius: 8px; text-align: center;
+  }
+  html.aa-dark .upload-area { background: #1a1a1a; border-color: #444; }
+  .upload-area p { font-size: 13px; color: #888; margin-bottom: 8px; }
+  .upload-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .upload-btns button {
+    padding: 8px 16px; border: none; border-radius: 6px;
+    font-size: 13px; font-weight: 600; cursor: pointer; min-height: 44px;
+  }
+  .btn-paste { background: #e8f0fe; color: #1a73e8; }
+  .btn-paste:hover { background: #d2e3fc; }
+  .btn-file { background: #e8f2f3; color: #4a7f82; }
+  .btn-file:hover { background: #d2e3ea; }
+  .btn-nlm-class { background: #4285f4; color: #fff; font-size: 12px; padding: 6px 14px; }
+  .btn-nlm-class:hover { background: #3367d6; }
+
+  /* ── Modals ─────────────────────────────────── */
+  .sn-modal { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.25); overflow-y: auto; }
+  .sn-modal.open { display: flex; align-items: center; justify-content: center; }
+  .sn-modal-content {
+    background: #fff; max-width: 480px; width: 92%; padding: 1.5rem;
+    border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative;
+  }
+  html.aa-dark .sn-modal-content { background: #1e1e1e; }
+  .sn-modal-content h2 { margin: 0 0 1rem; color: #4a7f82; }
+  html.aa-dark .sn-modal-content h2 { color: #8ec5c8; }
+  .sn-modal-content label { display: block; margin-top: 0.75rem; font-weight: 600; font-size: 14px; }
+  .sn-modal-content input, .sn-modal-content textarea {
+    width: 100%; padding: 0.5rem; margin-top: 0.25rem; font-size: 1rem;
+    border-radius: 6px; border: 1px solid #ccc; font-family: inherit;
+  }
+  html.aa-dark .sn-modal-content input, html.aa-dark .sn-modal-content textarea {
+    background: #2a2a2a; color: #e0e0e0; border-color: #555;
+  }
+  .sn-modal-content textarea { min-height: 150px; resize: vertical; }
+  .sn-modal-close {
+    position: absolute; top: 8px; right: 12px; font-size: 1.6rem;
+    font-weight: 700; color: #888; cursor: pointer; background: none; border: none;
+  }
+  .sn-modal-actions { display: flex; gap: 8px; margin-top: 1rem; }
+  .sn-modal-actions button {
+    flex: 1; padding: 10px; border: none; border-radius: 6px;
+    font-size: 14px; font-weight: 600; cursor: pointer; min-height: 44px;
+  }
+  .sn-btn-save { background: #6CA0A3; color: #fff; }
+  .sn-btn-save:hover { background: #4a7f82; }
+  .sn-btn-cancel { background: #e9ecef; color: #333; }
+  .sn-btn-cancel:hover { background: #dee2e6; }
+  html.aa-dark .sn-btn-cancel { background: #333; color: #ccc; }
+
+  html.aa-dark .customize-hint { background: #2a2033 !important; border-color: #4a3860 !important; }
+  html.aa-dark .customize-hint pre { color: #ccc !important; }
+
+  .sn-empty { text-align: center; color: #aaa; font-style: italic; padding: 40px 20px; font-size: 14px; }
+  .sn-toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #333; color: #fff; padding: 10px 20px; border-radius: 8px;
+    font-size: 14px; z-index: 10000; animation: sn-fade 3s ease forwards;
+  }
+  @keyframes sn-fade { 0%,80%{opacity:1} 100%{opacity:0} }
+
+  .credit { text-align: center; font-size: 0.7rem; color: #aaa; margin-top: 24px; }
+
+  /* ── Mobile ──────────────────────────────────── */
+  @media (max-width: 600px) {
+    body { padding: 0 6px 60px; }
+    .sn-hub h1 { font-size: 18pt; }
+    .class-card { padding: 12px; }
+    .class-header h2 { font-size: 13pt; }
+    .sn-modal-content { width: 96%; padding: 1rem; }
+    .sn-actions { flex-direction: column; }
+    .sn-actions button { width: 100%; }
+    .upload-btns { flex-direction: column; }
+    .upload-btns button { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+<script>
+  fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var c = document.getElementById('site-header');
+      c.innerHTML = html;
+      c.querySelectorAll('script').forEach(function(old) {
+        var s = document.createElement('script');
+        [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+        s.textContent = old.textContent;
+        old.parentNode.replaceChild(s, old);
+      });
+    })
+    .catch(function(e) { console.warn('[AA] shared-header fetch failed:', e); });
+</script>
+
+<div class="sn-hub">
+  <h1>📓 Study Notes</h1>
+  <p class="sn-sub">Organize notes by class, upload to Google Drive, study with NotebookLM</p>
+
+  <div class="sn-actions">
+    <button class="sn-btn-add" id="addClassBtn">+ Add Class</button>
+    <button class="sn-btn-nlm" id="openNlmBtn">🧠 Open NotebookLM</button>
+    <button class="sn-btn-folders" id="createFoldersBtn">📁 Create Drive Folders</button>
+    <button class="sn-btn-custom" id="customizeBtn">⚙️ Customize</button>
+  </div>
+
+  <div id="classesContainer">
+    <div class="sn-empty" id="emptyMsg">Loading...</div>
+  </div>
+</div>
+
+<p class="credit">Built by Claude for Bruise — March 2026</p>
+
+<!-- Add Class modal -->
+<!-- Claude: 2026-03-25 — added role="dialog" + aria-label for a11y -->
+<div class="sn-modal" id="addClassModal" role="dialog" aria-label="Add a class">
+  <div class="sn-modal-content">
+    <button class="sn-modal-close" id="addClassClose">&times;</button>
+    <h2>Add a Class</h2>
+    <label for="className">Class Name</label>
+    <input type="text" id="className" placeholder="e.g. FCS 240 — Floral Design" />
+    <div class="sn-modal-actions">
+      <button class="sn-btn-save" id="saveClassBtn">Add Class</button>
+      <button class="sn-btn-cancel" id="cancelClassBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Paste Notes modal -->
+<!-- Claude: 2026-03-25 — added role="dialog" + aria-label for a11y -->
+<div class="sn-modal" id="pasteModal" role="dialog" aria-label="Paste notes">
+  <div class="sn-modal-content">
+    <button class="sn-modal-close" id="pasteClose">&times;</button>
+    <h2 id="pasteTitle">Paste Notes</h2>
+    <label for="noteTitle">Note Title</label>
+    <input type="text" id="noteTitle" placeholder="e.g. Chapter 5 Review" />
+    <label for="noteContent">Content</label>
+    <textarea id="noteContent" placeholder="Paste your notes, quiz questions, study material here..."></textarea>
+    <div class="sn-modal-actions">
+      <button class="sn-btn-save" id="savePasteBtn">Save to Drive</button>
+      <button class="sn-btn-cancel" id="cancelPasteBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Claude: 2026-03-24 — Customize modal: upload JSON to bulk-create classes -->
+<!-- Claude: 2026-03-25 — added role="dialog" + aria-label for a11y -->
+<div class="sn-modal" id="customizeModal" role="dialog" aria-label="Customize study notes">
+  <div class="sn-modal-content">
+    <button class="sn-modal-close" id="customizeClose">&times;</button>
+    <h2>⚙️ Customize Study Notes</h2>
+    <p style="font-size:13px;color:#888;margin-bottom:12px;">
+      Upload a JSON file to set up your classes in bulk. You can ask Grok (or any AI)
+      to generate this for you!
+    </p>
+    <div class="customize-hint" style="background:#f5f0ff;border:1px solid #d1c4e9;border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;">
+      <strong>JSON format:</strong>
+      <pre style="margin:6px 0 0;white-space:pre-wrap;font-family:monospace;font-size:11px;color:#555;">{ "classes": [
+  "FCS 240 — Floral Design",
+  "MATH 101 — College Algebra",
+  "ENG 201 — Technical Writing"
+] }</pre>
+    </div>
+    <div class="upload-btns" style="margin-bottom:12px;">
+      <button class="btn-file" id="customizeFileBtn" style="flex:1;">📎 Upload JSON File</button>
+      <button class="btn-paste" id="customizePasteToggle" style="flex:1;">📋 Paste JSON</button>
+    </div>
+    <div id="customizePasteArea" style="display:none;">
+      <label for="customizeJson">Paste your JSON here</label>
+      <textarea id="customizeJson" style="min-height:120px;font-family:monospace;font-size:12px;" placeholder='{ "classes": ["Class 1", "Class 2"] }'></textarea>
+    </div>
+    <div id="customizePreview" style="display:none;margin-top:10px;">
+      <strong style="font-size:13px;">Preview — classes to add:</strong>
+      <div id="customizePreviewList" style="margin-top:6px;"></div>
+    </div>
+    <div class="sn-modal-actions">
+      <button class="sn-btn-save" id="customizeSaveBtn" style="display:none;">Add These Classes</button>
+      <button class="sn-btn-cancel" id="customizeCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="customizeFileInput" style="display:none" accept=".json,.txt" />
+
+<!-- Hidden file input -->
+<input type="file" id="fileInput" style="display:none" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.pptx,.xlsx,.csv" multiple />
+
+<script>
+/* Claude: 2026-03-24 — Study Notes page.
+   Stores class list in Firestore: studyNotes/{uid}/classes collection.
+   Stores note metadata in Firestore: studyNotes/{uid}/notes collection.
+   Uploads files to Google Drive: "Academic Allies Study Notes/{className}/" folder.
+   Claude: 2026-03-27 — W6 audit fix: localStorage offline fallback */
+(function() {
+  'use strict';
+
+  /* ── Drive API constants (same as audio-notes) ─────────────── */
+  var GOOGLE_CLIENT_ID = '93996985456-ffj2euk9i4q41v88njuhpusk73mdb31j.apps.googleusercontent.com';
+  var DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+  var ROOT_FOLDER_NAME = 'Academic Allies Study Notes';
+  var driveToken = null;
+  var driveTokenClient = null;
+  var rootFolderId = null;
+  var classFolderCache = {}; /* className → folderId */
+
+  /* ── State ──────────────────────────────────────────────────── */
+  var classes = [];     /* [{id, name, createdAt}] */
+  var notes = {};       /* className → [{id, title, driveId, driveLink, date, fileName}] */
+  var currentUid = null;
+  var pasteTargetClass = null;
+  var _offlineMode = false; /* Claude: 2026-03-27 — track if we're showing cached data */
+
+  /* ── Helpers ────────────────────────────────────────────────── */
+  function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function toast(msg) {
+    var el = document.createElement('div');
+    el.className = 'sn-toast';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3200);
+  }
+
+  /* Claude: 2026-03-25 — focus trap + Escape + focus restore for modals */
+  var _snPrevFocus = null;
+  var _snTrapHandler = null;
+  var _snEscHandler = null;
+  function openModal(id) {
+    var m = document.getElementById(id);
+    if (!m) return;
+    _snPrevFocus = document.activeElement;
+    m.classList.add('open');
+    var focusable = m.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length) { setTimeout(function() { focusable[0].focus(); }, 50); }
+    _snTrapHandler = function(e) {
+      if (e.key !== 'Tab') return;
+      var els = m.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (!els.length) return;
+      var first = els[0]; var last = els[els.length - 1];
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+      else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+    };
+    _snEscHandler = function(e) { if (e.key === 'Escape') closeModal(id); };
+    document.addEventListener('keydown', _snTrapHandler);
+    document.addEventListener('keydown', _snEscHandler);
+  }
+  function closeModal(id) {
+    var m = document.getElementById(id);
+    if (!m) return;
+    m.classList.remove('open');
+    if (_snTrapHandler) { document.removeEventListener('keydown', _snTrapHandler); _snTrapHandler = null; }
+    if (_snEscHandler) { document.removeEventListener('keydown', _snEscHandler); _snEscHandler = null; }
+    if (_snPrevFocus) { try { _snPrevFocus.focus(); } catch(e) {} _snPrevFocus = null; }
+  }
+
+  /* ── Google Drive auth ─────────────────────────────────────── */
+  /* Claude: 2026-03-24 — added timeout + error_callback for better debugging */
+  function getDriveToken() {
+    return new Promise(function(resolve, reject) {
+      if (driveToken) { resolve(driveToken); return; }
+      if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+        reject(new Error('Google Identity Services not loaded — check your connection'));
+        return;
+      }
+      if (!driveTokenClient) {
+        var email = (window.AA && window.AA.auth && window.AA.auth.currentUser)
+          ? window.AA.auth.currentUser.email : '';
+        driveTokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: DRIVE_SCOPE,
+          hint: email,
+          callback: function() {},
+          error_callback: function(err) {
+            console.error('[StudyNotes] GIS error:', err);
+            reject(new Error(err.type || 'Google sign-in failed — pop-up may be blocked'));
+          }
+        });
+      }
+      /* Timeout: if auth takes more than 60s, assume popup was blocked/closed */
+      var timeout = setTimeout(function() {
+        reject(new Error('Google sign-in timed out — pop-up may have been blocked'));
+      }, 60000);
+
+      driveTokenClient.callback = function(resp) {
+        clearTimeout(timeout);
+        if (resp.error) { reject(new Error('Drive auth: ' + resp.error)); return; }
+        driveToken = resp.access_token;
+        resolve(driveToken);
+      };
+      driveTokenClient.requestAccessToken({ prompt: '' });
+    });
+  }
+
+  /* ── Drive folder helpers ──────────────────────────────────── */
+  function findOrCreateFolder(token, name, parentId) {
+    var q = "name='" + name.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    if (parentId) q += " and '" + parentId + "' in parents";
+    return fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.files && data.files.length > 0) return data.files[0].id;
+      var body = { name: name, mimeType: 'application/vnd.google-apps.folder' };
+      if (parentId) body.parents = [parentId];
+      return fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function(r) { return r.json(); }).then(function(f) { return f.id; });
+    });
+  }
+
+  function getRootFolder(token) {
+    if (rootFolderId) return Promise.resolve(rootFolderId);
+    return findOrCreateFolder(token, ROOT_FOLDER_NAME, null).then(function(id) {
+      rootFolderId = id;
+      return id;
+    });
+  }
+
+  function getClassFolder(token, className) {
+    if (classFolderCache[className]) return Promise.resolve(classFolderCache[className]);
+    return getRootFolder(token).then(function(rootId) {
+      return findOrCreateFolder(token, className, rootId);
+    }).then(function(id) {
+      classFolderCache[className] = id;
+      return id;
+    });
+  }
+
+  /* ── Drive upload ──────────────────────────────────────────── */
+  function uploadToDrive(token, folderId, blob, filename, mimeType) {
+    var boundary = 'aa_study_' + Date.now();
+    var meta = JSON.stringify({ name: filename, parents: [folderId], mimeType: mimeType });
+    var body = new Blob([
+      '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',
+      meta,
+      '\r\n--' + boundary + '\r\nContent-Type: ' + mimeType + '\r\n\r\n',
+      blob,
+      '\r\n--' + boundary + '--'
+    ]);
+    return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'multipart/related; boundary=' + boundary
+      },
+      body: body
+    }).then(function(r) {
+      if (r.status === 401) { driveToken = null; throw new Error('Token expired'); }
+      if (!r.ok) throw new Error('Upload failed: ' + r.status);
+      return r.json();
+    });
+  }
+
+  /* ── Firestore operations with offline fallback ─────────────── */
+  /* Claude: 2026-03-27 — localStorage cache helpers */
+  function saveClassesToCache(uid) {
+    try {
+      localStorage.setItem('AA_STUDY_CLASSES_' + uid, JSON.stringify(classes));
+    } catch(e) {
+      console.warn('[StudyNotes] localStorage write failed:', e);
+    }
+  }
+
+  function saveNotesToCache(uid) {
+    try {
+      localStorage.setItem('AA_STUDY_NOTES_' + uid, JSON.stringify(notes));
+    } catch(e) {
+      console.warn('[StudyNotes] localStorage write failed:', e);
+    }
+  }
+
+  function loadCachedClasses(uid) {
+    try {
+      var cached = localStorage.getItem('AA_STUDY_CLASSES_' + uid);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch(e) {
+      console.warn('[StudyNotes] localStorage read failed:', e);
+    }
+    return null;
+  }
+
+  function loadCachedNotes(uid) {
+    try {
+      var cached = localStorage.getItem('AA_STUDY_NOTES_' + uid);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch(e) {
+      console.warn('[StudyNotes] localStorage read failed:', e);
+    }
+    return null;
+  }
+
+  function loadClasses() {
+    return AA.db.collection('studyNotes').doc(currentUid).collection('classes')
+      .orderBy('createdAt', 'asc').get()
+      .then(function(snap) {
+        classes = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          classes.push({ id: doc.id, name: d.name, createdAt: d.createdAt });
+        });
+        /* Claude: 2026-03-27 — save successful load to localStorage */
+        saveClassesToCache(currentUid);
+        _offlineMode = false;
+      });
+  }
+
+  function loadNotes() {
+    return AA.db.collection('studyNotes').doc(currentUid).collection('notes')
+      .orderBy('date', 'desc').get()
+      .then(function(snap) {
+        notes = {};
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          var cls = d.className || 'Uncategorized';
+          if (!notes[cls]) notes[cls] = [];
+          notes[cls].push({
+            id: doc.id,
+            title: d.title,
+            fileName: d.fileName,
+            driveId: d.driveId,
+            driveLink: d.driveLink,
+            date: d.date
+          });
+        });
+        /* Claude: 2026-03-27 — save successful load to localStorage */
+        saveNotesToCache(currentUid);
+        _offlineMode = false;
+      });
+  }
+
+  function saveClass(name) {
+    /* Claude: 2026-03-25 — mirror mode write guard */
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) { alert('View-only mode — cannot add classes.'); return Promise.resolve(); }
+    return AA.db.collection('studyNotes').doc(currentUid).collection('classes').add({
+      name: name,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  function saveNoteMeta(className, title, fileName, driveId, driveLink) {
+    /* Claude: 2026-03-25 — mirror mode write guard */
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) { alert('View-only mode — cannot save notes.'); return Promise.resolve(); }
+    return AA.db.collection('studyNotes').doc(currentUid).collection('notes').add({
+      className: className,
+      title: title,
+      fileName: fileName,
+      driveId: driveId,
+      driveLink: driveLink,
+      date: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  /* ── Render ─────────────────────────────────────────────────── */
+  function render() {
+    var container = document.getElementById('classesContainer');
+    if (classes.length === 0) {
+      container.innerHTML = '<div class="sn-empty">No classes yet — tap "Add Class" to get started!</div>';
+      return;
+    }
+
+    var html = '';
+    classes.forEach(function(cls) {
+      var clsNotes = notes[cls.name] || [];
+      var safeId = cls.id.replace(/[^a-zA-Z0-9_-]/g, '');
+
+      html += '<div class="class-card">';
+      /* Claude: 2026-03-25 — added role, tabindex, keyboard handler for a11y */
+      html += '<div class="class-header" role="button" tabindex="0" onclick="window._toggleClass(\'' + safeId + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._toggleClass(\'' + safeId + '\')}">';
+      html += '<h2>📚 ' + esc(cls.name) + '</h2>';
+      html += '<div class="class-meta">';
+      /* Claude: 2026-03-24 — count notes added in the last 24h for "new" badge */
+      var now = new Date();
+      var recentCount = 0;
+      clsNotes.forEach(function(n) {
+        if (n.date && n.date.toDate) {
+          var age = now - n.date.toDate();
+          if (age < 86400000) recentCount++; /* 24 hours in ms */
+        }
+      });
+      html += '<span class="class-badge">' + clsNotes.length + ' note' + (clsNotes.length !== 1 ? 's' : '') + '</span>';
+      if (recentCount > 0) {
+        html += '<span class="class-badge" style="background:#34a853;color:#fff;">' + recentCount + ' new</span>';
+      }
+      html += '<span class="class-arrow" id="arrow-' + safeId + '">▼</span>';
+      html += '</div></div>';
+
+      html += '<div class="class-body" id="body-' + safeId + '">';
+
+      /* Notes list */
+      if (clsNotes.length > 0) {
+        clsNotes.forEach(function(n) {
+          var dateStr = n.date && n.date.toDate ? n.date.toDate().toLocaleDateString('en-US') : ''; /* Claude: 2026-03-25 — added explicit locale to prevent regional format inconsistency */
+          var isNew = n.date && n.date.toDate && (now - n.date.toDate() < 86400000);
+          html += '<div class="note-item">';
+          html += '<span class="note-name">' + esc(n.title || n.fileName);
+          if (isNew) html += ' <span style="background:#34a853;color:#fff;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:700;vertical-align:middle;">NEW</span>';
+          html += '</span>';
+          html += '<span class="note-date">' + dateStr + '</span>';
+          if (n.driveLink) {
+            html += '<a href="' + esc(n.driveLink) + '" target="_blank" class="note-link">Open ↗</a>';
+          }
+          html += '</div>';
+        });
+      }
+
+      /* Upload area */
+      html += '<div class="upload-area">';
+      html += '<p>Add notes for ' + esc(cls.name) + '</p>';
+      html += '<div class="upload-btns">';
+      html += '<button class="btn-paste" onclick="window._pasteNotes(\'' + esc(cls.name).replace(/'/g, "\\'") + '\')">📝 Paste Text</button>';
+      html += '<button class="btn-file" onclick="window._uploadFile(\'' + esc(cls.name).replace(/'/g, "\\'") + '\')">📎 Upload File</button>';
+      html += '<button class="btn-nlm-class" onclick="window.open(\'https://notebooklm.google.com\',\'_blank\')">🧠 NotebookLM</button>';
+      html += '</div></div>';
+
+      html += '</div>'; /* class-body */
+      html += '</div>'; /* class-card */
+    });
+
+    /* Claude: 2026-03-27 — add offline banner if showing cached data */
+    if (_offlineMode) {
+      html = '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#856404;display:flex;align-items:center;gap:8px;">' +
+        '<span>⚠️</span><span>Showing cached data — you may be offline</span></div>' + html;
+    }
+
+    container.innerHTML = html;
+
+    /* Set max-height for expanded sections */
+    classes.forEach(function(cls) {
+      var body = document.getElementById('body-' + cls.id.replace(/[^a-zA-Z0-9_-]/g, ''));
+      if (body && !body.classList.contains('collapsed')) {
+        body.style.maxHeight = body.scrollHeight + 'px';
+      }
+    });
+  }
+
+  /* ── Public functions (called from onclick) ─────────────────── */
+  window._toggleClass = function(safeId) {
+    var body = document.getElementById('body-' + safeId);
+    var arrow = document.getElementById('arrow-' + safeId);
+    if (!body) return;
+    if (body.classList.contains('collapsed')) {
+      body.classList.remove('collapsed');
+      body.style.maxHeight = body.scrollHeight + 'px';
+      if (arrow) arrow.classList.remove('collapsed');
+    } else {
+      body.classList.add('collapsed');
+      body.style.maxHeight = '0';
+      if (arrow) arrow.classList.add('collapsed');
+    }
+  };
+
+  window._pasteNotes = function(className) {
+    /* Claude: 2026-03-24 — mirror guard: supporters can't upload notes */
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
+      toast('Mirror mode — view only');
+      return;
+    }
+    pasteTargetClass = className;
+    document.getElementById('pasteTitle').textContent = 'Paste Notes — ' + className;
+    document.getElementById('noteTitle').value = '';
+    document.getElementById('noteContent').value = '';
+    openModal('pasteModal');
+  };
+
+  /* Claude: 2026-03-24 — FIXED: get Drive token FIRST, then open file picker.
+     Chrome blocks popups that open while a file chooser is active/closing.
+     Old flow: click → file picker → pick file → auth popup → BLOCKED.
+     New flow: click → auth popup → got token → file picker → upload. */
+  var _fileTargetClass = null;
+  var _cachedDriveToken = null;
+  window._uploadFile = function(className) {
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
+      toast('Mirror mode — view only');
+      return;
+    }
+    _fileTargetClass = className;
+
+    /* If we already have a token, skip straight to file picker */
+    if (driveToken) {
+      document.getElementById('fileInput').click();
+      return;
+    }
+
+    /* Get token first (this opens the Google auth popup) */
+    toast('Connecting to Google Drive...');
+    getDriveToken()
+      .then(function() {
+        toast('Connected! Pick your file(s)...');
+        /* Small delay so the auth popup fully closes before file picker opens */
+        setTimeout(function() {
+          document.getElementById('fileInput').click();
+        }, 300);
+      })
+      .catch(function(err) {
+        console.error('[StudyNotes] Drive auth failed:', err);
+        toast('Google Drive sign-in failed — ' + err.message);
+      });
+  };
+
+  /* ── Save pasted text to Drive ─────────────────────────────── */
+  function savePastedNote() {
+    var title = document.getElementById('noteTitle').value.trim();
+    var content = document.getElementById('noteContent').value.trim();
+    if (!title) { toast('Please enter a title'); return; }
+    if (!content) { toast('Please paste some content'); return; }
+    var className = pasteTargetClass;
+
+    var btn = document.getElementById('savePasteBtn');
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+
+    var fileName = title.replace(/[^a-zA-Z0-9_ -]/g, '') + '.txt';
+    var blob = new Blob([content], { type: 'text/plain' });
+
+    getDriveToken()
+      .then(function(token) { return getClassFolder(token, className).then(function(fId) { return { token: token, folderId: fId }; }); })
+      .then(function(ctx) { return uploadToDrive(ctx.token, ctx.folderId, blob, fileName, 'text/plain'); })
+      .then(function(result) {
+        return saveNoteMeta(className, title, fileName, result.id, result.webViewLink);
+      })
+      .then(function() {
+        toast('Saved to Drive!');
+        closeModal('pasteModal');
+        return loadNotes().then(render);
+      })
+      .catch(function(err) {
+        console.error('[StudyNotes] Paste save failed:', err);
+        toast('Save failed — ' + err.message);
+      })
+      .then(function() {
+        btn.textContent = 'Save to Drive';
+        btn.disabled = false;
+      });
+  }
+
+  /* ── Handle file upload ────────────────────────────────────── */
+  /* Claude: 2026-03-24 — improved error handling + progress feedback */
+  function handleFileUpload(e) {
+    var files = e.target.files;
+    if (!files || files.length === 0) return;
+    var className = _fileTargetClass;
+    if (!className) { toast('Error: no class selected'); return; }
+
+    var fileList = Array.prototype.slice.call(files); /* snapshot before reset */
+    e.target.value = ''; /* Reset input so same file can be re-uploaded */
+
+    toast('Connecting to Google Drive...');
+
+    getDriveToken()
+      .then(function(token) {
+        toast('Uploading ' + fileList.length + ' file(s)...');
+        return getClassFolder(token, className).then(function(fId) {
+          var uploads = [];
+          fileList.forEach(function(file) {
+            uploads.push(
+              uploadToDrive(token, fId, file, file.name, file.type || 'application/octet-stream')
+                .then(function(result) {
+                  if (window.AA_DEBUG) console.log('[StudyNotes] Uploaded: ' + file.name, result);
+                  return saveNoteMeta(className, file.name, file.name, result.id, result.webViewLink);
+                })
+                .then(function() {
+                  if (window.AA_DEBUG) console.log('[StudyNotes] Saved metadata for: ' + file.name);
+                })
+            );
+          });
+          return Promise.all(uploads);
+        });
+      })
+      .then(function() {
+        toast('Uploaded ' + fileList.length + ' file(s) to ' + className + '!');
+        return loadNotes().then(render);
+      })
+      .catch(function(err) {
+        console.error('[StudyNotes] File upload failed:', err);
+        if (err.message && err.message.indexOf('not loaded') !== -1) {
+          toast('Google sign-in not ready — try again in a moment');
+        } else if (err.message && err.message.indexOf('popup') !== -1) {
+          toast('Pop-up blocked — allow pop-ups for this site and try again');
+        } else if (err.message && err.message.indexOf('Token expired') !== -1) {
+          toast('Session expired — tap Upload again to reconnect');
+        } else {
+          toast('Upload failed — ' + (err.message || 'unknown error'));
+        }
+      });
+  }
+
+  /* ── Create Drive Folders for all classes ──────────────────── */
+  /* Claude: 2026-03-24 — pre-create Drive folder structure so NotebookLM can find them */
+  function createAllDriveFolders() {
+    if (classes.length === 0) {
+      toast('Add some classes first!');
+      return;
+    }
+
+    var btn = document.getElementById('createFoldersBtn');
+    btn.textContent = 'Creating...';
+    btn.disabled = true;
+
+    getDriveToken()
+      .then(function(token) {
+        return getRootFolder(token).then(function(rootId) {
+          var folderPromises = classes.map(function(cls) {
+            return getClassFolder(token, cls.name);
+          });
+          return Promise.all(folderPromises);
+        });
+      })
+      .then(function() {
+        toast('All ' + classes.length + ' folders created in Google Drive!');
+      })
+      .catch(function(err) {
+        console.error('[StudyNotes] Folder creation failed:', err);
+        toast('Failed — ' + err.message);
+      })
+      .then(function() {
+        btn.textContent = '📁 Create Drive Folders';
+        btn.disabled = false;
+      });
+  }
+
+  /* ── Customize: JSON import ─────────────────────────────────── */
+  /* Claude: 2026-03-24 — Bulk class setup via JSON upload */
+  var _pendingClasses = []; /* classes parsed from JSON, awaiting confirm */
+
+  function parseCustomizeJson(raw) {
+    try {
+      var data = JSON.parse(raw);
+      if (!data.classes || !Array.isArray(data.classes)) {
+        toast('JSON must have a "classes" array');
+        return null;
+      }
+      /* Filter to non-empty strings, trim whitespace */
+      var parsed = [];
+      for (var i = 0; i < data.classes.length; i++) {
+        var name = String(data.classes[i] || '').trim();
+        if (name) parsed.push(name);
+      }
+      if (parsed.length === 0) {
+        toast('No class names found in JSON');
+        return null;
+      }
+      return parsed;
+    } catch (e) {
+      toast('Invalid JSON — check format');
+      return null;
+    }
+  }
+
+  function showCustomizePreview(newClasses) {
+    /* Check for duplicates against existing classes */
+    var existingNames = {};
+    classes.forEach(function(c) { existingNames[c.name.toLowerCase()] = true; });
+
+    var previewHtml = '';
+    var addable = [];
+    newClasses.forEach(function(name) {
+      var isDupe = existingNames[name.toLowerCase()];
+      if (isDupe) {
+        previewHtml += '<div style="padding:4px 8px;font-size:13px;color:#888;text-decoration:line-through;">'
+          + esc(name) + ' <span style="font-size:11px;">(already exists)</span></div>';
+      } else {
+        previewHtml += '<div style="padding:4px 8px;font-size:13px;color:#4a7f82;font-weight:600;">✓ '
+          + esc(name) + '</div>';
+        addable.push(name);
+      }
+    });
+
+    document.getElementById('customizePreviewList').innerHTML = previewHtml;
+    document.getElementById('customizePreview').style.display = 'block';
+
+    if (addable.length > 0) {
+      _pendingClasses = addable;
+      document.getElementById('customizeSaveBtn').style.display = '';
+      document.getElementById('customizeSaveBtn').textContent = 'Add ' + addable.length + ' Class' + (addable.length > 1 ? 'es' : '');
+    } else {
+      _pendingClasses = [];
+      document.getElementById('customizeSaveBtn').style.display = 'none';
+      toast('All classes already exist!');
+    }
+  }
+
+  function applyCustomizeClasses() {
+    if (_pendingClasses.length === 0) return;
+    var btn = document.getElementById('customizeSaveBtn');
+    btn.textContent = 'Adding...';
+    btn.disabled = true;
+
+    var promises = _pendingClasses.map(function(name) { return saveClass(name); });
+    Promise.all(promises)
+      .then(function() {
+        toast(_pendingClasses.length + ' class' + (_pendingClasses.length > 1 ? 'es' : '') + ' added!');
+        _pendingClasses = [];
+        closeModal('customizeModal');
+        return loadClasses().then(render);
+      })
+      .catch(function(err) {
+        console.error('[StudyNotes] Customize save failed:', err);
+        toast('Failed to add classes — ' + err.message);
+      })
+      .then(function() {
+        btn.textContent = 'Add These Classes';
+        btn.disabled = false;
+      });
+  }
+
+  function resetCustomizeModal() {
+    document.getElementById('customizeJson').value = '';
+    document.getElementById('customizePasteArea').style.display = 'none';
+    document.getElementById('customizePreview').style.display = 'none';
+    document.getElementById('customizeSaveBtn').style.display = 'none';
+    _pendingClasses = [];
+  }
+
+  /* ── Init ───────────────────────────────────────────────────── */
+  function init() {
+    /* Wait for Firebase */
+    var poll = setInterval(function() {
+      if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
+      clearInterval(poll);
+
+      currentUid = window.AA_MIRROR_UID || window.AA.auth.currentUser.uid;
+
+      /* Claude: 2026-03-27 — load cached data first for instant render */
+      var cachedClasses = loadCachedClasses(currentUid);
+      var cachedNotes = loadCachedNotes(currentUid);
+      if (cachedClasses && cachedNotes) {
+        classes = cachedClasses;
+        notes = cachedNotes;
+        _offlineMode = true;
+        render();
+      }
+
+      /* Load fresh data from Firestore */
+      Promise.all([loadClasses(), loadNotes()])
+        .then(render)
+        .catch(function(err) {
+          console.error('[StudyNotes] Init failed:', err);
+          /* Claude: 2026-03-27 — if Firestore fails, try cached data */
+          if (_offlineMode) {
+            /* Already rendered cached data above, just warn user */
+            console.warn('[StudyNotes] Firestore fetch failed, using offline cache');
+          } else {
+            /* No cached data available */
+            var cachedClasses2 = loadCachedClasses(currentUid);
+            var cachedNotes2 = loadCachedNotes(currentUid);
+            if (cachedClasses2 && cachedNotes2) {
+              classes = cachedClasses2;
+              notes = cachedNotes2;
+              _offlineMode = true;
+              render();
+            } else {
+              /* No cache at all */
+              document.getElementById('classesContainer').innerHTML =
+                '<div class="sn-empty">Failed to load — please refresh.</div>';
+            }
+          }
+        });
+    }, 250);
+
+    /* Wire buttons */
+    document.getElementById('addClassBtn').onclick = function() {
+      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
+        toast('Mirror mode — view only');
+        return;
+      }
+      document.getElementById('className').value = '';
+      openModal('addClassModal');
+    };
+
+    document.getElementById('openNlmBtn').onclick = function() {
+      window.open('https://notebooklm.google.com', '_blank');
+    };
+
+    document.getElementById('saveClassBtn').onclick = function() {
+      var name = document.getElementById('className').value.trim();
+      if (!name) { toast('Please enter a class name'); return; }
+      saveClass(name).then(function() {
+        closeModal('addClassModal');
+        toast('Class added!');
+        return loadClasses().then(render);
+      }).catch(function(err) {
+        toast('Failed to add class');
+        console.error(err);
+      });
+    };
+
+    document.getElementById('cancelClassBtn').onclick = function() { closeModal('addClassModal'); };
+    document.getElementById('addClassClose').onclick = function() { closeModal('addClassModal'); };
+    document.getElementById('savePasteBtn').onclick = savePastedNote;
+    document.getElementById('cancelPasteBtn').onclick = function() { closeModal('pasteModal'); };
+    document.getElementById('pasteClose').onclick = function() { closeModal('pasteModal'); };
+    document.getElementById('fileInput').onchange = handleFileUpload;
+
+    /* Claude: 2026-03-24 — Create Drive Folders button */
+    document.getElementById('createFoldersBtn').onclick = function() {
+      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
+        toast('Mirror mode — view only');
+        return;
+      }
+      createAllDriveFolders();
+    };
+
+    /* Claude: 2026-03-24 — Customize button wiring */
+    document.getElementById('customizeBtn').onclick = function() {
+      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
+        toast('Mirror mode — view only');
+        return;
+      }
+      resetCustomizeModal();
+      openModal('customizeModal');
+    };
+    document.getElementById('customizeClose').onclick = function() { closeModal('customizeModal'); };
+    document.getElementById('customizeCancelBtn').onclick = function() { closeModal('customizeModal'); };
+    document.getElementById('customizeSaveBtn').onclick = applyCustomizeClasses;
+
+    /* Toggle paste area */
+    document.getElementById('customizePasteToggle').onclick = function() {
+      var area = document.getElementById('customizePasteArea');
+      area.style.display = area.style.display === 'none' ? 'block' : 'none';
+    };
+
+    /* Parse pasted JSON on blur or Enter */
+    document.getElementById('customizeJson').onblur = function() {
+      var raw = this.value.trim();
+      if (!raw) return;
+      var parsed = parseCustomizeJson(raw);
+      if (parsed) showCustomizePreview(parsed);
+    };
+    document.getElementById('customizeJson').onkeydown = function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.blur();
+      }
+    };
+
+    /* JSON file upload */
+    document.getElementById('customizeFileBtn').onclick = function() {
+      document.getElementById('customizeFileInput').click();
+    };
+    document.getElementById('customizeFileInput').onchange = function(e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var raw = ev.target.result;
+        var parsed = parseCustomizeJson(raw);
+        if (parsed) showCustomizePreview(parsed);
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    };
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

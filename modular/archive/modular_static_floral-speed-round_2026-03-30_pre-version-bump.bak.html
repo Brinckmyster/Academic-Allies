@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/Academic-Allies/favicon.ico">
+<!-- Claude: 2026-03-17 — early dark mode detect -->
+<script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speed Round — Academic Allies</title>
+<!-- Claude: 2026-03-17 — Speed Round: timed multiple choice for floral ID -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    background: #FAFAF9;
+    min-height: 100vh;
+    padding: 0 12px 40px;
+    color: #333;
+  }
+  html.aa-dark body { background: #121212; color: #e0e0e0; }
+
+  .sr-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding-top: 12px;
+    text-align: center;
+  }
+
+  .back-link {
+    display: inline-block;
+    color: #6CA0A3;
+    text-decoration: none;
+    font-size: 11pt;
+    margin-bottom: 8px;
+    text-align: left;
+    width: 100%;
+  }
+  .back-link:hover { text-decoration: underline; }
+  html.aa-dark .back-link { color: #8ec5c8; }
+
+  h1 { font-size: 20pt; margin-bottom: 4px; color: #4a7f82; }
+  html.aa-dark h1 { color: #8ec5c8; }
+  .subtitle { font-size: 11pt; color: #888; margin-bottom: 12px; }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .controls button, .controls select {
+    padding: 8px 14px;
+    border: 2px solid #6CA0A3;
+    border-radius: 20px;
+    background: #fff;
+    color: #4a7f82;
+    font-weight: 600;
+    font-size: 10pt;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  html.aa-dark .controls button, html.aa-dark .controls select {
+    background: #1e1e1e;
+    color: #8ec5c8;
+    border-color: #3a5a5c;
+  }
+  .controls button:hover { background: #6CA0A3; color: #fff; }
+  html.aa-dark .controls button:hover { background: #4a7f82; color: #fff; }
+  .controls select { appearance: auto; }
+  .controls .active-mode { background: #6CA0A3; color: #fff; }
+  html.aa-dark .controls .active-mode { background: #4a7f82; color: #fff; }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 12px;
+    font-size: 12pt;
+    font-weight: 600;
+  }
+  .stats-row .correct { color: #2e7d32; }
+  html.aa-dark .stats-row .correct { color: #66bb6a; }
+  .stats-row .wrong { color: #c62828; }
+  html.aa-dark .stats-row .wrong { color: #ef5350; }
+  .stats-row .streak { color: #e8a838; }
+  .stats-row .timer { color: #4a7f82; font-size: 16pt; }
+  html.aa-dark .stats-row .timer { color: #8ec5c8; }
+
+  /* Question area */
+  .question-box {
+    background: #e8f2f3;
+    border: 3px solid #6CA0A3;
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  html.aa-dark .question-box { background: #1a2e2f; border-color: #3a6a6d; }
+  .question-label {
+    font-size: 10pt;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #888;
+    margin-bottom: 6px;
+  }
+  .question-text {
+    font-size: 22pt;
+    font-weight: 700;
+    color: #2c5a5e;
+  }
+  html.aa-dark .question-text { color: #8ec5c8; }
+
+  /* Choices */
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 400px;
+    margin: 0 auto 16px;
+  }
+  .choice-btn {
+    padding: 14px 20px;
+    border: 2px solid #b2d8db;
+    border-radius: 12px;
+    background: #fff;
+    color: #333;
+    font-size: 13pt;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+  }
+  html.aa-dark .choice-btn { background: #1e1e1e; color: #e0e0e0; border-color: #3a5a5c; }
+  .choice-btn:hover { border-color: #6CA0A3; background: #f0f9f9; }
+  html.aa-dark .choice-btn:hover { background: #1a2a2b; }
+  .choice-btn.correct-pick {
+    border-color: #2e7d32;
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+  html.aa-dark .choice-btn.correct-pick { background: #1a2e1a; color: #66bb6a; }
+  .choice-btn.wrong-pick {
+    border-color: #c62828;
+    background: #ffebee;
+    color: #c62828;
+  }
+  html.aa-dark .choice-btn.wrong-pick { background: #2e1a1a; color: #ef5350; }
+  .choice-btn:disabled { cursor: default; opacity: 0.7; }
+
+  /* Results */
+  .results {
+    display: none;
+    padding: 24px;
+    background: #f0f7f8;
+    border-radius: 16px;
+    border: 3px solid #6CA0A3;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  html.aa-dark .results { background: #1a2a2b; border-color: #3a6a6d; }
+  .results h2 { color: #2e7d32; margin-bottom: 12px; font-size: 16pt; }
+  html.aa-dark .results h2 { color: #66bb6a; }
+  .results .stat { font-size: 12pt; margin-bottom: 6px; color: #555; }
+  html.aa-dark .results .stat { color: #bbb; }
+  .results .best-msg { color: #e8a838; font-weight: 700; margin-bottom: 8px; }
+  .results button {
+    margin-top: 12px;
+    padding: 10px 24px;
+    border: 2px solid #6CA0A3;
+    border-radius: 12px;
+    background: #6CA0A3;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12pt;
+    font-family: inherit;
+    cursor: pointer;
+    margin-right: 8px;
+  }
+  .results button:hover { background: #4a7f82; }
+
+  .credit { text-align: center; font-size: 0.7rem; color: #aaa; margin-top: 20px; }
+
+  @media (max-width: 500px) {
+    .question-text { font-size: 18pt; }
+  }
+</style>
+</head>
+<body>
+<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
+<script>var AA_MODE_GATE = 'flowerQuiz';</script>
+<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          newScript.textContent = oldScript.textContent;
+          oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<script src="/Academic-Allies/modular/js/study-activity.js?v=20260322"></script>
+
+<div class="sr-container">
+  <a href="/Academic-Allies/modular/static/study-tools.html" class="back-link">&larr; Back to Study Tools</a>
+
+  <h1>Speed Round</h1>
+  <p class="subtitle">How fast can you name them? 4 choices, beat the clock!</p>
+
+  <div class="controls">
+    <select id="srQuizPicker" onchange="startRound()">
+      <option value="all">All 50 Flowers</option>
+      <option value="1">Quiz 1 — Mass</option>
+      <option value="2">Quiz 2 — Line</option>
+      <option value="3">Quiz 3 — Filler</option>
+      <option value="4">Quiz 4 — Form/Focal</option>
+      <option value="5">Quiz 5 — Foliage</option>
+    </select>
+    <button id="srDirBtn" onclick="toggleDir()">Ask: Genus</button>
+    <button onclick="startRound()">New Round</button>
+  </div>
+
+  <div class="stats-row">
+    <span class="timer" id="srTimer">0:00</span>
+    <span class="correct" id="srCorrect">0 ✓</span>
+    <span class="wrong" id="srWrong">0 ✗</span>
+    <span class="streak" id="srStreak">🔥 0</span>
+  </div>
+
+  <div id="srGameArea">
+    <div class="question-box">
+      <div class="question-label" id="srQLabel">What is the genus?</div>
+      <div class="question-text" id="srQText">—</div>
+    </div>
+
+    <div class="choices" id="srChoices"></div>
+  </div>
+
+  <!-- Claude: 2026-03-25 — aria-live for screen reader results announcement -->
+  <div class="results" id="srResults" role="alert" aria-live="polite">
+    <h2 id="srResultTitle">Round Complete!</h2>
+    <div class="stat" id="srResultScore"></div>
+    <div class="stat" id="srResultTime"></div>
+    <div class="stat" id="srResultFPM"></div>
+    <div class="stat" id="srResultStreak"></div>
+    <div class="best-msg" id="srBestMsg" style="display:none;"></div>
+    <button onclick="startRound()">Play Again</button>
+  </div>
+</div>
+
+<p class="credit">Built by Claude for Bruise — March 2026</p>
+
+<script>
+/* Claude: 2026-03-17 — Speed Round: timed multiple choice for floral ID
+   Features: 4-choice MCQ, timer, streak tracking, FPM (flowers per minute),
+   best scores per quiz, missed flowers saved to shared localStorage key */
+
+var FLOWERS = {
+  "1": [
+    { common: "Carnation", genus: "Dianthus" },
+    { common: "Daisy Pom/Cushion Pom", genus: "Chrysanthemum" },
+    { common: "Rose", genus: "Rosa" },
+    { common: "Alstro", genus: "Alstroemeria" },
+    { common: "Lisianthus", genus: "Eustoma" },
+    { common: "Hydrangea", genus: "Hydrangea" },
+    { common: "Peony", genus: "Paeonia" },
+    { common: "Ranunculus", genus: "Ranunculus" },
+    { common: "Safari Sunset", genus: "Leucadendron" },
+    { common: "China Aster", genus: "Callistephus" }
+  ],
+  "2": [
+    { common: "Snapdragon", genus: "Antirrhinum" },
+    { common: "Larkspur", genus: "Consolida" },
+    { common: "Delphinium", genus: "Delphinium" },
+    { common: "Liatris", genus: "Liatris" },
+    { common: "Gladiola", genus: "Gladiolus" },
+    { common: "Stock", genus: "Matthiola" },
+    { common: "Bells of Ireland", genus: "Moluccella" },
+    { common: "Baby Blue Eucalyptus", genus: "Eucalyptus" },
+    { common: "Curly Willow", genus: "Salix" },
+    { common: "Dendrobium Orchid", genus: "Dendrobium" }
+  ],
+  "3": [
+    { common: "Solidago", genus: "Solidago" },
+    { common: "Misty Blue", genus: "Limonium" },
+    { common: "Statice", genus: "Limonium" },
+    { common: "Queen Anne's Lace", genus: "Ammi" },
+    { common: "Babies Breath", genus: "Gypsophila" },
+    { common: "Waxflower", genus: "Chamelaucium" },
+    { common: "Pixie Carnation", genus: "Dianthus" },
+    { common: "Aster", genus: "Aster" },
+    { common: "Hypericum Berries", genus: "Hypericum" },
+    { common: "Sea Holly", genus: "Eryngium" }
+  ],
+  "4": [
+    { common: "Sunflower", genus: "Helianthus" },
+    { common: "Calla Lily", genus: "Zantedeschia" },
+    { common: "Tulip", genus: "Tulipa" },
+    { common: "Bird of Paradise", genus: "Strelitzia" },
+    { common: "Disbud Mum", genus: "Chrysanthemum" },
+    { common: "Lily", genus: "Lilium" },
+    { common: "Billy Balls", genus: "Craspedia" },
+    { common: "Anthurium", genus: "Anthurium" },
+    { common: "Iris", genus: "Iris" },
+    { common: "Gerber Daisy", genus: "Gerbera" }
+  ],
+  "5": [
+    { common: "Leather Leaf", genus: "Rumohra" },
+    { common: "Bear Grass", genus: "Xerophyllum" },
+    { common: "Lily Grass", genus: "Liriope" },
+    { common: "Seeded Eucalyptus", genus: "Eucalyptus" },
+    { common: "Israeli Ruscus", genus: "Ruscus" },
+    { common: "Italian Ruscus", genus: "Ruscus" },
+    { common: "Salal/Lemon Leaf", genus: "Gaultheria" },
+    { common: "Grevillea", genus: "Grevillea" },
+    { common: "Pitt", genus: "Pittosporum" },
+    { common: "Myrtle", genus: "Myrtus" }
+  ]
+};
+
+var MISSED_KEY = 'AA_FLORAL_MISSED';
+var allFlowers = [];
+var questions = [];
+var qIdx = 0;
+var correct = 0;
+var wrong = 0;
+var streak = 0;
+var bestStreak = 0;
+var askGenus = true; /* true = show common, ask for genus */
+var timerInterval = null;
+var timerSeconds = 0;
+var locked = false;
+
+function getAllFlowers() {
+  var pool = [];
+  ["1","2","3","4","5"].forEach(function(k) {
+    FLOWERS[k].forEach(function(f) { pool.push(f); });
+  });
+  return pool;
+}
+
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function saveMissed(common) {
+  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+  if (window.AA && window.AA.study && typeof window.AA.study.addMiss === 'function') {
+    window.AA.study.addMiss(common);
+  } else {
+    /* Graceful fallback to localStorage if Firestore unavailable */
+    try {
+      var map = JSON.parse(localStorage.getItem(MISSED_KEY)) || {};
+      map[common] = (map[common] || 0) + 1;
+      localStorage.setItem(MISSED_KEY, JSON.stringify(map));
+    } catch(e) {}
+  }
+}
+
+function toggleDir() {
+  askGenus = !askGenus;
+  var btn = document.getElementById('srDirBtn');
+  btn.textContent = askGenus ? 'Ask: Genus' : 'Ask: Common';
+  if (!askGenus) btn.classList.add('active-mode');
+  else btn.classList.remove('active-mode');
+  startRound();
+}
+
+function startRound() {
+  var pick = document.getElementById('srQuizPicker').value;
+  var pool = [];
+
+  if (pick === 'all') {
+    pool = getAllFlowers();
+  } else {
+    pool = (FLOWERS[pick] || []).slice();
+  }
+
+  allFlowers = getAllFlowers();
+  questions = shuffle(pool);
+  qIdx = 0;
+  correct = 0;
+  wrong = 0;
+  streak = 0;
+  bestStreak = 0;
+
+  document.getElementById('srResults').style.display = 'none';
+  document.getElementById('srGameArea').style.display = '';
+
+  /* Start timer */
+  if (timerInterval) clearInterval(timerInterval);
+  timerSeconds = 0;
+  updateTimer();
+  timerInterval = setInterval(function() { timerSeconds++; updateTimer(); }, 1000);
+
+  showQuestion();
+  updateStats();
+}
+
+function updateTimer() {
+  var m = Math.floor(timerSeconds / 60);
+  var s = timerSeconds % 60;
+  document.getElementById('srTimer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function updateStats() {
+  document.getElementById('srCorrect').textContent = correct + ' ✓';
+  document.getElementById('srWrong').textContent = wrong + ' ✗';
+  document.getElementById('srStreak').textContent = '🔥 ' + streak;
+}
+
+function showQuestion() {
+  if (qIdx >= questions.length) { endRound(); return; }
+  locked = false;
+  var q = questions[qIdx];
+
+  var label = document.getElementById('srQLabel');
+  var text = document.getElementById('srQText');
+
+  if (askGenus) {
+    label.textContent = 'What is the genus of...';
+    text.textContent = q.common;
+  } else {
+    label.textContent = 'What is the common name of...';
+    text.textContent = q.genus;
+  }
+
+  /* Generate 4 choices: 1 correct + 3 wrong */
+  var correctAnswer = askGenus ? q.genus : q.common;
+  var wrongPool = allFlowers.filter(function(f) {
+    var ans = askGenus ? f.genus : f.common;
+    return ans !== correctAnswer;
+  });
+  /* Deduplicate answers */
+  var seen = {};
+  var uniqueWrong = [];
+  wrongPool.forEach(function(f) {
+    var ans = askGenus ? f.genus : f.common;
+    if (!seen[ans]) { seen[ans] = true; uniqueWrong.push(ans); }
+  });
+  var wrongChoices = shuffle(uniqueWrong).slice(0, 3);
+  var choices = shuffle([correctAnswer].concat(wrongChoices));
+
+  var container = document.getElementById('srChoices');
+  container.innerHTML = '';
+  choices.forEach(function(ch) {
+    var btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = ch;
+    btn.onclick = function() { pickAnswer(btn, ch, correctAnswer, q); };
+    container.appendChild(btn);
+  });
+}
+
+function pickAnswer(btn, picked, correctAnswer, flower) {
+  if (locked) return;
+  locked = true;
+
+  /* Disable all buttons */
+  var btns = document.querySelectorAll('.choice-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+
+  if (picked === correctAnswer) {
+    btn.classList.add('correct-pick');
+    correct++;
+    streak++;
+    if (streak > bestStreak) bestStreak = streak;
+  } else {
+    btn.classList.add('wrong-pick');
+    wrong++;
+    streak = 0;
+    saveMissed(flower.common);
+    /* Highlight the correct one */
+    for (var j = 0; j < btns.length; j++) {
+      if (btns[j].textContent === correctAnswer) btns[j].classList.add('correct-pick');
+    }
+  }
+
+  updateStats();
+
+  /* Auto-advance after brief pause */
+  setTimeout(function() {
+    qIdx++;
+    showQuestion();
+  }, picked === correctAnswer ? 400 : 1200);
+}
+
+function endRound() {
+  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+  document.getElementById('srGameArea').style.display = 'none';
+  var results = document.getElementById('srResults');
+  results.style.display = 'block';
+
+  var total = correct + wrong;
+  var pct = total > 0 ? Math.round(correct / total * 100) : 0;
+  var fpm = timerSeconds > 0 ? (correct / timerSeconds * 60).toFixed(1) : '—';
+
+  document.getElementById('srResultTitle').textContent =
+    pct === 100 ? 'Perfect round!' :
+    pct >= 80 ? 'Great job!' : 'Keep at it!';
+
+  document.getElementById('srResultScore').textContent =
+    correct + ' / ' + total + ' correct (' + pct + '%)';
+
+  var m = Math.floor(timerSeconds / 60);
+  var s = timerSeconds % 60;
+  document.getElementById('srResultTime').textContent =
+    'Time: ' + m + ':' + (s < 10 ? '0' : '') + s;
+
+  document.getElementById('srResultFPM').textContent =
+    'Speed: ' + fpm + ' flowers/min';
+
+  document.getElementById('srResultStreak').textContent =
+    'Best streak: ' + bestStreak + ' 🔥';
+
+  /* Best score */
+  var quizSuffix = document.getElementById('srQuizPicker').value;
+  var suffix = 'speed_' + quizSuffix + (askGenus ? '' : '_rev');
+  var scoreData = { pct: pct, time: timerSeconds, fpm: parseFloat(fpm) };
+  var isNew = false;
+
+  if (window.AA && window.AA.study && typeof window.AA.study.getBest === 'function') {
+    /* Use Firestore via AA.study */
+    var best = window.AA.study.getBest(suffix);
+    if (!best || pct > best.pct || (pct === best.pct && timerSeconds < best.time)) {
+      window.AA.study.saveBest(suffix, scoreData);
+      isNew = true;
+    }
+  } else {
+    /* Graceful fallback to localStorage */
+    try {
+      var bestKey = 'AA_SPEED_BEST_' + quizSuffix + (askGenus ? '' : '_REV');
+      /* Claude: 2026-03-25 — added null fallback to prevent JSON.parse(null) */
+      var best = JSON.parse(localStorage.getItem(bestKey) || 'null');
+      if (!best || pct > best.pct || (pct === best.pct && timerSeconds < best.time)) {
+        localStorage.setItem(bestKey, JSON.stringify(scoreData));
+        isNew = true;
+      }
+    } catch(e) {}
+  }
+
+  var bestMsg = document.getElementById('srBestMsg');
+  if (isNew) {
+    bestMsg.textContent = '⭐ New personal best!';
+    bestMsg.style.display = '';
+  } else {
+    bestMsg.style.display = 'none';
+  }
+
+  /* Log session to Firestore */
+  if (window.AA && window.AA.study && typeof window.AA.study.logSession === 'function') {
+    window.AA.study.logSession('speed-round');
+  }
+}
+
+/* Keyboard shortcuts: 1-4 to pick choices */
+document.addEventListener('keydown', function(e) {
+  if (locked) return;
+  var num = parseInt(e.key);
+  if (num >= 1 && num <= 4) {
+    var btns = document.querySelectorAll('.choice-btn');
+    if (btns[num - 1]) btns[num - 1].click();
+  }
+});
+
+startRound();
+</script>
+</body>
+</html>

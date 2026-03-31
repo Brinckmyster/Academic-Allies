@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<!-- ============================================================
+     meal-planner/meal-planner.html  —  Generic Student Meal Planner
+     Updated: 2026-02-19 by Claude
+     - uid-based storage (localStorage key = mealPlan_{uid})
+     - Base plan loaded from Firestore via AA.getMealBasePlan(),
+       falls back to local base-meal-plan.json
+     - Admin can set custom base plans per student in Firestore
+     - Mary's individual planner (meal-planner-mary/) is unchanged
+     ============================================================ -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meal Planner — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <style>
+    /* Claude: 2026-03-13 — screen-reader-only class for accessible labels */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    body { font-family: 'Atkinson Hyperlegible', Arial, sans-serif; max-width: 1100px; margin: 0 auto; padding: 20px; background: #FAFAF9; color: #333; }
+    h1 { color: #2e6b4f; }
+    .subtitle { color: #666; font-size: 0.95rem; margin: -10px 0 20px; }
+
+    /* Controls */
+    .meal-controls { display: flex; gap: 10px; margin: 18px 0; flex-wrap: wrap; align-items: center; }
+    .meal-controls button { padding: 9px 18px; font-size: 15px; cursor: pointer; border-radius: 6px; border: none; font-family: inherit; min-height: 44px; }
+    .meal-controls button:focus-visible { outline: 3px solid #2e6b4f; outline-offset: 2px; }
+    .btn-primary  { background: #2e6b4f; color: #fff; }
+    .btn-secondary{ background: #2196F3; color: #fff; }
+    .btn-danger   { background: #f44336; color: #fff; }
+    .btn-suggest  { background: #ff9800; color: #fff; }
+    .btn-base     { background: #7b5ea7; color: #fff; }
+
+    /* Add meal form */
+    .meal-entry { background: #f0f7f4; padding: 18px 20px; border-radius: 10px; margin: 18px 0; border: 1px solid #c9e4d8; }
+    .meal-entry h3 { margin: 0 0 12px; color: #2e6b4f; font-size: 1rem; }
+    .meal-entry input,
+    .meal-entry textarea,
+    .meal-entry select { width: 100%; padding: 9px 11px; margin: 5px 0 10px; border-radius: 5px; border: 1px solid #ccc; font-family: inherit; font-size: 14px; box-sizing: border-box; }
+    .meal-entry select { background: #fff; }
+
+    /* Meal list */
+    .meal-list { margin-top: 16px; }
+    .meal-item {
+      background: #fff; padding: 14px 16px; margin: 9px 0; border-radius: 8px;
+      border-left: 4px solid #2e6b4f; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+    }
+    .meal-item-body { flex: 1; }
+    .meal-item strong { font-size: 1rem; }
+    .meal-item .meta { font-size: 0.82rem; color: #666; margin-top: 4px; }
+    .meal-item .mtype { display: inline-block; background: #e8f5ee; color: #2e6b4f; border-radius: 4px; padding: 1px 7px; font-size: 0.75rem; font-weight: 600; margin-right: 6px; }
+    .btn-remove { background: #f44336; color: #fff; border: none; border-radius: 5px; padding: 4px 12px; cursor: pointer; font-size: 13px; flex-shrink: 0; min-height: 44px; }
+
+    /* Claude: 2026-03-13 — 44px touch targets, inputs, mobile responsive */
+    .meal-entry input, .meal-entry textarea, .meal-entry select { min-height: 44px; font-size: 16px; }
+
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      h1 { font-size: 1.3rem; }
+      .meal-controls { flex-direction: column; }
+      .meal-controls button { width: 100%; text-align: center; }
+      .meal-entry { padding: 14px; }
+      .meal-item { flex-direction: column; }
+      .btn-remove { width: 100%; text-align: center; margin-top: 8px; }
+    }
+
+    /* Base plan panel */
+    .base-plan-panel { background: #fff; border: 1px solid #c9e4d8; border-radius: 10px; padding: 18px 20px; margin: 18px 0; display: none; }
+    .base-plan-panel h3 { margin: 0 0 12px; color: #7b5ea7; }
+    .base-plan-section { margin-bottom: 14px; }
+    .base-plan-section h4 { margin: 0 0 6px; font-size: 0.9rem; color: #555; }
+    .base-plan-section ul { margin: 0; padding-left: 18px; }
+    .base-plan-section li { font-size: 0.88rem; color: #444; margin: 3px 0; }
+
+    /* Sign-in notice / loading state */
+    /* Claude: 2026-03-25 — I11 fix: added spinner animation for loading state */
+    #signin-notice { padding: 30px; text-align: center; color: #888; font-size: 0.95rem; }
+    .aa-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #e1e5e9; border-top-color: #2e6b4f; border-radius: 50%; animation: aa-spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes aa-spin { to { transform: rotate(360deg); } }
+
+    /* Mirror / NL banner */
+    #meal-mirror-banner {
+      display: none; padding: 12px 18px; border-radius: 10px;
+      margin-bottom: 18px; font-size: 0.88rem; line-height: 1.5;
+    }
+    #meal-mirror-banner.nl-banner {
+      background: linear-gradient(135deg, #e6f4ea 0%, #f0faf2 100%);
+      border: 1px solid #6abf7b; color: #2d6a4f;
+    }
+    #meal-mirror-banner.mirror-banner {
+      background: linear-gradient(135deg, #e8eeff 0%, #f0f0ff 100%);
+      border: 1px solid #a5b4fc; color: #4338ca;
+    }
+
+    /* Claude: 2026-03-25 — dark mode overrides for meal planner */
+    html.aa-dark body { background: #121212; color: #e0e0e0; }
+    html.aa-dark h1 { color: #6ecf9a; }
+    html.aa-dark .subtitle { color: #999; }
+    html.aa-dark .meal-entry { background: #1a2e20; border-color: #2a5a3a; }
+    html.aa-dark .meal-entry h3 { color: #6ecf9a; }
+    html.aa-dark .meal-entry input, html.aa-dark .meal-entry textarea, html.aa-dark .meal-entry select { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .meal-item { background: #1e1e2e; border-left-color: #2e6b4f; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    html.aa-dark .meal-item .meta { color: #999; }
+    html.aa-dark .meal-item .mtype { background: #1a3a2a; color: #6ecf9a; }
+    html.aa-dark .base-plan-panel { background: #1e1e2e; border-color: #3d3060; }
+    html.aa-dark .base-plan-panel h3 { color: #b39ddb; }
+    html.aa-dark .base-plan-section h4 { color: #ccc; }
+    html.aa-dark .base-plan-section li { color: #bbb; }
+    html.aa-dark #signin-notice { color: #777; }
+    html.aa-dark .aa-spinner { border-color: #333; border-top-color: #6ecf9a; }
+    html.aa-dark #meal-mirror-banner.nl-banner { background: linear-gradient(135deg, #1a2e20 0%, #1a3020 100%); border-color: #2a6b4a; color: #6ecf9a; }
+    html.aa-dark #meal-mirror-banner.mirror-banner { background: linear-gradient(135deg, #1a1a30 0%, #1a1a35 100%); border-color: #4a4a8a; color: #a5b4fc; }
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <!-- Load shared header + Firebase -->
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.parentNode.replaceChild(s, old);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+
+  <!-- Claude: 2026-03-25 — I11 fix: spinner during loading -->
+  <div id="signin-notice"><span class="aa-spinner"></span> Loading meal planner…</div>
+  <!-- Claude: 2026-03-25 — A7 fix: main-content for skip-to-content link -->
+  <div id="planner-body" role="main" style="display:none;">
+
+    <div id="meal-mirror-banner"></div>
+
+    <h1 id="planner-title">Meal Planner</h1>
+    <p class="subtitle" id="planner-subtitle">Track daily meals. Base plan can be customized by your admin.</p>
+
+    <!-- Controls row -->
+    <div class="meal-controls">
+      <button class="btn-suggest" onclick="suggestFromBase()">💡 Suggest a Meal</button>
+      <button class="btn-base"    onclick="toggleBasePlan()">📋 View Base Plan</button>
+      <button class="btn-danger"  onclick="resetPlan()">🗑 Clear Today</button>
+    </div>
+
+    <!-- Base plan panel (hidden until toggled) -->
+    <div class="base-plan-panel" id="base-plan-panel">
+      <h3>📋 Base Meal Plan</h3>
+      <p style="font-size:0.85rem;color:#888;margin:0 0 12px;">These are the default meal suggestions for your plan. Your admin can customize this for you.</p>
+      <div id="base-plan-sections"></div>
+    </div>
+
+    <!-- Add meal form -->
+    <div class="meal-entry">
+      <h3>Add a Meal</h3>
+      <!-- Claude: 2026-03-14 — added label + aria-label for accessibility -->
+      <label for="mealType" class="sr-only">Meal type</label>
+      <select id="mealType" aria-label="Meal type">
+        <option value="">Meal type (optional)</option>
+        <option value="Breakfast">Breakfast</option>
+        <option value="Lunch">Lunch</option>
+        <option value="Dinner">Dinner</option>
+        <option value="Snack">Snack</option>
+      </select>
+      <!-- Claude: 2026-03-13 — added labels for accessibility -->
+      <label for="mealName" class="sr-only">Meal name</label>
+      <!-- Claude: 2026-03-25 — added maxlength -->
+      <input  type="text"  id="mealName"  placeholder="Meal name (e.g. Grilled chicken, rice, broccoli)" aria-label="Meal name" maxlength="200">
+      <label for="mealTime" class="sr-only">Meal time</label>
+      <input  type="time"  id="mealTime" aria-label="Meal time">
+      <label for="mealNotes" class="sr-only">Meal notes</label>
+      <!-- Claude: 2026-03-25 — added maxlength -->
+      <textarea id="mealNotes" placeholder="Notes (optional)" rows="2" aria-label="Meal notes" maxlength="500"></textarea>
+      <button class="btn-primary" onclick="addMeal()" aria-label="Add a new meal">+ Add Meal</button>
+    </div>
+
+    <!-- Today's meals -->
+    <div>
+      <h3 style="color:#2e6b4f;">Today's Meals: <span id="mealCount">0</span></h3>
+      <div id="mealList" class="meal-list"></div>
+    </div>
+
+  </div><!-- /planner-body -->
+
+  <script>
+    // ── Meal Planner — Generic version
+    // Updated 2026-02-19 by Claude
+    // Firestore-only: no localStorage. Meals sync across devices in real-time.
+
+    var currentUid    = null;
+    var currentName   = null;
+    var todaysMeals   = [];
+    var basePlan      = {};
+    var basePanelOpen = false;
+    var unsubMealLog  = null;
+    // FUNCTIONAL FIX 2026-03-07 by Claude: local date not UTC (toISOString flips day after ~7 PM EST)
+    var d = new Date();
+    var dateKey = d.getFullYear() + '-' + ('0' + (d.getMonth()+1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+
+    /* ── Wait for AA to be ready ── */
+    function waitForAA(cb, tries) {
+      tries = tries || 0;
+      if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+      if (tries > 40) {
+        document.getElementById('signin-notice').textContent = 'Could not connect — please refresh.';
+        return;
+      }
+      setTimeout(function() { waitForAA(cb, tries + 1); }, 200);
+    }
+
+    /* Claude: 2026-03-06 — save/restore in-progress add-meal form on sign-out/sign-in.
+       AA_MEAL_DRAFT is keyed by date so a yesterday draft is discarded automatically. */
+    function _mealDraftSave() {
+      var name  = (document.getElementById('mealName')  || {}).value  || '';
+      var time  = (document.getElementById('mealTime')  || {}).value  || '';
+      var notes = (document.getElementById('mealNotes') || {}).value  || '';
+      var type  = (document.getElementById('mealType')  || {}).value  || '';
+      if (!name && !time && !notes && !type) return;
+      try {
+        localStorage.setItem('AA_MEAL_DRAFT', JSON.stringify({
+          date: dateKey, name: name, time: time, notes: notes, type: type
+        }));
+      } catch(e) {}
+    }
+
+    /* Claude: 2026-03-25 — I17 fix: save draft on beforeunload + input change */
+    window.addEventListener('beforeunload', _mealDraftSave);
+    ['mealName', 'mealTime', 'mealNotes', 'mealType'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', function() { clearTimeout(window._mealDraftTimer); window._mealDraftTimer = setTimeout(_mealDraftSave, 2000); });
+    });
+
+    function _mealDraftRestore() {
+      try {
+        var raw = localStorage.getItem('AA_MEAL_DRAFT');
+        if (!raw) return;
+        var d = JSON.parse(raw);
+        if (d.date !== dateKey) { localStorage.removeItem('AA_MEAL_DRAFT'); return; }
+        if (d.name)  document.getElementById('mealName').value  = d.name;
+        if (d.time)  document.getElementById('mealTime').value  = d.time;
+        if (d.notes) document.getElementById('mealNotes').value = d.notes;
+        if (d.type)  document.getElementById('mealType').value  = d.type;
+        localStorage.removeItem('AA_MEAL_DRAFT');
+      } catch(e) {}
+    }
+
+    function boot() {
+      AA.auth.onAuthStateChanged(function(user) {
+        if (!user) {
+          document.getElementById('signin-notice').textContent = 'Please sign in to use the meal planner.';
+          return;
+        }
+        // Claude: 2026-03-07 — guard against token-refresh re-fires causing unnecessary Firestore reads
+        if (user.uid === currentUid) return;
+        currentUid  = user.uid;
+        currentName = user.displayName || user.email;
+
+        /* Claude: 2026-03-08 — mirror mode: ALL supporters see read-only + suggest.
+           Student is sudo — no direct writes to their meal data. */
+        var mirrorUid = window.AA_MIRROR_UID;
+        var isMirror  = !!(mirrorUid && mirrorUid !== user.uid);
+
+        if (isMirror) {
+          currentUid = mirrorUid;
+          /* Look up student name for title */
+          AA.db.collection('users').doc(mirrorUid).get()
+            .then(function(doc) {
+              var sName = (doc.exists && (doc.data().displayName || doc.data().name)) || 'Student';
+              document.getElementById('planner-title').textContent = sName + "'s Meal Planner";
+              _showMirrorBanner(sName, false); /* always read-only */
+            }).catch(function() {
+              document.getElementById('planner-title').textContent = "Student's Meal Planner";
+              _showMirrorBanner('Student', false);
+            });
+
+          /* Hide direct-edit UI, show suggest button instead */
+          /* Claude: 2026-03-25 — null guards for querySelector (element may not exist in all views) */
+          var _me = document.querySelector('.meal-entry'); if (_me) _me.style.display = 'none';
+          var _mc = document.querySelector('.meal-controls'); if (_mc) _mc.style.display = 'none';
+          _showMealSuggestUI();
+        }
+
+        document.getElementById('signin-notice').style.display   = 'none';
+        document.getElementById('planner-body').style.display    = 'block';
+        if (!isMirror) {
+          document.getElementById('planner-title').textContent   = currentName + "'s Meal Planner";
+        }
+
+        /* Claude: 2026-03-06 — restore any draft form data saved before sign-out */
+        if (!isMirror) _mealDraftRestore();
+
+        /* Claude: 2026-03-06 — register presignout hook to save the add-meal form */
+        if (!isMirror) window.AA_PRESIGNOUT = _mealDraftSave;
+
+        startMealListener();
+        loadBasePlan();
+        // Claude 2026-03-08: check for pending meal suggestions (student's own view)
+        if (!isMirror) _checkMealSuggestions();
+      });
+    }
+
+    function _showMirrorBanner(studentName, canWrite) {
+      var banner = document.getElementById('meal-mirror-banner');
+      if (!banner) return;
+      if (canWrite) {
+        banner.className = 'nl-banner';
+        banner.innerHTML = '🌟 <strong>Network Lead</strong> — managing ' + esc(studentName) + '\'s meals · full access';
+      } else {
+        banner.className = 'mirror-banner';
+        banner.innerHTML = '👁 Viewing ' + esc(studentName) + '\'s meals <strong>(read-only)</strong>';
+      }
+      banner.style.display = 'block';
+    }
+
+    /* ── Real-time Firestore listener for today's meals ──
+       Updated 2026-02-19 by Claude — replaced localStorage with Firestore.
+       AA.watchMealLog keeps todaysMeals in sync across all devices. */
+    function startMealListener() {
+      if (unsubMealLog) { unsubMealLog(); }
+      /* Claude: 2026-03-16 — 15-second loading timeout with retry */
+      var _mealLoadTimer = setTimeout(function() {
+        var mealList = document.getElementById('mealList');
+        if (mealList && mealList.children.length === 0) {
+          mealList.innerHTML = '<p style="text-align:center;color:#999;padding:2rem;">Taking longer than expected…</p><button onclick="location.reload()" style="color:#2e6b4f;background:none;border:none;cursor:pointer;font-weight:700;text-decoration:underline;">Retry</button>';
+        }
+      }, 15000);
+      /* Claude: 2026-03-25 — handle error parameter for offline fallback.
+         If Firestore is down, restore from localStorage draft so meals aren't blank. */
+      unsubMealLog = AA.watchMealLog(currentUid, dateKey, function(data, err) {
+        clearTimeout(_mealLoadTimer);
+        if (err) {
+          console.warn('[MealPlanner] Firestore error, trying offline restore:', err.message || err);
+          try {
+            var draft = localStorage.getItem('AA_MEAL_DRAFT');
+            if (draft) {
+              var parsed = JSON.parse(draft);
+              if (parsed.meals && parsed.dateKey === dateKey) {
+                todaysMeals = parsed.meals;
+                displayMeals();
+                return;
+              }
+            }
+          } catch(e) {}
+          todaysMeals = [];
+          displayMeals();
+          return;
+        }
+        todaysMeals = (data && Array.isArray(data.meals)) ? data.meals : [];
+        displayMeals();
+      });
+    }
+
+    /* ── Load base plan: Firestore first, fallback to local JSON ── */
+    function loadBasePlan() {
+      AA.getMealBasePlan(currentUid)
+        .then(function(plan) {
+          if (plan && Object.keys(plan).length > 1) {
+            // Firestore custom plan exists
+            basePlan = plan;
+            renderBasePlanPanel();
+          } else {
+            // Fall back to bundled JSON
+            return fetch('base-meal-plan.json')
+              .then(function(r) { return r.json(); })
+              .then(function(json) {
+                basePlan = json;
+                renderBasePlanPanel();
+              });
+          }
+        })
+        .catch(function() {
+          // Offline or not found — try local JSON
+          fetch('base-meal-plan.json')
+            .then(function(r) { return r.json(); })
+            .then(function(json) { basePlan = json; renderBasePlanPanel(); })
+            .catch(function() {});
+        });
+    }
+
+    /* ── Render base plan panel sections ── */
+    function renderBasePlanPanel() {
+      var container = document.getElementById('base-plan-sections');
+      container.innerHTML = '';
+      var categories = ['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Snack'];
+      categories.forEach(function(cat) {
+        var items = basePlan[cat];
+        if (!items || !items.length) return;
+        var section = document.createElement('div');
+        section.className = 'base-plan-section';
+        section.innerHTML = '<h4>' + cat + '</h4><ul>' +
+          items.map(function(i) { return '<li>' + esc(i) + '</li>'; }).join('') +
+          '</ul>';
+        container.appendChild(section);
+      });
+    }
+
+    /* ── Toggle base plan panel ── */
+    function toggleBasePlan() {
+      var panel = document.getElementById('base-plan-panel');
+      basePanelOpen = !basePanelOpen;
+      panel.style.display = basePanelOpen ? 'block' : 'none';
+    }
+
+    /* ── Suggest a random meal from base plan ── */
+    function suggestFromBase() {
+      var type = document.getElementById('mealType').value || 'Lunch';
+      var options = basePlan[type] || basePlan['Lunch'] || [];
+      if (!options.length) {
+        alert('No suggestions available for ' + type + ' in the base plan.');
+        return;
+      }
+      var pick = options[Math.floor(Math.random() * options.length)];
+      document.getElementById('mealName').value = pick;
+      document.getElementById('mealType').value = type;
+    }
+
+    /* ── Display meals list ── */
+    function displayMeals() {
+      var list  = document.getElementById('mealList');
+      var count = document.getElementById('mealCount');
+      count.textContent = todaysMeals.length;
+
+      if (todaysMeals.length === 0) {
+        list.innerHTML = '<p style="color:#aaa;font-size:0.9rem;">No meals added yet today.</p>';
+        return;
+      }
+
+      /* Claude: 2026-03-07 — hide remove buttons for read-only mirror viewers */
+      var isMirrorReadOnly = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE);
+      list.innerHTML = todaysMeals.map(function(meal, i) {
+        var timeStr = meal.time ? to12HourSafe(meal.time) : '';
+        var removeBtn = isMirrorReadOnly ? '' :
+          '<button class="btn-remove" onclick="removeMeal(' + i + ')">Remove</button>';
+        return '<div class="meal-item">' +
+          '<div class="meal-item-body">' +
+            (meal.type ? '<span class="mtype">' + esc(meal.type) + '</span>' : '') +
+            '<strong>' + esc(meal.name || '(unnamed)') + '</strong>' +
+            '<div class="meta">' +
+              (timeStr ? '🕐 ' + timeStr + '  ' : '') +
+              (meal.notes ? '📝 ' + esc(meal.notes) : '') +
+            '</div>' +
+          '</div>' +
+          removeBtn +
+        '</div>';
+      }).join('');
+    }
+
+    /* Claude 2026-03-08: mirror check helper */
+    function _isMealMirror() {
+      return !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
+        && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+    }
+
+    /* ── Add a meal ── */
+    function addMeal() {
+      if (_isMealMirror()) return; /* blocked — use suggest instead */
+      var name  = document.getElementById('mealName').value.trim();
+      var time  = document.getElementById('mealTime').value;
+      var notes = document.getElementById('mealNotes').value.trim();
+      var type  = document.getElementById('mealType').value;
+
+      if (!name && !time) {
+        alert('Please enter at least a meal name or time.');
+        return;
+      }
+      /* Claude: 2026-03-25 — field length limits to prevent oversized Firestore docs */
+      if (name.length > 200) { alert('Meal name is too long (max 200 characters).'); return; }
+      if (notes.length > 500) { alert('Notes are too long (max 500 characters).'); return; }
+
+      /* Claude: 2026-03-16 — double-click protection on add button */
+      var btn = document.querySelector('[onclick*="addMeal()"]');
+      if (btn) {
+        var origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Adding…';
+      }
+
+      todaysMeals.push({ name: name || '(unnamed)', time: time, notes: notes, type: type, addedAt: Date.now() });
+      AA.saveMealLog(currentUid, dateKey, todaysMeals)
+        .then(function() {
+          document.getElementById('mealName').value  = '';
+          document.getElementById('mealTime').value  = '';
+          document.getElementById('mealNotes').value = '';
+          document.getElementById('mealType').value  = '';
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = origText;
+          }
+        })
+        .catch(function(err) {
+          console.error('[AA] saveMealLog:', err);
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = origText;
+          }
+        });
+    }
+
+    /* ── Remove a meal ── */
+    function removeMeal(index) {
+      if (_isMealMirror()) return; /* blocked */
+      /* Claude: 2026-03-16 — double-click protection on remove button */
+      var btn = document.querySelector('[onclick*="removeMeal(' + index + ')"]');
+      if (btn) {
+        var origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Removing…';
+      }
+      todaysMeals.splice(index, 1);
+      AA.saveMealLog(currentUid, dateKey, todaysMeals)
+        .then(function() {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = origText;
+          }
+        })
+        .catch(function(err) {
+          console.error('[AA] saveMealLog:', err);
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = origText;
+          }
+        });
+    }
+
+    /* ── Reset today's plan ── */
+    function resetPlan() {
+      if (_isMealMirror()) return; /* blocked */
+      if (confirm('Clear all meals for today?')) {
+        todaysMeals = [];
+        AA.saveMealLog(currentUid, dateKey, [])
+          .catch(function(err) { console.error('[AA] saveMealLog:', err); });
+      }
+    }
+
+    /* ── Meal Suggestions — Claude 2026-03-08 ─────────────────────
+       Supporters suggest meals (not logged as real meals).
+       No reason required. Student sees a banner and accepts to add. */
+    function _showMealSuggestUI() {
+      var wrap = document.getElementById('planner-body');
+      if (!wrap) return;
+      var div = document.createElement('div');
+      div.id = 'meal-suggest-section';
+      div.style.cssText = 'background:#f8f4ff;border:2px solid #a78bfa;border-radius:12px;padding:20px;margin-bottom:20px;';
+      div.innerHTML =
+        '<h3 style="color:#5b21b6;margin-bottom:12px;">💡 Suggest Meals</h3>' +
+        '<p style="font-size:0.9rem;color:#666;margin-bottom:12px;">Add meals below — they\'ll be sent as a suggestion, not logged directly.</p>' +
+        '<div id="suggest-meal-list" style="margin-bottom:12px;"></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          '<select id="sugMealType" style="padding:10px;border-radius:8px;border:1px solid #ddd;font-size:1rem;">' +
+            '<option value="">Type</option><option value="Breakfast">Breakfast</option>' +
+            '<option value="Lunch">Lunch</option><option value="Dinner">Dinner</option>' +
+            '<option value="Snack">Snack</option></select>' +
+          /* Claude: 2026-03-25 — added explicit type="text" for a11y best practice */
+          '<input type="text" id="sugMealName" placeholder="Meal name" style="flex:1;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:1rem;min-width:150px;">' +
+          '<input id="sugMealTime" type="time" style="padding:10px;border-radius:8px;border:1px solid #ddd;font-size:1rem;">' +
+        '</div>' +
+        '<button onclick="_addSugMeal()" style="margin-top:10px;background:#a78bfa;color:white;border:none;border-radius:8px;padding:12px 20px;font-size:1rem;cursor:pointer;font-weight:600;">+ Add to Suggestion</button>' +
+        '<button id="btn-send-meal-sug" onclick="_sendMealSuggestion()" style="display:none;margin-top:10px;margin-left:8px;background:#22c55e;color:white;border:none;border-radius:8px;padding:12px 20px;font-size:1rem;cursor:pointer;font-weight:600;">Send Suggestion</button>';
+      // Insert after the title
+      var title = document.getElementById('planner-title');
+      if (title && title.nextSibling) {
+        wrap.insertBefore(div, title.nextSibling.nextSibling);
+      } else {
+        wrap.appendChild(div);
+      }
+    }
+
+    var _suggestedMeals = [];
+    function _addSugMeal() {
+      var name = document.getElementById('sugMealName').value.trim();
+      var time = document.getElementById('sugMealTime').value;
+      var type = document.getElementById('sugMealType').value;
+      if (!name) { alert('Enter a meal name.'); return; }
+      _suggestedMeals.push({ name: name, time: time, type: type, notes: '' });
+      document.getElementById('sugMealName').value = '';
+      document.getElementById('sugMealTime').value = '';
+      document.getElementById('sugMealType').value = '';
+      _renderSugMeals();
+    }
+
+    function _renderSugMeals() {
+      var list = document.getElementById('suggest-meal-list');
+      var sendBtn = document.getElementById('btn-send-meal-sug');
+      if (_suggestedMeals.length === 0) {
+        list.innerHTML = '<p style="color:#999;font-size:0.9rem;">No meals added yet.</p>';
+        if (sendBtn) sendBtn.style.display = 'none';
+        return;
+      }
+      if (sendBtn) sendBtn.style.display = '';
+      /* Claude: 2026-03-23 — escape user input to prevent XSS via Firestore suggestion data */
+      list.innerHTML = _suggestedMeals.map(function(m, i) {
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:white;border-radius:8px;margin-bottom:6px;">' +
+          '<span style="flex:1;font-size:0.95rem;">' + (m.type ? esc(m.type) + ': ' : '') + esc(m.name) + (m.time ? ' at ' + esc(m.time) : '') + '</span>' +
+          /* Claude: 2026-03-25 — added aria-label to icon-only remove button */
+          '<button onclick="_suggestedMeals.splice(' + i + ',1);_renderSugMeals();" style="background:none;border:none;cursor:pointer;font-size:1.2rem;" aria-label="Remove suggested meal">✕</button>' +
+        '</div>';
+      }).join('');
+    }
+
+    function _sendMealSuggestion() {
+      if (_suggestedMeals.length === 0) { alert('Add at least one meal first.'); return; }
+      if (!window.AA_MIRROR_UID) return;
+      AA.suggestMeals(window.AA_MIRROR_UID, dateKey, _suggestedMeals).then(function() {
+        alert('Meal suggestion sent! The student will see it on their planner.');
+        _suggestedMeals = [];
+        _renderSugMeals();
+      }).catch(function(err) { alert('Could not send: ' + err.message); });
+    }
+
+    /* ── Student: check for pending meal suggestions ── */
+    function _checkMealSuggestions() {
+      if (_isMealMirror()) return;
+      if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
+      var uid = AA.auth.currentUser.uid;
+      AA.getPendingMealSuggestions(uid).then(function(suggestions) {
+        if (!suggestions || suggestions.length === 0) return;
+        var s = suggestions[0];
+        var banner = document.createElement('div');
+        banner.id = 'meal-suggestion-banner';
+        banner.style.cssText = 'background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:16px;';
+        /* Claude: 2026-03-23 — escape all Firestore data to prevent XSS */
+        var mealList = (s.meals || []).map(function(m) {
+          return '<li style="padding:4px 0;">' + (m.type ? esc(m.type) + ': ' : '') + esc(m.name) + (m.time ? ' at ' + esc(m.time) : '') + '</li>';
+        }).join('');
+        var safeId = esc(s.id).replace(/'/g, '&#39;');
+        banner.innerHTML =
+          '<p style="font-weight:700;color:#92400e;margin-bottom:8px;">💡 Meal suggestion from ' + esc(s.suggestedByName || 'your supporter') + '</p>' +
+          '<ul style="list-style:none;padding:0;margin-bottom:12px;color:#78350f;">' + mealList + '</ul>' +
+          '<div style="display:flex;gap:8px;">' +
+            '<button onclick="_acceptMealSug(\'' + safeId + '\')" style="background:#22c55e;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;cursor:pointer;font-weight:600;">Add to My Meals</button>' +
+            '<button onclick="_dismissMealSug(\'' + safeId + '\')" style="background:#999;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:0.95rem;cursor:pointer;font-weight:600;">No Thanks</button>' +
+          '</div>';
+        var body = document.getElementById('planner-body');
+        var title = document.getElementById('planner-title');
+        if (title && title.nextSibling) {
+          body.insertBefore(banner, title.nextSibling);
+        } else {
+          body.prepend(banner);
+        }
+        window._pendingMealSug = s;
+      }).catch(function(err) { console.warn('[AA] meal suggestion check:', err.message); });
+    }
+
+    function _acceptMealSug(id) {
+      /* Claude: 2026-03-14 — auth guard: must be signed in to accept suggestions */
+      if (!AA || !AA.auth || !AA.auth.currentUser) return;
+      var uid = AA.auth.currentUser.uid;
+      var s = window._pendingMealSug;
+      if (s && s.meals) {
+        s.meals.forEach(function(m) {
+          todaysMeals.push({ name: m.name || '(unnamed)', time: m.time || '', notes: m.notes || '', type: m.type || '', addedAt: Date.now() });
+        });
+        AA.saveMealLog(uid, dateKey, todaysMeals).catch(function(e) { console.error(e); });
+      }
+      AA.respondMealSuggestion(uid, id, true).then(function() {
+        var b = document.getElementById('meal-suggestion-banner');
+        /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+        if (b && b.parentNode) b.parentNode.removeChild(b);
+      }).catch(function(err) { alert('Error: ' + err.message); });
+    }
+
+    function _dismissMealSug(id) {
+      /* Claude: 2026-03-14 — auth guard: must be signed in to dismiss suggestions */
+      if (!AA || !AA.auth || !AA.auth.currentUser) return;
+      var uid = AA.auth.currentUser.uid;
+      AA.respondMealSuggestion(uid, id, false).then(function() {
+        var b = document.getElementById('meal-suggestion-banner');
+        /* Claude: 2026-03-25 — .remove() to parentNode.removeChild for older browser compat */
+        if (b && b.parentNode) b.parentNode.removeChild(b);
+      }).catch(function(err) { alert('Error: ' + err.message); });
+    }
+
+    /* ── 12-hour time helper (safe fallback if time-utils.js not loaded) ── */
+    function to12HourSafe(t) {
+      if (typeof to12Hour === 'function') return to12Hour(t);
+      if (!t) return '';
+      var parts = t.split(':');
+      var h = parseInt(parts[0], 10);
+      var m = parts[1];
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return h + ':' + m + ' ' + ampm;
+    }
+
+    /* ── HTML escape ── */
+    function esc(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    waitForAA(boot);
+  </script>
+</body>
+</html>

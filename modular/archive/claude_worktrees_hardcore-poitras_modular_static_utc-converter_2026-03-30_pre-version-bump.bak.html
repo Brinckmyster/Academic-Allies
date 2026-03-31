@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atomic Clock & UTC Converter — Academic Allies</title>
+  <!-- Claude: 2026-03-25 — added missing favicon -->
+  <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
+  <!-- Created: 2026-02-25 by Claude — UTC converter utility tool, placed in static/ -->
+  <!-- Claude: 2026-03-13 — Added atomic clock sync via timeapi.io with drift correction,
+       millisecond precision display, sync status indicator, and re-sync every 5 min -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.08);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.6;
+      padding-bottom: 3rem;
+    }
+    /* Claude: 2026-03-25 — renamed shared-header to site-header for consistency */
+    #site-header { min-height: 56px; }
+    .page-wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1rem 1rem 2rem;
+    }
+    h1 { font-size: 1.5rem; color: var(--teal-dk); margin: 1rem 0 .25rem; }
+    .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 1.25rem; }
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.25rem 1.25rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 { font-size: 1.1rem; color: var(--teal-dk); margin-bottom: .75rem; }
+
+    label { display: block; font-size: .9rem; color: var(--muted); margin-bottom: .3rem; }
+    input[type="datetime-local"],
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: .95rem;
+      background: var(--bg);
+      color: var(--text);
+      margin-bottom: .75rem;
+    }
+    input:focus, select:focus {
+      outline: 2px solid var(--teal);
+      border-color: var(--teal);
+    }
+
+    .btn-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+    button {
+      padding: .55rem 1.1rem;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+      min-height: 44px;
+    }
+    button:hover { background: var(--teal-dk); }
+    button.secondary {
+      background: #f0f0f0;
+      color: #555;
+      border: 1.5px solid #ccc;
+    }
+    button.secondary:hover { background: #e0e0e0; }
+
+    .result-box {
+      background: #f0f8f8;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      margin-top: .75rem;
+      font-size: .95rem;
+    }
+    .result-box .result-label { font-size: .8rem; color: var(--muted); margin-bottom: .2rem; }
+    .result-box .result-value { font-weight: 700; font-size: 1.05rem; color: var(--teal-dk); }
+    .result-box .result-copy {
+      float: right;
+      font-size: .78rem;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: .2rem .55rem;
+      cursor: pointer;
+      font-weight: 700;
+      min-height: auto;
+    }
+    .result-box .result-copy:hover { background: var(--teal-dk); }
+
+    /* ── Atomic clock hero ── */
+    .atomic-hero {
+      text-align: center;
+      padding: 1.5rem 1rem 1rem;
+    }
+    .atomic-time {
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: var(--teal-dk);
+      letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+    }
+    .atomic-ms {
+      font-size: 1.2rem;
+      color: var(--teal);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .atomic-date {
+      font-size: 1rem;
+      color: var(--text);
+      margin-top: .25rem;
+    }
+    .atomic-utc {
+      font-size: .85rem;
+      color: var(--muted);
+      margin-top: .15rem;
+    }
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      font-size: .78rem;
+      color: var(--muted);
+      margin-top: .5rem;
+      padding: .2rem .6rem;
+      border-radius: 20px;
+      background: #f0f0f0;
+    }
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .sync-dot.synced { background: #22c55e; }
+    .sync-dot.syncing { background: #f59e0b; animation: pulse-dot 1s infinite; }
+    .sync-dot.offline { background: #ef4444; }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+    .drift-info {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: .25rem;
+    }
+
+    .now-display {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--teal-dk);
+      margin-bottom: .25rem;
+    }
+    .now-utc {
+      font-size: .9rem;
+      color: var(--muted);
+    }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+    .tz-list { list-style: none; padding: 0; }
+    .tz-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: .35rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: .9rem;
+    }
+    .tz-list li:last-child { border-bottom: none; }
+    .tz-list .tz-name { color: var(--muted); flex: 0 0 180px; }
+    .tz-list .tz-time { font-weight: 700; color: var(--teal-dk); font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 480px) {
+      .atomic-time { font-size: 1.8rem; }
+      .atomic-ms { font-size: 1rem; }
+      .tz-list .tz-name { flex: 0 0 130px; }
+    }
+
+    /* Claude: 2026-03-25 — dark mode via CSS var overrides */
+    html.aa-dark { --bg: #121212; --card: #1e1e1e; --border: #333; --text: #e0e0e0; --muted: #888; --teal-dk: #8ec5c8; }
+    html.aa-dark input, html.aa-dark select { background: #2a2a2a; color: #e0e0e0; border-color: #555; }
+  </style>
+</head>
+<body>
+
+<!-- Claude: 2026-03-25 — renamed to site-header for consistency with all other pages -->
+<div id="site-header"></div>
+
+<div class="page-wrap">
+  <h1>Atomic Clock & UTC Converter</h1>
+  <p class="subtitle">Synced with atomic time servers. Convert between time zones or just see what time it really is.</p>
+
+  <!-- Atomic clock hero card -->
+  <div class="card atomic-hero" aria-label="Atomic clock display">
+    <div class="atomic-time" id="atomic-hms" aria-live="off">--:--:--</div>
+    <div class="atomic-ms" id="atomic-ms" aria-hidden="true">.000</div>
+    <div class="atomic-date" id="atomic-date">—</div>
+    <div class="atomic-utc" id="atomic-utc">UTC: —</div>
+    <div class="sync-status" id="sync-status" aria-live="polite">
+      <span class="sync-dot syncing" id="sync-dot"></span>
+      <span id="sync-label">Syncing...</span>
+    </div>
+    <div class="drift-info" id="drift-info"></div>
+  </div>
+
+  <!-- World clock card -->
+  <div class="card">
+    <h2>World Clock</h2>
+    <ul class="tz-list" id="tz-now-list">
+      <li><span class="tz-name">Mountain Time (you)</span><span class="tz-time" id="tz-mt">—</span></li>
+      <li><span class="tz-name">Eastern Time</span><span class="tz-time" id="tz-et">—</span></li>
+      <li><span class="tz-name">Central Time</span><span class="tz-time" id="tz-ct">—</span></li>
+      <li><span class="tz-name">Pacific Time</span><span class="tz-time" id="tz-pt">—</span></li>
+      <li><span class="tz-name">UTC</span><span class="tz-time" id="tz-utc">—</span></li>
+      <li><span class="tz-name">London (GMT/BST)</span><span class="tz-time" id="tz-lon">—</span></li>
+    </ul>
+  </div>
+
+  <!-- Convert a specific time -->
+  <div class="card">
+    <h2>Convert a Specific Time</h2>
+
+    <label for="input-dt">Enter a date and time:</label>
+    <input type="datetime-local" id="input-dt" />
+
+    <label for="input-from-tz">This time is in:</label>
+    <select id="input-from-tz">
+      <option value="America/Denver">Mountain Time (MT)</option>
+      <option value="America/New_York">Eastern Time (ET)</option>
+      <option value="America/Chicago">Central Time (CT)</option>
+      <option value="America/Los_Angeles">Pacific Time (PT)</option>
+      <option value="UTC">UTC</option>
+      <option value="Europe/London">London (GMT/BST)</option>
+      <option value="Europe/Paris">Paris / Rome (CET)</option>
+      <option value="Asia/Tokyo">Tokyo (JST)</option>
+      <option value="Australia/Sydney">Sydney (AEST)</option>
+    </select>
+
+    <label for="input-to-tz">Convert to:</label>
+    <select id="input-to-tz">
+      <option value="UTC">UTC</option>
+      <option value="America/Denver">Mountain Time (MT)</option>
+      <option value="America/New_York">Eastern Time (ET)</option>
+      <option value="America/Chicago">Central Time (CT)</option>
+      <option value="America/Los_Angeles">Pacific Time (PT)</option>
+      <option value="Europe/London">London (GMT/BST)</option>
+      <option value="Europe/Paris">Paris / Rome (CET)</option>
+      <option value="Asia/Tokyo">Tokyo (JST)</option>
+      <option value="Australia/Sydney">Sydney (AEST)</option>
+    </select>
+
+    <div class="btn-row">
+      <button onclick="convertTime()">Convert</button>
+      <button class="secondary" onclick="setNow()">Use Current Time</button>
+    </div>
+
+    <div class="result-box" id="convert-result" style="display:none;">
+      <div class="result-label">Result:</div>
+      <button class="result-copy" onclick="copyResult()" title="Copy to clipboard">Copy</button>
+      <div class="result-value" id="convert-value">—</div>
+    </div>
+  </div>
+
+  <!-- UTC to local quick converter -->
+  <div class="card">
+    <h2>Quick: UTC → My Local Time</h2>
+    <label for="utc-input">Paste a UTC time string (e.g. 2026-02-25T18:30:00Z or just 18:30 UTC):</label>
+    <input type="text" id="utc-input" placeholder="e.g. 2026-02-25T18:30:00Z" />
+    <div class="btn-row">
+      <button onclick="parseUTC()">Convert to My Time</button>
+    </div>
+    <div class="result-box" id="utc-result" style="display:none;">
+      <div class="result-label">In your local time:</div>
+      <button class="result-copy" onclick="copyUTCResult()" title="Copy to clipboard">Copy</button>
+      <div class="result-value" id="utc-value">—</div>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<script>
+/* Claude: 2026-03-13 — Atomic clock sync engine + drift correction */
+
+// ── Atomic sync state ──
+var _atomicDrift = 0;       // ms offset: positive = local clock is ahead of atomic
+var _atomicSynced = false;
+var _lastSyncAt = 0;
+var SYNC_INTERVAL = 5 * 60 * 1000; // re-sync every 5 minutes
+
+// Get corrected "atomic" time: local Date adjusted by measured drift
+function atomicNow() {
+  return new Date(Date.now() - _atomicDrift);
+}
+
+// ── Sync with atomic time server ──
+function syncAtomicTime() {
+  var dot = document.getElementById('sync-dot');
+  var label = document.getElementById('sync-label');
+  dot.className = 'sync-dot syncing';
+  label.textContent = 'Syncing...';
+
+  var t1 = Date.now(); // local time before request
+
+  // Try primary API: timeapi.io
+  fetchAtomicFromTimeAPI()
+    .then(function(result) {
+      applySync(result.serverMs, t1, result.source);
+    })
+    .catch(function() {
+      // Fallback: WorldTimeAPI replacement (timeapi.world)
+      fetchAtomicFromWorldTime()
+        .then(function(result) {
+          applySync(result.serverMs, t1, result.source);
+        })
+        .catch(function() {
+          // All APIs failed
+          if (!_atomicSynced) {
+            dot.className = 'sync-dot offline';
+            label.textContent = 'Using device clock';
+            document.getElementById('drift-info').textContent = '';
+          }
+          // If previously synced, keep using last drift value
+        });
+    });
+}
+
+function fetchAtomicFromTimeAPI() {
+  return new Promise(function(resolve, reject) {
+    var t1 = Date.now();
+    fetch('https://timeapi.io/api/time/current/zone?timeZone=UTC')
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        var t2 = Date.now();
+        // data has: year, month, day, hour, minute, seconds, milliSeconds, dateTime
+        var serverDate = new Date(data.dateTime + 'Z');
+        if (isNaN(serverDate.getTime())) throw new Error('Bad date');
+        resolve({
+          serverMs: serverDate.getTime(),
+          rtt: t2 - t1,
+          source: 'timeapi.io'
+        });
+      })
+      .catch(reject);
+  });
+}
+
+function fetchAtomicFromWorldTime() {
+  return new Promise(function(resolve, reject) {
+    var t1 = Date.now();
+    fetch('https://worldtimeapi.org/api/timezone/UTC')
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        var t2 = Date.now();
+        var serverDate = new Date(data.utc_datetime || data.datetime);
+        if (isNaN(serverDate.getTime())) throw new Error('Bad date');
+        resolve({
+          serverMs: serverDate.getTime(),
+          rtt: t2 - t1,
+          source: 'worldtimeapi.org'
+        });
+      })
+      .catch(reject);
+  });
+}
+
+function applySync(serverMs, requestStartMs, source) {
+  var t2 = Date.now();
+  var rtt = t2 - requestStartMs;
+  // Estimate server time at midpoint of request (compensate for network latency)
+  var estimatedServerNow = serverMs + Math.round(rtt / 2);
+  _atomicDrift = t2 - estimatedServerNow;
+  _atomicSynced = true;
+  _lastSyncAt = t2;
+
+  var dot = document.getElementById('sync-dot');
+  var label = document.getElementById('sync-label');
+  var info = document.getElementById('drift-info');
+
+  dot.className = 'sync-dot synced';
+  label.textContent = 'Synced via ' + source;
+
+  var absDrift = Math.abs(_atomicDrift);
+  if (absDrift < 50) {
+    info.textContent = 'Your clock is spot-on (within 50ms)';
+  } else if (absDrift < 1000) {
+    info.textContent = 'Your clock is ' + (_atomicDrift > 0 ? 'ahead' : 'behind') + ' by ' + absDrift + 'ms';
+  } else {
+    var secs = (absDrift / 1000).toFixed(1);
+    info.textContent = 'Your clock is ' + (_atomicDrift > 0 ? 'ahead' : 'behind') + ' by ' + secs + 's';
+  }
+}
+
+// ── Format helpers ──
+function fmtTime(date, tz) {
+  return date.toLocaleTimeString('en-US', {
+    timeZone: tz,
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: true, weekday: 'short', month: 'short', day: 'numeric'
+  });
+}
+
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+function pad3(n) { return n < 10 ? '00' + n : n < 100 ? '0' + n : '' + n; }
+
+// ── Live clock (runs every ~50ms for smooth milliseconds) ──
+function updateAtomicDisplay() {
+  var now = atomicNow();
+
+  // Big clock: HH:MM:SS
+  var h = now.getHours();
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  var h12 = h % 12 || 12;
+  var hms = pad2(h12) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds()) + ' ' + ampm;
+  document.getElementById('atomic-hms').textContent = hms;
+
+  // Milliseconds
+  document.getElementById('atomic-ms').textContent = '.' + pad3(now.getMilliseconds());
+
+  // Date line
+  document.getElementById('atomic-date').textContent = now.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  // UTC line
+  document.getElementById('atomic-utc').textContent = 'UTC: ' + now.toUTCString();
+
+  // World clock zones
+  var zones = {
+    'tz-mt':  'America/Denver',
+    'tz-et':  'America/New_York',
+    'tz-ct':  'America/Chicago',
+    'tz-pt':  'America/Los_Angeles',
+    'tz-utc': 'UTC',
+    'tz-lon': 'Europe/London'
+  };
+  Object.keys(zones).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = fmtTime(now, zones[id]);
+  });
+}
+
+// Start display loop (50ms for smooth ms counter)
+updateAtomicDisplay();
+setInterval(updateAtomicDisplay, 50);
+
+// Initial sync + periodic re-sync
+syncAtomicTime();
+setInterval(function() {
+  syncAtomicTime();
+}, SYNC_INTERVAL);
+
+// ── Set now ──
+function setNow() {
+  var now = atomicNow();
+  var local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  document.getElementById('input-dt').value = local.toISOString().slice(0,16);
+}
+
+// ── Convert a specific time ──
+function convertTime() {
+  var dtVal = document.getElementById('input-dt').value;
+  var fromTZ = document.getElementById('input-from-tz').value;
+  var toTZ   = document.getElementById('input-to-tz').value;
+
+  if (!dtVal) { alert('Please enter a date and time first.'); return; }
+
+  try {
+    var parts = dtVal.split('T');
+    var datePart = parts[0];
+    var timePart = parts[1] || '00:00';
+    var isoStr = datePart + 'T' + timePart + ':00';
+
+    var tempDate = new Date(isoStr);
+    var utcDate = getUTCFromTZ(isoStr, fromTZ);
+
+    var result = utcDate.toLocaleString('en-US', {
+      timeZone: toTZ,
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true
+    });
+
+    var tzLabel = document.getElementById('input-to-tz').options[document.getElementById('input-to-tz').selectedIndex].text;
+    document.getElementById('convert-value').textContent = result + ' (' + tzLabel + ')';
+    document.getElementById('convert-result').style.display = 'block';
+  } catch(e) {
+    alert('Could not convert — please check the date and time format.');
+    console.error(e);
+  }
+}
+
+function getUTCFromTZ(isoStr, tz) {
+  var d = new Date(isoStr + 'Z');
+  var utcMs = d.getTime();
+  var tzFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  });
+  var parts = tzFormatter.formatToParts(d);
+  var pv = {};
+  parts.forEach(function(p) { pv[p.type] = p.value; });
+  var tzLocal = new Date(
+    pv.year + '-' + pv.month + '-' + pv.day + 'T' +
+    (pv.hour === '24' ? '00' : pv.hour) + ':' + pv.minute + ':' + pv.second + 'Z'
+  );
+  var offsetMs = d.getTime() - tzLocal.getTime();
+  return new Date(d.getTime() - offsetMs);
+}
+
+// ── Parse UTC string ──
+function parseUTC() {
+  var raw = document.getElementById('utc-input').value.trim();
+  if (!raw) { alert('Please paste a UTC time string first.'); return; }
+
+  try {
+    var d;
+    if (raw.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)) {
+      d = new Date(raw.endsWith('Z') ? raw : raw + 'Z');
+    }
+    else if (raw.match(/^\d{1,2}:\d{2}/)) {
+      var today = new Date().toISOString().split('T')[0];
+      var timeOnly = raw.replace(/\s*UTC\s*/i, '').trim();
+      if (!timeOnly.match(/:\d{2}:\d{2}$/)) timeOnly += ':00';
+      d = new Date(today + 'T' + timeOnly + 'Z');
+    }
+    else if (raw.match(/^\d{1,2}(:\d{2})?\s*(am|pm)/i)) {
+      var m12 = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+      var h = parseInt(m12[1], 10);
+      var min = m12[2] ? parseInt(m12[2], 10) : 0;
+      var ampm = m12[3].toLowerCase();
+      if (ampm === 'pm' && h !== 12) h += 12;
+      if (ampm === 'am' && h === 12) h = 0;
+      var today2 = new Date().toISOString().split('T')[0];
+      d = new Date(today2 + 'T' + ('0' + h).slice(-2) + ':' + ('0' + min).slice(-2) + ':00Z');
+    } else {
+      d = new Date(raw);
+    }
+
+    if (isNaN(d.getTime())) throw new Error('Invalid date');
+
+    var local = d.toLocaleString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true
+    });
+
+    document.getElementById('utc-value').textContent = local + ' (your local time)';
+    document.getElementById('utc-result').style.display = 'block';
+  } catch(e) {
+    alert('Could not parse that time string. Try: 2026-02-25T18:30:00Z, 18:30 UTC, or 11pm / 11:30am');
+  }
+}
+
+// ── Copy helpers ──
+function copyResult() {
+  var txt = document.getElementById('convert-value').textContent;
+  navigator.clipboard.writeText(txt).catch(function() {
+    prompt('Copy this:', txt);
+  });
+}
+function copyUTCResult() {
+  var txt = document.getElementById('utc-value').textContent;
+  navigator.clipboard.writeText(txt).catch(function() {
+    prompt('Copy this:', txt);
+  });
+}
+</script>
+
+<!-- Shared header loader — full script re-execution so Firebase/auth initialise.
+     Updated 2026-02-28 by Claude — was using innerHTML only (scripts never ran). -->
+<script>
+fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+  .then(function(r){ return r.text(); })
+  .then(function(html){
+    /* Claude: 2026-03-25 — renamed to site-header for consistency */
+    var container = document.getElementById('site-header');
+    container.innerHTML = html;
+    /* Re-execute every <script> so Firebase + AA auth actually initialise */
+    container.querySelectorAll('script').forEach(function(old) {
+      var s = document.createElement('script');
+      [].slice.call(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      s.textContent = old.textContent;
+      old.parentNode.replaceChild(s, old);
+    });
+    /* Draggable header */
+    var drag = document.createElement('script');
+    drag.src = '/Academic-Allies/modular/js/draggable.js';
+    drag.onload = function(){ if (typeof initDrag === 'function') initDrag(); };
+    document.body.appendChild(drag);
+  })
+  .catch(function(){ /* header optional on static utility pages */ })
+  .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+</body>
+</html>

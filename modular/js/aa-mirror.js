@@ -701,8 +701,11 @@
     setTimeout(function () { waitForAA(cb, n + 1); }, 200);
   }
 
+  /* Claude: 2026-03-30 — W6 fix: store auth listener unsubscribe handle for cleanup on unload */
+  var _unsubMirrorAuth = null;
+
   waitForAA(function () {
-    AA.auth.onAuthStateChanged(function (user) {
+    _unsubMirrorAuth = AA.auth.onAuthStateChanged(function (user) {
       if (!user) {
         clearCache();
         window.AA_MIRROR_UID = null;
@@ -808,6 +811,11 @@
         })
         .catch(function (e) { console.warn('[aa-mirror] user doc read:', e); });
     });
+  });
+
+  /* Claude: 2026-03-30 — W6 fix: unsubscribe mirror auth listener on page unload */
+  window.addEventListener('beforeunload', function () {
+    if (_unsubMirrorAuth) { _unsubMirrorAuth(); _unsubMirrorAuth = null; }
   });
 
   /* Scan all users — return array of every student whose

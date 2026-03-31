@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fill in the Blank — Floral Quiz</title>
+  <!-- Claude: 2026-03-25 — added missing favicon -->
+  <link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
+
+  <!-- Claude: 2026-03-17 — Fill-in-the-blank flower genus quiz for FCS 240 -->
+
+  <!-- Dark mode early detect (prevent FOUC) -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Claude: 2026-03-20 — Firebase study activity tracking -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    html.aa-dark {
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+
+    body {
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    /* Header container */
+    #site-header {
+      margin-bottom: 1rem;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+
+    h1 {
+      text-align: center;
+      color: #6CA0A3;
+      margin-bottom: 2rem;
+      font-size: 2rem;
+    }
+
+    html.aa-dark h1 {
+      color: #8fc0c5;
+    }
+
+    /* Mode toggle */
+    .mode-toggle {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .mode-btn {
+      padding: 0.75rem 1.5rem;
+      border: 2px solid #6CA0A3;
+      background: white;
+      color: #6CA0A3;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      font-weight: 700;
+      transition: all 0.3s ease;
+    }
+
+    html.aa-dark .mode-btn {
+      background: #1e1e1e;
+      border-color: #8fc0c5;
+      color: #8fc0c5;
+    }
+
+    .mode-btn.active {
+      background: #6CA0A3;
+      color: white;
+    }
+
+    html.aa-dark .mode-btn.active {
+      background: #4a7f82;
+      color: white;
+    }
+
+    .mode-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Quiz filter */
+    .quiz-filter {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      padding: 0.5rem 1rem;
+      border: 1px solid #ccc;
+      background: white;
+      color: #333;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      transition: all 0.3s ease;
+    }
+
+    html.aa-dark .filter-pill {
+      background: #2a2a2a;
+      border-color: #444;
+      color: #e0e0e0;
+    }
+
+    .filter-pill.active {
+      background: #6CA0A3;
+      color: white;
+      border-color: #6CA0A3;
+    }
+
+    html.aa-dark .filter-pill.active {
+      background: #4a7f82;
+      border-color: #4a7f82;
+    }
+
+    .filter-pill:hover {
+      border-color: #6CA0A3;
+    }
+
+    /* Claude: 2026-03-17 — dark mode for spelling warning */
+    html.aa-dark .spelling-warning {
+      background: #3e2700 !important;
+      border-color: #b86e00 !important;
+      color: #ffb74d !important;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+
+    html.aa-dark .progress-bar {
+      background: #333;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #6CA0A3;
+      transition: width 0.3s ease;
+    }
+
+    /* Card */
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    html.aa-dark .card {
+      background: #1e1e1e;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .card.correct-flash {
+      animation: flash-correct 0.6s ease;
+    }
+
+    .card.incorrect-flash {
+      animation: flash-incorrect 0.6s ease;
+    }
+
+    @keyframes flash-correct {
+      0%, 100% { background: white; }
+      50% { background: #c8e6c9; }
+    }
+
+    html.aa-dark .card.correct-flash {
+      animation: flash-correct-dark 0.6s ease;
+    }
+
+    @keyframes flash-correct-dark {
+      0%, 100% { background: #1e1e1e; }
+      50% { background: #2d5d3a; }
+    }
+
+    @keyframes flash-incorrect {
+      0%, 100% { background: white; }
+      50% { background: #ffcdd2; }
+    }
+
+    html.aa-dark .card.incorrect-flash {
+      animation: flash-incorrect-dark 0.6s ease;
+    }
+
+    @keyframes flash-incorrect-dark {
+      0%, 100% { background: #1e1e1e; }
+      50% { background: #5c2d2d; }
+    }
+
+    .prompt-label {
+      font-size: 0.9rem;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 0.5rem;
+    }
+
+    html.aa-dark .prompt-label {
+      color: #aaa;
+    }
+
+    .prompt-text {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 1rem;
+    }
+
+    html.aa-dark .prompt-text {
+      color: #e0e0e0;
+    }
+
+    .pronunciation-btn {
+      background: none;
+      border: none;
+      color: #6CA0A3;
+      cursor: pointer;
+      font-size: 1.2rem;
+      margin-left: 0.5rem;
+      padding: 0;
+      vertical-align: middle;
+      transition: transform 0.2s;
+    }
+
+    html.aa-dark .pronunciation-btn {
+      color: #8fc0c5;
+    }
+
+    .pronunciation-btn:hover {
+      transform: scale(1.2);
+    }
+
+    /* Answer area */
+    .answer-area {
+      margin-bottom: 1rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 1rem;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      min-height: 48px;
+      transition: border-color 0.3s;
+    }
+
+    html.aa-dark input[type="text"] {
+      background: #2a2a2a;
+      border-color: #444;
+      color: #e0e0e0;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #6CA0A3;
+    }
+
+    .check-btn, .next-btn {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: #6CA0A3;
+      color: white;
+      min-height: 48px;
+    }
+
+    .check-btn:hover, .next-btn:hover {
+      background: #4a7f82;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .check-btn:active, .next-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Feedback */
+    .feedback {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      display: none;
+    }
+
+    .feedback.show {
+      display: block;
+    }
+
+    .feedback.correct {
+      background: #c8e6c9;
+      color: #2e7d32;
+    }
+
+    html.aa-dark .feedback.correct {
+      background: #2d5d3a;
+      color: #81c784;
+    }
+
+    .feedback.incorrect {
+      background: #ffcdd2;
+      color: #c62828;
+    }
+
+    html.aa-dark .feedback.incorrect {
+      background: #5c2d2d;
+      color: #ef5350;
+    }
+
+    .correct-answer {
+      margin-top: 0.5rem;
+      font-weight: normal;
+      font-size: 0.9rem;
+    }
+
+    /* Claude: 2026-03-18 — "You KNEW it" spelling feedback */
+    .feedback.spelling {
+      color: #e65100;
+      border-left: 4px solid #ff9800;
+      padding-left: 12px;
+      text-align: left;
+    }
+    html.aa-dark .feedback.spelling { color: #ffb74d; border-color: #b86e00; }
+    .knew-it {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #e65100;
+      margin-bottom: 6px;
+    }
+    html.aa-dark .knew-it { color: #ffb74d; }
+    .you-wrote { font-size: 0.85rem; color: #888; margin-top: 4px; }
+    .hint-box {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 10px;
+      text-align: left;
+    }
+    html.aa-dark .hint-box { background: #3e2f00; border-color: #5a4400; }
+    .hint-title {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #e65100;
+      margin-bottom: 6px;
+    }
+    html.aa-dark .hint-title { color: #ffb74d; }
+    .hint-item {
+      font-size: 0.85rem;
+      color: #555;
+      padding: 3px 0;
+      padding-left: 14px;
+      position: relative;
+    }
+    .hint-item::before { content: '\2192'; position: absolute; left: 0; }
+    html.aa-dark .hint-item { color: #ccc; }
+
+    /* Retry button styles */
+    .retry-btn { margin: 4px; }
+    #retrySpellingBtn { border-color: #e65100; color: #e65100; }
+    #retrySpellingBtn:hover { background: #e65100; color: #fff; }
+    #retryWrongBtn { border-color: #c62828; color: #c62828; }
+    #retryWrongBtn:hover { background: #c62828; color: #fff; }
+    html.aa-dark #retrySpellingBtn { border-color: #ffb74d; color: #ffb74d; }
+    html.aa-dark #retryWrongBtn { border-color: #ef5350; color: #ef5350; }
+
+    /* Claude: 2026-03-18 — Report wrong answer button + options */
+    .report-btn {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      color: #888;
+      font-size: 0.8rem;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+    }
+    .report-btn:hover { border-color: #e65100; color: #e65100; }
+    html.aa-dark .report-btn { border-color: #555; color: #888; }
+    html.aa-dark .report-btn:hover { border-color: #ffb74d; color: #ffb74d; }
+    .report-option {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      color: #333;
+    }
+    .report-option:hover { background: #fff3e0; border-color: #ff9800; }
+    html.aa-dark .report-option { background: #2a2a2a; border-color: #444; color: #ccc; }
+    html.aa-dark .report-option:hover { background: #3e2f00; border-color: #b86e00; }
+
+    /* Score display */
+    .score-display {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+      color: #666;
+    }
+
+    html.aa-dark .score-display {
+      color: #aaa;
+    }
+
+    .score-display .number {
+      color: #6CA0A3;
+      font-weight: 700;
+      font-size: 1.3rem;
+    }
+
+    html.aa-dark .score-display .number {
+      color: #8fc0c5;
+    }
+
+    /* End screen */
+    .end-screen {
+      text-align: center;
+    }
+
+    .end-screen h2 {
+      font-size: 1.5rem;
+      color: #6CA0A3;
+      margin-bottom: 1rem;
+    }
+
+    html.aa-dark .end-screen h2 {
+      color: #8fc0c5;
+    }
+
+    .end-screen .final-score {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #6CA0A3;
+      margin-bottom: 1rem;
+    }
+
+    html.aa-dark .end-screen .final-score {
+      color: #8fc0c5;
+    }
+
+    .end-screen p {
+      margin-bottom: 0.5rem;
+      color: #666;
+    }
+
+    html.aa-dark .end-screen p {
+      color: #aaa;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .retry-btn, .home-btn {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      min-height: 48px;
+    }
+
+    .retry-btn {
+      background: #6CA0A3;
+      color: white;
+    }
+
+    .retry-btn:hover {
+      background: #4a7f82;
+      transform: translateY(-2px);
+    }
+
+    .home-btn {
+      background: #ddd;
+      color: #333;
+      border: 2px solid #6CA0A3;
+    }
+
+    html.aa-dark .home-btn {
+      background: #2a2a2a;
+      color: #e0e0e0;
+      border-color: #4a7f82;
+    }
+
+    .home-btn:hover {
+      background: #ccc;
+      border-color: #4a7f82;
+    }
+
+    html.aa-dark .home-btn:hover {
+      background: #333;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #999;
+      font-size: 0.85rem;
+    }
+
+    html.aa-dark footer {
+      color: #666;
+    }
+
+    a {
+      color: #6CA0A3;
+      text-decoration: none;
+    }
+
+    html.aa-dark a {
+      color: #8fc0c5;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .container {
+        margin: 1rem auto;
+        padding: 0.5rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .card {
+        padding: 1.5rem;
+      }
+
+      .prompt-text {
+        font-size: 1.4rem;
+      }
+
+      .mode-toggle, .quiz-filter {
+        gap: 0.25rem;
+      }
+
+      .mode-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+      }
+
+      .filter-pill {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+      }
+
+      .input-group {
+        flex-direction: column;
+      }
+
+      .button-group {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .retry-btn, .home-btn, .check-btn, .next-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
+<script>var AA_MODE_GATE = 'flowerQuiz';</script>
+<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+
+<!-- Shared header -->
+<div id="site-header"></div>
+<script>
+  fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+    .then(function(response) { return response.text(); })
+    .then(function(html) {
+      var container = document.getElementById('site-header');
+      container.innerHTML = html;
+      var scripts = container.querySelectorAll('script');
+      scripts.forEach(function(oldScript) {
+        var newScript = document.createElement('script');
+        /* Claude: 2026-03-29 — replaced Array.from (ES2015) with [].slice.call() for ES5 compat */
+        [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+        newScript.textContent = oldScript.textContent;
+        oldScript.replaceWith(newScript);
+      });
+    })
+    .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<!-- Claude: 2026-03-20 — migrated from localStorage to Firestore -->
+<script src="/Academic-Allies/modular/js/study-activity.js?v=20260322"></script>
+
+<div class="container">
+  <h1>Fill in the Blank</h1>
+
+  <!-- Mode toggle -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" data-mode="genus">Type the Genus</button>
+    <button class="mode-btn" data-mode="common">Type the Common Name</button>
+  </div>
+
+  <!-- Quiz filter -->
+  <div class="quiz-filter">
+    <button class="filter-pill active" data-quiz="all">All</button>
+    <button class="filter-pill" data-quiz="1">Quiz 1</button>
+    <button class="filter-pill" data-quiz="2">Quiz 2</button>
+    <button class="filter-pill" data-quiz="3">Quiz 3</button>
+    <button class="filter-pill" data-quiz="4">Quiz 4</button>
+    <button class="filter-pill" data-quiz="5">Quiz 5</button>
+  </div>
+
+  <!-- Claude: 2026-03-17 — Spelling warning (strict mode for exam prep) -->
+  <div class="spelling-warning" style="text-align:center;background:#fff3e0;border:2px solid #ff9800;border-radius:10px;padding:10px 16px;margin-bottom:1.5rem;font-size:0.95rem;color:#e65100;">
+    <strong>Spelling counts!</strong> You must spell the answer exactly right — just like on the real test.
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-bar">
+    <div class="progress-fill"></div>
+  </div>
+
+  <!-- Score display -->
+  <div class="score-display">
+    <span class="number">0</span> / <span class="total">0</span> correct
+    (<span class="percentage">0</span>%)
+  </div>
+
+  <!-- Quiz card -->
+  <div class="card">
+    <div class="prompt-label" id="promptLabel">Type the Genus</div>
+    <div class="prompt-text" id="promptText">Loading...</div>
+    <div class="answer-area">
+      <div class="input-group">
+        <input type="text" id="answerInput" placeholder="Type your answer..." autocomplete="off">
+        <button class="check-btn" id="checkBtn">Check</button>
+      </div>
+      <!-- Claude: 2026-03-25 — aria-live for screen reader feedback -->
+      <div class="feedback" id="feedback" role="alert" aria-live="assertive"></div>
+    </div>
+    <!-- Claude: 2026-03-18 — Report button + inline report form -->
+    <div id="reportArea" style="display:none;margin-top:12px;">
+      <button class="report-btn" id="reportBtn">Report wrong answer</button>
+      <div id="reportForm" style="display:none;margin-top:8px;">
+        <div style="font-size:0.85rem;color:#888;margin-bottom:6px;">What's wrong?</div>
+        <button class="report-option" data-reason="wrong-genus">Wrong genus listed</button>
+        <button class="report-option" data-reason="wrong-spelling">Spelling error in answer key</button>
+        <button class="report-option" data-reason="wrong-common">Wrong common name</button>
+        <button class="report-option" data-reason="missing-alias">My answer should also be accepted</button>
+        <button class="report-option" data-reason="other">Other</button>
+        <div id="reportConfirm" style="display:none;margin-top:8px;color:#2e7d32;font-size:0.9rem;font-weight:700;"></div>
+      </div>
+    </div>
+    <button class="next-btn" id="nextBtn" style="display: none;">Next</button>
+  </div>
+
+  <!-- Claude: 2026-03-18 — End screen with spelling vs knowledge breakdown -->
+  <!-- Claude: 2026-03-25 — aria-live on end screen for screen readers -->
+  <div class="end-screen" id="endScreen" style="display: none;" role="alert" aria-live="polite">
+    <h2>Quiz Complete!</h2>
+    <div class="final-score" id="finalScore">0%</div>
+    <p id="finalMessage">Great job!</p>
+    <div id="missBreakdown" style="display:none;margin:12px 0;font-size:0.95rem;line-height:1.8;"></div>
+    <div class="button-group">
+      <button class="retry-btn" id="retrySpellingBtn" style="display:none;">Retry Spelling Misses</button>
+      <button class="retry-btn" id="retryWrongBtn" style="display:none;">Retry Wrong Answers</button>
+      <button class="retry-btn" id="retryMissedBtn" style="display:none;">Retry All Missed</button>
+      <button class="home-btn" id="homeBtn">Back to Home</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>Built by Claude for Bruise — March 2026</p>
+</footer>
+
+<script>
+  /* Claude: 2026-03-17 — Fill-in-the-blank quiz with all 5 categories */
+
+  /* Claude: 2026-03-18 — Flower data with spelling hints for each genus.
+     hints = 3 visual/pattern tricks for readers who struggle with spelling.
+     Focus: word-within-word, letter patterns, chunking, visual tricks. NO pronunciation guides. */
+  var flowerData = [
+    // Quiz 1: Mass Flowers
+    { quiz: 1, common: 'Carnation', genus: 'Dianthus', aliases: [],
+      hints: ['Ends with THUS — "and THUS, the carnation bloomed"', 'DI like Princess Diana + AN + THUS', 'Diana THUS gave us carnations'] },
+    { quiz: 1, common: 'Daisy Pom', genus: 'Chrysanthemum', aliases: ['Cushion Pom'],
+      hints: ['It ends with MUM! Chrysanthe-MUM for your mum', 'CHRYS like Christmas without the "tmas" + ANTHEMUM', 'The MUM at the end is your free anchor — build backward from there'] },
+    { quiz: 1, common: 'Rose', genus: 'Rosa', aliases: [],
+      hints: ['It is literally just the name Rosa', 'ROSE → swap the E for A → ROSA', 'Only 4 letters. You got this.'] },
+    /* Claude: 2026-03-23 — added Peruvian Lily + Lily of the Incas aliases per Mary's spelling sheet */
+    { quiz: 1, common: 'Alstro', genus: 'Alstroemeria', aliases: ['Peruvian Lily', 'Lily of the Incas'],
+      hints: ['AL goes to the cafeTERIA → AL-stroe-MERIA', 'That sneaky OE in the middle is the trap: alstr-OE-meria', 'A guy named AL + STROE + goes to the cafe-MERIA'] },
+    { quiz: 1, common: 'Lisianthus', genus: 'Eustoma', aliases: [],
+      hints: ['Shorter than the common name! Only 7 letters', 'EU like EUrope + STOMA (a mouth) — tiny flower mouths', 'A European mouth: EU-STOMA'] },
+    { quiz: 1, common: 'Hydrangea', genus: 'Hydrangea', aliases: [],
+      hints: ['Same as the common name — freebie!', 'A HYDRA on the RANGE: hyd-RANGE-a', 'If you can spell it as a flower, you can spell it as a genus'] },
+    { quiz: 1, common: 'Peony', genus: 'Paeonia', aliases: [],
+      hints: ['Sneaky swap: starts P-A-E not P-E-O!', 'PAE like "pay" + ONIA like "on ya"', 'Pay-onia: "I will PAE for these ONIAce flowers"'] },
+    { quiz: 1, common: 'Ranunculus', genus: 'Ranunculus', aliases: [],
+      hints: ['Same as the common name — another freebie!', 'A NUN is hiding inside: ra-NUN-culus', 'The NUN ran to her RANUNCULUS garden'] },
+    { quiz: 1, common: 'Safari Sunset', genus: 'Leucadendron', aliases: [],
+      hints: ['DENDRON is at the end — same ending as rhododendron', 'Luke (LEUCA) went on DENDRON safari', 'Two chunks: LEUCA + DENDRON. Luke + dendron.'] },
+    /* Claude: 2026-03-23 — fixed Matsumoto spelling (was Matsomoto) per Mary's spelling sheet */
+    { quiz: 1, common: 'China Aster', genus: 'Callistephus', aliases: ['Crown Aster', 'Matsumoto Aster'],
+      hints: ['You CALL a STEP class — CALLI-STEP-hus', 'Double L: caLListephus. Two Ls walk into a bar...', 'The aster who does calligraphy: CALLI + STEP + HUS'] },
+
+    // Quiz 2: Line Flowers
+    { quiz: 2, common: 'Snapdragon', genus: 'Antirrhinum', aliases: [],
+      hints: ['The double R is the trap! anti-RR-hinum', 'ANTI + RRHINUM. The snapdragon is ANTI-everything', 'Ends in NUM like a phone NUMber: antirrhi-NUM'] },
+    { quiz: 2, common: 'Larkspur', genus: 'Consolida', aliases: [],
+      hints: ['A girl named IDA likes to CONSOLE people: CONSOL-IDA', 'SOLID hides inside: con-SOLID-a', 'CON + SOLID + A. A solid con artist named Ida.'] },
+    { quiz: 2, common: 'Delphinium', genus: 'Delphinium', aliases: [],
+      hints: ['Same as the common name — freebie!', 'A DOLPHIN hiding: DELPHIN-ium', 'The dolphinium swam through the garden'] },
+    { quiz: 2, common: 'Liatris', genus: 'Liatris', aliases: [],
+      hints: ['Same as the common name — freebie!', 'Only 7 letters. LIA plays TETRIS: LIA-TRIS', 'Her name is Lia. She plays Tris.'] },
+    { quiz: 2, common: 'Gladiola', genus: 'Gladiolus', aliases: [],
+      hints: ['It is GLAD you know it! GLAD-iolus', 'Trap: ends in -OLUS not -OLA!', '"I am GLAD I OL\' US learned this" = GLADIOLUS'] },
+    { quiz: 2, common: 'Stock', genus: 'Matthiola', aliases: [],
+      hints: ['MATT said HI to OLA: MATT-HI-OLA', 'Double T like your friend Matt texting: MATT', 'Matt waves: "Hi, Ola!" = Matthiola'] },
+    { quiz: 2, common: 'Bells of Ireland', genus: 'Moluccella', aliases: [],
+      hints: ['A CELL is trapped inside: molu-CELL-a', 'Double C AND double L — the double-double!', 'Ella was locked in a CELL on the Molucca islands: MOLUCC-ELLA'] },
+    { quiz: 2, common: 'Baby Blue Eucalyptus', genus: 'Eucalyptus', aliases: [],
+      hints: ['Your LIP hides inside: euca-LYP-tus', 'EU like EUrope + CAL like CALendar + YPTUS', 'A European calendar stuck to your lip'] },
+    { quiz: 2, common: 'Curly Willow', genus: 'Salix', aliases: [],
+      hints: ['Only 5 letters! One of the easiest!', 'FELIX the cat lost his FE: SALIX', 'SAL licks something: SAL-IX'] },
+    { quiz: 2, common: 'Dendrobium Orchid', genus: 'Dendrobium', aliases: [],
+      hints: ['Someone ROBbed the DEN: DEN-DROB-ium', 'ROB is hiding in the middle!', 'The orchid ROBber lives in a DEN'] },
+
+    // Quiz 3: Filler Flowers
+    { quiz: 3, common: 'Solidago', genus: 'Solidago', aliases: [],
+      hints: ['Same as the common name — freebie!', 'SOLID + AGO: "A SOLID choice from AGO"', 'This flower has been SOLID for AGES AGO'] },
+    { quiz: 3, common: 'Misty Blue', genus: 'Limonium', aliases: [],
+      hints: ['A LEMON with an I: L-I-MON-ium. The misty lemon!', 'Swap one letter: LEMON → LIMON + ium', 'When life gives you LEMONs, spell LIMONIUM'] },
+    /* Claude: 2026-03-23 — added Caspia alias per Mary's spelling sheet */
+    { quiz: 3, common: 'Statice', genus: 'Limonium', aliases: ['Caspia'],
+      hints: ['Same genus as Misty Blue! Two-for-one deal', 'The misty lemon again: LIMONIUM', 'Learn it once, use it twice. LIMON + IUM'] },
+    { quiz: 3, common: 'Queen Anne\'s Lace', genus: 'Ammi', aliases: [],
+      hints: ['Only 4 letters! The shortest genus!', '"Am I spelling this right?" AM-MI. Yes!', 'Double M is the whole trick: A-M-M-I'] },
+    { quiz: 3, common: 'Babies Breath', genus: 'Gypsophila', aliases: [],
+      hints: ['A GYPSY named PHIL-A: GYPSO-PHIL-A', 'Phil the gypsy loves babies breath', 'PHIL is hiding inside loving flowers: gypso-PHIL-a'] },
+    { quiz: 3, common: 'Waxflower', genus: 'Chamelaucium', aliases: [],
+      hints: ['A CHAMELEON in the garden: CHAME-laucium', 'LAURA hides in the middle: chame-LAU-cium', 'The chameleon waxed Laura: CHAME + LAU + CIUM'] },
+    /* Claude: 2026-03-23 — added Spray/Mini aliases per Mary's spelling sheet */
+    { quiz: 3, common: 'Pixie Carnation', genus: 'Dianthus', aliases: ['Spray Carnation', 'Mini Carnation'],
+      hints: ['Same as regular Carnation — double freebie!', '"And THUS, the pixie bloomed" = dian-THUS', 'Princess Diana + THUS = DIANTHUS'] },
+    { quiz: 3, common: 'Aster', genus: 'Aster', aliases: [],
+      hints: ['Same as the common name — easiest one!', 'Like the * on your keyboard: ASTERISK = ASTER', 'It means STAR. You are an aster student.'] },
+    { quiz: 3, common: 'Hypericum Berries', genus: 'Hypericum', aliases: [],
+      hints: ['The berry is HYPER! HYPER-icum!', 'Same HYPER as hyperactive + ICUM', 'This berry had too much sugar: HYPER-ICUM'] },
+    { quiz: 3, common: 'Sea Holly', genus: 'Eryngium', aliases: [],
+      hints: ['ERIN hides at the start! (spelled ERYN here)', 'Erin went to the GYM by the sea: ERYN-GIUM', 'The Y instead of I is the sneaky part: E-R-Y-N'] },
+
+    // Quiz 4: Form/Focal Flowers
+    { quiz: 4, common: 'Sunflower', genus: 'Helianthus', aliases: [],
+      hints: ['Same ending as Dianthus: helian-THUS! The "thus" family', 'A HELIcopter landed on an ANT: HELI-ANT-hus', 'ANT hides in the middle: heli-ANT-hus'] },
+    { quiz: 4, common: 'Calla Lily', genus: 'Zantedeschia', aliases: [],
+      hints: ['Starts with Z — the ONLY genus that does!', 'DES hides in the middle: zante-DES-chia', 'Zante is a Greek island. ZANTE + DES + CHI + A'] },
+    { quiz: 4, common: 'Tulip', genus: 'Tulipa', aliases: [],
+      hints: ['Just TULIP + A at the end. That is it!', 'The tulip said "ah!" = TULIP-A', 'If you can spell tulip, just add the A'] },
+    { quiz: 4, common: 'Bird of Paradise', genus: 'Strelitzia', aliases: [],
+      hints: ['The bird is LIT: stre-LIT-zia!', 'Ends like piZZA but only one Z: -ZIA', 'A STREet that is LIT with piZZA: STRE-LIT-ZIA'] },
+    { quiz: 4, common: 'Disbud Mum', genus: 'Chrysanthemum', aliases: [],
+      hints: ['Same as Daisy Pom — two-for-one MUM!', 'Ends with MUM. Your mum would be so proud.', 'Learn it for Daisy Pom, get Disbud Mum free'] },
+    { quiz: 4, common: 'Lily', genus: 'Lilium', aliases: [],
+      hints: ['LILY but swap Y for UM: LIL-I-UM', 'Only 6 letters! Lily + um... LILIUM!', '"Um, Lily?" "LILIUM!" she corrected'] },
+    { quiz: 4, common: 'Billy Balls', genus: 'Craspedia', aliases: [],
+      hints: ['A RASPBERRY encyclopedia: c-RASP-EDIA', 'RASP hides inside! Like a raspberry', 'Billy looked up RASPberries in the ency-CRAS-PEDIA'] },
+    { quiz: 4, common: 'Anthurium', genus: 'Anthurium', aliases: [],
+      hints: ['Same as the common name — freebie!', 'THURSDAY hides inside: an-THUR-ium', 'Every Thursday is Anthurium day'] },
+    { quiz: 4, common: 'Iris', genus: 'Iris', aliases: [],
+      hints: ['Same as the common name — the easiest!', 'Only 4 letters. Like the eye iris.', 'You have been staring at the answer this whole time'] },
+    { quiz: 4, common: 'Gerber Daisy', genus: 'Gerbera', aliases: [],
+      hints: ['GERBER baby food + A = GERBERA', 'The baby grew up and became a flower. Just add A.', 'Only change: GERBER → GERBERA'] },
+
+    // Quiz 5: Foliage
+    { quiz: 5, common: 'Leather Leaf', genus: 'Rumohra', aliases: [],
+      hints: ['A RUMOR about the leather leaf: RUMOR + HA → RUMOHRA', 'Only 7 letters. The H after O is the trap: rum-OH-ra', '"I heard a RUMOR-a about the leather leaf"'] },
+    { quiz: 5, common: 'Bear Grass', genus: 'Xerophyllum', aliases: [],
+      hints: ['Starts with X — XERO like a Xerox copy!', 'Double L near the end: xerophy-LL-um', 'The bear made a XERO-copy of the PHYLL-UM (leaf book)'] },
+    { quiz: 5, common: 'Lily Grass', genus: 'Liriope', aliases: [],
+      hints: ['Ends like Penel-OPE: liri-OPE', 'Only 7 letters — shorter than it looks', 'Penelope\'s sister is named LIRIOPE'] },
+    { quiz: 5, common: 'Seeded Eucalyptus', genus: 'Eucalyptus', aliases: [],
+      hints: ['Same as Baby Blue — two-for-one deal!', 'Your LIP is stuck: euca-LYP-tus', 'A European with a calendar on their lip (same trick as before)'] },
+    { quiz: 5, common: 'Israeli Ruscus', genus: 'Ruscus', aliases: [],
+      hints: ['Only 6 letters! RUS + CUS.', 'The Russian CUSSED: RUS-CUS', 'Both halves match: rUs-cUs — mirror image!'] },
+    { quiz: 5, common: 'Italian Ruscus', genus: 'Ruscus', aliases: [],
+      hints: ['Same as Israeli — another two-for-one!', 'The Italian AND the Israeli both say RUS-CUS', 'Only 6 letters. You already know this one.'] },
+    { quiz: 5, common: 'Salal', genus: 'Gaultheria', aliases: ['Lemon Leaf'],
+      hints: ['THE is hiding in the middle: gaul-THE-ria', 'Ancient GAUL had THE best plants: GAUL-THE-RIA', 'A French soldier (GAUL) said "THE bacteria (THERIA) got me"'] },
+    { quiz: 5, common: 'Grevillea', genus: 'Grevillea', aliases: [],
+      hints: ['Same as the common name — freebie!', 'EVIL hides inside: gr-EVIL-lea. An evil plant!', 'The EVIL is in the grevillea. Double L too: grevi-LL-ea'] },
+    { quiz: 5, common: 'Pitt', genus: 'Pittosporum', aliases: [],
+      hints: ['Brad PITT grows SPORES: PITT-O-SPOR-UM', 'SPORE hides inside: pitto-SPOR-um', 'Double T at the start like the actor: PI-TT-osporum'] },
+    { quiz: 5, common: 'Myrtle', genus: 'Myrtus', aliases: [],
+      hints: ['MYRTLE swapped her LE for US: MYRT-US', 'Only 6 letters. Same start, different end.', '"Myrtle, it is just US now" = MYRT-US'] }
+  ];
+
+  /* Quiz state */
+  var quizState = {
+    mode: 'genus', // 'genus' or 'common'
+    selectedQuiz: 'all', // 'all' or '1'-'5'
+    currentDeck: [],
+    currentIndex: 0,
+    correct: 0,
+    total: 0,
+    missed: [],           // legacy — all misses combined
+    missedSpelling: [],   // knew it but misspelled
+    missedWrong: [],      // didn't know the answer
+    retryingMissed: false,
+    retryMode: ''         // '' | 'spelling' | 'wrong' | 'all'
+  };
+
+  /* DOM elements */
+  var promptLabel = document.getElementById('promptLabel');
+  var promptText = document.getElementById('promptText');
+  var answerInput = document.getElementById('answerInput');
+  var checkBtn = document.getElementById('checkBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var feedback = document.getElementById('feedback');
+  var scoreDisplay = document.querySelector('.score-display .number');
+  var totalDisplay = document.querySelector('.score-display .total');
+  var percentageDisplay = document.querySelector('.score-display .percentage');
+  var progressFill = document.querySelector('.progress-fill');
+  var card = document.querySelector('.card');
+  var endScreen = document.getElementById('endScreen');
+  var finalScore = document.getElementById('finalScore');
+  var finalMessage = document.getElementById('finalMessage');
+  var retryMissedBtn = document.getElementById('retryMissedBtn');
+  var retrySpellingBtn = document.getElementById('retrySpellingBtn');
+  var retryWrongBtn = document.getElementById('retryWrongBtn');
+  var missBreakdown = document.getElementById('missBreakdown');
+  var homeBtn = document.getElementById('homeBtn');
+  var reportArea = document.getElementById('reportArea');
+  var reportBtn = document.getElementById('reportBtn');
+  var reportForm = document.getElementById('reportForm');
+  var reportConfirm = document.getElementById('reportConfirm');
+
+  /* Fisher-Yates shuffle */
+  function shuffle(array) {
+    var arr = array.slice();
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = temp;
+    }
+    return arr;
+  }
+
+  /* Build deck from selected quiz */
+  function buildDeck() {
+    var filtered = flowerData.filter(function(flower) {
+      if (quizState.selectedQuiz === 'all') return true;
+      return flower.quiz === parseInt(quizState.selectedQuiz, 10);
+    });
+    quizState.currentDeck = shuffle(filtered);
+    quizState.currentIndex = 0;
+    quizState.correct = 0;
+    quizState.total = quizState.currentDeck.length;
+    quizState.missed = [];
+    quizState.missedSpelling = [];
+    quizState.missedWrong = [];
+    quizState.retryingMissed = false;
+    quizState.retryMode = '';
+    updateDisplay();
+  }
+
+  /* Build deck from missed items */
+  /* Claude: 2026-03-18 — retry supports spelling-only, wrong-only, or all */
+  function buildMissedDeck(retryType) {
+    var deck = [];
+    if (retryType === 'spelling') deck = quizState.missedSpelling;
+    else if (retryType === 'wrong') deck = quizState.missedWrong;
+    else deck = quizState.missedSpelling.concat(quizState.missedWrong);
+    quizState.currentDeck = shuffle(deck);
+    quizState.currentIndex = 0;
+    quizState.correct = 0;
+    quizState.total = quizState.currentDeck.length;
+    quizState.missed = [];
+    quizState.missedSpelling = [];
+    quizState.missedWrong = [];
+    quizState.retryingMissed = true;
+    quizState.retryMode = retryType || 'all';
+    updateDisplay();
+  }
+
+  /* Update score and progress */
+  function updateDisplay() {
+    scoreDisplay.textContent = quizState.correct;
+    totalDisplay.textContent = quizState.total;
+    var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+    percentageDisplay.textContent = pct;
+    var progressPct = quizState.total > 0 ? ((quizState.currentIndex + 1) / quizState.total) * 100 : 0;
+    progressFill.style.width = progressPct + '%';
+    displayQuestion();
+  }
+
+  /* Display current question */
+  function displayQuestion() {
+    resetCard();
+    if (quizState.currentIndex >= quizState.currentDeck.length) {
+      showEndScreen();
+      return;
+    }
+    var flower = quizState.currentDeck[quizState.currentIndex];
+    if (quizState.mode === 'genus') {
+      promptLabel.textContent = 'Type the Genus';
+      promptText.innerHTML = flower.common;
+    } else {
+      promptLabel.textContent = 'Type the Common Name';
+      promptText.innerHTML = flower.genus + ' <button class="pronunciation-btn" title="Pronounce">\u{1F50A}</button>';
+      var pronounceBtn = promptText.querySelector('.pronunciation-btn');
+      pronounceBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        pronounce(flower.genus);
+      });
+    }
+    answerInput.focus();
+  }
+
+  /* Text-to-speech pronunciation */
+  function pronounce(text) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      var utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  /* Claude: 2026-03-17 — Levenshtein distance for "close but wrong" feedback */
+  function editDistance(a, b) {
+    var m = a.length, n = b.length;
+    var dp = [];
+    for (var i = 0; i <= m; i++) {
+      dp[i] = [i];
+      for (var j = 1; j <= n; j++) {
+        dp[i][j] = i === 0 ? j : 0;
+      }
+    }
+    for (var i = 1; i <= m; i++) {
+      for (var j = 1; j <= n; j++) {
+        if (a[i - 1] === b[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1];
+        } else {
+          dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+        }
+      }
+    }
+    return dp[m][n];
+  }
+
+  /* Claude: 2026-03-18 — Three-way answer check:
+     1. Exact match (case-insensitive) = CORRECT
+     2. Close spelling (edit distance ≤ 3) = KNEW IT but misspelled — shows hints
+     3. Totally wrong = WRONG — different flower or blank
+     Tracks spelling misses vs knowledge misses separately for retry. */
+  function checkAnswer() {
+    var flower = quizState.currentDeck[quizState.currentIndex];
+    var userAnswer = answerInput.value.trim();
+    var correctText = quizState.mode === 'genus' ? flower.genus : flower.common;
+    var isExact = false;
+    var isClose = false;
+
+    // Check exact match
+    if (quizState.mode === 'genus') {
+      isExact = userAnswer.toLowerCase() === flower.genus.toLowerCase();
+    } else {
+      isExact = userAnswer.toLowerCase() === flower.common.toLowerCase();
+      if (!isExact) {
+        for (var i = 0; i < flower.aliases.length; i++) {
+          if (userAnswer.toLowerCase() === flower.aliases[i].toLowerCase()) { isExact = true; break; }
+        }
+      }
+    }
+
+    // If not exact, check if it is close (right answer, wrong spelling)
+    if (!isExact && userAnswer.length > 0) {
+      var dist = editDistance(userAnswer.toLowerCase(), correctText.toLowerCase());
+      // Also check aliases for closeness in common-name mode
+      var minDist = dist;
+      if (quizState.mode === 'common') {
+        for (var j = 0; j < flower.aliases.length; j++) {
+          var aDist = editDistance(userAnswer.toLowerCase(), flower.aliases[j].toLowerCase());
+          if (aDist < minDist) minDist = aDist;
+        }
+      }
+      // Close = within 3 edits AND at least 40% of the letters match
+      var maxLen = Math.max(userAnswer.length, correctText.length);
+      if (minDist <= 3 && minDist < maxLen * 0.6) {
+        isClose = true;
+      }
+    }
+
+    if (isExact) {
+      // ── CORRECT ──
+      quizState.correct++;
+      card.classList.add('correct-flash');
+      feedback.classList.add('show', 'correct');
+      feedback.innerHTML = '✓ Correct!';
+      updateMissedCounter(false);
+    } else if (isClose) {
+      // ── KNEW IT — spelling was off ──
+      card.classList.add('incorrect-flash');
+      feedback.classList.add('show', 'spelling');
+      var hintsHtml = '';
+      if (flower.hints && flower.hints.length > 0) {
+        hintsHtml = '<div class="hint-box"><div class="hint-title">Spelling helpers:</div>';
+        for (var h = 0; h < flower.hints.length; h++) {
+          hintsHtml += '<div class="hint-item">' + flower.hints[h] + '</div>';
+        }
+        hintsHtml += '</div>';
+      }
+      /* Claude: 2026-03-18 — varied encouragement so it doesn't get annoying */
+      var knewItMsgs = [
+        'You KNEW it! Just a spelling hiccup.',
+        'Right flower, wrong letters! So close.',
+        'Your brain got it — your fingers just need to catch up.',
+        'That is the right answer with the wrong outfit on.',
+        'Knowledge: A+. Spelling: needs work.',
+        'You knew this one! Let the spelling helpers sink in.',
+        'Correct answer, creative spelling.',
+        'The flower knowledge is THERE. Spelling is the last boss.',
+        'Almost perfect — just some letters in the wrong order.',
+        'You recognized it! Now let\'s lock in that spelling.'
+      ];
+      var knewItMsg = knewItMsgs[Math.floor(Math.random() * knewItMsgs.length)];
+      var testWarnings = [
+        'Still counts as a miss — the test won\'t be this nice!',
+        'Marked as a miss — your teacher won\'t give partial credit.',
+        'Still a miss for scoring — but YOU know that you know it.',
+        'The test will want exact spelling. You are so close though.'
+      ];
+      var testWarn = testWarnings[Math.floor(Math.random() * testWarnings.length)];
+      feedback.innerHTML = '<div class="knew-it">' + knewItMsg + '</div>' +
+        '<div class="correct-answer">Correct spelling: <strong>' + correctText + '</strong></div>' +
+        '<div class="you-wrote">You wrote: <span style="text-decoration:line-through;">' + userAnswer + '</span></div>' +
+        hintsHtml +
+        '<div style="font-size:0.8rem;color:#888;margin-top:8px;">' + testWarn + '</div>';
+      quizState.missedSpelling.push(flower);
+      updateMissedCounter(true);
+    } else {
+      // ── WRONG — didn't know the answer ──
+      card.classList.add('incorrect-flash');
+      feedback.classList.add('show', 'incorrect');
+      feedback.innerHTML = '✗ Incorrect.<div class="correct-answer">Answer: <strong>' + correctText + '</strong></div>';
+      quizState.missedWrong.push(flower);
+      updateMissedCounter(true);
+    }
+
+    checkBtn.style.display = 'none';
+    nextBtn.style.display = 'inline-block';
+    answerInput.disabled = true;
+    /* Claude: 2026-03-18 — show report button after answer is revealed */
+    reportArea.style.display = 'block';
+    reportForm.style.display = 'none';
+    reportConfirm.style.display = 'none';
+  }
+
+  /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+  /* Update Firestore missed counter per flower */
+  function updateMissedCounter(isMiss) {
+    var flower = quizState.currentDeck[quizState.currentIndex];
+    if (!flower) return;
+
+    var flowerName = flower.common;
+    if (window.AA && window.AA.study) {
+      if (isMiss) {
+        window.AA.study.addMiss(flowerName).catch(function (err) {
+          console.warn('[AA Study] addMiss failed:', err);
+          /* Fallback to localStorage */
+          try {
+            var missedMap = JSON.parse(localStorage.getItem('AA_FLORAL_MISSED') || '{}');
+            missedMap[flowerName] = (missedMap[flowerName] || 0) + 1;
+            localStorage.setItem('AA_FLORAL_MISSED', JSON.stringify(missedMap));
+          } catch (e) {}
+        });
+      } else {
+        window.AA.study.removeMiss(flowerName).catch(function (err) {
+          console.warn('[AA Study] removeMiss failed:', err);
+          /* Fallback to localStorage */
+          try {
+            var missedMap = JSON.parse(localStorage.getItem('AA_FLORAL_MISSED') || '{}');
+            if (missedMap[flowerName]) {
+              missedMap[flowerName]--;
+              if (missedMap[flowerName] <= 0) delete missedMap[flowerName];
+            }
+            localStorage.setItem('AA_FLORAL_MISSED', JSON.stringify(missedMap));
+          } catch (e) {}
+        });
+      }
+    } else {
+      /* Fallback if AA.study not loaded yet */
+      try {
+        var missedMap = JSON.parse(localStorage.getItem('AA_FLORAL_MISSED') || '{}');
+        if (isMiss) {
+          missedMap[flowerName] = (missedMap[flowerName] || 0) + 1;
+        } else {
+          if (missedMap[flowerName]) {
+            missedMap[flowerName]--;
+            if (missedMap[flowerName] <= 0) delete missedMap[flowerName];
+          }
+        }
+        localStorage.setItem('AA_FLORAL_MISSED', JSON.stringify(missedMap));
+      } catch (e) {}
+    }
+  }
+
+  /* Reset card to initial state */
+  function resetCard() {
+    card.classList.remove('correct-flash', 'incorrect-flash');
+    feedback.classList.remove('show', 'correct', 'incorrect');
+    feedback.innerHTML = '';
+    answerInput.value = '';
+    answerInput.disabled = false;
+    checkBtn.style.display = 'inline-block';
+    nextBtn.style.display = 'none';
+    reportArea.style.display = 'none';
+  }
+
+  /* Claude: 2026-03-18 — End screen with spelling vs knowledge breakdown */
+  function showEndScreen() {
+    /* Claude: 2026-03-20 — migrated from localStorage to Firestore */
+    if (window.AA && window.AA.study) {
+      window.AA.study.logSession('fill-blank').catch(function (err) {
+        console.warn('[AA Study] logSession failed:', err);
+      });
+    }
+
+    card.style.display = 'none';
+    endScreen.style.display = 'block';
+    var pct = quizState.total > 0 ? Math.round((quizState.correct / quizState.total) * 100) : 0;
+    finalScore.textContent = pct + '%';
+    var nSpell = quizState.missedSpelling.length;
+    var nWrong = quizState.missedWrong.length;
+    var nTotal = nSpell + nWrong;
+
+    // Hide all retry buttons by default
+    retryMissedBtn.style.display = 'none';
+    retrySpellingBtn.style.display = 'none';
+    retryWrongBtn.style.display = 'none';
+    missBreakdown.style.display = 'none';
+
+    if (quizState.retryingMissed) {
+      finalMessage.textContent = 'Nice work on the retry!';
+      // Show breakdown even on retry
+      if (nTotal > 0) {
+        missBreakdown.style.display = 'block';
+        missBreakdown.innerHTML = buildBreakdownHtml(nSpell, nWrong);
+        if (nSpell > 0) retrySpellingBtn.style.display = 'inline-block';
+        if (nWrong > 0) retryWrongBtn.style.display = 'inline-block';
+        if (nSpell > 0 && nWrong > 0) retryMissedBtn.style.display = 'inline-block';
+      }
+    } else if (pct === 100) {
+      finalMessage.textContent = 'Perfect score! You\'re ready for the exam!';
+    } else if (nTotal > 0) {
+      finalMessage.textContent = 'You missed ' + nTotal + ' — here\'s the breakdown:';
+      missBreakdown.style.display = 'block';
+      missBreakdown.innerHTML = buildBreakdownHtml(nSpell, nWrong);
+      if (nSpell > 0) retrySpellingBtn.style.display = 'inline-block';
+      if (nWrong > 0) retryWrongBtn.style.display = 'inline-block';
+      if (nSpell > 0 && nWrong > 0) retryMissedBtn.style.display = 'inline-block';
+    } else {
+      finalMessage.textContent = 'Great job!';
+    }
+  }
+
+  function buildBreakdownHtml(nSpell, nWrong) {
+    var html = '';
+    if (nSpell > 0) {
+      html += '<div style="color:#e65100;"><strong>Spelling misses:</strong> ' + nSpell +
+        ' — you knew ' + (nSpell === 1 ? 'this one' : 'these') + ', just need the spelling!</div>';
+    }
+    if (nWrong > 0) {
+      html += '<div style="color:#c62828;"><strong>Wrong answers:</strong> ' + nWrong +
+        ' — ' + (nWrong === 1 ? 'this one needs' : 'these need') + ' more study</div>';
+    }
+    if (nSpell > 0 && nWrong === 0) {
+      html += '<div style="color:#2e7d32;margin-top:6px;">You knew every answer! Just polish the spelling and you\'re golden.</div>';
+    }
+    return html;
+  }
+
+  /* Event listeners */
+  document.querySelectorAll('.mode-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.mode-btn').forEach(function(b) {
+        b.classList.remove('active');
+      });
+      btn.classList.add('active');
+      quizState.mode = btn.getAttribute('data-mode');
+      card.style.display = 'block';
+      endScreen.style.display = 'none';
+      buildDeck();
+    });
+  });
+
+  document.querySelectorAll('.filter-pill').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.filter-pill').forEach(function(b) {
+        b.classList.remove('active');
+      });
+      btn.classList.add('active');
+      quizState.selectedQuiz = btn.getAttribute('data-quiz');
+      card.style.display = 'block';
+      endScreen.style.display = 'none';
+      buildDeck();
+    });
+  });
+
+  checkBtn.addEventListener('click', checkAnswer);
+  answerInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      checkAnswer();
+    }
+  });
+
+  nextBtn.addEventListener('click', function() {
+    quizState.currentIndex++;
+    updateDisplay();
+  });
+
+  retryMissedBtn.addEventListener('click', function() {
+    buildMissedDeck('all');
+    card.style.display = 'block';
+    endScreen.style.display = 'none';
+  });
+  retrySpellingBtn.addEventListener('click', function() {
+    buildMissedDeck('spelling');
+    card.style.display = 'block';
+    endScreen.style.display = 'none';
+  });
+  retryWrongBtn.addEventListener('click', function() {
+    buildMissedDeck('wrong');
+    card.style.display = 'block';
+    endScreen.style.display = 'none';
+  });
+
+  homeBtn.addEventListener('click', function() {
+    window.location.href = '/Academic-Allies/';
+  });
+
+  /* Claude: 2026-03-18 — Report wrong answer system.
+     Saves to Firestore: /quizReports/{auto-id}
+     Also sends a message to Bruise's in-app message system so she sees it. */
+  reportBtn.addEventListener('click', function() {
+    reportForm.style.display = 'block';
+    reportBtn.style.display = 'none';
+  });
+
+  document.querySelectorAll('.report-option').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var reason = btn.getAttribute('data-reason');
+      var flower = quizState.currentDeck[quizState.currentIndex] ||
+                   quizState.currentDeck[quizState.currentIndex - 1]; // might have advanced
+      if (!flower) { reportConfirm.textContent = 'Could not identify the flower. Try again?'; reportConfirm.style.display = 'block'; return; }
+
+      var report = {
+        common: flower.common,
+        genus: flower.genus,
+        quiz: flower.quiz,
+        reason: reason,
+        userAnswer: answerInput.value.trim(),
+        mode: quizState.mode,
+        timestamp: new Date().toISOString(),
+        source: 'fill-in-the-blank'
+      };
+
+      // Save to localStorage as fallback
+      try {
+        var reports = JSON.parse(localStorage.getItem('AA_QUIZ_REPORTS') || '[]');
+        reports.push(report);
+        localStorage.setItem('AA_QUIZ_REPORTS', JSON.stringify(reports));
+      } catch(e) {}
+
+      // Save to Firestore + send message to Bruise
+      function _saveReport() {
+        if (!window.AA || !window.AA.db) return;
+        var user = window.AA.auth && window.AA.auth.currentUser;
+        report.reportedBy = user ? user.displayName || user.email || user.uid : 'anonymous';
+        report.reporterUid = user ? user.uid : null;
+
+        // Save to quizReports collection
+        window.AA.db.collection('quizReports').add(report)
+          .catch(function(err) { console.warn('[AA] Report save failed:', err); });
+
+        // Send in-app message to Bruise (brinckmyster)
+        // Find Bruise's UID by checking admin or using known email
+        if (window.AA.db) {
+          window.AA.db.collection('users').where('email', '==', 'brinckmyster@gmail.com').get()
+            .then(function(snap) {
+              if (snap.empty) return;
+              var bruiseUid = snap.docs[0].id;
+              var reasonLabels = {
+                'wrong-genus': 'Wrong genus listed',
+                'wrong-spelling': 'Spelling error in answer key',
+                'wrong-common': 'Wrong common name',
+                'missing-alias': 'Answer should also be accepted',
+                'other': 'Other issue'
+              };
+              var msgText = 'Quiz Report: ' + flower.common + ' (' + flower.genus + ') — ' +
+                (reasonLabels[reason] || reason) + '. User typed: "' + report.userAnswer + '"';
+              window.AA.db.collection('messages').add({
+                to: bruiseUid,
+                from: report.reporterUid || 'system',
+                fromName: report.reportedBy || 'Quiz Reporter',
+                text: msgText,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                read: false,
+                type: 'quiz-report'
+              }).catch(function(err) { console.warn('[AA] Report message failed:', err); });
+            })
+            .catch(function(err) { console.warn('[AA] Bruise lookup failed:', err); });
+        }
+      }
+
+      // Wait for AA if not ready
+      if (window.AA && window.AA.db) { _saveReport(); }
+      else {
+        var tries = 0;
+        var poll = setInterval(function() {
+          tries++;
+          if (window.AA && window.AA.db) { clearInterval(poll); _saveReport(); }
+          if (tries > 20) clearInterval(poll);
+        }, 300);
+      }
+
+      // Show confirmation
+      reportForm.style.display = 'none';
+      reportConfirm.textContent = 'Reported! Bruise will review this. Thanks for helping!';
+      reportConfirm.style.display = 'block';
+    });
+  });
+
+  /* Initialize */
+  buildDeck();
+</script>
+
+</body>
+</html>

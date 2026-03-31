@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Master Bedroom Layout Planner — Academic Allies</title>
+<!-- Claude: 2026-03-25 — added missing favicon -->
+<link rel="icon" type="image/x-icon" href="/Academic-Allies/favicon.ico">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@500;700&display=swap');
+  :root {
+    --bg:#f4f0e8; --paper:#fffdf8; --ink:#1a1208; --muted:#7a6e5f;
+    --accent:#b85c2a; --green:#3d6b52; --purple:#5a3d8a;
+    --door:#c49a3c; --win:#4a87b8; --base:#e07030; --red:#cc2222;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--ink);padding:20px;}
+  h1{font-family:'Playfair Display',serif;font-size:1.6rem;margin-bottom:3px;}
+  .sub{font-size:.64rem;color:var(--muted);margin-bottom:18px;}
+  .layout{display:grid;grid-template-columns:255px 1fr;gap:16px;align-items:start;}
+  .sidebar{display:flex;flex-direction:column;gap:12px;}
+  .panel{background:var(--paper);border:1.5px solid rgba(26,18,8,.12);border-radius:5px;overflow:hidden;}
+  .ph{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;font-weight:500;color:var(--paper);padding:7px 11px;background:var(--ink);}
+  .pb{padding:9px;}
+  .flist{display:flex;flex-direction:column;gap:4px;}
+  .chip{padding:6px 9px;border-radius:4px;font-size:.65rem;cursor:grab;user-select:none;border:1.5px solid transparent;transition:border-color .12s;touch-action:none;}
+  .chip:active{cursor:grabbing;}
+  .cn{font-weight:500;display:block;}
+  .cd{font-size:.58rem;color:var(--muted);}
+  .chip.mo{background:#edf5f0;border-color:#a8d4b8;}
+  .chip.fs{background:#f0edf7;border-color:#c8b8e8;}
+  .chip.placed{opacity:.33;cursor:default;pointer-events:none;}
+  .chip.sc{border-color:var(--accent)!important;}
+  .btn{display:block;width:100%;padding:7px 11px;border:1.5px solid var(--ink);background:transparent;border-radius:4px;font-family:'DM Mono',monospace;font-size:.65rem;cursor:pointer;transition:all .12s;text-align:left;margin-bottom:5px;}
+  .btn:last-child{margin-bottom:0;}
+  .btn:hover{background:var(--ink);color:var(--paper);}
+  .btn.pri{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .btn.pri:hover{background:#963f15;}
+  .btn:disabled{opacity:.28;cursor:not-allowed;}
+  .btn:disabled:hover{background:transparent;color:var(--ink);}
+  #selInfo{font-size:.65rem;line-height:1.8;}
+  .ok{color:#2a6640;font-size:.62rem;}
+  .err{color:var(--red);font-size:.61rem;}
+  .legend{padding:9px;display:flex;flex-direction:column;gap:5px;}
+  .leg{display:flex;align-items:center;gap:7px;font-size:.62rem;color:var(--muted);}
+  .sw{width:13px;height:13px;border-radius:2px;flex-shrink:0;}
+  .cwrap{background:var(--paper);border:1.5px solid rgba(26,18,8,.12);border-radius:5px;padding:14px 72px 40px 72px;}
+  .clabel{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:28px;}
+  .router{position:relative;}
+  /* Claude: 2026-03-17 — touch-action:none prevents browser scroll-hijack on mobile drag */
+  .room{position:relative;background:#fefcf5;border:3px solid var(--ink);touch-action:none;}
+  .room::before{content:'';position:absolute;inset:0;
+    background-image:linear-gradient(rgba(26,18,8,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(26,18,8,.04) 1px,transparent 1px);
+    background-size:var(--gx) var(--gy);pointer-events:none;z-index:0;}
+  .furn{position:absolute;z-index:10;display:flex;align-items:center;justify-content:center;
+        font-size:.55rem;font-family:'DM Mono',monospace;text-align:center;border-radius:2px;
+        user-select:none;cursor:grab;border:1.5px solid transparent;overflow:hidden;padding:2px;line-height:1.3;touch-action:none;}
+  .furn:active{cursor:grabbing;}
+  .furn.mo{background:rgba(61,107,82,.18);border-color:var(--green);color:#1a3d28;}
+  .furn.fs{background:rgba(90,61,138,.15);border-color:var(--purple);color:#2d1a55;}
+  .furn.sel{border-color:var(--accent)!important;box-shadow:0 0 0 2px var(--accent),0 3px 12px rgba(184,92,42,.2);z-index:20;}
+  .furn.bad{background:rgba(204,34,34,.18)!important;border-color:var(--red)!important;color:#6b0000!important;}
+  .furn.drag{opacity:.72;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:30;cursor:grabbing;}
+  .fi{pointer-events:none;width:100%;}
+  .fn{font-weight:500;display:block;font-size:.56rem;}
+  .fd{display:block;font-size:.49rem;opacity:.65;}
+
+  /* Claude: 2026-03-13 — 44px touch targets, focus-visible, mobile responsive */
+  .btn{min-height:44px;}
+  .btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .chip{min-height:44px;display:flex;align-items:center;padding:8px 9px;}
+
+  @media (max-width: 768px) {
+    .layout{grid-template-columns:1fr;gap:12px;}
+    .sidebar{order:2;}
+    .cwrap{order:1;padding:14px 12px 28px;}
+    .clabel{font-size:.55rem;margin-bottom:16px;}
+    h1{font-size:1.2rem;}
+    .sub{font-size:.58rem;}
+    .panel .ph{font-size:.55rem;padding:6px 9px;}
+    .legend .leg{font-size:.58rem;}
+  }
+  @media (max-width: 480px) {
+    body{padding:10px;}
+    .cwrap{padding:8px 4px 20px;}
+  }
+  /* Claude: 2026-03-25 — dark mode via CSS var overrides */
+  html.aa-dark { --bg:#121212; --paper:#1e1e1e; --ink:#e0e0e0; --muted:#888; }
+  html.aa-dark .panel { border-color: rgba(255,255,255,.1); }
+  html.aa-dark .ph { background: #333; }
+</style>
+</head>
+<body>
+<!-- Claude: 2026-03-10 — shared header -->
+<div id="site-header"></div>
+<script>
+  fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var c = document.getElementById('site-header');
+      c.innerHTML = html;
+      c.querySelectorAll('script').forEach(function(old) {
+        var s = document.createElement('script');
+        /* Claude: 2026-03-29 — replaced Array.from (ES2015) with [].slice.call() for ES5 compat */
+        [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+        s.textContent = old.textContent;
+        old.replaceWith(s);
+      });
+    })
+    .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<h1>Master Bedroom Layout Planner</h1>
+<p class="sub">Chronic pain optimized · specs from CSV · door swing arcs · short furniture OK at window · Claude 2026-03-14</p>
+<div class="layout">
+  <div class="sidebar">
+    <!-- Claude: 2026-03-11 — Selected piece + Controls moved to top so collision info is visible without scrolling -->
+    <!-- Claude: 2026-03-13 — added ARIA labels and roles for a11y -->
+    <div class="panel" role="region" aria-label="Selected furniture piece"><div class="ph">Selected piece</div><div class="pb"><div id="selInfo" aria-live="polite"><span style="color:var(--muted);font-size:.62rem;">Click a piece to select</span></div></div></div>
+    <div class="panel" role="region" aria-label="Room layout controls"><div class="ph">Controls</div><div class="pb">
+      <button class="btn pri" id="btnRot" disabled aria-label="Rotate selected furniture piece">↩ Rotate selected</button>
+      <button class="btn" id="btnRem" disabled aria-label="Return selected piece to sidebar list">✕ Return to list</button>
+      <button class="btn" id="btnSuggest" aria-label="Load suggested chronic-pain optimized layout">★ Load suggested layout</button>
+      <button class="btn" id="btnReset" aria-label="Remove all furniture from room">↺ Reset all</button>
+    </div></div>
+    <div class="panel" role="region" aria-label="Color legend"><div class="ph">Legend</div><div class="legend">
+      <div class="leg"><div class="sw" style="background:#edf5f0;border:1.5px solid #a8d4b8;"></div>Already in master</div>
+      <div class="leg"><div class="sw" style="background:#f0edf7;border:1.5px solid #c8b8e8;"></div>Moving from small room</div>
+      <div class="leg"><div class="sw" style="background:rgba(196,154,60,.15);border:1px dashed rgba(196,154,60,.65);"></div>Door swing arc (keep clear)</div>
+      <div class="leg"><div class="sw" style="background:repeating-linear-gradient(45deg,#e07030 0,#e07030 4px,rgba(224,112,48,.3) 4px,rgba(224,112,48,.3) 8px);"></div>Baseboard heat · 12" clearance</div>
+      <div class="leg"><div class="sw" style="background:#4a87b8;"></div>Window · short furniture OK here</div>
+      <div class="leg"><div class="sw" style="background:#c49a3c;"></div>Door opening</div>
+      <div class="leg"><div class="sw" style="background:rgba(204,34,34,.18);border:1.5px solid #cc2222;"></div>Conflict — needs moving</div>
+    </div></div>
+    <div class="panel" role="region" aria-label="Master bedroom furniture list"><div class="ph">→ Master Bedroom</div><div class="pb"><div class="flist" id="masterList" role="list"></div></div></div>
+    <div class="panel" role="region" aria-label="Small room furniture list"><div class="ph">→ Small Room (leaving master)</div><div class="pb"><div class="flist" id="smallList" role="list"></div></div></div>
+  </div>
+  <div class="cwrap">
+    <div class="clabel">Master Bedroom — 189.5" wide × 152.5" deep — drag pieces from sidebar</div>
+    <div class="router" id="router">
+      <div class="room" id="room">
+        <canvas id="fc" style="position:absolute;top:0;left:0;z-index:3;pointer-events:none;overflow:visible;"></canvas>
+        <div id="bb" style="position:absolute;left:0;z-index:2;pointer-events:none;"></div>
+      </div>
+    </div>
+    <!-- Claude: 2026-03-11 — Walk-in closet drop zone -->
+    <!-- Claude: 2026-03-17 — closet resized to 8'×5' minus 5" for walls, rotated 90° -->
+    <!-- Claude: 2026-03-18 — clothing zone on LEFT side of closet -->
+    <div class="clabel" style="margin-top:24px;">Walk-in Closet — 55" × 91" (8' × 5' minus walls, rotated) — drag pieces here too</div>
+    <div class="router" id="closetRouter">
+      <div class="room" id="closetRoom">
+        <div id="clothingZone" style="position:absolute;left:0;top:0;border-right:2px dashed #b85c2a;background:repeating-linear-gradient(90deg,rgba(184,92,42,0.04),rgba(184,92,42,0.04) 4px,transparent 4px,transparent 8px);z-index:1;pointer-events:none;display:flex;align-items:center;justify-content:center;">
+          <span style="writing-mode:vertical-rl;text-orientation:mixed;font-size:9px;color:#b85c2a;opacity:0.6;font-family:'DM Mono',monospace;letter-spacing:1px;">CLOTHING</span>
+        </div>
+        <canvas id="closetDoorArc" style="position:absolute;top:0;left:0;z-index:3;pointer-events:none;overflow:visible;"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+/* Claude: 2026-03-27 — converted all ES6 to ES5 (const/let→var, arrows→function, destructuring→manual) */
+// ═══════════════════════════════════════════════════════
+// ROOM SPEC — inches. y=0 = B wall / balcony side (top).
+// Source: Room_measurements_.csv  |  Claude 2026-03-09
+// ═══════════════════════════════════════════════════════
+/* Claude: 2026-03-10 — LEFT-RIGHT MIRROR FLIP applied.
+   Claude: 2026-03-11 — SIDE-WALL VERTICAL FLIP applied (features on L/R walls
+   flipped along y-axis). Entry stays BOTTOM, Balcony stays TOP.
+   Standing at entry looking in: window = RIGHT, bath/closet = LEFT.
+   Archives: bedroom-planner_2026-03-10_pre-mirror-flip.html
+             bedroom-planner_2026-03-11_pre-vertical-flip.html
+             bedroom-planner_2026-03-11_pre-baseboard-move.html */
+var ROOM = {
+  w: 189.5,
+  h: 152.5,
+  // Doors on top/bottom walls — unchanged from LR flip
+  doors: [
+    { id:'entry',   label:'Entry 36"',   wall:'bottom', pos:0,     size:36, hinge:'start' },  // hinge at x=0 (BC wall side, left)
+    { id:'balcony', label:'Balcony 37"', wall:'top',    pos:118.5, size:37, hinge:'start' },  // W-wall side
+  ],
+  window: { wall:'right', pos:54.5, size:42, sill:36 },  // side-flip: 152.5-56-42=54.5
+  /* Claude: 2026-03-17 — TV wall-mount: 20" from entry doorframe, 29" wide, 52" from ground.
+     Entry door ends at x:36, so TV spans x:56 to x:85 on the bottom (TV) wall. */
+  tv: { wall:'bottom', pos:56, size:29, height:52 },
+  // Outswing doors — swing OUT of bedroom, no arc inside. On LEFT wall.
+  outswing: [
+    { id:'bathroom', label:'Bath 29"', wall:'left', pos:87,  size:29 },   // side-flip: 152.5-36.5-29=87
+    { id:'closet',   label:'Closet 30"', wall:'left', pos:-3, size:30 },  // side-flip: 152.5-125.5-30=-3 (corner)
+  ],
+  // sill:36 means furniture ≤36" tall is fine in front of window
+  baseboard: { y:98, h:54.5, clearance:12, wall:'right' },
+  /* Claude: 2026-03-11 — Baseboard moved from y:0→54.5 to y:98→152.5
+     on RIGHT wall (bottom-right zone, near entry/TV wall).
+     Furniture must stay 12" from right wall in y:98–152.5 */
+};
+// Hinge point in inches
+function hingeInches(door) {
+  if (door.wall==='bottom') return door.hinge==='start' ? {x:door.pos,  y:ROOM.h} : {x:door.pos+door.size, y:ROOM.h};
+  if (door.wall==='top')    return door.hinge==='start' ? {x:door.pos,  y:0}      : {x:door.pos+door.size, y:0};
+  if (door.wall==='right')  return door.hinge==='start' ? {x:ROOM.w, y:door.pos}  : {x:ROOM.w, y:door.pos+door.size};
+  if (door.wall==='left')   return door.hinge==='start' ? {x:0, y:door.pos}       : {x:0, y:door.pos+door.size};
+  return {x:0,y:0};
+}
+// ═══════════════════════════════════════════════════════
+// CLOSET SPEC — 8' × 5' walk-in closet minus 5" for walls
+// Claude 2026-03-17 — updated from 48×48 to 91×55 per Bruise's measurements
+// Claude 2026-03-17 — rotated 90° per Bruise: now 55 wide × 91 deep
+// ═══════════════════════════════════════════════════════
+/* Claude: 2026-03-18 — closet door: entry at BOTTOM (y=91), hinged RIGHT, swings LEFT.
+   Door swings left to rest against clothing wall.
+   Clothing rod: standard 12" from left wall. Shelf above at 43.5" (overhead, not floor).
+   Floor space under shelf is usable for SHORT furniture (under shelf height).
+   Dresses occasionally need floor space — clothing zone is a WARNING not a hard block. */
+var CLOSET = { w: 55, h: 91,
+  door: { wall:'bottom', pos:25, size:30, hinge:'end' },  // hinge at right side (x:55,y:91), swings left
+  clothingZone: 12  // standard rod depth from LEFT wall — floor usable for short items
+};
+// ═══════════════════════════════════════════════════════
+// FURNITURE  — height used only for window-blocking check
+// w = depth into room, l = run along wall
+// ═══════════════════════════════════════════════════════
+var DEFS_MASTER = [
+  {id:'hbed',        name:'Heritage Bed',     w:43,  l:84,  height:40, color:'mo'},
+  {id:'hdresser',    name:'Heritage Dresser',  w:20,  l:33,  height:49, color:'mo'},
+  {id:'nightstand',  name:'Nightstand',        w:15,  l:14.5,height:25, color:'mo'},
+  {id:'vanity',      name:'Vanity',            w:20,  l:47,  height:28, color:'mo'},
+  {id:'bigbookcase', name:'Big Bookcase',      w:13,  l:42,  height:84, color:'mo'},
+  {id:'bunk',        name:'Bunk Bed',          w:49,  l:86,  height:65, color:'fs'},
+  {id:'desk',        name:'Desk (White)',      w:20,  l:45,  height:30, color:'fs'},
+  {id:'bookcase2',   name:'Bookcase 2 (Mary)', w:13,  l:37,  height:72, color:'fs'},
+  {id:'bookcase1',   name:'Bookcase 1 (Heir)', w:15,  l:33,  height:71, color:'fs'},
+  {id:'smdresser',   name:'Small Dresser',     w:19,  l:30,  height:45, color:'fs'},
+  {id:'hamper',      name:'Hamper (metal)',     w:12,  l:20,  height:24, color:'fs'},
+];
+var DEFS_SMALL = [
+  {id:'cherylbed',   name:"Cheryl's Bed",  w:40, l:76, height:28, color:'mo'},
+  {id:'sewingtable', name:'Sewing Table',  w:18, l:33, height:29, color:'mo'},
+];
+var ALL = [].concat(DEFS_MASTER, DEFS_SMALL);
+var def = function(id) { return ALL.find(function(d) { return d.id===id; }); };
+// State
+var placed={}, sel=null, dragging=null, sdrag=null, doff={x:0,y:0}, dragRoom='master';
+var RPX={w:0,h:0}, CRPX={w:0,h:0};
+var px  = function(i) { return i/ROOM.w*RPX.w; };
+var py  = function(i) { return i/ROOM.h*RPX.h; };
+var inX = function(p) { return p/RPX.w*ROOM.w; };
+var inY = function(p) { return p/RPX.h*ROOM.h; };
+var cpx  = function(i) { return i/CLOSET.w*CRPX.w; };
+var cpy  = function(i) { return i/CLOSET.h*CRPX.h; };
+var cinX = function(p) { return p/CRPX.w*CLOSET.w; };
+var cinY = function(p) { return p/CRPX.h*CLOSET.h; };
+var cw  = function(id) { var d=def(id),p=placed[id]; return p&&p.rotated?d.l:d.w; };
+var ch  = function(id) { var d=def(id),p=placed[id]; return p&&p.rotated?d.w:d.l; };
+// ── Collision detection ──────────────────────────────────────────
+// Rules:
+//   1. Don't go out of bounds
+//   2. Don't enter a door's swing arc (quarter-circle)
+//   3. Baseboard zone: stay 12" from right wall in y=98–152.5
+//   4. Window: only flag if furniture is TALLER than the sill height
+//   5. No furniture-on-furniture overlap
+//   6. TV zone: only flag if furniture is TALLER than 52" mount (short stuff under TV is fine)
+function getCollisions(id, x, y) {
+  var msgs=[], w=cw(id), h=ch(id), d=def(id);
+  if(x<0)        msgs.push('Past left wall');
+  if(y<0)        msgs.push('Past top wall');
+  if(x+w>ROOM.w) msgs.push('Past right wall');
+  if(y+h>ROOM.h) msgs.push('Past bottom wall');
+  // Baseboard — only fires within the heater zone on RIGHT wall (mirrored)
+  if(x+w > ROOM.w-ROOM.baseboard.clearance && y+h>ROOM.baseboard.y && y<ROOM.baseboard.y+ROOM.baseboard.h)
+    msgs.push('Baseboard heat — keep 12" from right wall here');
+  // Window (RIGHT wall) — short furniture (≤ sill height) is totally fine here
+  var win=ROOM.window;
+  if(x+w > ROOM.w-10 && y+h>win.pos && y<win.pos+win.size && d.height>win.sill)
+    msgs.push('Blocks window — ' + d.height + '" tall > ' + win.sill + '" sill');
+  // Outswing doors (LEFT wall) — no arc inside bedroom, just don't block the opening
+  for(var i = 0; i < ROOM.outswing.length; i++){
+    var door = ROOM.outswing[i];
+    if(x < 2 && y < door.pos+door.size && y+h > door.pos)
+      msgs.push('Blocks ' + door.label + ' opening');
+  }
+  // Inswing door swing arcs — quarter circle, radius = door opening size
+  /* Claude: 2026-03-11 — arc check limited to correct 90° quadrant only.
+     Doors swing inward from free end, not a full 360° circle.
+     E.g., balcony hinge at x:118.5 swings RIGHT+DOWN — furniture
+     to the LEFT of x:118.5 is never in the swing path. */
+  for(var i = 0; i < ROOM.doors.length; i++){
+    var door = ROOM.doors[i];
+    var hinge = hingeInches(door);
+    var hx = hinge.x, hy = hinge.y;
+    var nx=Math.max(x,Math.min(hx,x+w));
+    var ny=Math.max(y,Math.min(hy,y+h));
+    if(Math.hypot(nx-hx,ny-hy)>=door.size) continue;
+    // Only flag if nearest point is in the door's 90° sweep quadrant
+    var inQ=true;
+    if(door.wall==='bottom'||door.wall==='top'){
+      var sx=door.hinge==='start'?1:-1, sy=door.wall==='bottom'?-1:1;
+      if((sx>0&&nx<hx)||(sx<0&&nx>hx)) inQ=false;
+      if((sy>0&&ny<hy)||(sy<0&&ny>hy)) inQ=false;
+    } else {
+      var sx=door.wall==='left'?1:-1, sy=door.hinge==='start'?1:-1;
+      if((sx>0&&nx<hx)||(sx<0&&nx>hx)) inQ=false;
+      if((sy>0&&ny<hy)||(sy<0&&ny>hy)) inQ=false;
+    }
+    if(inQ) msgs.push('In ' + door.label + ' swing arc');
+  }
+  /* Claude: 2026-03-17 — TV wall-mount collision (52" from ground, x:56–85).
+     Short furniture UNDER the TV is fine (dresser, etc). Only flag if:
+     1. Furniture against TV wall is taller than the mount (would block screen)
+     2. Tall furniture (>52") within 36" of TV wall blocks sightline */
+  if(ROOM.tv){
+    var tv=ROOM.tv;
+    var tvOverlap = x < tv.pos+tv.size && x+w > tv.pos;
+    if(tvOverlap && y+h > ROOM.h-2 && d.height >= tv.height)
+      msgs.push('Blocks TV — ' + d.height + '" tall hits ' + tv.height + '" mount');
+    else if(tvOverlap && d.height > tv.height && y+h > ROOM.h-36)
+      msgs.push('Blocks TV sightline — ' + d.height + '" tall > ' + tv.height + '" mount');
+  }
+  // Furniture overlap (master room only)
+  for(var oidKey in placed){
+    if(!placed.hasOwnProperty(oidKey)) continue;
+    var oid = oidKey, op = placed[oid];
+    if(oid===id||op.room==='closet') continue;
+    if(x<op.x+cw(oid)&&x+w>op.x&&y<op.y+ch(oid)&&y+h>op.y)
+      msgs.push('Overlaps ' + def(oid).name);
+  }
+  return msgs;
+}
+// ── Closet collision detection (bounds + overlap only) ──────────
+function getClosetCollisions(id, x, y) {
+  var msgs=[], w=cw(id), h=ch(id);
+  if(x<0) msgs.push('Past left wall');
+  if(y<0) msgs.push('Past top wall');
+  if(x+w>CLOSET.w) msgs.push('Past right wall');
+  if(y+h>CLOSET.h) msgs.push('Past bottom wall');
+  /* Claude: 2026-03-18 — clothing rod zone: 12" from left wall. Warning only — dresses may need floor space */
+  if(CLOSET.clothingZone && x < CLOSET.clothingZone)
+    msgs.push('Under clothing rod — check for long dresses');
+  /* Claude: 2026-03-18 — closet door arc: hinge at RIGHT side of entry (55,91), swings LEFT.
+     Arc covers x:25-55, y:61-91. Door sweeps LEFT + UP from hinge. */
+  if(CLOSET.door){
+    var cd=CLOSET.door;
+    var chx=CLOSET.w, chy=CLOSET.h; // hinge at bottom-right (55,91)
+    var cnx=Math.max(x,Math.min(chx,x+w));
+    var cny=Math.max(y,Math.min(chy,y+h));
+    var cdist=Math.hypot(cnx-chx,cny-chy);
+    if(cdist<cd.size){
+      // Quadrant check: door swings LEFT (negative x) and UP (negative y) from hinge
+      var cinQ=true;
+      if(cnx>chx) cinQ=false; // must be left of hinge
+      if(cny>chy) cinQ=false; // must be above hinge
+      if(cinQ) msgs.push('In closet door swing arc');
+    }
+  }
+  for(var oidKey in placed){
+    if(!placed.hasOwnProperty(oidKey)) continue;
+    var oid = oidKey, op = placed[oid];
+    if(oid===id||op.room!=='closet') continue;
+    if(x<op.x+cw(oid)&&x+w>op.x&&y<op.y+ch(oid)&&y+h>op.y)
+      msgs.push('Overlaps ' + def(oid).name);
+  }
+  return msgs;
+}
+// ── Canvas: draw doors, window, baseboard, wall labels ──────────
+function drawFeatures(){
+  var canvas=document.getElementById('fc');
+  var W=RPX.w, H=RPX.h;
+  canvas.width=W; canvas.height=H;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  var ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  // ── Doors ──
+  for(var i = 0; i < ROOM.doors.length; i++){
+    var door = ROOM.doors[i];
+    var hinge = hingeInches(door);
+    var hx = hinge.x, hy = hinge.y;
+    var hxp=px(hx), hyp=py(hy);
+    // Swing arc angles (canvas: 0=east, CW positive) — Claude 2026-03-10 mirror flip
+    var a0, a1;
+    if(door.wall==='bottom' && door.hinge==='start'){ a0=-Math.PI/2; a1=0;         } // hinge at left, sweeps north→east
+    if(door.wall==='bottom' && door.hinge==='end')  { a0=-Math.PI;   a1=-Math.PI/2;} // hinge at right, sweeps west→north
+    if(door.wall==='top'    && door.hinge==='start'){ a0=0;          a1=Math.PI/2; } // hinge at left, sweeps east→south
+    if(door.wall==='top'    && door.hinge==='end')  { a0=Math.PI/2;  a1=Math.PI;   } // hinge at right, sweeps south→west
+    // Use average px/py radius so arc looks right on non-square canvas
+    var rp = (px(door.size)+py(door.size))/2;
+    // Filled arc (pie slice)
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(hxp,hyp);
+    var ccw = false; // entry and balcony both sweep clockwise
+    ctx.arc(hxp,hyp,rp,a0,a1,ccw);
+    ctx.closePath();
+    ctx.fillStyle='rgba(196,154,60,0.13)';
+    ctx.fill();
+    ctx.setLineDash([4,3]);
+    ctx.strokeStyle='rgba(196,154,60,0.6)';
+    ctx.lineWidth=1.2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+    // Door bar on wall
+    ctx.fillStyle='#c49a3c';
+    if(door.wall==='bottom') ctx.fillRect(px(door.pos),H-5,px(door.size),5);
+    if(door.wall==='top')    ctx.fillRect(px(door.pos),0,px(door.size),5);
+    if(door.wall==='left')   ctx.fillRect(0,py(door.pos),5,py(door.size));
+    if(door.wall==='right')  ctx.fillRect(W-5,py(door.pos),5,py(door.size));
+    // Label
+    ctx.save();
+    ctx.font='9px DM Mono,monospace';
+    ctx.fillStyle='#8a6a10';
+    ctx.textAlign='center';
+    if(door.wall==='bottom') ctx.fillText(door.label,px(door.pos+door.size/2),H+18);
+    if(door.wall==='top')    ctx.fillText(door.label,px(door.pos+door.size/2),-8);
+    // (right-wall door labels handled in outswing section below)
+    ctx.restore();
+  }
+  // ── Window (RIGHT wall — mirrored) ──
+  var win=ROOM.window;
+  ctx.fillStyle='#4a87b8';
+  ctx.fillRect(W-5, py(win.pos), 5, py(win.size));
+  ctx.font='8.5px DM Mono,monospace';
+  ctx.fillStyle='#2a5a88';
+  ctx.textAlign='left';
+  ctx.fillText('Window 42"', W+7, py(win.pos+win.size/2)-3);
+  ctx.fillText('short furn OK', W+7, py(win.pos+win.size/2)+8);
+  // ── Outswing door openings on LEFT wall (no arc — they swing out of bedroom) ──
+  for(var i = 0; i < ROOM.outswing.length; i++){
+    var door = ROOM.outswing[i];
+    // Gold bar on left wall showing the opening
+    ctx.fillStyle='#c49a3c';
+    ctx.fillRect(0, py(door.pos), 5, py(door.size));
+    // Label
+    ctx.save();
+    ctx.font='9px DM Mono,monospace';
+    ctx.fillStyle='#8a6a10';
+    ctx.save();
+    ctx.translate(-44, py(door.pos+door.size/2));
+    ctx.rotate(-Math.PI/2);
+    ctx.textAlign='center';
+    ctx.fillText(door.label+' (out)', 0, 0);
+    ctx.restore();
+    ctx.restore();
+  }
+  // ── TV wall-mount (bottom wall) — Claude 2026-03-17 ──
+  if(ROOM.tv){
+    var tv=ROOM.tv;
+    ctx.fillStyle='#555';
+    ctx.fillRect(px(tv.pos),H-4,px(tv.size),4);
+    ctx.font='8px DM Mono,monospace';
+    ctx.fillStyle='#555';
+    ctx.textAlign='center';
+    ctx.fillText('📺 TV 29"',px(tv.pos+tv.size/2),H+42);
+  }
+  // ── Wall labels (LR mirror + side-wall flip: B=top, TV=bottom, BC=left, W=right) ──
+  ctx.font='9px DM Mono,monospace';
+  ctx.fillStyle='#7a6e5f';
+  ctx.textAlign='center';
+  ctx.fillText('B Wall — Balcony Side — 189"', W/2, -20);
+  ctx.fillText('TV Wall — Entry Side — 189.5"', W/2, H+30);
+  ctx.save(); ctx.translate(-52,H/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('BC Wall — Bath / Closet',0,0); ctx.restore();
+  ctx.save(); ctx.translate(W+56,H/2); ctx.rotate(Math.PI/2);
+  ctx.fillText('W Wall — 152.5"  🔥',0,0); ctx.restore();
+}
+function drawBaseboard(){
+  var el=document.getElementById('bb');
+  el.style.top   =py(ROOM.baseboard.y)+'px';
+  // Baseboard now on RIGHT wall (mirrored)
+  el.style.left  ='auto';
+  el.style.right ='0';
+  el.style.width =px(ROOM.baseboard.clearance)+'px';
+  el.style.height=py(ROOM.baseboard.h)+'px';
+  el.style.background='repeating-linear-gradient(45deg,#e07030,#e07030 5px,rgba(224,112,48,.3) 5px,rgba(224,112,48,.3) 10px)';
+  el.style.opacity='0.65';
+}
+// ── Render furniture ─────────────────────
+function render(){
+  document.querySelectorAll('.furn').forEach(function(e){e.remove();});
+  for(var idKey in placed){
+    if(!placed.hasOwnProperty(idKey)) continue;
+    var id = idKey, pos = placed[id];
+    var d=def(id); if(!d) continue;
+    var inC=pos.room==='closet';
+    var w=cw(id),h=ch(id);
+    var cols=inC?getClosetCollisions(id,pos.x,pos.y):getCollisions(id,pos.x,pos.y);
+    var el=document.createElement('div');
+    var classes = ['furn',d.color,sel===id?'sel':'',cols.length?'bad':'',dragging===id?'drag':''].filter(function(x){return x;});
+    el.className=classes.join(' ');
+    el.dataset.id=id;
+    if(inC){
+      el.style.cssText='left:'+cpx(pos.x)+'px;top:'+cpy(pos.y)+'px;width:'+cpx(w)+'px;height:'+cpy(h)+'px;';
+    } else {
+      el.style.cssText='left:'+px(pos.x)+'px;top:'+py(pos.y)+'px;width:'+px(w)+'px;height:'+py(h)+'px;';
+    }
+    el.innerHTML='<div class="fi"><span class="fn">'+d.name+'</span><span class="fd">'+w+'"×'+h+'"</span></div>';
+    el.addEventListener('mousedown',onFurnDown);
+    el.addEventListener('touchstart',onFurnTouch,{passive:false});
+    document.getElementById(inC?'closetRoom':'room').appendChild(el);
+  }
+  updateSidebar(); updateInfo(); updateBtns();
+}
+function updateSidebar(){
+  var lists = [[DEFS_MASTER,'masterList'],[DEFS_SMALL,'smallList']];
+  for(var li = 0; li < lists.length; li++){
+    var defs = lists[li][0], lid = lists[li][1];
+    var list=document.getElementById(lid);
+    list.innerHTML='';
+    for(var di = 0; di < defs.length; di++){
+      var d = defs[di];
+      var inRoom=d.id in placed;
+      var c=document.createElement('div');
+      var chipsClasses = ['chip',d.color,inRoom?'placed':'',sel===d.id?'sc':''].filter(function(x){return x;});
+      c.className=chipsClasses.join(' ');
+      c.dataset.id=d.id;
+      c.innerHTML='<span class="cn">'+d.name+'</span><span class="cd">'+d.w+'"×'+d.l+'" · '+d.height+'" tall</span>';
+      if(!inRoom){
+        c.addEventListener('mousedown',function(e){if(e.button!==0)return;sdrag=e.currentTarget.dataset.id;e.preventDefault();});
+        c.addEventListener('touchstart',function(e){e.preventDefault();sdrag=e.currentTarget.dataset.id;},{passive:false});
+      }
+      list.appendChild(c);
+    }
+  }
+}
+function updateInfo(){
+  var box=document.getElementById('selInfo');
+  if(!sel||!(sel in placed)){
+    box.innerHTML='<span style="color:var(--muted);font-size:.62rem;">Click a piece to select</span>';
+    return;
+  }
+  var d=def(sel),pos=placed[sel],w=cw(sel),h=ch(sel);
+  var inC=pos.room==='closet';
+  var cols=inC?getClosetCollisions(sel,pos.x,pos.y):getCollisions(sel,pos.x,pos.y);
+  var winOk=!inC&&d.height<=ROOM.window.sill;
+  var colsHtml = cols.length
+    ? cols.map(function(c){return '<div class="err">⚠ '+c+'</div>';}).join('')
+    : '<div class="ok">✓ No conflicts</div>';
+  box.innerHTML='<strong>'+d.name+'</strong> <span style="color:var(--muted);font-size:.55rem;">'+(inC?'(closet)':'(bedroom)')+'</span><br>' +
+    'Size: '+w+'"×'+h+'"'+(pos.rotated?' (rotated)':'')+' <br>' +
+    'Height: '+d.height+'" · Pos: ('+pos.x.toFixed(0)+'", '+pos.y.toFixed(0)+'")<br>' +
+    (winOk?'<div class="ok">✓ '+d.height+'" tall — fine in front of window</div>':'') +
+    colsHtml;
+}
+function updateBtns(){
+  var ok=sel&&(sel in placed);
+  document.getElementById('btnRot').disabled=!ok;
+  document.getElementById('btnRem').disabled=!ok;
+}
+// ── Drop from sidebar ────────────────────
+function dropAt(id,rpx,rpy,targetRoom){
+  if(!id) return;
+  targetRoom=targetRoom||'master';
+  var d=def(id); if(!d) return;
+  var rot=placed[id]&&placed[id].rotated;
+  var rm=targetRoom==='closet'?CLOSET:ROOM;
+  var toInX=targetRoom==='closet'?cinX:inX;
+  var toInY=targetRoom==='closet'?cinY:inY;
+  var w=rot?d.l:d.w, h=rot?d.w:d.l;
+  var ix=toInX(rpx)-w/2, iy=toInY(rpy)-h/2;
+  ix=Math.max(0,Math.min(rm.w-w,ix));
+  iy=Math.max(0,Math.min(rm.h-h,iy));
+  placed[id]={x:ix,y:iy,rotated:rot,room:targetRoom};
+  sel=id; sdrag=null; render();
+}
+// ── Drag / drop events ───────────────────
+var room=document.getElementById('room');
+var croom=document.getElementById('closetRoom');
+room.addEventListener('dragover',function(e){e.preventDefault();});
+croom.addEventListener('dragover',function(e){e.preventDefault();});
+room.addEventListener('drop',function(e){
+  e.preventDefault();
+  var r=room.getBoundingClientRect();
+  dropAt(sdrag,e.clientX-r.left,e.clientY-r.top,'master');
+});
+croom.addEventListener('drop',function(e){
+  e.preventDefault();
+  var r=croom.getBoundingClientRect();
+  dropAt(sdrag,e.clientX-r.left,e.clientY-r.top,'closet');
+});
+function onFurnDown(e){
+  if(e.button!==0)return; e.preventDefault(); e.stopPropagation();
+  var id=e.currentTarget.dataset.id;
+  sel=id; dragging=id;
+  dragRoom=placed[id]&&placed[id].room||'master';
+  var r=e.currentTarget.getBoundingClientRect();
+  doff={x:e.clientX-r.left,y:e.clientY-r.top};
+  render();
+}
+/* Claude: 2026-03-17 — live cross-room drag: switch dragRoom when cursor enters other room */
+document.addEventListener('mousemove',function(e){
+  if(!dragging)return;
+  /* Check if cursor is now over the OTHER room */
+  var rr=room.getBoundingClientRect();
+  var cr=croom.getBoundingClientRect();
+  var overRoom=e.clientX>=rr.left&&e.clientX<=rr.right&&e.clientY>=rr.top&&e.clientY<=rr.bottom;
+  var overCloset=e.clientX>=cr.left&&e.clientX<=cr.right&&e.clientY>=cr.top&&e.clientY<=cr.bottom;
+  if(overRoom&&dragRoom==='closet'){dragRoom='master';placed[dragging].room='master';}
+  else if(overCloset&&dragRoom==='master'){dragRoom='closet';placed[dragging].room='closet';}
+  var inC=dragRoom==='closet';
+  var r=(inC?croom:room).getBoundingClientRect();
+  var rm=inC?CLOSET:ROOM;
+  var toInX=inC?cinX:inX;
+  var toInY=inC?cinY:inY;
+  var w=cw(dragging),h=ch(dragging);
+  placed[dragging].x=Math.max(0,Math.min(rm.w-w,toInX(e.clientX-r.left-doff.x)));
+  placed[dragging].y=Math.max(0,Math.min(rm.h-h,toInY(e.clientY-r.top-doff.y)));
+  render();
+});
+/* Claude: 2026-03-17 — cross-room drag: detect when a placed piece is dragged
+   from one room into the other (room ↔ closet). Previously only sidebar drops
+   checked both rooms; placed-piece drags stayed locked to their original room. */
+document.addEventListener('mouseup',function(e){
+  if(sdrag){
+    var r=room.getBoundingClientRect();
+    if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){
+      dropAt(sdrag,e.clientX-r.left,e.clientY-r.top,'master');
+    } else {
+      var cr=croom.getBoundingClientRect();
+      if(e.clientX>=cr.left&&e.clientX<=cr.right&&e.clientY>=cr.top&&e.clientY<=cr.bottom)
+        dropAt(sdrag,e.clientX-cr.left,e.clientY-cr.top,'closet');
+    }
+    sdrag=null;
+  }
+  if(dragging){
+    /* Check if piece was dragged into the OTHER room */
+    var fromCloset=dragRoom==='closet';
+    var targetEl=fromCloset?room:croom;
+    var targetName=fromCloset?'master':'closet';
+    var tr=targetEl.getBoundingClientRect();
+    if(e.clientX>=tr.left&&e.clientX<=tr.right&&e.clientY>=tr.top&&e.clientY<=tr.bottom){
+      /* Dropped in the other room — transfer it */
+      var toInX2=targetName==='closet'?cinX:inX;
+      var toInY2=targetName==='closet'?cinY:inY;
+      var rm2=targetName==='closet'?CLOSET:ROOM;
+      var w2=cw(dragging),h2=ch(dragging);
+      placed[dragging].x=Math.max(0,Math.min(rm2.w-w2,toInX2(e.clientX-tr.left-doff.x)));
+      placed[dragging].y=Math.max(0,Math.min(rm2.h-h2,toInY2(e.clientY-tr.top-doff.y)));
+      placed[dragging].room=targetName;
+    }
+    dragging=null;render();
+  }
+});
+room.addEventListener('mousedown',function(e){if(e.target===room){sel=null;render();}});
+croom.addEventListener('mousedown',function(e){if(e.target===croom){sel=null;render();}});
+/* Claude: 2026-03-17 — touch deselect on empty room tap */
+room.addEventListener('touchstart',function(e){if(e.target===room){sel=null;render();}},{passive:true});
+croom.addEventListener('touchstart',function(e){if(e.target===croom){sel=null;render();}},{passive:true});
+function onFurnTouch(e){
+  e.preventDefault();
+  var t=e.touches[0],id=e.currentTarget.dataset.id;
+  sel=id;dragging=id;
+  dragRoom=placed[id]&&placed[id].room||'master';
+  var r=e.currentTarget.getBoundingClientRect();
+  doff={x:t.clientX-r.left,y:t.clientY-r.top};
+  render();
+}
+/* Claude: 2026-03-17 — live cross-room touch drag */
+document.addEventListener('touchmove',function(e){
+  if(!dragging)return;
+  var t=e.touches[0];
+  var rr=room.getBoundingClientRect();
+  var cr2=croom.getBoundingClientRect();
+  var overRoom=t.clientX>=rr.left&&t.clientX<=rr.right&&t.clientY>=rr.top&&t.clientY<=rr.bottom;
+  var overCloset=t.clientX>=cr2.left&&t.clientX<=cr2.right&&t.clientY>=cr2.top&&t.clientY<=cr2.bottom;
+  if(overRoom&&dragRoom==='closet'){dragRoom='master';placed[dragging].room='master';}
+  else if(overCloset&&dragRoom==='master'){dragRoom='closet';placed[dragging].room='closet';}
+  var inC=dragRoom==='closet';
+  var r=(inC?croom:room).getBoundingClientRect();
+  var rm=inC?CLOSET:ROOM;
+  var toInX=inC?cinX:inX;
+  var toInY=inC?cinY:inY;
+  var w=cw(dragging),h=ch(dragging);
+  placed[dragging].x=Math.max(0,Math.min(rm.w-w,toInX(t.clientX-r.left-doff.x)));
+  placed[dragging].y=Math.max(0,Math.min(rm.h-h,toInY(t.clientY-r.top-doff.y)));
+  render();
+},{passive:false});
+/* Claude: 2026-03-17 — cross-room touch drag (same fix as mouse) */
+document.addEventListener('touchend',function(e){
+  if(sdrag){
+    var r=room.getBoundingClientRect();
+    var cr=croom.getBoundingClientRect();
+    var t=e.changedTouches[0];
+    if(t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom){
+      dropAt(sdrag,t.clientX-r.left,t.clientY-r.top,'master');
+    } else if(t.clientX>=cr.left&&t.clientX<=cr.right&&t.clientY>=cr.top&&t.clientY<=cr.bottom){
+      dropAt(sdrag,t.clientX-cr.left,t.clientY-cr.top,'closet');
+    }
+    sdrag=null;
+  }
+  if(dragging){
+    var t=e.changedTouches[0];
+    var fromCloset=dragRoom==='closet';
+    var targetEl=fromCloset?room:croom;
+    var targetName=fromCloset?'master':'closet';
+    var tr=targetEl.getBoundingClientRect();
+    if(t.clientX>=tr.left&&t.clientX<=tr.right&&t.clientY>=tr.top&&t.clientY<=tr.bottom){
+      var toInX2=targetName==='closet'?cinX:inX;
+      var toInY2=targetName==='closet'?cinY:inY;
+      var rm2=targetName==='closet'?CLOSET:ROOM;
+      var w2=cw(dragging),h2=ch(dragging);
+      placed[dragging].x=Math.max(0,Math.min(rm2.w-w2,toInX2(t.clientX-tr.left-doff.x)));
+      placed[dragging].y=Math.max(0,Math.min(rm2.h-h2,toInY2(t.clientY-tr.top-doff.y)));
+      placed[dragging].room=targetName;
+    }
+    dragging=null;render();
+  }
+});
+// ── Buttons ──────────────────────────────
+document.getElementById('btnRot').addEventListener('click',function(){
+  if(!sel||!(sel in placed))return;
+  var p=placed[sel]; p.rotated=!p.rotated;
+  var rm=p.room==='closet'?CLOSET:ROOM;
+  p.x=Math.max(0,Math.min(rm.w-cw(sel),p.x));
+  p.y=Math.max(0,Math.min(rm.h-ch(sel),p.y));
+  render();
+});
+document.getElementById('btnRem').addEventListener('click',function(){
+  if(!sel||!(sel in placed))return;
+  delete placed[sel];sel=null;render();
+});
+document.getElementById('btnReset').addEventListener('click',function(){placed={};sel=null;render();});
+// ── Suggested Layout — Claude 2026-03-17 — v12 ──────
+// USER REQUIREMENTS:
+//   1. Both beds can see the TV (on TV wall near entry door)
+//   2. Desk under the window
+//   3. Neither bed intruding into floor space (against walls)
+//   4. Big bookcase stays on LEFT wall between bathroom and closet doors
+//   5. Bunk must NOT block the TV for anyone
+//
+// LAYOUT LOGIC (v15 — B wall toward balcony, closet clothes LEFT, bookcase RIGHT):
+//   B wall (TOP): Nightstand(x:2), Vanity(ROT), Bookcase2(ROT), Heritage Dresser(ROT flush right)
+//     All flush y=0. Packed left-to-right with no gaps except nightstand 2" off left (closet door).
+//     Heritage Dresser flush against W wall (right edge = 189.5). ✓
+//   LEFT wall: Big Bookcase at x:0, y:44 — flush BC wall, between closet and bathroom doors. ✓
+//   RIGHT side: Hamper flush W wall (right edge = 189.5). ✓
+//   DESK: Rotated (45×20), flush against bunk top edge. x:128 aligned with bunk. ✓
+//   LOWER-RIGHT: Bunk (49×86) flush TV wall (bottom = 152.5). x:128 max before baseboard. ✓
+//   NEAR TV WALL: Heritage Bed ROTATED (84×43) flush TV wall (bottom = 152.5).
+//     x:37 clears entry door arc by 1". 40" tall < 52" TV mount. ✓
+//   CLOSET: Small Dresser flush top-left corner. Bookcase 1 flush left+bottom walls.
+//
+//   TV at x:56-85 (29" wide, 52" from ground). Heritage bed under it is 40" tall = fine.
+//   WALKWAYS: 7" between hbed (x:121) and bunk (x:128).
+//   DOOR ACCESS: entry ✓ balcony ✓ closet ✓ bathroom ✓
+//   TV VISIBILITY: both beds look south → clear sightline. ✓
+//   COLLISIONS: zero (verified programmatically 2026-03-18). ✓
+/* Claude: 2026-03-10 — v1 mirrored left-right.
+   Claude: 2026-03-11 — v2–v8 iterations.
+   Claude: 2026-03-14 — v9–v11 various fixes.
+   Claude: 2026-03-17 — v12: Bunk moved from TV wall to B wall.
+   Claude: 2026-03-18 — v13: Layout from Bruise's screenshots.
+   Claude: 2026-03-18 — v14: Furniture flush against walls, desk flush against bunk.
+   Claude: 2026-03-18 — v15: B wall items toward balcony, closet clothes LEFT, bookcase RIGHT.
+     Archive: bedroom-planner_2026-03-17_pre-tv-and-audit.bak.html */
+var SUGGESTED = [
+  // ── B wall (TOP) — packed toward balcony (right side), left of door hinge ──
+  /* Claude: 2026-03-18 — v15: items shifted right toward balcony per Bruise.
+     Packed right-to-left from hinge (118.5): bookcase2, vanity, nightstand.
+     Heritage dresser stays flush right past the door opening. */
+  { id:'nightstand',  x:19,    y:0,     rotated:false, room:'master' },  // 15×14.5 → ends x:34
+  { id:'vanity',      x:34,    y:0,     rotated:true,  room:'master' },  // 47×20 → ends x:81
+  { id:'bookcase2',   x:81,    y:0,     rotated:true,  room:'master' },  // 37×13 → ends x:118 (0.5" from hinge)
+  { id:'hdresser',    x:156.5, y:0,     rotated:true,  room:'master' },  // 33×20 → ends x:189.5 flush right
+  // ── BC wall (LEFT) — Big Bookcase centered between closet door (y:27) and bathroom door (y:87) ──
+  { id:'bigbookcase', x:0,     y:36,    rotated:false, room:'master' },  // 13×42 → ends y:78. 9" clearance each side
+  // ── Hamper flush right wall, flush with bunk top (near window) ──
+  { id:'hamper',      x:177.5, y:66.5,  rotated:false, room:'master' },  // 12×20 → ends (189.5,86.5) beside bunk
+  // ── Desk flush against bunk top ──
+  { id:'desk',        x:128,   y:46.5,  rotated:true,  room:'master' },  // 45×20 → ends (173,66.5)
+  // ── Bunk flush TV wall — drawers face RIGHT (toward W wall). Briefly enter baseboard zone = OK ──
+  { id:'bunk',        x:128,   y:66.5,  rotated:false, room:'master' },  // 49×86 → ends (177,152.5)
+  // ── Heritage Bed flush TV wall ──
+  { id:'hbed',        x:37,    y:109.5, rotated:true,  room:'master' },  // 84×43 → ends (121,152.5)
+  // ── Walk-in Closet — clothes LEFT (x:0-24), furniture RIGHT, door at bottom-left ──
+  /* Claude: 2026-03-18 — v16: dresser out of clothing zone, bookcase out of door arc.
+     Door: hinge (0,91), 30" arc swings right → covers x:0-30, y:61-91.
+     Clothing zone: x:0-24 (LEFT side). Furniture goes x:24+ only. */
+  /* Claude: 2026-03-18 — clothing rod 12" from left wall. 43" usable floor width.
+     Door: hinge at (55,91), swings LEFT. Arc covers bottom-left quadrant.
+     Bookcase flush right + top. Dresser right of clothing rod with drawer access gap. */
+  /* Claude: 2026-03-18 — dresser rotated + centered, bookcase flush right */
+  { id:'bookcase1',   x:40,    y:0,     rotated:false, room:'closet' },  // 15×33 → ends (55,33) flush right + flush top
+  { id:'smdresser',   x:12.5,  y:0,     rotated:true,  room:'closet' },  // ROT 30×19 → ends (42.5,19) centered in usable space
+];
+document.getElementById('btnSuggest').addEventListener('click',function(){
+  placed = {};
+  for(var si = 0; si < SUGGESTED.length; si++){
+    var s = SUGGESTED[si];
+    var d = def(s.id);
+    if (!d) continue;
+    var w = s.rotated ? d.l : d.w;
+    var h = s.rotated ? d.w : d.l;
+    var rm = s.room==='closet' ? CLOSET : ROOM;
+    var x = Math.max(0, Math.min(rm.w - w, s.x));
+    var y = Math.max(0, Math.min(rm.h - h, s.y));
+    placed[s.id] = { x: x, y: y, rotated: s.rotated, room: s.room||'master' };
+  }
+  sel = null;
+  render();
+});
+// ── Layout + resize ───────────────────────
+function layoutRoom(){
+  var W=document.getElementById('router').offsetWidth;
+  var H=Math.round(W*ROOM.h/ROOM.w);
+  room.style.width=W+'px'; room.style.height=H+'px';
+  RPX={w:W,h:H};
+  room.style.setProperty('--gx',px(12)+'px');
+  room.style.setProperty('--gy',py(12)+'px');
+  // Closet — scaled to match master room's inches-to-pixels ratio
+  var scale=W/ROOM.w;
+  var CW=Math.round(CLOSET.w*scale);
+  var CH=Math.round(CLOSET.h*scale);
+  croom.style.width=CW+'px'; croom.style.height=CH+'px';
+  CRPX={w:CW,h:CH};
+  croom.style.setProperty('--gx',cpx(12)+'px');
+  croom.style.setProperty('--gy',cpy(12)+'px');
+  /* Claude: 2026-03-18 — size the clothing zone (LEFT side, ~24" deep) */
+  var clothZone=document.getElementById('clothingZone');
+  if(clothZone){clothZone.style.width=cpx(CLOSET.clothingZone||24)+'px';clothZone.style.height=CH+'px';}
+  /* Claude: 2026-03-18 — draw closet door arc + door bar */
+  var closetArc=document.getElementById('closetDoorArc');
+  if(closetArc&&CLOSET.door){
+    var cd=CLOSET.door;
+    closetArc.width=CW;closetArc.height=CH;
+    closetArc.style.width=CW+'px';closetArc.style.height=CH+'px';
+    var cctx=closetArc.getContext('2d');
+    cctx.clearRect(0,0,CW,CH);
+    // Door bar on bottom wall — right side (where the door opening is)
+    cctx.fillStyle='#c49a3c';
+    cctx.fillRect(cpx(cd.pos),CH-5,cpx(cd.size),5);
+    // Arc: hinge at bottom-RIGHT (CW, CH), swings LEFT+UP
+    var crp=(cpx(cd.size)+cpy(cd.size))/2;
+    cctx.save();
+    cctx.beginPath();
+    cctx.moveTo(CW,CH);
+    cctx.arc(CW,CH,crp,Math.PI,-Math.PI/2,false); // 180° to -90° = left to up
+    cctx.closePath();
+    cctx.fillStyle='rgba(196,154,60,0.13)';
+    cctx.fill();
+    cctx.setLineDash([4,3]);
+    cctx.strokeStyle='rgba(196,154,60,0.6)';
+    cctx.lineWidth=1.2;
+    cctx.stroke();
+    cctx.setLineDash([]);
+    cctx.restore();
+    // Label
+    cctx.font='8px DM Mono,monospace';
+    cctx.fillStyle='#8a6a10';
+    cctx.textAlign='center';
+    cctx.fillText('Door 30"',cpx(cd.pos+cd.size/2),CH+14);
+  }
+  drawFeatures(); drawBaseboard(); render();
+}
+window.addEventListener('resize',layoutRoom);
+window.addEventListener('load',function(){layoutRoom();setTimeout(layoutRoom,350);});
+</script>
+</body>
+</html>

@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/Academic-Allies/favicon.ico">
+<!-- Claude: 2026-03-18 — early dark mode detect to prevent FOUC -->
+<script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Quiz — Academic Allies</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    background: #FAFAF9;
+    color: #333;
+    min-height: 100vh;
+    padding: 0 12px 40px;
+  }
+  html.aa-dark body { background: #121212; color: #e0e0e0; }
+
+  .container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding-top: 20px;
+  }
+
+  h1 {
+    color: #6CA0A3;
+    font-size: 22pt;
+    margin-bottom: 6px;
+  }
+  html.aa-dark h1 { color: #8ec5c8; }
+
+  .sub {
+    color: #888;
+    font-size: 12pt;
+    margin-bottom: 24px;
+  }
+
+  .error-state {
+    background: #ffebee;
+    border: 2px solid #c62828;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    color: #721c24;
+  }
+  html.aa-dark .error-state {
+    background: #3a1a1a;
+    border-color: #d32f2f;
+    color: #ffcdd2;
+  }
+
+  .error-state p {
+    margin-bottom: 12px;
+    font-size: 14pt;
+  }
+
+  .error-state a {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #6CA0A3;
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    margin-top: 12px;
+  }
+
+  /* Fill-blank quiz styles */
+  .quiz-section {
+    background: #fff;
+    border: 2px solid #e8f2f3;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  html.aa-dark .quiz-section { background: #1e1e1e; border-color: #333; }
+
+  .progress-bar {
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  html.aa-dark .progress-bar { background: #333; }
+
+  .progress-fill {
+    height: 100%;
+    background: #6CA0A3;
+    transition: width 0.3s;
+  }
+
+  .question-num {
+    font-size: 12pt;
+    color: #888;
+    margin-bottom: 12px;
+  }
+
+  .question {
+    font-size: 16pt;
+    font-weight: 600;
+    color: #4a7f82;
+    margin-bottom: 16px;
+  }
+  html.aa-dark .question { color: #8ec5c8; }
+
+  .answer-input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16pt;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+  }
+  html.aa-dark .answer-input {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+  .answer-input:focus {
+    outline: none;
+    border-color: #6CA0A3;
+  }
+
+  .hint-box {
+    background: #fffacd;
+    border-left: 4px solid #b8860b;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    font-size: 13pt;
+    color: #333;
+    display: none;
+  }
+  html.aa-dark .hint-box {
+    background: #3a3a1a;
+    border-left-color: #d4af37;
+    color: #e0e0e0;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  button {
+    padding: 12px 24px;
+    font-size: 13pt;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    transition: background 0.2s;
+    font-weight: 600;
+  }
+
+  .btn-primary {
+    background: #6CA0A3;
+    color: #fff;
+  }
+  .btn-primary:hover { background: #4a7f82; }
+  .btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: #e8f2f3;
+    color: #4a7f82;
+  }
+  html.aa-dark .btn-secondary { background: #2a3a3b; color: #8ec5c8; }
+  .btn-secondary:hover { background: #d8eaeb; }
+  html.aa-dark .btn-secondary:hover { background: #3a5a5c; }
+
+  .feedback {
+    background: #e8f5e9;
+    border-left: 4px solid #2d8a4e;
+    padding: 12px;
+    margin-top: 12px;
+    border-radius: 4px;
+    font-size: 13pt;
+    color: #1b5e20;
+    display: none;
+  }
+  html.aa-dark .feedback {
+    background: #1a3a1a;
+    border-left-color: #4caf50;
+    color: #81c784;
+  }
+
+  .feedback.error {
+    background: #ffebee;
+    border-left-color: #c62828;
+    color: #721c24;
+  }
+  html.aa-dark .feedback.error {
+    background: #3a1a1a;
+    border-left-color: #d32f2f;
+    color: #ffcdd2;
+  }
+
+  .knew-it-btn {
+    background: #4caf50;
+    color: #fff;
+    flex: 1;
+    min-width: 120px;
+  }
+  .knew-it-btn:hover { background: #388e3c; }
+
+  /* Match game styles */
+  .match-container {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  html.aa-dark .match-container { color: #e0e0e0; }
+
+  .match-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .match-item {
+    padding: 12px 16px;
+    background: #f5f5f5;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+    font-size: 13pt;
+  }
+  html.aa-dark .match-item {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+
+  .match-item:hover {
+    border-color: #6CA0A3;
+    background: #e8f2f3;
+  }
+  html.aa-dark .match-item:hover {
+    background: #1a3a3b;
+    border-color: #8ec5c8;
+  }
+
+  .match-item.selected {
+    background: #6CA0A3;
+    color: #fff;
+    border-color: #4a7f82;
+  }
+
+  .match-item.matched {
+    background: #4caf50;
+    color: #fff;
+    border-color: #2d8a4e;
+    cursor: not-allowed;
+  }
+
+  .match-column-label {
+    font-size: 11pt;
+    color: #888;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  /* Flashcard styles */
+  .flashcard {
+    perspective: 1000px;
+    height: 300px;
+    margin-bottom: 16px;
+    cursor: pointer;
+  }
+
+  .flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+  }
+
+  .flashcard.flipped .flashcard-inner {
+    transform: rotateY(180deg);
+  }
+
+  .flashcard-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+    background: #fff;
+    border: 2px solid #e8f2f3;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    text-align: center;
+  }
+  html.aa-dark .flashcard-face {
+    background: #1e1e1e;
+    border-color: #333;
+  }
+
+  .flashcard-front {
+    z-index: 2;
+  }
+
+  .flashcard-back {
+    transform: rotateY(180deg);
+    z-index: 1;
+  }
+
+  .flashcard-text {
+    font-size: 20pt;
+    font-weight: 600;
+    color: #4a7f82;
+  }
+  html.aa-dark .flashcard-text { color: #8ec5c8; }
+
+  .flashcard-label {
+    font-size: 11pt;
+    color: #888;
+    margin-top: 12px;
+  }
+
+  .flashcard-hint {
+    font-size: 12pt;
+    color: #ccc;
+    margin-top: 16px;
+  }
+
+  /* Score section */
+  .score-section {
+    background: #e8f2f3;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  html.aa-dark .score-section {
+    background: #1a2a2b;
+    color: #e0e0e0;
+  }
+
+  .score-number {
+    font-size: 28pt;
+    font-weight: 700;
+    color: #4a7f82;
+  }
+  html.aa-dark .score-number { color: #8ec5c8; }
+
+  .score-label {
+    font-size: 12pt;
+    color: #888;
+  }
+
+  /* Results screen */
+  .results-container {
+    background: #fff;
+    border: 2px solid #e8f2f3;
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+  }
+  html.aa-dark .results-container { background: #1e1e1e; border-color: #333; }
+
+  .results-container h2 {
+    font-size: 20pt;
+    color: #4a7f82;
+    margin-bottom: 12px;
+  }
+  html.aa-dark .results-container h2 { color: #8ec5c8; }
+
+  .results-container .score {
+    font-size: 48pt;
+    font-weight: 700;
+    color: #6CA0A3;
+    margin-bottom: 12px;
+  }
+
+  .results-container p {
+    font-size: 14pt;
+    color: #666;
+    margin-bottom: 12px;
+  }
+  html.aa-dark .results-container p { color: #aaa; }
+
+  .missed-list {
+    background: #ffebee;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    text-align: left;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  html.aa-dark .missed-list { background: #3a1a1a; }
+
+  .missed-item {
+    padding: 6px 0;
+    font-size: 12pt;
+    border-bottom: 1px solid #ddd;
+  }
+  html.aa-dark .missed-item { border-bottom-color: #444; }
+
+  .missed-item:last-child {
+    border-bottom: none;
+  }
+
+  .credit {
+    text-align: center;
+    font-size: 0.7rem;
+    color: #aaa;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+<!-- Claude: 2026-03-20 — mode-gate: block access when flowerQuiz is disabled -->
+<script>var AA_MODE_GATE = 'flowerQuiz';</script>
+<script src="/Academic-Allies/modular/js/mode-gate.js"></script>
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+      .then(function(response) { return response.text(); })
+      .then(function(html) {
+        var container = document.getElementById('site-header');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        scripts.forEach(function(oldScript) {
+          var newScript = document.createElement('script');
+          [].slice.call(oldScript.attributes).forEach(function(attr) { newScript.setAttribute(attr.name, attr.value); });
+          newScript.textContent = oldScript.textContent;
+          oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+<!-- Claude: 2026-03-18 — Load student config system for custom quizzes -->
+<script src="/Academic-Allies/modular/js/student-config.js?v=20260322"></script>
+
+<div class="container" role="main" aria-label="Custom quiz">
+  <h1 id="quizTitle">Loading Quiz...</h1>
+  <p class="sub" id="quizSubtitle">Please wait</p>
+  <div id="content"></div>
+</div>
+
+<p class="credit">Built by Claude for Bruise — March 2026</p>
+
+<script>
+/* Claude: 2026-03-18 — Dynamic custom quiz renderer
+   Supports fill-blank, match, and flashcard quiz types.
+   Loads quiz definition from Firestore config via quizzes array index.
+   URL pattern: custom-quiz.html?quiz=0 */
+
+(function() {
+  'use strict';
+
+  var quizData = null;
+  var quizType = null;
+  var currentQuestion = 0;
+  var score = 0;
+  var missed = [];
+  var answered = [];
+  var quizComplete = false;
+
+  /* Fill-blank quiz state */
+  var strictlyCorrect = 0;
+  var knewIt = 0;
+  var halfCreditCount = 0; /* Claude: 2026-03-23 — tracks alsoAccept partial credit answers */
+
+  /* Match quiz state */
+  var matchPairs = {};
+  var matchScore = 0;
+
+  /* Flashcard quiz state */
+  var flashcardState = {};
+  var cardsLearned = 0;
+  var cardsMissed = 0;
+
+  /* Claude: 2026-03-20 — Flip mode: swap terms and answers for reverse study */
+  var flipMode = false;
+  /* Claude: 2026-03-21 — Shuffle mode: randomize question order */
+  var shuffleMode = false;
+  var originalData = null; /* preserves original order for unshuffle */
+  /* Claude: 2026-03-21 — Quiz index and UID for progress tracking */
+  var quizIndex = 0;
+  var _quizUid = null;
+
+  /* Claude: 2026-03-25 — HTML escape function to prevent XSS from Firestore quiz data */
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function getPrompt(item) { return flipMode ? item.answer : item.term; }
+  function getAnswer(item) { return flipMode ? item.term : item.answer; }
+
+  /* Claude: 2026-03-21 — Fisher-Yates shuffle */
+  function shuffleArray(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  function toggleFlipMode() {
+    flipMode = !flipMode;
+    updateToggleButtons();
+    if (quizType === 'fill-blank') { renderFillBlankQuiz(); }
+    else if (quizType === 'match') { renderMatchQuiz(); }
+    else if (quizType === 'flashcards') { renderFlashcardQuiz(); }
+  }
+
+  function toggleShuffleMode() {
+    shuffleMode = !shuffleMode;
+    if (shuffleMode) {
+      quizData.data = shuffleArray(originalData);
+    } else {
+      quizData.data = originalData.slice();
+    }
+    updateToggleButtons();
+    if (quizType === 'fill-blank') { renderFillBlankQuiz(); }
+    else if (quizType === 'match') { renderMatchQuiz(); }
+    else if (quizType === 'flashcards') { renderFlashcardQuiz(); }
+  }
+
+  function updateToggleButtons() {
+    var fb = document.getElementById('flipToggle');
+    if (fb) {
+      fb.textContent = flipMode ? '🔄 Flip: ON' : '🔄 Flip: OFF';
+      fb.style.background = flipMode ? '#4a7f82' : '#e8f2f3';
+      fb.style.color = flipMode ? '#fff' : '#4a7f82';
+    }
+    var sb = document.getElementById('shuffleToggle');
+    if (sb) {
+      sb.textContent = shuffleMode ? '🔀 Shuffle: ON' : '🔀 Shuffle: OFF';
+      sb.style.background = shuffleMode ? '#4a7f82' : '#e8f2f3';
+      sb.style.color = shuffleMode ? '#fff' : '#4a7f82';
+    }
+  }
+
+  function toggleBtnStyle(isOn) {
+    return 'padding:8px 16px;font-size:12pt;border:2px solid #ddd;border-radius:8px;cursor:pointer;' +
+      'margin-bottom:16px;margin-right:8px;font-family:inherit;font-weight:600;' +
+      'background:' + (isOn ? '#4a7f82' : '#e8f2f3') + ';' +
+      'color:' + (isOn ? '#fff' : '#4a7f82') + ';';
+  }
+
+  function renderToggleBar() {
+    return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">' +
+      '<button id="flipToggle" onclick="toggleFlipMode()" style="' + toggleBtnStyle(flipMode) + '">' +
+      (flipMode ? '🔄 Flip: ON' : '🔄 Flip: OFF') + '</button>' +
+      '<button id="shuffleToggle" onclick="toggleShuffleMode()" style="' + toggleBtnStyle(shuffleMode) + '">' +
+      (shuffleMode ? '🔀 Shuffle: ON' : '🔀 Shuffle: OFF') + '</button>' +
+      '</div>';
+  }
+
+  /* Claude: 2026-03-21 — Save quiz progress with TRIPLE REDUNDANCY:
+     Layer 1: Firestore (primary cloud store)
+     Layer 2: localStorage (survives connection loss + app crashes)
+     Layer 3: Retry queue (retries failed Firestore writes on next quiz load)
+     Mary breaks electronics — every save path needs 3+ fallback layers. */
+
+  function _buildProgressEntry(scoreVal, total, missedItems) {
+    var key = 'quiz_' + quizIndex;
+    /* Read existing best from localStorage in case Firestore read fails */
+    var localAll = {};
+    try { localAll = JSON.parse(localStorage.getItem('AA_QUIZ_PROGRESS_' + _quizUid) || '{}'); } catch(e) {}
+    var prev = localAll[key] || {};
+    var pct = Math.round((scoreVal / total) * 100);
+    var bestPct = prev.bestPct || 0;
+
+    return {
+      title: quizData.title || '',
+      lastScore: scoreVal,
+      lastTotal: total,
+      lastPct: pct,
+      bestPct: Math.max(pct, bestPct),
+      lastAttempt: new Date().toISOString(),
+      missedItems: (missedItems || []).slice(0, 50)
+    };
+  }
+
+  /* Layer 2: Always save to localStorage (synchronous, never fails on mobile) */
+  function _saveProgressLocal(key, entry) {
+    try {
+      var lsKey = 'AA_QUIZ_PROGRESS_' + _quizUid;
+      var all = JSON.parse(localStorage.getItem(lsKey) || '{}');
+      all[key] = entry;
+      localStorage.setItem(lsKey, JSON.stringify(all));
+      if (window.AA_DEBUG) console.log('[Quiz] Layer 2 — localStorage saved for ' + key);
+    } catch(e) {
+      /* Layer 2b: sessionStorage fallback if localStorage is full */
+      try {
+        var ssKey = 'AA_QUIZ_PROGRESS_' + _quizUid;
+        var all2 = JSON.parse(sessionStorage.getItem(ssKey) || '{}');
+        all2[key] = entry;
+        sessionStorage.setItem(ssKey, JSON.stringify(all2));
+        if (window.AA_DEBUG) console.log('[Quiz] Layer 2b — sessionStorage fallback saved for ' + key);
+      } catch(e2) { console.warn('[Quiz] Both local + session storage failed:', e2); }
+    }
+  }
+
+  /* Layer 3: Queue failed Firestore writes for retry */
+  function _queueRetry(uid, key, entry) {
+    try {
+      var queue = JSON.parse(localStorage.getItem('AA_QUIZ_RETRY_QUEUE') || '[]');
+      queue.push({ uid: uid, key: key, entry: entry, queuedAt: new Date().toISOString() });
+      /* Cap queue at 20 to avoid localStorage bloat */
+      if (queue.length > 20) queue = queue.slice(-20);
+      localStorage.setItem('AA_QUIZ_RETRY_QUEUE', JSON.stringify(queue));
+      if (window.AA_DEBUG) console.log('[Quiz] Layer 3 — queued for retry: ' + key);
+    } catch(e) { console.warn('[Quiz] Retry queue save failed:', e); }
+  }
+
+  /* Process any pending retries from previous sessions */
+  function _processRetryQueue() {
+    try {
+      var queue = JSON.parse(localStorage.getItem('AA_QUIZ_RETRY_QUEUE') || '[]');
+      if (queue.length === 0) return;
+      var db = firebase.firestore();
+      var remaining = [];
+      var processed = 0;
+
+      queue.forEach(function(item) {
+        var update = {};
+        update[item.key] = item.entry;
+        db.collection('quizProgress').doc(item.uid).set(update, { merge: true })
+          .then(function() {
+            processed++;
+            if (window.AA_DEBUG) console.log('[Quiz] Retry succeeded: ' + item.key);
+            /* Claude: 2026-03-25 — moved from .finally() (ES2018) to both paths for ES5 compat */
+            if (processed + remaining.length === queue.length) {
+              localStorage.setItem('AA_QUIZ_RETRY_QUEUE', JSON.stringify(remaining));
+            }
+          })
+          .catch(function() {
+            remaining.push(item); /* still failed, keep in queue */
+            if (processed + remaining.length === queue.length) {
+              localStorage.setItem('AA_QUIZ_RETRY_QUEUE', JSON.stringify(remaining));
+            }
+          });
+      });
+    } catch(e) { /* ignore */ }
+  }
+
+  function saveQuizProgress(scoreVal, total, missedItems) {
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return; /* mirror guard */
+    var uid = _quizUid;
+    if (!uid || quizIndex === undefined) return;
+
+    var key = 'quiz_' + quizIndex;
+    var entry = _buildProgressEntry(scoreVal, total, missedItems);
+
+    /* Layer 2: localStorage FIRST (synchronous, guaranteed) */
+    _saveProgressLocal(key, entry);
+
+    /* Layer 1: Firestore (async, may fail on flaky connection) */
+    var db = firebase.firestore();
+    var progressRef = db.collection('quizProgress').doc(uid);
+    var update = {};
+    update[key] = entry;
+
+    var saveTimeout = setTimeout(function() {
+      console.warn('[Quiz] Firestore save timed out after 10s — data safe in localStorage');
+      _queueRetry(uid, key, entry); /* Layer 3 */
+    }, 10000);
+
+    progressRef.set(update, { merge: true }).then(function() {
+      clearTimeout(saveTimeout);
+      if (window.AA_DEBUG) console.log('[Quiz] Layer 1 — Firestore saved for ' + key);
+    }).catch(function(e) {
+      clearTimeout(saveTimeout);
+      console.warn('[Quiz] Firestore save failed:', e);
+      _queueRetry(uid, key, entry); /* Layer 3 */
+    });
+  }
+
+  /* Claude: 2026-03-21 — Load saved missed items with triple fallback:
+     Try Firestore first, fall back to localStorage, then sessionStorage */
+  function loadSavedMissed() {
+    var uid = _quizUid;
+    if (!uid) return;
+    var key = 'quiz_' + quizIndex;
+
+    /* Try localStorage first (faster, always available) */
+    var localEntry = null;
+    try {
+      var localAll = JSON.parse(localStorage.getItem('AA_QUIZ_PROGRESS_' + uid) || '{}');
+      localEntry = localAll[key] || null;
+    } catch(e) {}
+
+    /* Also try Firestore for freshest data */
+    var db = firebase.firestore();
+    var progressRef = db.collection('quizProgress').doc(uid);
+
+    var loadTimeout = setTimeout(function() {
+      console.warn('[Quiz] Firestore load timed out — using localStorage');
+      _useMissedData(localEntry);
+    }, 8000);
+
+    progressRef.get().then(function(doc) {
+      clearTimeout(loadTimeout);
+      var prev = null;
+      if (doc.exists) {
+        var data = doc.data();
+        prev = data[key] || null;
+      }
+      /* Use Firestore data if available, else localStorage */
+      _useMissedData(prev || localEntry);
+    }).catch(function(e) {
+      clearTimeout(loadTimeout);
+      console.warn('[Quiz] Firestore load failed, using localStorage:', e);
+      _useMissedData(localEntry);
+    });
+  }
+
+  /* Claude: 2026-03-23 — Fixed broken brace structure. Had orphaned }).catch() from
+     a prior refactor that crashed the entire script block as a SyntaxError. */
+  function _useMissedData(prev) {
+    if (!prev || !prev.missedItems || prev.missedItems.length === 0) {
+      alert('No missed items from your last attempt — you got them all!');
+      return;
+    }
+
+    /* Build quiz data from saved missed items */
+    var missedTerms = {};
+    prev.missedItems.forEach(function(m) { missedTerms[m.term] = true; });
+    var filteredData = originalData.filter(function(item) {
+      return missedTerms[item.term] || missedTerms[item.answer];
+    });
+
+    if (filteredData.length === 0) {
+      alert('Could not match saved missed items to current quiz data.');
+      return;
+    }
+
+    quizData.data = shuffleMode ? shuffleArray(filteredData) : filteredData;
+    if (quizType === 'fill-blank') { renderFillBlankQuiz(); }
+    else if (quizType === 'match') { renderMatchQuiz(); }
+    else if (quizType === 'flashcards') { renderFlashcardQuiz(); }
+  }
+
+  function getUrlParam(name) {
+    var url = new URL(window.location);
+    return url.searchParams.get(name);
+  }
+
+  /* Claude: 2026-03-23 — use textContent for title to prevent XSS;
+     message uses innerHTML but is always called with hardcoded strings
+     (or numeric quizIndex / esc'd quizType). */
+  function showError(title, message) {
+    document.getElementById('quizTitle').textContent = title;
+    document.getElementById('quizSubtitle').textContent = '';
+    var content = document.getElementById('content');
+    content.innerHTML = '<div class="error-state">' +
+      '<p>' + message + '</p>' +
+      '<a href="/Academic-Allies/modular/static/study-tools.html">Back to Study Tools</a>' +
+      '</div>';
+  }
+
+  /* Claude: 2026-03-19 — Sanitize quiz data to handle invalid/missing items gracefully */
+  function sanitizeQuizData(data) {
+    if (!Array.isArray(data)) {
+      console.warn('[Custom Quiz] Data is not an array, returning empty');
+      return [];
+    }
+
+    var cleaned = [];
+    var invalidCount = 0;
+
+    data.forEach(function(item, idx) {
+      if (!item || typeof item !== 'object') {
+        invalidCount++;
+        return;
+      }
+
+      var term = String(item.term || '').trim();
+      var answer = String(item.answer || '').trim();
+
+      if (!term || !answer) {
+        console.warn('[Custom Quiz] Item ' + idx + ' missing term or answer, skipping');
+        invalidCount++;
+        return;
+      }
+
+      var hints = item.hints;
+      if (!Array.isArray(hints)) {
+        hints = [];
+      }
+
+      /* Claude: 2026-03-23 — preserve alsoAccept for half-credit support */
+      var entry = { term: term, answer: answer, hints: hints };
+      if (Array.isArray(item.alsoAccept) && item.alsoAccept.length > 0) {
+        entry.alsoAccept = item.alsoAccept;
+      }
+      cleaned.push(entry);
+    });
+
+    if (invalidCount > 0) {
+      console.warn('[Custom Quiz] Filtered out ' + invalidCount + ' invalid items');
+    }
+
+    return cleaned;
+  }
+
+  function loadQuiz() {
+    quizIndex = parseInt(getUrlParam('quiz')) || 0;
+
+    if (!window.AA || !window.AA.auth) {
+      showError('Not Signed In', 'Please sign in to access this quiz.');
+      return;
+    }
+
+    var user = window.AA.auth.currentUser;
+    if (!user) {
+      showError('Not Signed In', 'Please sign in to access this quiz.');
+      return;
+    }
+
+    /* Claude: 2026-03-20 — Mirror-aware: load student's quizzes in mirror mode */
+    _quizUid = window.AA_MIRROR_UID || user.uid;
+    window.AA_CONFIG.load(_quizUid).then(function(config) {
+      var quizzes = window.AA_CONFIG.get('quizzes', []);
+
+      if (!quizzes || quizzes.length === 0) {
+        showError('No Quizzes', 'Your network lead hasn\'t configured any custom quizzes yet.');
+        return;
+      }
+
+      if (quizIndex < 0 || quizIndex >= quizzes.length) {
+        showError('Quiz Not Found', 'Quiz index ' + quizIndex + ' is out of bounds.');
+        return;
+      }
+
+      quizData = quizzes[quizIndex];
+      if (!quizData || !quizData.type) {
+        showError('Invalid Quiz', 'This quiz is missing required fields.');
+        return;
+      }
+
+      quizType = quizData.type;
+      document.getElementById('quizTitle').textContent = quizData.title || 'Custom Quiz';
+      document.getElementById('quizSubtitle').textContent = quizData.description || '';
+
+      if (!quizData.data || quizData.data.length === 0) {
+        showError('Empty Quiz', 'This quiz has no items.');
+        return;
+      }
+
+      /* Claude: 2026-03-19 — Sanitize quiz data before rendering */
+      quizData.data = sanitizeQuizData(quizData.data);
+
+      if (quizData.data.length === 0) {
+        showError('No Valid Items', 'All quiz items were invalid or missing required fields.');
+        return;
+      }
+
+      /* Claude: 2026-03-21 — Preserve original data for shuffle toggle */
+      originalData = quizData.data.slice();
+      if (shuffleMode) {
+        quizData.data = shuffleArray(originalData);
+      }
+
+      if (quizType === 'fill-blank') {
+        renderFillBlankQuiz();
+      } else if (quizType === 'match') {
+        renderMatchQuiz();
+      } else if (quizType === 'flashcards') {
+        renderFlashcardQuiz();
+      } else {
+        showError('Unknown Quiz Type', 'Quiz type "' + quizType + '" is not supported.');
+      }
+    }).catch(function(err) {
+      console.error('[Custom Quiz] Config load failed:', err);
+      showError('Config Error', 'Failed to load quiz configuration: ' + err.message);
+    });
+  }
+
+  /* ── FILL-BLANK QUIZ ─────────────────────────────────────────────── */
+  function renderFillBlankQuiz() {
+    answered = [];
+    missed = [];
+    score = 0;
+    strictlyCorrect = 0;
+    knewIt = 0;
+    halfCreditCount = 0;
+    currentQuestion = 0;
+    showFillBlankQuestion();
+  }
+
+  function showFillBlankQuestion() {
+    if (currentQuestion >= quizData.data.length) {
+      showFillBlankResults();
+      return;
+    }
+
+    var item = quizData.data[currentQuestion];
+    var progress = ((currentQuestion) / quizData.data.length) * 100;
+    var html = renderToggleBar() +
+      '<div class="quiz-section">' +
+      '<div class="progress-bar"><div class="progress-fill" style="width:' + progress + '%"></div></div>' +
+      '<div class="question-num">Question ' + (currentQuestion + 1) + ' of ' + quizData.data.length + '</div>' +
+      /* Claude: 2026-03-25 — escape quiz data to prevent XSS */
+      '<div class="question">' + esc(getPrompt(item)) + '</div>' +
+      '<input type="text" id="answerInput" class="answer-input" placeholder="Type your answer..." autocomplete="off" />' +
+      '<div class="hint-box" id="hintBox"></div>' +
+      /* Claude: 2026-03-25 — aria-live for screen reader quiz feedback */
+      '<div class="feedback" id="feedback" role="alert" aria-live="assertive"></div>' +
+      '<div class="btn-row">' +
+      '<button class="btn-primary" onclick="checkAnswer()">Check Answer</button>' +
+      '<button class="btn-secondary" onclick="skipQuestion()">Skip</button>' +
+      '</div>' +
+      '</div>';
+
+    document.getElementById('content').innerHTML = html;
+    document.getElementById('answerInput').focus();
+
+    /* Allow Enter to submit */
+    document.getElementById('answerInput').onkeypress = function(e) {
+      if (e.key === 'Enter') {
+        checkAnswer();
+      }
+    };
+  }
+
+  /* Claude: 2026-03-23 — Added alsoAccept support for half-credit answers.
+     Question data can include: alsoAccept: [{answer: "word", credit: 0.5, note: "explanation"}]
+     Half-credit answers get 0.5 points and show the note to help the student learn. */
+  function checkAnswer() {
+    var userAnswer = document.getElementById('answerInput').value.trim();
+    var item = quizData.data[currentQuestion];
+    var correctAnswer = getAnswer(item).trim();
+
+    if (!userAnswer) {
+      document.getElementById('feedback').textContent = 'Please enter an answer.';
+      document.getElementById('feedback').classList.add('error');
+      document.getElementById('feedback').style.display = 'block';
+      return;
+    }
+
+    var isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
+    var isClose = levenshteinDistance(userAnswer.toLowerCase(), correctAnswer.toLowerCase()) <= 2;
+
+    /* Check alsoAccept for half-credit answers */
+    var halfMatch = null;
+    if (!isCorrect && !isClose && item.alsoAccept && item.alsoAccept.length) {
+      for (var h = 0; h < item.alsoAccept.length; h++) {
+        var alt = item.alsoAccept[h];
+        var altLower = (alt.answer || '').toLowerCase();
+        if (userAnswer.toLowerCase() === altLower || levenshteinDistance(userAnswer.toLowerCase(), altLower) <= 2) {
+          halfMatch = alt;
+          break;
+        }
+      }
+    }
+
+    var feedback = document.getElementById('feedback');
+    if (isCorrect) {
+      feedback.textContent = 'Correct! ✓';
+      feedback.classList.remove('error');
+      feedback.style.display = 'block';
+      strictlyCorrect++;
+      score++;
+    } else if (isClose) {
+      feedback.textContent = 'Close! You KNEW it. ✓ (Small typo accepted)';
+      feedback.classList.remove('error');
+      feedback.style.display = 'block';
+      knewIt++;
+      score++;
+    } else if (halfMatch) {
+      var creditVal = halfMatch.credit || 0.5;
+      var noteText = halfMatch.note ? ' — ' + halfMatch.note : '';
+      /* Claude: 2026-03-25 — escape user data to prevent XSS */
+      feedback.innerHTML = '½ Credit! ' + esc(noteText) + '<br><small>Full-credit answer: <strong>' + esc(correctAnswer) + '</strong></small>';
+      feedback.classList.remove('error');
+      feedback.style.cssText = 'display:block; background:#fff3cd; color:#856404; border:1px solid #ffc107; padding:10px; border-radius:8px;';
+      halfCreditCount++;
+      score += creditVal;
+    } else {
+      feedback.textContent = 'Not quite. Correct answer: ' + correctAnswer;
+      feedback.classList.add('error');
+      feedback.style.display = 'block';
+      missed.push({ term: getPrompt(item), correct: correctAnswer });
+      showHints(item);
+    }
+
+    var wasRight = isCorrect || isClose || !!halfMatch;
+    answered.push({ term: getPrompt(item), answer: getAnswer(item), userAnswer: userAnswer, correct: wasRight });
+
+    /* Claude: 2026-03-25 — null guards for querySelector */
+    var _ai = document.getElementById('answerInput'); if (_ai) _ai.disabled = true;
+    var _bp = document.querySelector('.btn-primary'); if (_bp) _bp.disabled = true;
+
+    setTimeout(function() {
+      currentQuestion++;
+      showFillBlankQuestion();
+    }, halfMatch ? 4000 : 2000);
+  }
+
+  function showHints(item) {
+    if (item.hints && item.hints.length > 0) {
+      var hintBox = document.getElementById('hintBox');
+      var hintText = 'Hints: ' + item.hints.join(' • ');
+      hintBox.textContent = hintText;
+      hintBox.style.display = 'block';
+    }
+  }
+
+  function skipQuestion() {
+    var item = quizData.data[currentQuestion];
+    missed.push({ term: getPrompt(item), correct: getAnswer(item) });
+    answered.push({ term: getPrompt(item), answer: getAnswer(item), userAnswer: '', correct: false });
+    currentQuestion++;
+    showFillBlankQuestion();
+  }
+
+  function showFillBlankResults() {
+    /* Claude: 2026-03-21 — Save progress + missed items to Firestore */
+    saveQuizProgress(score, quizData.data.length, missed);
+
+    var html = '<div class="results-container">' +
+      '<h2>Quiz Complete!</h2>' +
+      '<div class="score">' + (score % 1 !== 0 ? score.toFixed(1) : score) + ' / ' + quizData.data.length + '</div>' +
+      '<p>Correct: ' + strictlyCorrect + ' | Close: ' + knewIt + (halfCreditCount > 0 ? ' | Half Credit: ' + halfCreditCount : '') + ' | Missed: ' + missed.length + '</p>';
+
+    if (missed.length > 0) {
+      html += '<div><strong>Review Missed:</strong></div>' +
+        '<div class="missed-list">';
+      missed.forEach(function(item) {
+        /* Claude: 2026-03-25 — escape quiz data */
+        html += '<div class="missed-item"><strong>' + esc(item.term) + '</strong>: ' + esc(item.correct) + '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '<div class="btn-row" style="justify-content: center; margin-top: 16px;">' +
+      '<button class="btn-primary" onclick="location.href=\'/Academic-Allies/modular/static/study-tools.html\'">Back to Study Tools</button>' +
+      '<button class="btn-secondary" onclick="retryMissed()">Retry Missed (' + missed.length + ')</button>' +
+      '<button class="btn-secondary" onclick="loadSavedMissed()">Study Last Missed</button>' +
+      '</div>' +
+      '</div>';
+
+    document.getElementById('content').innerHTML = html;
+  }
+
+  function retryMissed() {
+    if (missed.length > 0) {
+      var originalData = quizData.data;
+      quizData.data = missed.map(function(item) {
+        return originalData.find(function(d) { return d.term === item.term; });
+      }).filter(Boolean);
+
+      answered = [];
+      missed = [];
+      score = 0;
+      strictlyCorrect = 0;
+      knewIt = 0;
+      halfCreditCount = 0; /* Claude: 2026-03-23 — reset half-credit counter on retry */
+      currentQuestion = 0;
+      showFillBlankQuestion();
+    }
+  }
+
+  /* ── MATCH QUIZ ──────────────────────────────────────────────────── */
+  function renderMatchQuiz() {
+    /* Claude: 2026-03-19 — Validate minimum items for match game */
+    if (quizData.data.length < 2) {
+      showError('Not Enough Items', 'Match quizzes need at least 2 item pairs. This quiz only has ' + quizData.data.length + '.');
+      return;
+    }
+
+    matchPairs = {};
+    matchScore = 0;
+
+    var terms = quizData.data.map(function(item, idx) {
+      return { text: getPrompt(item), id: idx, type: 'term' };
+    });
+
+    var answers = quizData.data.map(function(item, idx) {
+      return { text: getAnswer(item), correctId: idx, type: 'answer' };
+    });
+
+    /* Shuffle answers */
+    answers = answers.sort(function() { return Math.random() - 0.5; });
+
+    var html = renderToggleBar() +
+      '<div class="quiz-section">' +
+      '<div class="score-section">' +
+      '<div class="score-number" id="matchScore">0</div>' +
+      '<div class="score-label">Pairs Matched</div>' +
+      '</div>' +
+      '<div class="match-container">' +
+      '<div class="match-column">' +
+      '<div class="match-column-label">Terms</div>';
+
+    /* Claude: 2026-03-25 — escape quiz data to prevent XSS + add keyboard a11y */
+    terms.forEach(function(term) {
+      html += '<div class="match-item" role="button" tabindex="0" data-id="term-' + term.id + '" onclick="selectMatchItem(\'term-' + term.id + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();selectMatchItem(\'term-' + term.id + '\');}">' + esc(term.text) + '</div>';
+    });
+
+    html += '</div><div class="match-column">' +
+      '<div class="match-column-label">Answers</div>';
+
+    answers.forEach(function(answer) {
+      html += '<div class="match-item" role="button" tabindex="0" data-id="answer-' + answer.correctId + '" onclick="selectMatchItem(\'answer-' + answer.correctId + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();selectMatchItem(\'answer-' + answer.correctId + '\');}">' + esc(answer.text) + '</div>';
+    });
+
+    html += '</div></div>' +
+      '<div class="btn-row">' +
+      '<button class="btn-primary" onclick="resetMatch()">Reset</button>' +
+      '<button class="btn-secondary" onclick="location.href=\'/Academic-Allies/modular/static/study-tools.html\'">Back to Study Tools</button>' +
+      '</div>' +
+      '</div>';
+
+    document.getElementById('content').innerHTML = html;
+  }
+
+  function selectMatchItem(id) {
+    var elem = document.querySelector('[data-id="' + id + '"]');
+    if (!elem || elem.classList.contains('matched')) return;
+
+    var selected = document.querySelector('.match-item.selected');
+    if (!selected) {
+      elem.classList.add('selected');
+      return;
+    }
+
+    if (selected.getAttribute('data-id') === id) {
+      elem.classList.remove('selected');
+      return;
+    }
+
+    var selectedId = selected.getAttribute('data-id');
+    if (selectedId.split('-')[0] === id.split('-')[0]) {
+      /* Both same type, deselect */
+      selected.classList.remove('selected');
+      elem.classList.add('selected');
+      return;
+    }
+
+    /* Check if pair matches */
+    var termId = selectedId.split('-')[0] === 'term' ? selectedId.split('-')[1] : id.split('-')[1];
+    var answerId = selectedId.split('-')[0] === 'answer' ? selectedId.split('-')[1] : id.split('-')[1];
+
+    if (parseInt(termId) === parseInt(answerId)) {
+      /* Correct match */
+      selected.classList.remove('selected');
+      selected.classList.add('matched');
+      elem.classList.remove('selected');
+      elem.classList.add('matched');
+      matchScore++;
+      document.getElementById('matchScore').textContent = matchScore;
+
+      if (matchScore === quizData.data.length) {
+        /* Claude: 2026-03-21 — Save match game progress (always 100% if completed) */
+        saveQuizProgress(matchScore, quizData.data.length, []);
+        setTimeout(function() {
+          alert('Perfect! You matched all pairs correctly!');
+        }, 300);
+      }
+    } else {
+      /* Wrong match, flash red then reset */
+      selected.style.opacity = '0.5';
+      elem.style.opacity = '0.5';
+      setTimeout(function() {
+        selected.classList.remove('selected');
+        selected.style.opacity = '1';
+        elem.style.opacity = '1';
+      }, 500);
+    }
+  }
+
+  function resetMatch() {
+    document.querySelectorAll('.match-item').forEach(function(elem) {
+      elem.classList.remove('matched', 'selected');
+      elem.style.opacity = '1';
+    });
+    matchScore = 0;
+    document.getElementById('matchScore').textContent = '0';
+  }
+
+  /* ── FLASHCARD QUIZ ──────────────────────────────────────────────── */
+  function renderFlashcardQuiz() {
+    cardsLearned = 0;
+    cardsMissed = 0;
+    flashcardState = {};
+    currentQuestion = 0;
+
+    quizData.data.forEach(function(item, idx) {
+      flashcardState[idx] = { learned: false, missed: false };
+    });
+
+    showFlashcard();
+  }
+
+  function showFlashcard() {
+    if (currentQuestion >= quizData.data.length) {
+      showFlashcardResults();
+      return;
+    }
+
+    var item = quizData.data[currentQuestion];
+    var state = flashcardState[currentQuestion];
+    var progress = (currentQuestion / quizData.data.length) * 100;
+
+    var html = renderToggleBar() +
+      '<div class="quiz-section">' +
+      '<div class="progress-bar"><div class="progress-fill" style="width:' + progress + '%"></div></div>' +
+      '<div class="question-num">Card ' + (currentQuestion + 1) + ' of ' + quizData.data.length + '</div>' +
+      '<div class="flashcard" id="flashcard" onclick="flipCard()">' +
+      '<div class="flashcard-inner">' +
+      '<div class="flashcard-face flashcard-front">' +
+      /* Claude: 2026-03-25 — escape quiz data */
+      '<div class="flashcard-text">' + esc(getPrompt(item)) + '</div>' +
+      '<div class="flashcard-label">Tap to reveal answer</div>' +
+      '</div>' +
+      '<div class="flashcard-face flashcard-back">' +
+      '<div class="flashcard-text">' + esc(getAnswer(item)) + '</div>' +
+      '<div class="flashcard-label">Tap to continue</div>' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
+      '<div class="btn-row">' +
+      '<button class="btn-secondary" onclick="markFlashcardMissed()">😕 Missed</button>' +
+      '<button class="btn-primary knew-it-btn" onclick="markFlashcardLearned()">✓ Got It</button>' +
+      '<button class="btn-secondary" onclick="nextFlashcard()">Next</button>' +
+      '</div>' +
+      '</div>';
+
+    document.getElementById('content').innerHTML = html;
+  }
+
+  function flipCard() {
+    var card = document.getElementById('flashcard');
+    if (card) {
+      card.classList.toggle('flipped');
+    }
+  }
+
+  function markFlashcardLearned() {
+    var state = flashcardState[currentQuestion];
+    if (!state.learned) {
+      state.learned = true;
+      cardsLearned++;
+    }
+    nextFlashcard();
+  }
+
+  function markFlashcardMissed() {
+    var state = flashcardState[currentQuestion];
+    if (!state.missed) {
+      state.missed = true;
+      cardsMissed++;
+    }
+    nextFlashcard();
+  }
+
+  function nextFlashcard() {
+    currentQuestion++;
+    showFlashcard();
+  }
+
+  function showFlashcardResults() {
+    /* Claude: 2026-03-21 — Save flashcard progress to Firestore */
+    var fcMissed = [];
+    quizData.data.forEach(function(item, idx) {
+      if (flashcardState[idx] && flashcardState[idx].missed) {
+        fcMissed.push({ term: item.term, correct: item.answer });
+      }
+    });
+    saveQuizProgress(cardsLearned, quizData.data.length, fcMissed);
+
+    var html = '<div class="results-container">' +
+      '<h2>Review Complete!</h2>' +
+      '<div class="score">' + cardsLearned + ' Learned</div>' +
+      '<p>' + cardsMissed + ' to review | ' + cardsLearned + ' mastered</p>' +
+      '<div class="btn-row" style="justify-content: center; margin-top: 16px;">' +
+      '<button class="btn-primary" onclick="location.href=\'/Academic-Allies/modular/static/study-tools.html\'">Back to Study Tools</button>' +
+      '<button class="btn-secondary" onclick="retryFlashcards()">Review Again</button>' +
+      '<button class="btn-secondary" onclick="loadSavedMissed()">Study Last Missed</button>' +
+      '</div>' +
+      '</div>';
+
+    document.getElementById('content').innerHTML = html;
+  }
+
+  function retryFlashcards() {
+    cardsLearned = 0;
+    cardsMissed = 0;
+    flashcardState = {};
+    currentQuestion = 0;
+    quizData.data.forEach(function(item, idx) {
+      flashcardState[idx] = { learned: false, missed: false };
+    });
+    showFlashcard();
+  }
+
+  /* ── UTILITY ─────────────────────────────────────────────────────── */
+  function levenshteinDistance(s1, s2) {
+    var len1 = s1.length;
+    var len2 = s2.length;
+    var d = [];
+
+    for (var i = 0; i <= len1; i++) {
+      d[i] = [i];
+    }
+    for (var j = 0; j <= len2; j++) {
+      d[0][j] = j;
+    }
+
+    for (i = 1; i <= len1; i++) {
+      for (j = 1; j <= len2; j++) {
+        var cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+        d[i][j] = Math.min(
+          d[i - 1][j] + 1,
+          d[i][j - 1] + 1,
+          d[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    return d[len1][len2];
+  }
+
+  /* Claude: 2026-03-20 — Expose interactive functions to window for inline onclick handlers.
+     Functions inside this IIFE are not accessible from HTML onclick attributes without this. */
+  window.checkAnswer = checkAnswer;
+  window.skipQuestion = skipQuestion;
+  window.selectMatchItem = selectMatchItem;
+  window.resetMatch = resetMatch;
+  window.flipCard = flipCard;
+  window.markFlashcardLearned = markFlashcardLearned;
+  window.markFlashcardMissed = markFlashcardMissed;
+  window.nextFlashcard = nextFlashcard;
+  window.retryMissed = retryMissed;
+  window.retryFlashcards = retryFlashcards;
+  window.toggleFlipMode = toggleFlipMode;
+  window.toggleShuffleMode = toggleShuffleMode;
+  window.loadSavedMissed = loadSavedMissed;
+
+  /* Claude: 2026-03-23 — Robust init: poll for AA + auth + mirror system.
+     aa-mirror.js loads async via shared-header fetch and sets AA_uid() + AA_MIRROR_UID.
+     We must wait for it before calling loadQuiz(), otherwise we load the wrong user's data. */
+  var _initDone = false; /* Claude: 2026-03-23 — guard against double-fire between poll intervals */
+  var _initPoll = setInterval(function() {
+    if (_initDone) return;
+    if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
+    if (typeof window.AA_uid !== 'function') return; /* wait for aa-mirror.js */
+    _initDone = true;
+    clearInterval(_initPoll);
+    _processRetryQueue(); /* Layer 3: flush any queued saves from previous sessions */
+    loadQuiz();
+  }, 100);
+  /* Give up after 15s */
+  setTimeout(function() { clearInterval(_initPoll); }, 15000);
+})();
+</script>
+</body>
+</html>

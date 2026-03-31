@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<!-- ============================================================
+     emergency.html — Academic Allies Emergency Contacts
+     Created: (original page)
+     Rebuilt: 2026-02-28 by Claude
+     Emergency contacts are now stored privately in Firestore
+     at emergencyContacts/{uid}. Only the student, their
+     network leads, and the backstage-manager can read them.
+     Network leads can add/edit contacts for their students.
+     No contact data is ever hardcoded in this file.
+     ============================================================ -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Claude: 2026-03-14 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emergency Contacts — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red:     #dc3545;
+      --red-lt:  #fde8ea;
+      --orange:  #fd7e14;
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg); color: var(--text);
+      padding-bottom: 3rem;
+    }
+    #site-header { min-height: 56px; }
+    .page-wrap { max-width: 680px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+
+    h1 { font-size: 1.5rem; color: var(--red); margin: 1rem 0 .25rem; }
+    .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 1.5rem; }
+
+    /* ── Auth gate ── */
+    #auth-gate {
+      display: none; text-align: center; padding: 3rem 1rem; color: var(--muted);
+    }
+    #auth-gate button {
+      margin-top: 1rem; padding: .6rem 1.4rem;
+      background: var(--teal); color: #fff; border: none;
+      border-radius: 8px; font-size: 1rem; cursor: pointer;
+    }
+
+    /* ── Mirror notice ── */
+    #mirror-notice {
+      display: none; background: #e8f2f3; border: 1px solid var(--teal);
+      border-radius: 8px; padding: .6rem 1rem; margin-bottom: 1rem;
+      font-size: .88rem; color: var(--teal-dk);
+    }
+
+    /* ── Section headers ── */
+    .section-title {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: 1.1rem; font-weight: 700; color: var(--red);
+      margin: 1.5rem 0 .75rem;
+    }
+
+    /* ── Contact cards ── */
+    .contact-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 1rem 1.1rem; margin-bottom: .75rem;
+      display: flex; gap: 1rem; align-items: flex-start;
+    }
+    .contact-photo {
+      width: 64px; height: 64px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0; background: #eee;
+    }
+    .contact-info { flex: 1; }
+    .contact-name { font-weight: 700; font-size: 1rem; }
+    .contact-rel  { font-size: .82rem; color: var(--muted); margin-bottom: .4rem; }
+    .contact-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .5rem; }
+    .contact-actions a, .contact-actions button {
+      display: inline-flex; align-items: center; gap: .3rem;
+      padding: .35rem .8rem; border-radius: 6px; font-size: .85rem;
+      text-decoration: none; border: none; cursor: pointer; font-family: inherit;
+    }
+    /* Claude: 2026-03-13 — 44px min-height for WCAG touch targets */
+    .btn-call  { background: #e8f5ee; color: #2e6b4f; min-height: 44px; }
+    .btn-email { background: #e8f2ff; color: #1a4fa0; min-height: 44px; }
+    .contact-msg {
+      font-size: .85rem; color: #555; font-style: italic;
+      border-left: 3px solid var(--border); padding: .3rem .6rem;
+      margin-top: .5rem;
+    }
+
+    /* ── Empty / loading states ── */
+    #ec-loading { text-align: center; padding: 2rem; color: var(--muted); }
+    #ec-empty   { display: none; }
+    .empty-box  {
+      background: var(--card); border: 1.5px dashed var(--border);
+      border-radius: var(--radius); padding: 2rem; text-align: center;
+      color: var(--muted); font-size: .9rem;
+    }
+
+    /* ── Edit mode (network lead / admin) ── */
+    #edit-section { display: none; margin-top: 2rem; }
+    #edit-section h2 {
+      font-size: 1rem; color: var(--teal-dk);
+      margin-bottom: .75rem;
+    }
+    .edit-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.1rem;
+      margin-bottom: .75rem;
+    }
+    .edit-card label {
+      display: block; font-size: .82rem; color: var(--muted);
+      margin: .6rem 0 .2rem;
+    }
+    .edit-card label:first-child { margin-top: 0; }
+    .edit-card input, .edit-card select, .edit-card textarea {
+      width: 100%; padding: .45rem .7rem; border-radius: 6px;
+      border: 1px solid var(--border); font-size: .9rem;
+      font-family: inherit; background: #fff;
+    }
+    .edit-card textarea { resize: vertical; min-height: 60px; }
+    .edit-card-actions {
+      display: flex; gap: .5rem; margin-top: .75rem; flex-wrap: wrap;
+    }
+    .btn-save   { background: var(--teal); color: #fff; border: none; border-radius: 6px; padding: .4rem .9rem; cursor: pointer; font-size: .85rem; }
+    .btn-delete { background: var(--red-lt); color: var(--red); border: 1px solid #f5c6cb; border-radius: 6px; padding: .4rem .9rem; cursor: pointer; font-size: .85rem; }
+    .btn-byui   { background: #1a2a4a; color: #a8c4e0; border: 1px solid #2a4a7a; border-radius: 6px; padding: .3rem .7rem; cursor: pointer; font-size: .8rem; }
+    #add-contact-btn {
+      display: none; background: var(--teal); color: #fff;
+      border: none; border-radius: 8px; padding: .5rem 1.1rem;
+      cursor: pointer; font-size: .9rem; margin-bottom: 1rem;
+    }
+    #save-status { font-size: .85rem; color: var(--teal-dk); margin-top: .4rem; min-height: 1.2em; }
+
+    /* ── Seed defaults button (backstage-manager only) ── */
+    #seed-defaults-btn {
+      display: none; background: #fff3cd; color: #856404;
+      border: 1px solid #ffc107; border-radius: 8px;
+      padding: .45rem 1rem; cursor: pointer; font-size: .85rem;
+      margin-bottom: .75rem;
+    }
+    #seed-defaults-btn:hover { background: #ffe083; }
+
+    /* ── Network picker ── */
+    #network-picker-body { margin-top: .6rem; }
+
+    /* Claude: 2026-03-13 — mobile responsive + edit button touch targets */
+    .btn-save, .btn-delete, .btn-byui, #add-contact-btn, #seed-defaults-btn {
+      min-height: 44px;
+    }
+    @media (max-width: 480px) {
+      h1 { font-size: 1.3rem; }
+      .contact-card { flex-direction: column; align-items: center; text-align: center; }
+      .contact-actions { justify-content: center; }
+      .contact-photo { width: 80px; height: 80px; }
+      .edit-card { padding: .75rem; }
+    }
+
+    /* Claude: 2026-03-25 — dark mode overrides for emergency contacts */
+    html.aa-dark .page-wrap { background: #1a1a2e; }
+    html.aa-dark .contact-card { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .contact-name { color: #e0e0e0; }
+    html.aa-dark .contact-msg { color: #999; }
+    html.aa-dark .btn-call { background: #1a2e20; color: #6ecf9a; border-color: #2a5a3a; }
+    html.aa-dark .btn-email { background: #1a2040; color: #64b5f6; border-color: #2a4070; }
+    html.aa-dark .edit-card { background: #1e1e2e; border-color: #333; }
+    html.aa-dark .edit-card input,
+    html.aa-dark .edit-card select,
+    html.aa-dark .edit-card textarea { background: #0f1117; color: #e0e0e0; border-color: #444; }
+    html.aa-dark .edit-card label { color: #ccc; }
+    html.aa-dark .btn-byui { background: #1a2e30; color: #a8d8db; border-color: #2a4447; }
+    html.aa-dark .seed-defaults-btn { background: #2a2820; color: #d4b060; border-color: #5a5030; }
+    html.aa-dark .quote-note { background: #1e2a2e; border-color: #2a4447; color: #a8d8db; }
+  </style>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<div class="page-wrap">
+  <h1>
+    <img src="/Academic-Allies/modular/icons/icon-user-emergency-contact.png"
+         height="32" width="32" alt="" style="vertical-align:middle;margin-right:.4rem">
+    Emergency Contacts
+  </h1>
+  <p class="subtitle" id="ec-subtitle">Your private emergency contacts — only you and your network leads can see these.</p>
+
+  <div id="auth-gate">
+    <p>Sign in to see emergency contacts.</p>
+    <button onclick="AA.signInWithGoogle()">Sign in with Google</button>
+  </div>
+
+  <div id="mirror-notice">👁 Viewing <strong id="mirror-name">student</strong>'s emergency contacts in read-only mode.</div>
+
+  <!-- Claude: 2026-03-25 — aria-live so screen readers announce when contacts load -->
+  <div id="ec-loading" aria-live="polite">Loading contacts…</div>
+
+  <div id="ec-view" style="display:none" aria-live="polite">
+    <div id="ec-empty">
+      <div class="empty-box">
+        No emergency contacts have been added yet.<br>
+        <span id="empty-hint" style="display:none">A network lead can add contacts using the section below.</span>
+      </div>
+    </div>
+    <!-- Claude: 2026-03-13 — added role=region and aria-label for WCAG -->
+    <div id="ec-emergency-section" style="display:none" role="region" aria-label="Emergency contacts">
+      <div class="section-title">
+        🆘 Emergency Contacts
+      </div>
+      <div id="ec-emergency-list"></div>
+    </div>
+    <div id="ec-nearby-section" style="display:none" role="region" aria-label="Nearby help contacts">
+      <div class="section-title">
+        🏠 Nearby Help
+      </div>
+      <div id="ec-nearby-list"></div>
+    </div>
+  </div>
+
+  <!-- Edit section — visible to network leads and backstage-manager -->
+  <div id="edit-section">
+    <h2>✏️ Edit Contacts</h2>
+    <!-- Seed defaults button: backstage-manager only. Added 2026-03-01 by Claude -->
+    <button id="seed-defaults-btn" onclick="seedDefaultContacts()">🌱 Seed Default Contacts (Mom + Dad)</button>
+    <button id="add-contact-btn" onclick="addContactForm()">+ Add Contact</button>
+    <!-- Pick from support network. Added 2026-03-01 by Claude -->
+    <details style="margin:.75rem 0;font-size:.85rem;" id="network-picker-details" ontoggle="if(this.open) loadSupportNetwork();">
+      <summary style="cursor:pointer;color:var(--teal-dk);font-weight:600;">👥 Pick from Support Network</summary>
+      <div id="network-picker-body" style="margin-top:.6rem;">
+        <em style="color:var(--muted);font-size:.85rem">Open to load network members…</em>
+      </div>
+    </details>
+    <details style="margin:.75rem 0;font-size:.85rem;">
+      <summary style="cursor:pointer;color:var(--teal-dk);font-weight:600;">🏫 Quick-add BYU-Idaho Resources</summary>
+      <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;">
+        <button class="btn-byui" onclick="addByuiContact('Accessibility & Disability Services','campus','(208) 496-9210','accessibility@byui.edu')">♿ Accessibility</button>
+        <button class="btn-byui" onclick="addByuiContact('Campus Counseling Center','campus','(208) 496-9370','counseling@byui.edu')">🧠 Counseling</button>
+        <button class="btn-byui" onclick="addByuiContact('Student Health Center','campus','(208) 496-9330','')">🏥 Health Center</button>
+        <button class="btn-byui" onclick="addByuiContact('Campus Safety','campus','(208) 496-9500','')">🚨 Campus Safety</button>
+        <button class="btn-byui" onclick="addByuiContact('Testing Center','campus','(208) 496-9325','')">📝 Testing Center</button>
+        <button class="btn-byui" onclick="addByuiContact('Academic Advising','campus','(208) 496-1411','')">🎓 Advising</button>
+        <button class="btn-byui" onclick="addByuiContact('Crisis Line (988)','emergency','988','')">🆘 988 Crisis</button>
+        <button class="btn-byui" onclick="addByuiContact('Crisis Text Line','emergency','741741','')">💬 Text 741741</button>
+      </div>
+    </details>
+    <div id="edit-forms"></div>
+    <div id="save-status"></div>
+  </div>
+</div>
+
+<!-- Claude: 2026-03-09 — removed app, auth, firestore SDK script tags. shared-header.html is the single source of truth for Firebase loading. Keeping storage-compat because shared-header doesn't load it. -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<!-- Claude: 2026-03-14 — removed duplicate aa-mirror.js; shared-header loads it -->
+
+<script>
+/* ── State ───────────────────────────────────────────────────────────────── */
+var _studentUid  = null;
+var _contacts    = [];   /* current contacts array */
+var _canEdit     = false;
+var _unsubContacts = null;
+var _initialLoadDone = false; /* prevent onSnapshot from wiping unsaved edit forms */
+
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function show(id) { var el=document.getElementById(id); if(el) el.style.display='block'; }
+function hide(id) { var el=document.getElementById(id); if(el) el.style.display='none'; }
+
+/* ── Render contacts (view mode) ─────────────────────────────────────────── */
+function renderContactCard(c) {
+  var photoHtml = c.photo
+    ? '<img class="contact-photo" src="' + esc(c.photo) + '" alt="' + esc(c.name) + '">'
+    : '<div class="contact-photo" style="display:flex;align-items:center;justify-content:center;font-size:1.8rem;">👤</div>';
+
+  /* Claude: 2026-03-13 — added aria-labels to call/email links */
+  var actions = '';
+  if (c.phone) {
+    actions += '<a class="btn-call" href="tel:' + esc(c.phone) + '" aria-label="Call ' + esc(c.name) + ' at ' + esc(c.phone) + '">📞 ' + esc(c.phone) + '</a>';
+  }
+  if (c.email) {
+    actions += '<a class="btn-email" href="mailto:' + esc(c.email) + '" aria-label="Email ' + esc(c.name) + ' at ' + esc(c.email) + '">✉️ ' + esc(c.email) + '</a>';
+  }
+
+  var msgHtml = c.message
+    ? '<div class="contact-msg">"' + esc(c.message) + '"</div>'
+    : '';
+
+  return '<div class="contact-card">' +
+    photoHtml +
+    '<div class="contact-info">' +
+      '<div class="contact-name">' + esc(c.name || 'Unnamed') + '</div>' +
+      '<div class="contact-rel">'  + esc(c.relationship || '') + '</div>' +
+      '<div class="contact-actions">' + actions + '</div>' +
+      msgHtml +
+    '</div>' +
+  '</div>';
+}
+
+function renderContacts(contacts) {
+  hide('ec-loading');
+  show('ec-view');
+
+  var nearby    = contacts.filter(function(c){ return c.type === 'nearby' || c.type === 'campus'; });
+  var emergency = contacts.filter(function(c){ return c.type !== 'nearby' && c.type !== 'campus'; });
+
+  if (contacts.length === 0) {
+    show('ec-empty');
+    if (_canEdit) show('empty-hint');
+    hide('ec-emergency-section');
+    hide('ec-nearby-section');
+    return;
+  }
+
+  hide('ec-empty');
+
+  if (emergency.length > 0) {
+    show('ec-emergency-section');
+    document.getElementById('ec-emergency-list').innerHTML =
+      emergency.map(renderContactCard).join('');
+  } else hide('ec-emergency-section');
+
+  if (nearby.length > 0) {
+    show('ec-nearby-section');
+    document.getElementById('ec-nearby-list').innerHTML =
+      nearby.map(renderContactCard).join('');
+  } else hide('ec-nearby-section');
+}
+
+/* ── Edit mode ───────────────────────────────────────────────────────────── */
+function showEditSection() {
+  show('edit-section');
+  document.getElementById('add-contact-btn').style.display = 'inline-block';
+  /* Seed defaults button: only for backstage-manager. Added 2026-03-01 by Claude
+     Claude: 2026-03-05 audit fix — replaced window.AA_ROLE (never set) with AA.isAdmin() */
+  if (window.AA && window.AA.isAdmin()) {
+    document.getElementById('seed-defaults-btn').style.display = 'inline-block';
+  }
+  /* Network picker is useful for any editor — always shown when edit section opens.
+     Added 2026-03-01 by Claude */
+  var picker = document.getElementById('network-picker-details');
+  if (picker) picker.style.display = '';
+  renderEditForms();
+}
+
+function renderEditForms() {
+  var container = document.getElementById('edit-forms');
+  if (_contacts.length === 0) {
+    container.innerHTML = '<p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">No contacts yet — add one below.</p>';
+    return;
+  }
+  container.innerHTML = _contacts.map(function(c, i) {
+    /* Claude: 2026-03-25 — added alt text for a11y on contact photo */
+    var photoPreview = c.photo
+      ? '<img src="' + esc(c.photo) + '" alt="Photo of ' + esc(c.name || 'contact') + '" style="width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:.4rem;display:block">'
+      : '';
+    return '<div class="edit-card" data-idx="' + i + '">' +
+      '<label>Name</label>' +
+      '<input type="text" name="name" value="' + esc(c.name || '') + '">' +
+      '<label>Relationship</label>' +
+      '<input type="text" name="relationship" value="' + esc(c.relationship || '') + '" placeholder="e.g. Mom, Dad, Bishop, RA…">' +
+      '<label>Type</label>' +
+      '<select name="type">' +
+        '<option value="emergency"' + (c.type === 'emergency' ? ' selected' : '') + '>🆘 Emergency Contact</option>' +
+        '<option value="family"'    + (c.type === 'family'    ? ' selected' : '') + '>👨‍👩‍👧 Family Member</option>' +
+        '<option value="support"'   + (c.type === 'support'   ? ' selected' : '') + '>💙 Support Professional</option>' +
+        '<option value="nearby"'    + (c.type === 'nearby'    ? ' selected' : '') + '>🏠 Nearby Help</option>' +
+        '<option value="campus"'    + (c.type === 'campus'    ? ' selected' : '') + '>🏫 Campus Resource</option>' +
+        '<option value="spiritual"' + (c.type === 'spiritual' ? ' selected' : '') + '>⛪ Spiritual / Bishop</option>' +
+      '</select>' +
+      '<label>Phone</label>' +
+      '<input type="tel" name="phone" value="' + esc(c.phone || '') + '">' +
+      '<label>Email</label>' +
+      '<input type="email" name="email" value="' + esc(c.email || '') + '">' +
+      '<label>Pre-written message (optional)</label>' +
+      '<textarea name="message">' + esc(c.message || '') + '</textarea>' +
+      '<label>Photo (stored privately in Firebase — not in the public repo)</label>' +
+      photoPreview +
+      '<input type="file" name="photo-file" accept="image/*" style="font-size:.82rem" onchange="uploadContactPhoto(this,' + i + ')">' +
+      '<div id="photo-status-' + i + '" style="font-size:.78rem;color:var(--teal-dk);min-height:1em;margin-top:.2rem"></div>' +
+      '<div class="edit-card-actions">' +
+        '<button class="btn-save" onclick="saveContact(' + i + ',this)">💾 Save</button>' +
+        '<button class="btn-delete" onclick="deleteContact(' + i + ')">🗑 Remove</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ── Firebase Storage photo upload ──────────────────────────────────────── */
+// Uploads a contact photo to Firebase Storage and stores the download URL.
+// Added 2026-02-28 by Claude — photos stored privately, not in the public repo.
+function uploadContactPhoto(input, idx) {
+  var file = input.files[0];
+  if (!file || !_studentUid) return;
+  var statusEl = document.getElementById('photo-status-' + idx);
+  if (statusEl) statusEl.textContent = 'Uploading…';
+
+  var storage  = firebase.storage();
+  var path     = 'emergencyContactPhotos/' + _studentUid + '/' + Date.now() + '_' + file.name;
+  var storageRef = storage.ref(path);
+
+  storageRef.put(file)
+    .then(function(snap) { return snap.ref.getDownloadURL(); })
+    .then(function(url) {
+      _contacts[idx].photo = url;
+      if (statusEl) statusEl.textContent = '✓ Photo uploaded';
+      /* Re-render so preview appears */
+      renderEditForms();
+    })
+    .catch(function(err) {
+      console.error('[AA] photo upload:', err);
+      if (statusEl) statusEl.textContent = '⚠️ Upload failed — ' + err.message;
+    });
+}
+
+function addContactForm() {
+  _contacts.push({ name:'', relationship:'', type:'emergency', phone:'', email:'', message:'', photo:'' });
+  renderEditForms();
+  /* Scroll to new form */
+  var cards = document.querySelectorAll('.edit-card');
+  if (cards.length) cards[cards.length-1].scrollIntoView({ behavior:'smooth' });
+}
+
+/* Claude: 2026-03-25 — null-safe querySelector helper for form fields */
+function _qVal(card, sel, fallback) {
+  var el = card.querySelector(sel);
+  return el ? (el.value || '').trim() : (fallback || '');
+}
+function readCardData(card) {
+  var idx = parseInt(card.getAttribute('data-idx'), 10);
+  return {
+    name:         _qVal(card, '[name=name]'),
+    relationship: _qVal(card, '[name=relationship]'),
+    type:         _qVal(card, '[name=type]', 'emergency'),
+    phone:        _qVal(card, '[name=phone]'),
+    email:        _qVal(card, '[name=email]'),
+    message:      _qVal(card, '[name=message]'),
+    photo:        (_contacts[idx] && _contacts[idx].photo) ? _contacts[idx].photo : ''
+  };
+}
+
+function addByuiContact(name, type, phone, email) {
+  _contacts.push({ name: name, relationship: 'BYU-Idaho', type: type, phone: phone, email: email, message: '', photo: '' });
+  renderEditForms();
+  var cards = document.querySelectorAll('.edit-card');
+  if (cards.length) cards[cards.length-1].scrollIntoView({ behavior:'smooth' });
+  persistContacts();
+}
+
+/* Claude: 2026-03-14 — validate name is not empty before saving */
+/* Claude: 2026-03-25 — added field length limits and phone format validation */
+function saveContact(idx, btn) {
+  var card = btn.closest('.edit-card');
+  var data = readCardData(card);
+  if (!data.name || !data.name.trim()) {
+    alert('Please enter a name for this emergency contact.');
+    return;
+  }
+  /* Length limits to prevent oversized Firestore docs */
+  if (data.name.length > 100) { alert('Name is too long (max 100 characters).'); return; }
+  if (data.phone && data.phone.length > 30) { alert('Phone number is too long (max 30 characters).'); return; }
+  if (data.email && data.email.length > 254) { alert('Email is too long (max 254 characters).'); return; }
+  if (data.message && data.message.length > 500) { alert('Emergency message is too long (max 500 characters).'); return; }
+  if (data.relationship && data.relationship.length > 100) { alert('Relationship is too long (max 100 characters).'); return; }
+  _contacts[idx] = data;
+  persistContacts();
+}
+
+function deleteContact(idx) {
+  if (!confirm('Remove this contact?')) return;
+  _contacts.splice(idx, 1);
+  persistContacts();
+}
+
+function persistContacts() {
+  /* Claude: 2026-03-13 — mirror guard: supporters cannot modify emergency contacts */
+  if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
+  var status = document.getElementById('save-status');
+  /* Claude: 2026-03-16 — double-click protection: disable all save buttons during Firestore write */
+  var buttons = document.querySelectorAll('.btn-save, .btn-delete, #add-contact-btn');
+  buttons.forEach(function(btn) { btn.disabled = true; });
+  status.textContent = 'Saving…';
+  /* Claude: 2026-03-16 — merge:true for data safety */
+  AA.db.collection('emergencyContacts').doc(_studentUid).set({
+    contacts:  _contacts,
+    updatedBy: AA.auth.currentUser ? AA.auth.currentUser.uid : '',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true })
+  .then(function() {
+    status.textContent = '✓ Saved';
+    renderEditForms();
+    setTimeout(function(){ status.textContent = ''; }, 3000);
+    /* Claude: 2026-03-16 — re-enable buttons after success */
+    buttons.forEach(function(btn) { btn.disabled = false; });
+    /* Claude: 2026-03-16 — backup contacts to localStorage */
+    try { localStorage.setItem('AA_EMERGENCY_BACKUP', JSON.stringify(_contacts)); } catch(e) {}
+  })
+  .catch(function(err) {
+    console.error('[AA] emergencyContacts save:', err);
+    status.textContent = '⚠️ Save failed — please try again.';
+    /* Claude: 2026-03-16 — re-enable buttons after error */
+    buttons.forEach(function(btn) { btn.disabled = false; });
+  });
+}
+
+/* ── Seed default contacts (backstage-manager only) ─────────────────────── */
+// Added 2026-03-01 by Claude: seeds Dorothy (Mom) and Brian (Dad) for Mary.
+// Seeds contacts that do not already exist by name (case-insensitive).
+function seedDefaultContacts() {
+  var defaults = [
+    { name: 'Dorothy Brinck', relationship: 'Mom', type: 'family',
+      phone: '', email: 'dorothy.brinck@gmail.com', message: '', photo: '' },
+    { name: 'Brian Brinck',   relationship: 'Dad', type: 'family',
+      phone: '', email: '',                          message: '', photo: '' }
+  ];
+  var existingNames = _contacts.map(function(c){ return (c.name || '').trim().toLowerCase(); });
+  var added = 0;
+  defaults.forEach(function(d) {
+    if (existingNames.indexOf(d.name.toLowerCase()) === -1) {
+      _contacts.push(d);
+      added++;
+    }
+  });
+  if (added === 0) {
+    document.getElementById('save-status').textContent = '⚠️ Default contacts already present.';
+    return;
+  }
+  persistContacts();
+}
+
+/* ── Pick from support network ───────────────────────────────────────────── */
+// Added 2026-03-01 by Claude: reads users/{studentUid}.supportNetwork,
+// fetches each member's Firestore doc, and pre-fills a new contact form.
+var _networkUsers = []; // cached array of { uid, name, email, role }
+
+function loadSupportNetwork() {
+  var body = document.getElementById('network-picker-body');
+  if (!body) return;
+  if (_networkUsers.length > 0) { renderNetworkPicker(); return; }
+  body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">Loading network…</em>';
+
+  /* Claude: 2026-03-25 — loading timeout with retry button */
+  var _networkLoadTimer = setTimeout(function() {
+    if (body && body.textContent.indexOf('Loading') !== -1) {
+      body.innerHTML = '⚠️ Having trouble loading. Check your connection and try again.<br>' +
+        '<button onclick="loadSupportNetwork()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
+    }
+  }, 8000);
+
+  /* AA is guaranteed ready here — loadSupportNetwork() only fires after auth
+     completes and _studentUid is set. No waitForAA wrapper needed. */
+  AA.db.collection('users').doc(_studentUid).get()
+      .then(function(doc) {
+        clearTimeout(_networkLoadTimer);
+        if (!doc.exists) {
+          body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">No support network found.</em>';
+          return Promise.resolve([]);
+        }
+        var network = doc.data().supportNetwork || {};
+        var uids = Object.keys(network);
+        if (uids.length === 0) {
+          body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">Support network is empty.</em>';
+          return Promise.resolve([]);
+        }
+        return Promise.all(uids.map(function(uid) {
+          return AA.db.collection('users').doc(uid).get()
+            .then(function(udoc) {
+              var d = udoc.exists ? udoc.data() : {};
+              return {
+                uid:   uid,
+                name:  d.displayName || d.name || uid,
+                email: d.email || '',
+                /* Claude: 2026-03-25 — C3 fix: use cached network var instead of re-reading doc.data() */
+                role:  network[uid] || 'member'
+              };
+            });
+        }));
+      })
+      .then(function(users) {
+        if (!users || users.length === 0) return;
+        _networkUsers = users;
+        renderNetworkPicker();
+      })
+      .catch(function(err) {
+        clearTimeout(_networkLoadTimer);
+        console.error('[AA] loadSupportNetwork:', err);
+        body.innerHTML = '<em style="color:var(--muted);font-size:.85rem">Error loading network.</em>';
+      });
+}
+
+function renderNetworkPicker() {
+  var body = document.getElementById('network-picker-body');
+  if (!body || _networkUsers.length === 0) return;
+  var opts = _networkUsers.map(function(u, i) {
+    var label = esc(u.name) + ' (' + esc(u.role) + ')';
+    if (u.email) label += ' — ' + esc(u.email);
+    return '<option value="' + i + '">' + label + '</option>';
+  }).join('');
+  body.innerHTML =
+    '<select id="network-user-select" style="width:100%;padding:.4rem .6rem;border-radius:6px;border:1px solid var(--border);font-size:.85rem;font-family:inherit;margin-bottom:.5rem">' +
+      '<option value="">— Select a network member —</option>' +
+      opts +
+    '</select>' +
+    '<button class="btn-save" onclick="pickFromNetwork()" style="font-size:.82rem;padding:.35rem .8rem">+ Add as Contact</button>';
+}
+
+function pickFromNetwork() {
+  var sel = document.getElementById('network-user-select');
+  if (!sel || sel.value === '') return;
+  var u = _networkUsers[parseInt(sel.value, 10)];
+  if (!u) return;
+  _contacts.push({
+    name:         u.name,
+    relationship: u.role === 'network-lead' ? 'Network Lead' : 'Support Network',
+    type:         'support',
+    phone:        '',
+    email:        u.email,
+    message:      '',
+    photo:        ''
+  });
+  renderEditForms();
+  var cards = document.querySelectorAll('.edit-card');
+  if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ── Auth boot ───────────────────────────────────────────────────────────── */
+/* Claude: 2026-03-14 — wait for AA (shared-header loads it async) before using auth */
+var _ecUid = null; // UID guard — prevents reload on 45-min token refresh. Claude, 2026-03-07.
+function _ecWaitForAA(cb, n) {
+  n = n || 0;
+  if (window.AA && window.AA.auth && window.AA.db) { cb(); return; }
+  if (n > 80) {
+    hide('ec-loading');
+    document.getElementById('ec-subtitle').textContent =
+      'Could not connect — please refresh the page.';
+    return;
+  }
+  setTimeout(function() { _ecWaitForAA(cb, n + 1); }, 100);
+}
+_ecWaitForAA(function() {
+AA.auth.onAuthStateChanged(function(user) {
+  if (!user) {
+    hide('ec-loading');
+    show('auth-gate');
+    return;
+  }
+  if (user.uid === _ecUid) return; // token refresh — skip re-init
+  _ecUid = user.uid;
+
+  _studentUid = window.AA_MIRROR_UID || user.uid;
+
+  /* Mirror mode notice */
+  if (window.AA_MIRROR_UID) {
+    AA.db.collection('users').doc(window.AA_MIRROR_UID).get()
+      .then(function(doc) {
+        var name = (doc.exists && (doc.data().displayName || doc.data().name)) || 'student';
+        document.getElementById('mirror-name').textContent = name;
+        show('mirror-notice');
+      }).catch(function() { show('mirror-notice'); });
+  }
+
+  /* Check if current user can edit:
+     - backstage-manager: always
+     - student on own page (no AA_MIRROR_UID): yes — students own their contacts
+     - network-lead in student's network (mirror mode): yes
+     Updated 2026-02-28 by Claude: was false for students on own page; now true. */
+  /* Claude: 2026-03-05 audit fix — replaced window.AA_ROLE (never set) with AA.isAdmin() */
+  var isAdmin = (window.AA && window.AA.isAdmin());
+
+  if (isAdmin) {
+    _canEdit = true;
+    showEditSection();
+  } else if (!window.AA_MIRROR_UID) {
+    /* Student viewing their own emergency contacts — can edit */
+    _canEdit = true;
+    showEditSection();
+  } else {
+    /* Support network member in mirror mode — check if network-lead */
+    AA.db.collection('users').doc(_studentUid).get()
+      .then(function(doc) {
+        if (!doc.exists) return;
+        var network = doc.data().supportNetwork || {};
+        var myRole  = network[user.uid];
+        _canEdit = (myRole === 'network-lead');
+        if (_canEdit) showEditSection();
+      }).catch(function() {});
+  }
+
+  /* Real-time listener */
+  if (_unsubContacts) _unsubContacts();
+  /* Claude: 2026-03-16 — 15-second loading timeout with retry */
+  var _ecLoadTimer = setTimeout(function() {
+    var container = document.getElementById('ec-view');
+    if (container && !container.dataset.loaded) {
+      hide('ec-loading');
+      container.style.display = 'none';
+      var timeoutMsg = document.createElement('div');
+      timeoutMsg.style.cssText = 'text-align:center;color:#999;padding:2rem;';
+      timeoutMsg.innerHTML = '<p style="margin-bottom:1rem;">Taking longer than expected…</p><button onclick="location.reload()" style="color:#6CA0A3;background:none;border:none;cursor:pointer;font-weight:700;text-decoration:underline;">Retry</button>';
+      /* Claude: 2026-03-25 — null guard for querySelector */
+      var _pw = document.querySelector('.page-wrap');
+      if (_pw) _pw.insertBefore(timeoutMsg, container.nextSibling);
+    }
+  }, 15000);
+  _unsubContacts = AA.db.collection('emergencyContacts').doc(_studentUid)
+    .onSnapshot(function(doc) {
+      clearTimeout(_ecLoadTimer);
+      var container = document.getElementById('ec-view');
+      if (container) container.dataset.loaded = 'true';
+      _contacts = (doc.exists && Array.isArray(doc.data().contacts))
+        ? doc.data().contacts : [];
+      renderContacts(_contacts);
+      /* Only render edit forms on first load — after that, explicit user
+         actions (add/save/delete) re-render. Prevents onSnapshot from
+         wiping unsaved contact forms mid-edit. Fixed 2026-03-01 by Claude. */
+      if (_canEdit && !_initialLoadDone) {
+        renderEditForms();
+        _initialLoadDone = true;
+      }
+    }, function(err) {
+      clearTimeout(_ecLoadTimer);
+      console.error('[AA] emergencyContacts read:', err);
+      hide('ec-loading');
+      /* Claude: 2026-03-24 — offline fallback: restore from localStorage backup */
+      var offlineContacts = null;
+      try {
+        var backup = localStorage.getItem('AA_EMERGENCY_BACKUP');
+        if (backup) offlineContacts = JSON.parse(backup);
+      } catch (e) { /* ignore parse errors */ }
+      if (offlineContacts && Array.isArray(offlineContacts) && offlineContacts.length > 0) {
+        _contacts = offlineContacts;
+        renderContacts(_contacts);
+        document.getElementById('ec-subtitle').textContent =
+          'Showing cached contacts (offline) — connect to update.';
+      } else {
+        document.getElementById('ec-subtitle').textContent =
+          'Could not load contacts — check permissions or try again.';
+      }
+    });
+});
+}); /* end _ecWaitForAA */
+</script>
+
+<!-- Shared header loader -->
+<script>
+fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+  .then(function(r){ return r.text(); })
+  .then(function(html){
+    var container = document.getElementById('site-header');
+    container.innerHTML = html;
+    container.querySelectorAll('script').forEach(function(old) {
+      var s = document.createElement('script');
+      [].slice.call(old.attributes).forEach(function(a){ s.setAttribute(a.name, a.value); });
+      s.textContent = old.textContent;
+      old.parentNode.replaceChild(s, old);
+    });
+    var drag = document.createElement('script');
+    drag.src = '/Academic-Allies/modular/js/draggable.js';
+    drag.onload = function(){ if (typeof initDrag === 'function') initDrag(); };
+    document.body.appendChild(drag);
+  })
+  /* Claude: 2026-03-25 — merged duplicate .catch() into one handler */
+  .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+</script>
+
+</body>
+</html>

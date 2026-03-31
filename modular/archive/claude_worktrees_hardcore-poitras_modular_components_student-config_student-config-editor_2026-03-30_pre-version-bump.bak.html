@@ -1,0 +1,1649 @@
+<!-- ============================================================
+     student-config/student-config-editor.html
+     Academic Allies Student Configuration Editor
+     Created: 2026-03-18 by Claude
+
+     Network-lead tool for configuring the entire app experience
+     for their assigned student. Includes modes, spoon plan, meals,
+     quizzes, comfort content, and alerts with AI assistant panel.
+     ============================================================ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Claude: 2026-03-18 — early dark mode detect to prevent FOUC -->
+  <script>try{if(localStorage.getItem("AA_DARK_MODE")==="true"){document.documentElement.classList.add("aa-dark");document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>')}}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Student Configuration — Academic Allies</title>
+  <link rel="icon" href="/Academic-Allies/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:    #6CA0A3;
+      --teal-dk: #4d787b;
+      --bg:      #FAFAF9;
+      --card:    #FFFFFF;
+      --border:  #D9E4E5;
+      --text:    #1a1a1a;
+      --muted:   #5a6a6b;
+      --radius:  12px;
+      --shadow:  0 2px 8px rgba(0,0,0,.07);
+    }
+
+    html.aa-dark {
+      --bg:     #121212;
+      --card:   #1e1e1e;
+      --border: #333;
+      --text:   #e0e0e0;
+      --muted:  #999;
+      --shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+
+    body {
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 3rem;
+    }
+
+    #site-header { min-height: 56px; }
+
+    .page-wrap { max-width: 900px; margin: 0 auto; padding: 1.5rem 1.5rem 2rem; }
+
+    h1 { font-size: 1.75rem; color: var(--teal-dk); margin-bottom: 0.5rem; }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2rem; }
+
+    .alert-banner {
+      background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 2rem; font-size: 0.9rem;
+    }
+
+    html.aa-dark .alert-banner {
+      background: #4a3f1f; color: #ffd699; border-color: #6b5f2e;
+    }
+
+    /* ── Tab Navigation ────────────────────────────────────── */
+    .tabs-nav {
+      display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border);
+      overflow-x: auto;
+    }
+    .tabs-nav button {
+      flex: 0 0 auto; padding: 12px 20px; background: transparent; border: none;
+      color: var(--muted); cursor: pointer; font-size: 0.95rem; font-weight: 600;
+      border-bottom: 3px solid transparent; margin-bottom: -2px;
+      transition: color .2s, border-color .2s;
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    }
+    .tabs-nav button:hover { color: var(--text); }
+    .tabs-nav button.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+    /* ── Tab Panels ────────────────────────────────────────── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Section Cards ─────────────────────────────────────── */
+    .config-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow);
+    }
+    .config-section h2 { font-size: 1.1rem; color: var(--teal-dk); margin-bottom: 16px; }
+
+    /* ── Form Controls ─────────────────────────────────────── */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 6px; color: var(--text); font-size: 0.9rem; }
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group input[type="email"],
+    .form-group select,
+    .form-group textarea {
+      width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;
+      font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      font-size: 0.95rem; color: var(--text); background: var(--card);
+    }
+
+    html.aa-dark .form-group input,
+    html.aa-dark .form-group select,
+    html.aa-dark .form-group textarea {
+      background: #2a2a2a; color: #e0e0e0; border-color: #444;
+    }
+
+    .form-group textarea { min-height: 100px; resize: vertical; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(108, 160, 163, 0.1);
+    }
+
+    /* ── Button Group ──────────────────────────────────────── */
+    .button-group { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;
+      font-weight: 600; font-size: 0.9rem; font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+      transition: all .2s; min-height: 44px; min-width: 44px;
+    }
+    .btn-primary { background: var(--teal); color: white; }
+    .btn-primary:hover { background: var(--teal-dk); }
+    .btn-secondary { background: white; color: var(--muted); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: #f5f5f5; }
+    .btn-danger { background: #f8d7da; color: #721c24; }
+    .btn-danger:hover { background: #f5c6cb; }
+    .btn-small { padding: 6px 12px; font-size: 0.85rem; min-height: auto; }
+
+    /* ── Spoon Plan Editor ─────────────────────────────────── */
+    .spoon-tasks-list { margin-top: 16px; }
+    .spoon-task-row {
+      display: flex; gap: 10px; align-items: flex-start; padding: 12px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    /* Claude: 2026-03-20 — SpoonPlanner format: name, spoons, time, priority */
+    .spoon-task-form { flex: 1; min-width: 200px; display: grid; grid-template-columns: 2fr 60px 100px 90px; gap: 8px; align-items: center; }
+    .spoon-task-form input, .spoon-task-form select { padding: 6px; }
+    .spoon-task-remove { flex: 0 0 auto; }
+
+    /* ── Meals Lists ───────────────────────────────────────── */
+    .meal-items-list { margin-top: 12px; }
+    .meal-item-row {
+      display: flex; gap: 8px; align-items: center; padding: 8px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px;
+    }
+    .meal-item-row input { flex: 1; padding: 6px; }
+    .meal-item-remove { flex: 0 0 auto; }
+
+    /* ── Comfort Lists ─────────────────────────────────────── */
+    .comfort-item-row {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; margin-bottom: 12px;
+    }
+    .comfort-item-row input, .comfort-item-row textarea {
+      margin-bottom: 8px; font-size: 0.9rem;
+    }
+    .comfort-item-row .form-group { margin-bottom: 8px; }
+    .comfort-item-remove { margin-top: 8px; }
+
+    /* ── Quiz Editor ───────────────────────────────────────── */
+    .quiz-item-row {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 16px; margin-bottom: 16px;
+    }
+    .quiz-terms { margin-top: 12px; }
+    .quiz-term-row {
+      display: flex; gap: 8px; align-items: center; padding: 8px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px;
+    }
+    .quiz-term-row input { flex: 1; padding: 6px; }
+    .quiz-term-remove { flex: 0 0 auto; }
+
+    /* ── AI Assistant Panel ────────────────────────────────── */
+    .ai-assistant-panel {
+      background: var(--card); border: 2px solid #d4af37; border-radius: var(--radius);
+      padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow);
+    }
+    .ai-assistant-header {
+      font-size: 1.05rem; font-weight: 700; color: var(--teal-dk); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ai-assistant-header::before { content: '✨'; font-size: 1.2rem; }
+    .ai-assistant-desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.5; }
+    .ai-prompt-section { margin-bottom: 16px; }
+    .ai-prompt-section label { display: block; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+    .ai-prompt-section textarea { width: 100%; min-height: 120px; padding: 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-family: monospace; font-size: 0.85rem; color: var(--text); background: var(--card);
+    }
+    .ai-response-section { margin-bottom: 16px; }
+    .ai-clipboard-btn {
+      padding: 8px 14px; background: #d4af37; color: #000; border: none; border-radius: 4px;
+      cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: background .2s;
+    }
+    .ai-clipboard-btn:hover { background: #c99d2d; }
+    .ai-clipboard-btn.copied { background: #28a745; color: white; }
+
+    /* Claude: 2026-03-19 — Prompt template buttons */
+    .prompt-templates-section { margin-bottom: 16px; }
+    .prompt-templates-label { font-weight: 700; color: var(--teal-dk); margin-bottom: 8px; font-size: 0.95rem; }
+    .prompt-templates-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .prompt-template {
+      padding: 8px 12px; background: transparent; border: 2px solid var(--teal);
+      color: var(--teal); border-radius: 20px; cursor: pointer; font-weight: 600;
+      font-size: 0.85rem; transition: all 0.2s; font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
+    }
+    .prompt-template:hover { background: var(--teal); color: #fff; box-shadow: 0 2px 8px rgba(108, 160, 163, 0.2); }
+    .prompt-template:active { transform: scale(0.98); }
+    html.aa-dark .prompt-template { border-color: #8ec5c8; color: #8ec5c8; }
+    html.aa-dark .prompt-template:hover { background: #8ec5c8; color: #121212; }
+
+    /* ── Status Messages ───────────────────────────────────── */
+    .status-msg { padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; display: none; }
+    .status-msg.show { display: block; }
+    .status-msg.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .status-msg.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .status-msg.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+    html.aa-dark .status-msg.success { background: #1e4620; color: #7cfc00; border-color: #2d5f2d; }
+    html.aa-dark .status-msg.error { background: #4a2b2b; color: #ff8080; border-color: #6b3f3f; }
+    html.aa-dark .status-msg.info { background: #1e3a42; color: #8dd9e8; border-color: #2d5a6b; }
+
+    /* Claude: 2026-03-25 — scroll hint for tabs on mobile */
+    .tabs-nav-wrap {
+      position: relative;
+    }
+    .tabs-nav-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0; right: 0;
+      width: 32px;
+      background: linear-gradient(to right, transparent, var(--bg));
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .tabs-nav-wrap.has-scroll::after { opacity: 1; }
+
+    /* ── Mobile Responsive ─────────────────────────────────── */
+    @media (max-width: 768px) {
+      .page-wrap { padding: 1rem; }
+      h1 { font-size: 1.4rem; }
+      .spoon-task-form { grid-template-columns: 1fr 1fr; }
+      .tabs-nav { gap: 0; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .tabs-nav::-webkit-scrollbar { display: none; }
+      .tabs-nav button { padding: 10px 12px; font-size: 0.85rem; white-space: nowrap; }
+      .button-group { flex-direction: column; }
+      .btn { width: 100%; }
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.1rem; }
+      .config-section { padding: 12px; }
+      .config-section h2 { font-size: 0.95rem; }
+      .spoon-task-row { flex-direction: column; }
+      .spoon-task-form { grid-template-columns: 1fr; }
+      .ai-assistant-panel { border-width: 1px; }
+      .tabs-nav button { padding: 8px 10px; font-size: 0.8rem; }
+    }
+
+    /* ── Claude: 2026-03-19 — Card Management UI ── */
+    .mode-cards-section { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+    .mode-cards-section h4 { font-size: 0.9rem; color: var(--teal-dk); margin-bottom: 8px; }
+    .card-list { list-style: none; padding: 0; margin: 0; }
+    .card-list-item {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      margin-bottom: 6px; font-size: 0.9rem;
+    }
+    .card-list-item .card-toggle { flex: 0 0 auto; cursor: pointer; width: 18px; height: 18px; accent-color: var(--teal); }
+    .card-list-item .card-label { flex: 1; }
+    .card-list-item .card-label.disabled { color: var(--muted); text-decoration: line-through; }
+    .card-reorder-btns { display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
+    .card-reorder-btns button {
+      background: var(--card); border: 1px solid var(--border); border-radius: 4px;
+      cursor: pointer; font-size: 0.75rem; line-height: 1; padding: 2px 6px; color: var(--muted);
+      min-height: 20px; min-width: 24px;
+    }
+    .card-reorder-btns button:hover { background: var(--teal); color: white; border-color: var(--teal); }
+    html.aa-dark .card-list-item { background: #2a2a2a; border-color: #444; }
+    html.aa-dark .card-reorder-btns button { background: #333; border-color: #555; }
+    html.aa-dark .card-reorder-btns button:hover { background: var(--teal); color: white; }
+
+    /* ── Claude: 2026-03-19 — Loading Spinner & Preview Modal Styles ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #previewModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; overflow: auto; padding: 20px; }
+    #previewModal > div { max-width: 700px; margin: 40px auto; background: var(--card); border-radius: 12px; padding: 20px; position: relative; }
+
+    html.aa-dark #previewModal > div { background: #1e1e1e; }
+
+    #closePreview { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #888; }
+    #closePreview:hover { color: var(--text); }
+
+    #previewModal h3 { margin-bottom: 12px; color: var(--teal-dk); }
+    #previewJSON { background: #f5f5f5; padding: 16px; border-radius: 8px; overflow: auto; max-height: 70vh; font-size: 12px; white-space: pre-wrap; word-break: break-all; font-family: monospace; }
+
+    html.aa-dark #previewJSON { background: #2a2a2a; color: #e0e0e0; }
+
+    #copyConfigBtn { margin-top: 12px; padding: 10px 20px; background: var(--teal); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-family: 'Atkinson Hyperlegible', sans-serif; }
+    #copyConfigBtn:hover { background: var(--teal-dk); }
+    #copyConfigBtn.copied { background: #28a745; }
+
+    #loadingSpinner { text-align: center; padding: 40px; display: none; }
+    #loadingSpinner > div { display: inline-block; width: 40px; height: 40px; border: 4px solid #e8f2f3; border-top: 4px solid var(--teal); border-radius: 50%; animation: spin 1s linear infinite; }
+    #loadingSpinner p { margin-top: 12px; color: var(--muted); }
+
+    #studentInfo { display: none; text-align: center; margin-bottom: 16px; padding: 10px; background: #e8f2f3; border-radius: 10px; }
+    html.aa-dark #studentInfo { background: #1e3a42; }
+    #studentNameDisplay { font-size: 14pt; color: var(--teal-dk); font-weight: 700; }
+
+    #helpSection { margin-bottom: 16px; background: var(--card); border: 2px solid #e8f2f3; border-radius: 12px; padding: 16px; }
+    html.aa-dark #helpSection { border-color: #333; }
+    #helpSection summary { cursor: pointer; font-weight: 700; color: var(--teal-dk); font-size: 13pt; }
+    #helpSection div { margin-top: 12px; font-size: 11pt; line-height: 1.8; color: var(--muted); }
+    #helpSection p { margin-bottom: 8px; }
+    #helpSection hr { margin: 12px 0; border: none; border-top: 1px solid #e8f2f3; }
+  </style>
+</head>
+
+<body>
+  <div id="site-header"></div>
+
+  <div class="page-wrap">
+    <h1>📋 Student Configuration</h1>
+    <p class="subtitle">Customize the entire app experience for your student</p>
+
+    <div id="not-authorized" style="display: none;">
+      <div class="alert-banner">
+        ⛔ You must be a Network Lead to access this page.
+      </div>
+    </div>
+
+    <div id="main-content" style="display: none;">
+      <!-- Claude: 2026-03-19 — Loading spinner shown while config loads -->
+      <div id="loadingSpinner">
+        <div></div>
+        <p>Loading student configuration...</p>
+      </div>
+
+      <!-- Claude: 2026-03-19 — Student name display -->
+      <div id="studentInfo">
+        <span id="studentNameDisplay"></span>
+      </div>
+
+      <div id="status-message" class="status-msg"></div>
+
+      <!-- Claude: 2026-03-19 — Help section with collapsible details -->
+      <details id="helpSection">
+        <summary>How to customize your student's experience</summary>
+        <div>
+          <p><strong>Each tab controls a different part of the app:</strong></p>
+          <p>🎛️ <strong>Modes</strong> — Rename modes (e.g., "Bad Brain Day" → "Concussion Day")</p>
+          <p>🥄 <strong>Spoon Plan</strong> — Set daily tasks, spoon costs, and energy budget</p>
+          <p>🍽️ <strong>Meals</strong> — Customize easy meal suggestions for recovery mode</p>
+          <p>📚 <strong>Quizzes</strong> — Add custom study quizzes + hide built-in ones</p>
+          <p>💜 <strong>Comfort</strong> — Customize scriptures, support messages, breathing timing</p>
+          <p>⚠️ <strong>Alerts</strong> — Set when the app warns about spoon debt</p>
+          <p>✨ <strong>AI Assistant</strong> — Use your own AI to generate config (paste prompt, get JSON back)</p>
+          <hr>
+          <p>💡 <strong>Tip:</strong> Changes won't affect other students. If you leave a section empty, the app uses smart defaults.</p>
+          <p>💡 <strong>Tip:</strong> Use the Export button to save a backup before making big changes.</p>
+          <hr>
+          <p style="margin-bottom: 0;"><strong>📖 <a href="/Academic-Allies/modular/static/network-lead-guide.html" style="color: var(--teal-dk); text-decoration: underline;">Read the full Network Lead Guide</a></strong> for step-by-step instructions, example configs, and FAQ.</p>
+        </div>
+      </details>
+
+      <!-- Claude: 2026-03-25 — tabs-nav-wrap for scroll fade hint on mobile -->
+      <div class="tabs-nav-wrap" id="tabs-nav-wrap">
+        <div class="tabs-nav" id="tabs-nav-scroll">
+          <button class="tab-btn active" data-tab="modes">🎛️ Modes</button>
+          <button class="tab-btn" data-tab="spoon-plan">🥄 Spoon Plan</button>
+          <button class="tab-btn" data-tab="meals">🍽️ Meals</button>
+          <button class="tab-btn" data-tab="quizzes">📚 Quizzes</button>
+          <button class="tab-btn" data-tab="comfort">💜 Comfort</button>
+          <button class="tab-btn" data-tab="alerts">⚠️ Alerts</button>
+          <button class="tab-btn" data-tab="ai">✨ AI Assistant</button>
+        </div>
+      </div>
+
+      <!-- ── Modes Tab ── -->
+      <div id="tab-modes" class="tab-panel active">
+        <div class="config-section">
+          <h2>Available Modes</h2>
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 12px;">
+            These are the modes available to your student. You can customize the name, icon, and description for each.
+          </p>
+          <div id="modes-container"></div>
+        </div>
+      </div>
+
+      <!-- ── Spoon Plan Tab ── -->
+      <div id="tab-spoon-plan" class="tab-panel">
+        <div class="config-section">
+          <h2>Base Budget</h2>
+          <div class="form-group">
+            <label for="spoon-base-budget">Daily Spoon Budget (base)</label>
+            <input type="number" id="spoon-base-budget" min="1" max="100">
+          </div>
+        </div>
+
+        <div class="config-section">
+          <h2>Spoon Calculation Formula</h2>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label for="spoon-pain-scale">Pain Scale Factor</label>
+              <input type="number" id="spoon-pain-scale" min="0" max="5" step="0.1">
+            </div>
+            <div class="form-group">
+              <label for="spoon-fatigue-scale">Fatigue Scale Factor</label>
+              <input type="number" id="spoon-fatigue-scale" min="0" max="5" step="0.1">
+            </div>
+            <div class="form-group">
+              <label for="spoon-sleep-low-threshold">Sleep Low Threshold (hours)</label>
+              <input type="number" id="spoon-sleep-low-threshold" min="0" max="12">
+            </div>
+            <div class="form-group">
+              <label for="spoon-sleep-low-penalty">Sleep Low Penalty (spoons)</label>
+              <input type="number" id="spoon-sleep-low-penalty" min="0" max="20">
+            </div>
+            <div class="form-group">
+              <label for="spoon-sleep-high-threshold">Sleep High Threshold (hours)</label>
+              <input type="number" id="spoon-sleep-high-threshold" min="0" max="12">
+            </div>
+            <div class="form-group">
+              <label for="spoon-sleep-high-bonus">Sleep High Bonus (spoons)</label>
+              <input type="number" id="spoon-sleep-high-bonus" min="0" max="10">
+            </div>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <h2>Daily Tasks</h2>
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 12px;">
+            Drag to reorder, edit task details, or remove tasks.
+          </p>
+          <div id="spoon-tasks-container" class="spoon-tasks-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" id="btn-add-task">+ Add Task</button>
+        </div>
+      </div>
+
+      <!-- ── Meals Tab ── -->
+      <div id="tab-meals" class="tab-panel">
+        <div class="config-section">
+          <h2>Breakfast Options</h2>
+          <div id="meals-breakfast" class="meal-items-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" data-meal="breakfast">+ Add Meal</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Lunch Options</h2>
+          <div id="meals-lunch" class="meal-items-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" data-meal="lunch">+ Add Meal</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Dinner Options</h2>
+          <div id="meals-dinner" class="meal-items-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" data-meal="dinner">+ Add Meal</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Liquids / Drinks</h2>
+          <div id="meals-liquids" class="meal-items-list"></div>
+          <button type="button" class="btn btn-secondary btn-small" data-meal="liquids">+ Add Drink</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Dietary Notes</h2>
+          <div class="form-group">
+            <label for="meals-dietary-note">Any dietary restrictions or preferences?</label>
+            <!-- Claude: 2026-03-25 — added maxlength -->
+            <textarea id="meals-dietary-note" placeholder="e.g., allergies, preferences, medication timing constraints..." maxlength="500"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Quizzes Tab ── -->
+      <div id="tab-quizzes" class="tab-panel">
+        <div class="config-section">
+          <h2>Hide Built-in Study Tools</h2>
+          <!-- Claude: 2026-03-18 — Hidden tools checkboxes for floral modules -->
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 12px;">
+            Check the boxes below to hide these tools for this student:
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-countdown" class="hidden-tool-checkbox" value="floral-countdown">
+              <label for="hidden-floral-countdown" style="margin: 0; cursor: pointer;">Floral ID Countdown</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-match" class="hidden-tool-checkbox" value="floral-match">
+              <label for="hidden-floral-match" style="margin: 0; cursor: pointer;">Floral ID Match Game</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-fill-blank" class="hidden-tool-checkbox" value="floral-fill-blank">
+              <label for="hidden-floral-fill-blank" style="margin: 0; cursor: pointer;">Fill in the Blank</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-genus" class="hidden-tool-checkbox" value="floral-genus">
+              <label for="hidden-floral-genus" style="margin: 0; cursor: pointer;">Genus Practice Quiz</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-flower-id" class="hidden-tool-checkbox" value="floral-flower-id">
+              <label for="hidden-floral-flower-id" style="margin: 0; cursor: pointer;">Flower ID Practice</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-study-sheet" class="hidden-tool-checkbox" value="floral-study-sheet">
+              <label for="hidden-floral-study-sheet" style="margin: 0; cursor: pointer;">Floral ID Study Sheet</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-flashcards" class="hidden-tool-checkbox" value="floral-flashcards">
+              <label for="hidden-floral-flashcards" style="margin: 0; cursor: pointer;">Floral Flashcards</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-speed-round" class="hidden-tool-checkbox" value="floral-speed-round">
+              <label for="hidden-floral-speed-round" style="margin: 0; cursor: pointer;">Speed Round</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hidden-floral-missed-tracker" class="hidden-tool-checkbox" value="floral-missed-tracker">
+              <label for="hidden-floral-missed-tracker" style="margin: 0; cursor: pointer;">Missed Flowers Tracker</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <h2>Custom Quizzes</h2>
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 12px;">
+            Add custom quizzes for your student's study tools.
+          </p>
+          <div id="quizzes-container"></div>
+          <button type="button" class="btn btn-secondary btn-small" id="btn-add-quiz">+ Add Quiz</button>
+        </div>
+      </div>
+
+      <!-- ── Comfort Tab ── -->
+      <div id="tab-comfort" class="tab-panel">
+        <div class="config-section">
+          <h2>Inspirational Scriptures</h2>
+          <div id="comfort-scriptures" class="comfort-items"></div>
+          <button type="button" class="btn btn-secondary btn-small" id="btn-add-scripture">+ Add Scripture</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Comfort Messages</h2>
+          <div id="comfort-messages" class="comfort-items"></div>
+          <button type="button" class="btn btn-secondary btn-small" id="btn-add-message">+ Add Message</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Breathing Exercise</h2>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label for="breathing-in">Breathe In (seconds)</label>
+              <input type="number" id="breathing-in" min="1" max="10">
+            </div>
+            <div class="form-group">
+              <label for="breathing-out">Breathe Out (seconds)</label>
+              <input type="number" id="breathing-out" min="1" max="10">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Alerts Tab ── -->
+      <div id="tab-alerts" class="tab-panel">
+        <div class="config-section">
+          <h2>Alert Thresholds</h2>
+          <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 16px;">
+            Configure when the app alerts your student about low spoons or debt.
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label for="alerts-debt-critical">Critical Debt (days)</label>
+              <input type="number" id="alerts-debt-critical" min="0" max="30">
+              <small style="color: var(--muted);">Shows red alert when debt exceeds this many days</small>
+            </div>
+            <div class="form-group">
+              <label for="alerts-debt-warning">Warning Debt (days)</label>
+              <input type="number" id="alerts-debt-warning" min="0" max="30">
+              <small style="color: var(--muted);">Shows yellow alert when debt exceeds this many days</small>
+            </div>
+            <div class="form-group">
+              <label for="alerts-low-spoon">Low Spoon Threshold (%)</label>
+              <input type="number" id="alerts-low-spoon" min="0" max="100" step="5">
+              <small style="color: var(--muted);">Shows alert when remaining spoons drop below this % of budget</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── AI Assistant Tab ── -->
+      <div id="tab-ai" class="tab-panel">
+        <div class="ai-assistant-panel">
+          <div class="ai-assistant-header">AI Configuration Assistant</div>
+          <div class="ai-assistant-desc">
+            Paste your student's specific needs here. The AI assistant will generate a config prompt that you can
+            paste into Claude, Perplexity, or your preferred AI. The AI will respond with a custom configuration JSON.
+          </div>
+
+          <!-- Claude: 2026-03-19 — Quick prompt templates -->
+          <div class="prompt-templates-section">
+            <div class="prompt-templates-label">Quick prompts (click to load):</div>
+            <div class="prompt-templates-grid">
+              <button class="prompt-template" data-prompt="spoon-plan">🥄 Build a spoon plan</button>
+              <button class="prompt-template" data-prompt="custom-quiz">📚 Create a study quiz</button>
+              <button class="prompt-template" data-prompt="meals">🍽️ Set up meals</button>
+              <button class="prompt-template" data-prompt="modes">🎛️ Customize modes</button>
+              <button class="prompt-template" data-prompt="comfort">💜 Personalize comfort content</button>
+              <button class="prompt-template" data-prompt="full-setup">✨ Full student setup</button>
+            </div>
+          </div>
+
+          <div class="ai-prompt-section">
+            <label for="ai-student-notes">Your Student's Needs & Background:</label>
+            <textarea id="ai-student-notes" placeholder="Example: My student has POTS, migraines, chronic fatigue. They use mobility aids. Their school schedule is..."></textarea>
+          </div>
+
+          <div class="button-group">
+            <button type="button" class="btn btn-primary" id="btn-generate-prompt">Generate AI Prompt</button>
+            <button type="button" class="ai-clipboard-btn" id="btn-copy-prompt" style="display: none;">📋 Copy to Clipboard</button>
+          </div>
+
+          <div id="ai-prompt-display" style="display: none; margin-top: 16px;">
+            <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 0.85rem; max-height: 400px; overflow-y: auto; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;" id="ai-prompt-text"></div>
+          </div>
+
+          <div class="ai-response-section" style="margin-top: 16px;">
+            <label for="ai-response-json">AI Response (paste JSON here):</label>
+            <textarea id="ai-response-json" placeholder="Paste the AI's JSON response here..."></textarea>
+          </div>
+
+          <div class="button-group">
+            <button type="button" class="btn btn-secondary" id="btn-import-ai">Import AI Response</button>
+            <button type="button" class="btn btn-secondary" id="btn-preview-ai">Preview Changes</button>
+          </div>
+
+          <div id="ai-preview-msg" class="status-msg"></div>
+        </div>
+      </div>
+
+      <!-- ── Save / Reset Controls ── -->
+      <div style="margin-top: 2rem; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);">
+        <div class="button-group">
+          <button type="button" class="btn btn-primary" id="btn-save-config">💾 Save Configuration</button>
+          <button type="button" class="btn btn-secondary" id="btn-preview-config">👁️ Preview Changes</button>
+          <button type="button" class="btn btn-secondary" id="btn-export-config">📥 Export Config</button>
+          <button type="button" class="btn btn-danger" id="btn-reset-config">⟲ Reset to Defaults</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Claude: 2026-03-19 — Preview Modal for JSON display -->
+  <div id="previewModal" style="display:none;">
+    <div>
+      <button id="closePreview" aria-label="Close preview">&times;</button>
+      <h3>Current Configuration</h3>
+      <pre id="previewJSON"></pre>
+      <button id="copyConfigBtn">Copy to Clipboard</button>
+    </div>
+  </div>
+
+  <!-- ── Scripts ── -->
+  <!-- Claude: 2026-03-20 — cache-bust for SpoonPlanner format update -->
+  <script src="/Academic-Allies/modular/js/student-config.js?v=20260322"></script>
+
+  <script>
+    /* Claude: 2026-03-18 — Student Config Editor */
+    (function() {
+      'use strict';
+
+      var currentStudentUid = null;
+      var currentConfig = null;
+      var statusTimeout = null;
+
+      /* ── Initialize ────────────────────────────────────────────── */
+      function init() {
+        /* Claude: 2026-03-19 — Show spinner on init */
+        document.getElementById('loadingSpinner').style.display = 'block';
+        document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.disabled = true; });
+
+        /* Claude: 2026-03-25 — added 10s timeout to AA poll to prevent infinite hang */
+        return new Promise(function(resolve, reject) {
+          var tries = 0;
+          var check = setInterval(function() {
+            tries++;
+            if (window.AA && window.AA.auth) {
+              clearInterval(check);
+              resolve();
+            } else if (tries > 200) {
+              clearInterval(check);
+              reject(new Error('timeout'));
+            }
+          }, 50);
+        }).then(function() {
+          window.AA.auth.onAuthStateChanged(function(user) {
+            if (!user) {
+              showSigninMsg();
+              return;
+            }
+            checkAuthorization(user);
+          });
+        }).catch(function() {
+          /* Claude: 2026-03-25 — timeout fallback with retry */
+          document.getElementById('loadingSpinner').innerHTML =
+            '⚠️ Could not connect. Check your connection and try again.<br>' +
+            '<button onclick="location.reload()" style="margin-top:10px;padding:8px 16px;background:#4a7f82;color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>';
+        });
+      }
+
+      function showSigninMsg() {
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('not-authorized').innerHTML = '<div class="alert-banner">Please sign in to continue.</div>';
+        document.getElementById('not-authorized').style.display = 'block';
+      }
+
+      function checkAuthorization(user) {
+        /* Check if user is network-lead (can write config) */
+        if (!window.AA_MIRROR_CAN_WRITE) {
+          document.getElementById('main-content').style.display = 'none';
+          document.getElementById('not-authorized').style.display = 'block';
+          return;
+        }
+
+        currentStudentUid = window.AA_MIRROR_UID || user.uid;
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('not-authorized').style.display = 'none';
+
+        loadConfig();
+      }
+
+      /* ── Load Config ───────────────────────────────────────────── */
+      function loadConfig() {
+        /* Claude: 2026-03-19 — Load student name and hide spinner when ready */
+        window.AA_CONFIG.load(currentStudentUid).then(function(config) {
+          currentConfig = config;
+
+          /* Load student name from Firestore */
+          if (currentStudentUid && window.AA && window.AA.db) {
+            window.AA.db.collection('users').doc(currentStudentUid).get().then(function(doc) {
+              if (doc.exists) {
+                var name = doc.data().displayName || doc.data().email || currentStudentUid;
+                document.getElementById('studentNameDisplay').textContent = 'Configuring: ' + name;
+                document.getElementById('studentInfo').style.display = 'block';
+              }
+            }).catch(function(err) {
+              console.warn('[AA] Failed to load student name:', err);
+            });
+          }
+
+          populateUI();
+
+          /* Hide spinner and enable tabs */
+          document.getElementById('loadingSpinner').style.display = 'none';
+          document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.disabled = false; });
+        }).catch(function(err) {
+          document.getElementById('loadingSpinner').style.display = 'none';
+          showStatus('Failed to load configuration: ' + err.message, 'error');
+        });
+      }
+
+      /* ── Populate UI from Config ───────────────────────────────── */
+      function populateUI() {
+        /* Modes */
+        var modesHtml = '';
+        var modes = currentConfig.modes.available || [];
+        modes.forEach(function(modeCode) {
+          var customMode = (currentConfig.modes.custom || {})[modeCode];
+          var name = customMode && customMode.name ? customMode.name : modeCode.charAt(0).toUpperCase() + modeCode.slice(1).replace('-', ' ');
+          var icon = customMode && customMode.icon ? customMode.icon : '🎛️';
+          modesHtml += '<div class="config-section" style="margin-bottom: 12px;">';
+          /* Claude: 2026-03-23 — escape Firestore data to prevent XSS */
+          modesHtml += '<h3 style="font-size: 0.95rem; margin-bottom: 8px;">' + esc(icon) + ' ' + esc(name) + '</h3>';
+          modesHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">';
+          modesHtml += '<div class="form-group"><label>Name</label><input type="text" class="mode-name-input" data-mode="' + modeCode + '" value="' + esc(name) + '"></div>';
+          modesHtml += '<div class="form-group"><label>Icon (emoji)</label><input type="text" class="mode-icon-input" data-mode="' + modeCode + '" value="' + esc(icon) + '" maxlength="2"></div>';
+          modesHtml += '<div class="form-group" style="grid-column: 1 / -1;"><label>Description</label><textarea class="mode-desc-input" data-mode="' + modeCode + '" style="min-height: 60px;">' + esc(customMode && customMode.desc ? customMode.desc : '') + '</textarea></div>';
+          modesHtml += '</div>';
+
+          /* Claude: 2026-03-19 — Card-level toggles + reorder per mode */
+          var cardsKey = modeCode;
+          var cardsCfg = (currentConfig.modes.cards || {})[cardsKey];
+          if (cardsCfg && Array.isArray(cardsCfg) && cardsCfg.length > 0) {
+            modesHtml += '<div class="mode-cards-section">';
+            modesHtml += '<h4>Cards on this page</h4>';
+            modesHtml += '<p style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">Toggle cards on/off and reorder them. Order here = order on the page.</p>';
+            modesHtml += '<ul class="card-list" data-mode-cards="' + modeCode + '">';
+            cardsCfg.forEach(function(card, idx) {
+              var checked = card.enabled !== false ? 'checked' : '';
+              var disabledClass = card.enabled === false ? ' disabled' : '';
+              modesHtml += '<li class="card-list-item" data-card-id="' + card.id + '">';
+              modesHtml += '<input type="checkbox" class="card-toggle" ' + checked + ' title="Toggle this card">';
+              /* Claude: 2026-03-23 — escape card label to prevent XSS */
+              modesHtml += '<span class="card-label' + disabledClass + '">' + esc(card.label) + '</span>';
+              modesHtml += '<div class="card-reorder-btns">';
+              modesHtml += '<button type="button" class="card-move-up" title="Move up" ' + (idx === 0 ? 'disabled' : '') + '>▲</button>';
+              modesHtml += '<button type="button" class="card-move-down" title="Move down" ' + (idx === cardsCfg.length - 1 ? 'disabled' : '') + '>▼</button>';
+              modesHtml += '</div>';
+              modesHtml += '</li>';
+            });
+            modesHtml += '</ul>';
+            modesHtml += '</div>';
+          }
+
+          modesHtml += '</div>';
+        });
+        document.getElementById('modes-container').innerHTML = modesHtml;
+
+        /* Wire up card toggle + reorder events via delegation */
+        _wireCardListEvents();
+
+        /* Spoon Plan */
+        document.getElementById('spoon-base-budget').value = currentConfig.spoonPlan.baseBudget || 20;
+        var formula = currentConfig.spoonPlan.formula || {};
+        document.getElementById('spoon-pain-scale').value = formula.painScale || 1;
+        document.getElementById('spoon-fatigue-scale').value = formula.fatigueScale || 1;
+        document.getElementById('spoon-sleep-low-threshold').value = formula.sleepLowThreshold || 7;
+        document.getElementById('spoon-sleep-low-penalty').value = formula.sleepLowPenalty || 2;
+        document.getElementById('spoon-sleep-high-threshold').value = formula.sleepHighThreshold || 9;
+        document.getElementById('spoon-sleep-high-bonus').value = formula.sleepHighBonus || 1;
+
+        populateSpoonTasks();
+
+        /* Meals */
+        var meals = currentConfig.meals || {};
+        populateMealsList('breakfast', meals.breakfast || []);
+        populateMealsList('lunch', meals.lunch || []);
+        populateMealsList('dinner', meals.dinner || []);
+        populateMealsList('liquids', meals.liquids || []);
+        document.getElementById('meals-dietary-note').value = meals.dietaryNote || '';
+
+        /* Quizzes & Hidden Tools */
+        /* Claude: 2026-03-18 — Load hiddenTools into checkboxes */
+        var hiddenTools = currentConfig.hiddenTools || [];
+        document.querySelectorAll('.hidden-tool-checkbox').forEach(function(cb) {
+          cb.checked = hiddenTools.indexOf(cb.value) !== -1;
+        });
+        populateQuizzes();
+
+        /* Comfort */
+        populateComfortScriptures();
+        populateComfortMessages();
+        var breathing = currentConfig.comfort || {};
+        document.getElementById('breathing-in').value = breathing.breathingIn || 4;
+        document.getElementById('breathing-out').value = breathing.breathingOut || 4;
+
+        /* Alerts */
+        var alerts = currentConfig.alerts || {};
+        document.getElementById('alerts-debt-critical').value = alerts.debtDaysCritical || 5;
+        document.getElementById('alerts-debt-warning').value = alerts.debtDaysWarning || 2;
+        document.getElementById('alerts-low-spoon').value = (alerts.lowSpoonPercent * 100) || 25;
+      }
+
+      /* Claude: 2026-03-19 — Wire card toggle + reorder events (delegation) */
+      function _wireCardListEvents() {
+        document.querySelectorAll('.card-list').forEach(function(ul) {
+          ul.addEventListener('click', function(e) {
+            var target = e.target;
+
+            /* Toggle checkbox → strikethrough label */
+            if (target.classList.contains('card-toggle')) {
+              var label = target.parentElement.querySelector('.card-label');
+              if (target.checked) {
+                label.classList.remove('disabled');
+              } else {
+                label.classList.add('disabled');
+              }
+              return;
+            }
+
+            /* Move up */
+            if (target.classList.contains('card-move-up')) {
+              var li = target.closest('.card-list-item');
+              var prev = li.previousElementSibling;
+              if (prev) {
+                li.parentElement.insertBefore(li, prev);
+                _updateReorderBtns(ul);
+              }
+              return;
+            }
+
+            /* Move down */
+            if (target.classList.contains('card-move-down')) {
+              var li = target.closest('.card-list-item');
+              var next = li.nextElementSibling;
+              if (next) {
+                li.parentElement.insertBefore(next, li);
+                _updateReorderBtns(ul);
+              }
+              return;
+            }
+          });
+        });
+      }
+
+      /* Update disabled state on up/down buttons after reorder */
+      function _updateReorderBtns(ul) {
+        var items = ul.querySelectorAll('.card-list-item');
+        items.forEach(function(li, idx) {
+          li.querySelector('.card-move-up').disabled = (idx === 0);
+          li.querySelector('.card-move-down').disabled = (idx === items.length - 1);
+        });
+      }
+
+      /* Claude: 2026-03-20 — SpoonPlanner format: name/spoons/time/priority/completed */
+      function populateSpoonTasks() {
+        var container = document.getElementById('spoon-tasks-container');
+        var tasks = currentConfig.spoonPlan.tasks || [];
+        var html = '';
+        tasks.forEach(function(task, idx) {
+          html += '<div class="spoon-task-row" data-idx="' + idx + '">';
+          html += '<div class="spoon-task-form">';
+          html += '<input type="text" class="task-name" value="' + (task.name || '') + '" placeholder="Task Name">';
+          html += '<input type="number" class="task-spoons" value="' + (task.spoons || 1) + '" min="0" max="10" placeholder="Spoons">';
+          html += '<input type="text" class="task-time" value="' + (task.time || '') + '" placeholder="Time">';
+          html += '<select class="task-priority">';
+          html += '<option value="High"' + (task.priority === 'High' ? ' selected' : '') + '>High</option>';
+          html += '<option value="Medium"' + (task.priority === 'Medium' ? ' selected' : '') + '>Medium</option>';
+          html += '<option value="Low"' + (task.priority === 'Low' ? ' selected' : '') + '>Low</option>';
+          html += '</select>';
+          html += '</div>';
+          html += '<button type="button" class="btn btn-danger btn-small spoon-task-remove" data-idx="' + idx + '">✕</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('.spoon-task-remove').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-idx'), 10);
+            var newTasks = currentConfig.spoonPlan.tasks.filter(function(_, i) { return i !== idx; });
+            currentConfig.spoonPlan.tasks = newTasks;
+            populateSpoonTasks();
+          });
+        });
+      }
+
+      function populateMealsList(mealType, items) {
+        var container = document.getElementById('meals-' + mealType);
+        var html = '';
+        items.forEach(function(item, idx) {
+          html += '<div class="meal-item-row" data-type="' + mealType + '" data-idx="' + idx + '">';
+          html += '<input type="text" value="' + item + '" class="meal-input">';
+          html += '<button type="button" class="btn btn-danger btn-small meal-item-remove">✕</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('.meal-item-remove').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var row = this.closest('.meal-item-row');
+            var type = row.getAttribute('data-type');
+            var idx = parseInt(row.getAttribute('data-idx'), 10);
+            currentConfig.meals[type] = currentConfig.meals[type].filter(function(_, i) { return i !== idx; });
+            populateMealsList(type, currentConfig.meals[type]);
+          });
+        });
+      }
+
+      function populateComfortScriptures() {
+        var container = document.getElementById('comfort-scriptures');
+        var scriptures = currentConfig.comfort.scriptures || [];
+        var html = '';
+        scriptures.forEach(function(scripture, idx) {
+          html += '<div class="comfort-item-row" data-type="scripture" data-idx="' + idx + '">';
+          /* Claude: 2026-03-23 — escape Firestore scripture data to prevent XSS */
+          html += '<div class="form-group"><label>Scripture Text</label><textarea class="scripture-text">' + esc(scripture.text) + '</textarea></div>';
+          html += '<div class="form-group"><label>Reference</label><input type="text" class="scripture-ref" value="' + esc(scripture.reference) + '"></div>';
+          html += '<button type="button" class="btn btn-danger btn-small comfort-item-remove">✕ Remove</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('[data-type="scripture"] .comfort-item-remove').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var row = this.closest('.comfort-item-row');
+            var idx = parseInt(row.getAttribute('data-idx'), 10);
+            currentConfig.comfort.scriptures = currentConfig.comfort.scriptures.filter(function(_, i) { return i !== idx; });
+            populateComfortScriptures();
+          });
+        });
+      }
+
+      function populateComfortMessages() {
+        var container = document.getElementById('comfort-messages');
+        var messages = currentConfig.comfort.messages || [];
+        var html = '';
+        messages.forEach(function(msg, idx) {
+          html += '<div class="comfort-item-row" data-type="message" data-idx="' + idx + '">';
+          /* Claude: 2026-03-23 — escape Firestore comfort message to prevent XSS */
+          html += '<div class="form-group"><label>Message</label><textarea class="message-text" style="min-height: 60px;">' + esc(msg) + '</textarea></div>';
+          html += '<button type="button" class="btn btn-danger btn-small comfort-item-remove">✕ Remove</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('[data-type="message"] .comfort-item-remove').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var row = this.closest('.comfort-item-row');
+            var idx = parseInt(row.getAttribute('data-idx'), 10);
+            currentConfig.comfort.messages = currentConfig.comfort.messages.filter(function(_, i) { return i !== idx; });
+            populateComfortMessages();
+          });
+        });
+      }
+
+      /* ── Tab Navigation ────────────────────────────────────────── */
+      document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var tabName = this.getAttribute('data-tab');
+          document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+          document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+          this.classList.add('active');
+          document.getElementById('tab-' + tabName).classList.add('active');
+        });
+      });
+
+      /* Claude: 2026-03-25 — scroll hint: show/hide fade gradient when tabs overflow */
+      (function _tabScrollHint() {
+        var wrap = document.getElementById('tabs-nav-wrap');
+        var nav = document.getElementById('tabs-nav-scroll');
+        if (!wrap || !nav) return;
+        function _checkScroll() {
+          var canScroll = nav.scrollWidth > nav.clientWidth + 2;
+          var atEnd = nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 4;
+          if (canScroll && !atEnd) { wrap.classList.add('has-scroll'); }
+          else { wrap.classList.remove('has-scroll'); }
+        }
+        nav.addEventListener('scroll', _checkScroll);
+        window.addEventListener('resize', _checkScroll);
+        setTimeout(_checkScroll, 200);
+      })();
+
+      /* ── Add Item Buttons ──────────────────────────────────────── */
+      document.getElementById('btn-add-task').addEventListener('click', function() {
+        /* Claude: 2026-03-20 — SpoonPlanner format */
+        currentConfig.spoonPlan.tasks.push({ name: 'New Task', spoons: 1, time: '', priority: 'Medium', completed: false });
+        populateSpoonTasks();
+      });
+
+      document.getElementById('btn-add-scripture').addEventListener('click', function() {
+        currentConfig.comfort.scriptures.push({ text: '', reference: '' });
+        populateComfortScriptures();
+      });
+
+      document.getElementById('btn-add-message').addEventListener('click', function() {
+        currentConfig.comfort.messages.push('');
+        populateComfortMessages();
+      });
+
+      document.getElementById('btn-add-quiz').addEventListener('click', function() {
+        /* Claude: 2026-03-18 — Add quiz with data array structure */
+        currentConfig.quizzes.push({ title: 'New Quiz', type: 'fill-blank', description: '', data: [] });
+        populateQuizzes();
+      });
+
+      /* ── Meal Add Buttons ──────────────────────────────────────── */
+      document.querySelectorAll('[data-meal]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var mealType = this.getAttribute('data-meal');
+          currentConfig.meals[mealType].push('');
+          populateMealsList(mealType, currentConfig.meals[mealType]);
+        });
+      });
+
+      /* ── Save Config ───────────────────────────────────────────── */
+      document.getElementById('btn-save-config').addEventListener('click', function() {
+        /* Claude: 2026-03-19 — Add loading state and save summary */
+        var btn = this;
+        var originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        /* Collect updates from UI */
+        /* Claude: 2026-03-20 — Show error instead of silent abort when validation fails */
+        var result = collectUIUpdates();
+        if (result === null) {
+          showStatus('Save aborted — fix the quiz validation errors above, then try again.', 'error');
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+
+        window.AA_CONFIG.save(currentStudentUid, currentConfig).then(function() {
+          /* Claude: 2026-03-19 — Build save summary */
+          var summary = [];
+          var q = currentConfig.quizzes || [];
+          if (q.length > 0) summary.push(q.length + ' custom quiz' + (q.length > 1 ? 'zes' : ''));
+          var t = currentConfig.spoonPlan && currentConfig.spoonPlan.tasks ? currentConfig.spoonPlan.tasks.length : 0;
+          if (t > 0) summary.push(t + ' spoon task' + (t > 1 ? 's' : ''));
+          var hidden = currentConfig.hiddenTools || [];
+          if (hidden.length > 0) summary.push(hidden.length + ' hidden tool' + (hidden.length > 1 ? 's' : ''));
+          var msg = 'Configuration saved! (' + (summary.length > 0 ? summary.join(', ') : 'defaults') + ')';
+          showStatus(msg, 'success');
+          /* Claude: 2026-03-25 — moved cleanup from .finally() (ES2018) to both paths for ES5 compat */
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }).catch(function(err) {
+          showStatus('Failed to save: ' + err.message, 'error');
+          btn.disabled = false;
+          btn.textContent = originalText;
+        });
+      });
+
+      /* ── Reset Config ──────────────────────────────────────────── */
+      document.getElementById('btn-reset-config').addEventListener('click', function() {
+        if (confirm('Are you sure? This will reset all configuration to defaults.')) {
+          currentConfig = window.AA_CONFIG.getDefaults();
+          populateUI();
+          showStatus('⟲ Configuration reset to defaults. Click Save to confirm.', 'info');
+        }
+      });
+
+      /* ── Claude: 2026-03-19 — Preview Modal Handlers ── */
+      function showPreviewModal() {
+        collectUIUpdates();
+        var json = JSON.stringify(currentConfig, null, 2);
+        document.getElementById('previewJSON').textContent = json;
+        document.getElementById('previewModal').style.display = 'block';
+      }
+
+      document.getElementById('btn-preview-config').addEventListener('click', showPreviewModal);
+
+      document.getElementById('closePreview').addEventListener('click', function() {
+        document.getElementById('previewModal').style.display = 'none';
+      });
+
+      document.getElementById('previewModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          this.style.display = 'none';
+        }
+      });
+
+      document.getElementById('copyConfigBtn').addEventListener('click', function() {
+        var json = document.getElementById('previewJSON').textContent;
+        navigator.clipboard.writeText(json).then(function() {
+          var btn = document.getElementById('copyConfigBtn');
+          btn.classList.add('copied');
+          btn.textContent = '✓ Copied!';
+          setTimeout(function() {
+            btn.classList.remove('copied');
+            btn.textContent = 'Copy to Clipboard';
+          }, 2000);
+        });
+      });
+
+      /* ── Claude: 2026-03-19 — Export Config Handler ── */
+      document.getElementById('btn-export-config').addEventListener('click', function() {
+        collectUIUpdates();
+        var json = JSON.stringify(currentConfig, null, 2);
+        var blob = new Blob([json], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'student-config-' + (currentStudentUid || 'unknown') + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      /* ── AI Assistant ──────────────────────────────────────────– */
+      document.getElementById('btn-generate-prompt').addEventListener('click', function() {
+        var notes = document.getElementById('ai-student-notes').value || '(No notes provided)';
+        var prompt = generateAIPrompt(notes);
+        document.getElementById('ai-prompt-text').textContent = prompt;
+        document.getElementById('ai-prompt-display').style.display = 'block';
+        document.getElementById('btn-copy-prompt').style.display = 'inline-block';
+      });
+
+      document.getElementById('btn-copy-prompt').addEventListener('click', function() {
+        var text = document.getElementById('ai-prompt-text').textContent;
+        navigator.clipboard.writeText(text).then(function() {
+          var btn = document.getElementById('btn-copy-prompt');
+          btn.classList.add('copied');
+          btn.textContent = '✓ Copied!';
+          setTimeout(function() {
+            btn.classList.remove('copied');
+            btn.textContent = '📋 Copy to Clipboard';
+          }, 2000);
+        });
+      });
+
+      /* Claude: 2026-03-19 — Preconfigured prompt templates */
+      var promptTemplates = {
+        /* Claude: 2026-03-20 — Updated to SpoonPlanner format */
+        'spoon-plan': 'I need to create a custom spoon plan for my student. Here\'s what I know about them:\n\n[DESCRIBE YOUR STUDENT: their condition, daily routine, energy patterns, what activities matter to them]\n\nGenerate a JSON spoonPlan object with:\n- baseBudget: their daily spoon count (typical range 12-25)\n- tasks: array of daily activities with name, spoon cost (1-5), typical time, and priority (High/Medium/Low)\n\nExample task: { "name": "Morning Medications", "spoons": 2, "time": "9:00 AM", "priority": "High", "completed": false }\n\nRespond with ONLY valid JSON like: { "spoonPlan": { "baseBudget": 18, "tasks": [...] } }',
+
+        'custom-quiz': 'I need to create a study quiz for my student. Here\'s what they\'re studying:\n\n[DESCRIBE: subject, specific topics, what they need to memorize, test format]\n\nGenerate a JSON quizzes array with:\n- type: "fill-blank" (type the answer), "match" (pair terms), or "flashcards" (flip cards)\n- title: quiz name\n- description: what it covers\n- data: array of { "term": "...", "answer": "...", "hints": ["hint1", "hint2", "hint3"] }\n\nHints should be memorable tricks for spelling/remembering (word-in-word, silly stories, visual patterns).\n\nRespond with ONLY valid JSON like: { "quizzes": [{ "type": "fill-blank", "title": "...", "data": [...] }] }',
+
+        'meals': 'I need to set up custom meal suggestions for my student. Here\'s their dietary situation:\n\n[DESCRIBE: dietary restrictions, conditions affecting eating (gastroparesis, sensory issues, etc.), foods they like, cooking ability, budget]\n\nGenerate a JSON meals object with:\n- breakfast: array of 5-10 easy meal options\n- lunch: array of 5-10 options\n- dinner: array of 5-10 options\n- liquids: array of 5-8 drink options\n- dietaryNote: brief note about their diet (shown as context in the app)\n\nRespond with ONLY valid JSON like: { "meals": { "breakfast": [...], "lunch": [...], "dinner": [...], "liquids": [...], "dietaryNote": "..." } }',
+
+        'modes': 'I need to customize the app modes for my student. The default modes are:\n- normal, recovery, bad-brain, semi-nope, nope, migraine\n\nMy student\'s situation:\n[DESCRIBE: what conditions they have, what each mode should represent for them, which cards they need on each mode page]\n\nGenerate a JSON modes object. You can customize:\n1. Mode names/icons/descriptions via "custom"\n2. Which cards appear on each mode page (and in what order) via "cards"\n\nAvailable card IDs per mode:\n- recovery: emergency, energy, tasks, breathing, meals, flower, selfcare, scripture, youmatter, bedroom, journal\n- bad-brain: messages, emergency, energy, history, a11y, backlink\n- semi-nope: emergency, checklist, comfort\n- nope: team, controls\n\nExample:\n{ "modes": {\n  "custom": { "bad-brain": { "name": "Concussion Day", "icon": "🧠", "desc": "Low stimulation, cognitive rest" } },\n  "cards": { "recovery": [\n    { "id": "emergency", "label": "Emergency Support", "enabled": true },\n    { "id": "scripture", "label": "A Word of Comfort", "enabled": true },\n    { "id": "energy", "label": "Energy Check-In", "enabled": false }\n  ] }\n} }\n\nRespond with ONLY valid JSON.',
+
+        'comfort': 'I need to customize the comfort content (shown in recovery mode) for my student.\n\nAbout my student:\n[DESCRIBE: their faith/spiritual background, what comforts them, what kind of messages help on bad days]\n\nGenerate a JSON comfort object with:\n- scriptures: array of { "text": "verse text", "reference": "Book Chapter:Verse" } (5-8 verses)\n- messages: array of encouraging strings (8-12 messages)\n- breathingIn: seconds for inhale (default 4)\n- breathingOut: seconds for exhale (default 4)\n\nRespond with ONLY valid JSON like: { "comfort": { "scriptures": [...], "messages": [...], "breathingIn": 4, "breathingOut": 6 } }',
+
+        'full-setup': 'I need to do a complete setup for a new student on Academic Allies. Here\'s everything about them:\n\nStudent name: [NAME]\nCondition(s): [CONDITIONS]\nDaily routine: [TYPICAL DAY]\nDietary needs: [DIET INFO]\nClasses/studying: [WHAT THEY\'RE LEARNING]\nWhat comforts them: [COMFORT PREFERENCES]\nEnergy level: [TYPICAL SPOON BUDGET 12-25]\n\nGenerate a COMPLETE student configuration JSON with ALL of these sections:\n- modes (custom names if needed)\n- spoonPlan (baseBudget + daily tasks)\n- meals (breakfast, lunch, dinner, liquids)\n- quizzes (if they have classes to study for)\n- comfort (scriptures/messages based on their preferences)\n- alerts (appropriate thresholds)\n- hiddenTools (hide irrelevant built-in tools)\n\nRespond with ONLY valid JSON. Include all sections.'
+      };
+
+      /* Handle prompt template clicks */
+      document.querySelectorAll('.prompt-template').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          var templateKey = this.getAttribute('data-prompt');
+          var promptText = promptTemplates[templateKey];
+          if (promptText) {
+            document.getElementById('ai-student-notes').value = promptText;
+            document.getElementById('ai-student-notes').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.getElementById('ai-student-notes').focus();
+          }
+        });
+      });
+
+      /* Claude: 2026-03-20 — Separated try/catch: parse errors vs populate errors get different messages.
+         Also shows quiz count on success so NL sees clear confirmation. */
+      document.getElementById('btn-import-ai').addEventListener('click', function() {
+        var json = document.getElementById('ai-response-json').value;
+        if (!json || !json.trim()) {
+          showStatus('Paste JSON into the text box first, then click Import.', 'error');
+          return;
+        }
+
+        var parsed;
+        try {
+          parsed = JSON.parse(json);
+        } catch (e) {
+          var match = e.message.match(/position (\d+)/);
+          var pos = match ? parseInt(match[1], 10) : null;
+          var hint = '';
+          if (pos !== null) {
+            var lines = json.substring(0, pos).split('\n');
+            hint = ' (near line ' + lines.length + ')';
+          }
+          showStatus('JSON parsing failed' + hint + '. Check for missing commas, brackets, or quotes. Tip: paste your JSON into jsonlint.com to find the exact error.', 'error');
+          return;
+        }
+
+        /* Claude: 2026-03-20 — Deep merge with special handling: quizzes APPEND instead of replace.
+           Deduplicates by title so re-importing the same quizzes won't create duplicates. */
+        var deepMerge = function(target, source) {
+          if (!source || typeof source !== 'object') return target;
+          var result = Object.assign({}, target);
+          for (var key in source) {
+            if (source.hasOwnProperty(key)) {
+              if (key === 'quizzes' && Array.isArray(source[key]) && Array.isArray(result[key])) {
+                /* Append new quizzes, skip duplicates by title */
+                var existingTitles = {};
+                result[key].forEach(function(q) { if (q.title) existingTitles[q.title] = true; });
+                var added = 0;
+                var skipped = 0;
+                source[key].forEach(function(q) {
+                  if (q.title && existingTitles[q.title]) {
+                    skipped++;
+                  } else {
+                    result[key].push(q);
+                    if (q.title) existingTitles[q.title] = true;
+                    added++;
+                  }
+                });
+                result._quizImportStats = { added: added, skipped: skipped };
+              } else if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                result[key] = deepMerge(result[key] || {}, source[key]);
+              } else {
+                result[key] = source[key];
+              }
+            }
+          }
+          return result;
+        };
+
+        try {
+          currentConfig = deepMerge(currentConfig, parsed);
+          var quizStats = currentConfig._quizImportStats;
+          delete currentConfig._quizImportStats;
+          populateUI();
+
+          /* Build a summary of what was imported */
+          var parts = [];
+          if (parsed.quizzes && quizStats) {
+            parts.push(quizStats.added + ' quiz' + (quizStats.added !== 1 ? 'zes' : '') + ' added' + (quizStats.skipped > 0 ? ', ' + quizStats.skipped + ' duplicate' + (quizStats.skipped !== 1 ? 's' : '') + ' skipped' : ''));
+          } else if (parsed.quizzes) {
+            parts.push(parsed.quizzes.length + ' quiz' + (parsed.quizzes.length !== 1 ? 'zes' : ''));
+          }
+          if (parsed.spoonPlan) parts.push('spoon plan');
+          if (parsed.meals) parts.push('meal settings');
+          if (parsed.modes) parts.push('mode settings');
+          if (parsed.comfort) parts.push('comfort content');
+          if (parsed.hiddenTools) parts.push(parsed.hiddenTools.length + ' hidden tools');
+          var summary = parts.length > 0 ? ' (' + parts.join(', ') + ')' : '';
+
+          showStatus('Imported!' + summary + ' — click Save to write to Firestore.', 'success');
+        } catch (e) {
+          console.error('[Config Editor] Import populate error:', e);
+          showStatus('Import error: ' + e.message + '. The JSON was valid but something went wrong applying it.', 'error');
+        }
+      });
+
+      /* ── Utility Functions ────────────────────────────────────── */
+
+      /* Claude: 2026-03-20 — Escape HTML special chars for safe insertion into attributes/tags */
+      function esc(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function collectUIUpdates() {
+        /* Collect from visible inputs */
+        document.querySelectorAll('.mode-name-input').forEach(function(inp) {
+          var mode = inp.getAttribute('data-mode');
+          if (!currentConfig.modes.custom[mode]) currentConfig.modes.custom[mode] = {};
+          currentConfig.modes.custom[mode].name = inp.value;
+        });
+
+        document.querySelectorAll('.mode-icon-input').forEach(function(inp) {
+          var mode = inp.getAttribute('data-mode');
+          if (!currentConfig.modes.custom[mode]) currentConfig.modes.custom[mode] = {};
+          currentConfig.modes.custom[mode].icon = inp.value;
+        });
+
+        document.querySelectorAll('.mode-desc-input').forEach(function(inp) {
+          var mode = inp.getAttribute('data-mode');
+          if (!currentConfig.modes.custom[mode]) currentConfig.modes.custom[mode] = {};
+          currentConfig.modes.custom[mode].desc = inp.value;
+        });
+
+        /* Claude: 2026-03-19 — Collect card toggle + reorder state per mode */
+        if (!currentConfig.modes.cards) currentConfig.modes.cards = {};
+        document.querySelectorAll('.card-list').forEach(function(ul) {
+          var modeCode = ul.getAttribute('data-mode-cards');
+          if (!modeCode) return;
+          var cards = [];
+          ul.querySelectorAll('.card-list-item').forEach(function(li) {
+            var id = li.getAttribute('data-card-id');
+            var label = li.querySelector('.card-label').textContent;
+            var enabled = li.querySelector('.card-toggle').checked;
+            cards.push({ id: id, label: label, enabled: enabled });
+          });
+          currentConfig.modes.cards[modeCode] = cards;
+        });
+
+        /* Spoon Plan */
+        currentConfig.spoonPlan.baseBudget = parseFloat(document.getElementById('spoon-base-budget').value) || 20;
+        currentConfig.spoonPlan.formula.painScale = parseFloat(document.getElementById('spoon-pain-scale').value) || 1;
+        currentConfig.spoonPlan.formula.fatigueScale = parseFloat(document.getElementById('spoon-fatigue-scale').value) || 1;
+        currentConfig.spoonPlan.formula.sleepLowThreshold = parseFloat(document.getElementById('spoon-sleep-low-threshold').value) || 7;
+        currentConfig.spoonPlan.formula.sleepLowPenalty = parseFloat(document.getElementById('spoon-sleep-low-penalty').value) || 2;
+        currentConfig.spoonPlan.formula.sleepHighThreshold = parseFloat(document.getElementById('spoon-sleep-high-threshold').value) || 9;
+        currentConfig.spoonPlan.formula.sleepHighBonus = parseFloat(document.getElementById('spoon-sleep-high-bonus').value) || 1;
+
+        /* Claude: 2026-03-20 — Collect spoon tasks in SpoonPlanner format */
+        var tasks = [];
+        document.querySelectorAll('.spoon-task-row').forEach(function(row) {
+          var name = row.querySelector('.task-name').value || 'Task';
+          var spoons = parseFloat(row.querySelector('.task-spoons').value) || 1;
+          var time = row.querySelector('.task-time').value || '';
+          var priority = row.querySelector('.task-priority').value || 'Medium';
+          tasks.push({ name: name, spoons: spoons, time: time, priority: priority, completed: false });
+        });
+        currentConfig.spoonPlan.tasks = tasks;
+
+        /* Meals */
+        currentConfig.meals.breakfast = collectMealItems('breakfast');
+        currentConfig.meals.lunch = collectMealItems('lunch');
+        currentConfig.meals.dinner = collectMealItems('dinner');
+        currentConfig.meals.liquids = collectMealItems('liquids');
+        currentConfig.meals.dietaryNote = document.getElementById('meals-dietary-note').value || null;
+
+        /* Comfort */
+        currentConfig.comfort.scriptures = [];
+        document.querySelectorAll('[data-type="scripture"]').forEach(function(row) {
+          currentConfig.comfort.scriptures.push({
+            text: row.querySelector('.scripture-text').value,
+            reference: row.querySelector('.scripture-ref').value
+          });
+        });
+
+        currentConfig.comfort.messages = [];
+        document.querySelectorAll('[data-type="message"]').forEach(function(row) {
+          currentConfig.comfort.messages.push(row.querySelector('.message-text').value);
+        });
+
+        currentConfig.comfort.breathingIn = parseInt(document.getElementById('breathing-in').value) || 4;
+        currentConfig.comfort.breathingOut = parseInt(document.getElementById('breathing-out').value) || 4;
+
+        /* Hidden Tools */
+        /* Claude: 2026-03-18 — Collect hiddenTools from checkboxes */
+        var hiddenTools = [];
+        document.querySelectorAll('.hidden-tool-checkbox').forEach(function(cb) {
+          if (cb.checked) {
+            hiddenTools.push(cb.value);
+          }
+        });
+        currentConfig.hiddenTools = hiddenTools;
+
+        /* Quizzes */
+        /* Claude: 2026-03-19 — Collect quiz data with validation */
+        var quizzes = [];
+        document.querySelectorAll('.quiz-item-row').forEach(function(quizRow, qi) {
+          var title = quizRow.querySelector('.quiz-title').value || '';
+          var type = quizRow.querySelector('.quiz-type').value || 'fill-blank';
+          var description = quizRow.querySelector('.quiz-desc').value || '';
+
+          /* Validate quiz title */
+          if (!title || title.trim() === '') {
+            showStatus('Quiz ' + (qi+1) + ' needs a title.', 'error');
+            return; /* signal error via collectUIUpdates return */
+          }
+
+          /* Claude: 2026-03-20 — Preserve hints from currentConfig instead of wiping them */
+          var existingData = (currentConfig.quizzes && currentConfig.quizzes[qi] && currentConfig.quizzes[qi].data) || [];
+          var dataArray = [];
+          quizRow.querySelectorAll('.quiz-term-row').forEach(function(termRow, tidx) {
+            var term = termRow.querySelector('.term-key').value || '';
+            var answer = termRow.querySelector('.term-val').value || '';
+            var existingHints = (existingData[tidx] && existingData[tidx].hints) || [];
+            dataArray.push({
+              term: term,
+              answer: answer,
+              hints: existingHints
+            });
+          });
+
+          /* Validate quiz has terms */
+          if (!dataArray || dataArray.length === 0) {
+            showStatus('Quiz "' + title + '" has no terms. Add at least one.', 'error');
+            return; /* signal error */
+          }
+
+          /* Validate each term has term and answer */
+          for (var ti = 0; ti < dataArray.length; ti++) {
+            if (!dataArray[ti].term || !dataArray[ti].answer) {
+              showStatus('Quiz "' + title + '" term ' + (ti+1) + ' is missing a term or answer.', 'error');
+              return; /* signal error */
+            }
+          }
+
+          /* Claude: 2026-03-20 — Collect trimester field */
+          var trimester = quizRow.querySelector('.quiz-trimester') ? quizRow.querySelector('.quiz-trimester').value : '';
+          var quizObj = {
+            type: type,
+            title: title,
+            description: description,
+            data: dataArray
+          };
+          if (trimester) quizObj.trimester = trimester;
+          quizzes.push(quizObj);
+        });
+
+        /* Check if validation failed */
+        if (quizzes.length !== document.querySelectorAll('.quiz-item-row').length) {
+          return null; /* Signal save abort */
+        }
+
+        currentConfig.quizzes = quizzes;
+
+        /* Alerts */
+        currentConfig.alerts.debtDaysCritical = parseInt(document.getElementById('alerts-debt-critical').value) || 5;
+        currentConfig.alerts.debtDaysWarning = parseInt(document.getElementById('alerts-debt-warning').value) || 2;
+        currentConfig.alerts.lowSpoonPercent = (parseFloat(document.getElementById('alerts-low-spoon').value) || 25) / 100;
+
+        return currentConfig; /* Signal success */
+      }
+
+      function collectMealItems(type) {
+        var items = [];
+        document.querySelectorAll('[data-type="' + type + '"] .meal-input').forEach(function(inp) {
+          if (inp.value.trim()) items.push(inp.value.trim());
+        });
+        return items;
+      }
+
+      /* Claude: 2026-03-18 — Quiz rendering with data array support */
+      function populateQuizzes() {
+        var container = document.getElementById('quizzes-container');
+        var quizzes = currentConfig.quizzes || [];
+        var html = '';
+        quizzes.forEach(function(quiz, idx) {
+          html += '<div class="quiz-item-row" data-idx="' + idx + '">';
+          /* Claude: 2026-03-20 — esc() prevents quotes/HTML in values from corrupting DOM */
+          html += '<div class="form-group"><label>Quiz Title</label><input type="text" class="quiz-title" value="' + esc(quiz.title) + '"></div>';
+          html += '<div class="form-group"><label>Type</label>';
+          html += '<select class="quiz-type"><option value="fill-blank" ' + (quiz.type === 'fill-blank' ? 'selected' : '') + '>Fill in Blank</option>';
+          html += '<option value="match" ' + (quiz.type === 'match' ? 'selected' : '') + '>Match</option>';
+          html += '<option value="flashcards" ' + (quiz.type === 'flashcards' ? 'selected' : '') + '>Flashcards</option>';
+          html += '</select></div>';
+          /* Claude: 2026-03-20 — Trimester dropdown so quizzes land in the right semester section */
+          html += '<div class="form-group"><label>Trimester</label>';
+          html += '<select class="quiz-trimester">';
+          html += '<option value=""' + (!quiz.trimester ? ' selected' : '') + '>— none —</option>';
+          html += '<option value="winter-2026"' + (quiz.trimester === 'winter-2026' ? ' selected' : '') + '>Winter 2026</option>';
+          html += '<option value="spring-2026"' + (quiz.trimester === 'spring-2026' ? ' selected' : '') + '>Spring 2026</option>';
+          html += '<option value="summer-2026"' + (quiz.trimester === 'summer-2026' ? ' selected' : '') + '>Summer 2026</option>';
+          html += '<option value="fall-2026"' + (quiz.trimester === 'fall-2026' ? ' selected' : '') + '>Fall 2026</option>';
+          html += '</select></div>';
+          html += '<div class="form-group"><label>Description</label><textarea class="quiz-desc" style="min-height: 60px;">' + esc(quiz.description) + '</textarea></div>';
+          html += '<div style="margin-top: 12px;"><strong>Terms:</strong></div>';
+          html += '<div class="quiz-terms" data-idx="' + idx + '">';
+          var dataArray = quiz.data || [];
+          if (dataArray.length) {
+            dataArray.forEach(function(item, tidx) {
+              html += '<div class="quiz-term-row" data-tidx="' + tidx + '">';
+              html += '<input type="text" class="term-key" value="' + esc(item.term) + '" placeholder="Term">';
+              html += '<input type="text" class="term-val" value="' + esc(item.answer) + '" placeholder="Answer">';
+              html += '<button type="button" class="btn btn-danger btn-small quiz-term-remove">✕</button>';
+              html += '</div>';
+            });
+          }
+          html += '</div>';
+          html += '<button type="button" class="btn btn-secondary btn-small quiz-add-term" data-idx="' + idx + '" style="margin-top: 8px;">+ Add Term</button>';
+          html += '<button type="button" class="btn btn-danger btn-small quiz-remove" data-idx="' + idx + '" style="margin-top: 8px;">✕ Remove Quiz</button>';
+          html += '</div>';
+        });
+        container.innerHTML = html;
+        attachQuizEventListeners();
+      }
+
+      /* Claude: 2026-03-18 — Event delegation for quiz buttons */
+      function attachQuizEventListeners() {
+        var container = document.getElementById('quizzes-container');
+
+        /* Add Term button */
+        container.addEventListener('click', function(e) {
+          if (e.target.classList.contains('quiz-add-term')) {
+            var quizIdx = parseInt(e.target.getAttribute('data-idx'));
+            if (!currentConfig.quizzes[quizIdx].data) {
+              currentConfig.quizzes[quizIdx].data = [];
+            }
+            currentConfig.quizzes[quizIdx].data.push({ term: '', answer: '', hints: [] });
+            populateQuizzes();
+          }
+        });
+
+        /* Remove Term button */
+        container.addEventListener('click', function(e) {
+          if (e.target.classList.contains('quiz-term-remove')) {
+            var row = e.target.closest('.quiz-term-row');
+            var termsDiv = row.closest('.quiz-terms');
+            var quizIdx = parseInt(termsDiv.getAttribute('data-idx'));
+            var termIdx = parseInt(row.getAttribute('data-tidx'));
+            if (currentConfig.quizzes[quizIdx].data) {
+              currentConfig.quizzes[quizIdx].data.splice(termIdx, 1);
+              populateQuizzes();
+            }
+          }
+        });
+
+        /* Remove Quiz button */
+        container.addEventListener('click', function(e) {
+          if (e.target.classList.contains('quiz-remove')) {
+            var quizIdx = parseInt(e.target.getAttribute('data-idx'));
+            if (confirm('Remove this quiz?')) {
+              currentConfig.quizzes.splice(quizIdx, 1);
+              populateQuizzes();
+            }
+          }
+        });
+
+        /* Quiz title/type/description change handlers */
+        container.addEventListener('change', function(e) {
+          var quizRow = e.target.closest('.quiz-item-row');
+          if (!quizRow) return;
+          var quizIdx = parseInt(quizRow.getAttribute('data-idx'));
+          if (e.target.classList.contains('quiz-title')) {
+            currentConfig.quizzes[quizIdx].title = e.target.value;
+          } else if (e.target.classList.contains('quiz-type')) {
+            currentConfig.quizzes[quizIdx].type = e.target.value;
+          } else if (e.target.classList.contains('quiz-desc')) {
+            currentConfig.quizzes[quizIdx].description = e.target.value;
+          }
+        });
+
+        /* Term/answer input updates */
+        container.addEventListener('input', function(e) {
+          var row = e.target.closest('.quiz-term-row');
+          if (!row) return;
+          var termsDiv = row.closest('.quiz-terms');
+          var quizIdx = parseInt(termsDiv.getAttribute('data-idx'));
+          var termIdx = parseInt(row.getAttribute('data-tidx'));
+          if (!currentConfig.quizzes[quizIdx].data) return;
+          if (e.target.classList.contains('term-key')) {
+            currentConfig.quizzes[quizIdx].data[termIdx].term = e.target.value;
+          } else if (e.target.classList.contains('term-val')) {
+            currentConfig.quizzes[quizIdx].data[termIdx].answer = e.target.value;
+          }
+        });
+      }
+
+      /* Claude: 2026-03-20 — scrollIntoView so user sees feedback even if scrolled down */
+      function showStatus(msg, type) {
+        var el = document.getElementById('status-message');
+        el.textContent = msg;
+        el.className = 'status-msg show ' + type;
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        clearTimeout(statusTimeout);
+        statusTimeout = setTimeout(function() {
+          el.classList.remove('show');
+        }, 5000);
+      }
+
+      function generateAIPrompt(studentNotes) {
+        /* Claude: 2026-03-19 — Enhanced AI prompt with schema and clear instructions */
+        return 'You are helping customize Academic Allies for a student. Generate a JSON configuration.\n\n' +
+          'SCHEMA (only include fields you want to change — omit fields to keep defaults):\n' +
+          '{\n' +
+          '  "modes": { "custom": { "mode-key": { "name": "...", "icon": "emoji", "desc": "..." } } },\n' +
+          '  "spoonPlan": {\n' +
+          '    "baseBudget": number (default 20),\n' +
+          '    "tasks": [{ "name": "task name", "spoons": number, "time": "HH:MM AM/PM", "priority": "High|Medium|Low", "completed": false }]\n' +
+          '  },\n' +
+          '  "meals": { "breakfast": ["..."], "lunch": ["..."], "dinner": ["..."], "liquids": ["..."], "dietaryNote": "..." },\n' +
+          '  "quizzes": [{ "type": "fill-blank|match|flashcards", "title": "...", "description": "...", "data": [{ "term": "...", "answer": "...", "hints": ["...", "...", "..."] }] }],\n' +
+          '  "comfort": { "scriptures": [{ "text": "...", "reference": "..." }], "messages": ["..."], "breathingIn": number, "breathingOut": number },\n' +
+          '  "alerts": { "debtDaysCritical": number, "debtDaysWarning": number, "lowSpoonPercent": number },\n' +
+          '  "hiddenTools": ["floral-match", "floral-fill-blank", ...list of tool IDs to HIDE]\n' +
+          '}\n\n' +
+          'VALID hiddenTools IDs: floral-countdown, floral-match, floral-fill-blank, floral-genus, floral-flower-id, floral-study-sheet, floral-flashcards, floral-speed-round, floral-missed-tracker\n\n' +
+          'STUDENT\'S CURRENT CONFIG:\n' +
+          JSON.stringify(currentConfig, null, 2) + '\n\n' +
+          'STUDENT NEEDS:\n' + studentNotes + '\n\n' +
+          'Respond with ONLY valid JSON. No explanation, no markdown, no code fences.';
+      }
+
+      /* ── Start ────────────────────────────────────────────────── */
+      init();
+    })();
+  </script>
+
+  <!-- ── Shared Header ── -->
+  <script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260328')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(old) {
+          var s = document.createElement('script');
+          [].slice.call(old.attributes).forEach(function(a) { s.setAttribute(a.name, a.value); });
+          s.textContent = old.textContent;
+          old.parentNode.replaceChild(s, old);
+        });
+      })
+      .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); });
+  </script>
+</body>
+</html>

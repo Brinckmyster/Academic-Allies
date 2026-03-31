@@ -482,6 +482,12 @@
     /* ── Mode Suggestion Flash — Claude 2026-03-12 ─────────────────
        Check for pending mode suggestions (supporter may have suggested
        going back to nope or canceling). Same pattern as nope-mode.html. */
+    /* Claude: 2026-03-30 — C2 fix: HTML escape helper prevents XSS via suggestedByName */
+    function _escHtml(str) {
+      var d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
     function checkModeSuggestions() {
       if (_isMirror()) return;
       if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
@@ -498,7 +504,7 @@
           'animation:flashIn 0.4s ease-out;';
         flash.innerHTML =
           '<style>@keyframes flashIn { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }</style>' +
-          '<p style="font-size:15pt;font-weight:700;color:#92400e;margin-bottom:8px;">Suggestion from ' + (s.suggestedByName || 'your supporter') + '</p>' +
+          '<p style="font-size:15pt;font-weight:700;color:#92400e;margin-bottom:8px;">Suggestion from ' + _escHtml(s.suggestedByName || 'your supporter') + '</p>' +
           '<p style="font-size:14pt;color:#78350f;margin-bottom:16px;">They suggest ' + modeLabel + '</p>' +
           '<div style="display:flex;gap:10px;justify-content:center;">' +
             '<button onclick="acceptModeSuggestion(\'' + s.id + '\',\'' + s.mode + '\')" style="background:#22c55e;color:white;border:none;border-radius:12px;padding:12px 24px;font-size:14pt;font-weight:600;cursor:pointer;min-height:19mm;">Accept</button>' +

@@ -794,6 +794,8 @@
 
   /* ── Sync preference to Firestore (if signed in) ── */
   function syncToFirestore(isDark) {
+    /* Claude: 2026-03-30 — C3 fix: mirror guard — supporters must not write dark mode to student's account */
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
     try {
       if (!window.AA || !window.AA.auth || !window.AA.auth.currentUser) return;
       var uid = window.AA.auth.currentUser.uid;
