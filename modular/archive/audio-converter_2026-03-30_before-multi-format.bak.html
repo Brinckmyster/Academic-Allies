@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- Claude: 2026-03-09 — Audio Converter tool for Academic Allies
-     Converts mp3, mp4/m4a, ogg, webm, flac → WAV/MP3/OGG/WebM using Web Audio API + lamejs.
+     Converts mp3, mp4/m4a, ogg, webm, flac → WAV using Web Audio API.
      Runs 100% client-side — no uploads, no server, no tracking.
-     Claude: 2026-03-30 — Added MP3 (lamejs), OGG, WebM output formats -->
+     Designed for use with NotebookLM and other tools that need WAV input. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -230,15 +230,12 @@
         </div>
       </div>
 
-      <!-- Claude: 2026-03-30 — multi-format output selector -->
+      <!-- Output Format -->
       <div class="format-row">
         <span class="format-label">Convert to:</span>
         <button class="format-btn active" data-format="wav" onclick="setFormat(this)">WAV</button>
-        <button class="format-btn" data-format="mp3" onclick="setFormat(this)">MP3</button>
-        <button class="format-btn" data-format="ogg" id="fmt-ogg" onclick="setFormat(this)">OGG</button>
-        <button class="format-btn" data-format="webm" id="fmt-webm" onclick="setFormat(this)">WebM</button>
+        <button class="format-btn" data-format="mp3" onclick="setFormat(this)" style="display:none;">MP3</button>
       </div>
-      <div id="formatNote" style="font-size:0.78rem;color:#999;margin-bottom:10px;display:none;"></div>
 
       <!-- Sample Rate -->
       <div class="sample-row">
@@ -264,7 +261,7 @@
 
       <!-- Convert Button -->
       <button class="btn-convert" id="btnConvert" onclick="convertAudio()">
-        🔄 Convert
+        🔄 Convert to WAV
       </button>
 
       <!-- Progress -->
@@ -284,20 +281,16 @@
       <div class="result-icon">✅</div>
       <div class="result-text">Conversion complete!</div>
       <div class="result-meta" id="resultMeta">—</div>
-      <a class="btn-download" id="btnDownload" download>⬇ Download</a>
+      <a class="btn-download" id="btnDownload" download>⬇ Download WAV</a>
       <button class="btn-reset" onclick="resetConverter()">Convert Another</button>
     </div>
 
     <!-- Supported formats info -->
-    <!-- Claude: 2026-03-30 — updated hints for multi-format -->
     <div class="formats-hint">
       <strong>Supported input formats:</strong> MP3, MP4 (audio), M4A, OGG, WebM, FLAC, AAC, WAV.
+      Your file never leaves your device — all conversion happens in the browser using the Web Audio API.
       <br><br>
-      <strong>Output formats:</strong> WAV (lossless, large), MP3 (small, universal), OGG Opus (small, web-friendly), WebM Opus (small, web-friendly).
-      <br><br>
-      Your file never leaves your device — all conversion happens in the browser.
-      <br><br>
-      <strong>Tip for NotebookLM:</strong> Use WAV at 16,000 Hz mono for the smallest file size that still works great for speech recognition. For sharing, use MP3.
+      <strong>Tip for NotebookLM:</strong> Use 16,000 Hz mono for the smallest file size that still works great for speech recognition.
     </div>
   </div>
 
@@ -318,63 +311,24 @@
     })();
   </script>
 
-  <!-- Claude: 2026-03-30 — lamejs for client-side MP3 encoding -->
-  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
-
   <script>
     /* Claude: 2026-03-09 — Audio Converter engine
-       Claude: 2026-03-30 — Multi-format: WAV, MP3 (lamejs), OGG/WebM (MediaRecorder)
        Uses Web Audio API to decode any browser-supported audio format,
-       then encodes to the selected output format.
+       then encodes to WAV (PCM 16-bit) at the selected sample rate/channels.
        Everything runs client-side — zero network requests. */
 
     var _selectedFile = null;
     var _outputFormat = 'wav';
     var _convertedBlob = null;
 
-    /* ── Format support detection ── */
-    var _formatSupport = {
-      wav: true,
-      mp3: (typeof lamejs !== 'undefined' || typeof self.lamejs !== 'undefined'),
-      ogg: (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')),
-      webm: (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
-    };
-
-    /* Disable unsupported format buttons on load */
-    (function() {
-      var fmts = ['ogg', 'webm'];
-      for (var i = 0; i < fmts.length; i++) {
-        var btn = document.getElementById('fmt-' + fmts[i]);
-        if (btn && !_formatSupport[fmts[i]]) {
-          btn.disabled = true;
-          btn.style.opacity = '0.4';
-          btn.style.cursor = 'not-allowed';
-          btn.title = 'Not supported in this browser';
-        }
-      }
-    })();
-
     /* ── Format selector ── */
     function setFormat(btn) {
-      if (btn.disabled) return;
       var buttons = document.querySelectorAll('.format-btn');
       for (var i = 0; i < buttons.length; i++) {
         buttons[i].classList.remove('active');
       }
       btn.classList.add('active');
       _outputFormat = btn.getAttribute('data-format');
-
-      /* Show note for realtime formats */
-      var noteEl = document.getElementById('formatNote');
-      if (_outputFormat === 'ogg' || _outputFormat === 'webm') {
-        noteEl.textContent = 'OGG/WebM conversion runs at playback speed — a 5-min file takes ~5 min.';
-        noteEl.style.display = 'block';
-      } else {
-        noteEl.style.display = 'none';
-      }
-
-      /* Update convert button label */
-      document.getElementById('btnConvert').textContent = '🔄 Convert to ' + _outputFormat.toUpperCase();
     }
 
     /* ── File selection ── */
@@ -405,6 +359,7 @@
       _selectedFile = file;
       _convertedBlob = null;
 
+      /* Show file card */
       document.getElementById('fileCard').classList.add('show');
       document.getElementById('resultCard').classList.remove('show');
       document.getElementById('errorMsg').classList.remove('show');
@@ -416,10 +371,9 @@
       document.getElementById('fileMeta').textContent = ext + ' · ' + sizeMB + ' MB';
 
       document.getElementById('btnConvert').disabled = false;
-      document.getElementById('btnConvert').textContent = '🔄 Convert to ' + _outputFormat.toUpperCase();
     }
 
-    /* ── Main conversion entry point ── */
+    /* ── Conversion ── */
     function convertAudio() {
       if (!_selectedFile) return;
 
@@ -445,12 +399,14 @@
         var targetRate = parseInt(document.getElementById('sampleRate').value) || 44100;
         var targetChannels = parseInt(document.getElementById('channelSelect').value) || 2;
 
+        /* Create offline context at target sample rate for resampling */
         var tempCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         tempCtx.decodeAudioData(e.target.result, function(audioBuffer) {
           progressBar.style.width = '60%';
-          progressText.textContent = 'Resampling…';
+          progressText.textContent = 'Converting to WAV…';
 
+          /* Resample if needed using OfflineAudioContext */
           var duration = audioBuffer.duration;
           var offlineLength = Math.ceil(duration * targetRate);
           var offlineCtx = new OfflineAudioContext(targetChannels, offlineLength, targetRate);
@@ -461,22 +417,43 @@
           source.start(0);
 
           offlineCtx.startRendering().then(function(renderedBuffer) {
-            progressBar.style.width = '70%';
+            progressBar.style.width = '85%';
+            progressText.textContent = 'Encoding WAV…';
 
-            /* Route to the right encoder */
-            if (_outputFormat === 'mp3') {
-              _encodeMP3(renderedBuffer, targetRate, targetChannels, tempCtx);
-            } else if (_outputFormat === 'ogg' || _outputFormat === 'webm') {
-              _encodeMediaRecorder(renderedBuffer, _outputFormat, targetRate, targetChannels, tempCtx);
-            } else {
-              /* Default: WAV */
-              _encodeAndFinish(encodeWAV(renderedBuffer), 'wav', 'audio/wav', renderedBuffer, targetRate, targetChannels, tempCtx);
-            }
+            /* Encode to WAV */
+            var wavBlob = encodeWAV(renderedBuffer);
+            _convertedBlob = wavBlob;
+
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Done!';
+
+            /* Show result */
+            var outSizeMB = (wavBlob.size / (1024 * 1024)).toFixed(2);
+            document.getElementById('resultMeta').textContent =
+              'WAV · ' + outSizeMB + ' MB · ' + targetRate + ' Hz · ' +
+              (targetChannels === 1 ? 'Mono' : 'Stereo') + ' · ' +
+              formatDuration(renderedBuffer.duration);
+
+            var url = URL.createObjectURL(wavBlob);
+            var dlBtn = document.getElementById('btnDownload');
+            dlBtn.href = url;
+
+            /* Build output filename */
+            var baseName = _selectedFile.name.replace(/\.[^.]+$/, '');
+            dlBtn.download = baseName + '.wav';
+
+            resultCard.classList.add('show');
+
+            setTimeout(function() {
+              progressWrap.classList.remove('show');
+            }, 800);
+
+            tempCtx.close();
           }).catch(function(err) {
             showError('Rendering failed: ' + err.message);
             tempCtx.close();
           });
-        }, function() {
+        }, function(err) {
           showError('Could not decode this audio file. Your browser may not support this format. Try converting with Audacity first.');
           tempCtx.close();
         });
@@ -487,169 +464,13 @@
       reader.readAsArrayBuffer(_selectedFile);
     }
 
-    /* ── Finish conversion and show result ── */
-    function _encodeAndFinish(blob, ext, mimeType, renderedBuffer, targetRate, targetChannels, tempCtx) {
-      _convertedBlob = blob;
-
-      var progressBar = document.getElementById('progressBar');
-      var progressText = document.getElementById('progressText');
-      var progressWrap = document.getElementById('progressWrap');
-      var resultCard = document.getElementById('resultCard');
-
-      progressBar.style.width = '100%';
-      progressText.textContent = 'Done!';
-
-      var outSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
-      document.getElementById('resultMeta').textContent =
-        ext.toUpperCase() + ' · ' + outSizeMB + ' MB · ' + targetRate + ' Hz · ' +
-        (targetChannels === 1 ? 'Mono' : 'Stereo') + ' · ' +
-        formatDuration(renderedBuffer.duration);
-
-      var url = URL.createObjectURL(blob);
-      var dlBtn = document.getElementById('btnDownload');
-      dlBtn.href = url;
-      dlBtn.download = _selectedFile.name.replace(/\.[^.]+$/, '') + '.' + ext;
-      dlBtn.textContent = '⬇ Download ' + ext.toUpperCase();
-
-      resultCard.classList.add('show');
-      setTimeout(function() { progressWrap.classList.remove('show'); }, 800);
-      if (tempCtx) tempCtx.close();
-    }
-
-    /* ── MP3 encoder (lamejs) ── */
-    /* Claude: 2026-03-30 — fast client-side MP3 via lamejs, ~20x realtime */
-    function _encodeMP3(renderedBuffer, targetRate, targetChannels, tempCtx) {
-      var progressBar = document.getElementById('progressBar');
-      var progressText = document.getElementById('progressText');
-
-      progressText.textContent = 'Encoding MP3…';
-      progressBar.style.width = '75%';
-
-      /* Short timeout to let the UI update before heavy encoding */
-      setTimeout(function() {
-        try {
-          var mp3encoder = new lamejs.Mp3Encoder(targetChannels, targetRate, 128);
-          var mp3Data = [];
-          var sampleBlockSize = 1152;
-          var length = renderedBuffer.length;
-
-          /* Get channel data as Int16 arrays */
-          var left = _floatTo16Bit(renderedBuffer.getChannelData(0));
-          var right = targetChannels > 1 ? _floatTo16Bit(renderedBuffer.getChannelData(1)) : null;
-
-          for (var i = 0; i < length; i += sampleBlockSize) {
-            var leftChunk = left.subarray(i, i + sampleBlockSize);
-            var rightChunk = right ? right.subarray(i, i + sampleBlockSize) : null;
-
-            var mp3buf;
-            if (targetChannels === 1) {
-              mp3buf = mp3encoder.encodeBuffer(leftChunk);
-            } else {
-              mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
-            }
-            if (mp3buf.length > 0) {
-              mp3Data.push(mp3buf);
-            }
-
-            /* Update progress every ~10% */
-            if (i % (sampleBlockSize * 100) === 0) {
-              var pct = 75 + Math.round((i / length) * 20);
-              progressBar.style.width = pct + '%';
-            }
-          }
-
-          /* Flush remaining */
-          var end = mp3encoder.flush();
-          if (end.length > 0) mp3Data.push(end);
-
-          progressBar.style.width = '95%';
-          var blob = new Blob(mp3Data, { type: 'audio/mp3' });
-          _encodeAndFinish(blob, 'mp3', 'audio/mp3', renderedBuffer, targetRate, targetChannels, tempCtx);
-        } catch (err) {
-          showError('MP3 encoding failed: ' + err.message);
-          if (tempCtx) tempCtx.close();
-        }
-      }, 50);
-    }
-
-    /* Convert Float32Array to Int16Array for lamejs */
-    function _floatTo16Bit(float32) {
-      var int16 = new Int16Array(float32.length);
-      for (var i = 0; i < float32.length; i++) {
-        var s = Math.max(-1, Math.min(1, float32[i]));
-        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-      }
-      return int16;
-    }
-
-    /* ── OGG / WebM encoder (MediaRecorder bridge) ── */
-    /* Claude: 2026-03-30 — plays decoded buffer through AudioContext → MediaRecorder.
-       This runs at realtime speed — a 5-min file takes ~5 min to encode. */
-    function _encodeMediaRecorder(renderedBuffer, fmt, targetRate, targetChannels, tempCtx) {
-      var progressBar = document.getElementById('progressBar');
-      var progressText = document.getElementById('progressText');
-
-      var mimeType = fmt === 'ogg' ? 'audio/ogg;codecs=opus' : 'audio/webm;codecs=opus';
-      var ext = fmt;
-
-      progressText.textContent = 'Encoding ' + fmt.toUpperCase() + '… (runs at playback speed)';
-      progressBar.style.width = '70%';
-
-      try {
-        /* Create a real AudioContext to play through */
-        var ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: targetRate });
-        var dest = ctx.createMediaStreamDestination();
-
-        var source = ctx.createBufferSource();
-        source.buffer = renderedBuffer;
-        source.connect(dest);
-
-        /* Set up MediaRecorder */
-        var recorder = new MediaRecorder(dest.stream, { mimeType: mimeType });
-        var chunks = [];
-
-        recorder.ondataavailable = function(e) {
-          if (e.data.size > 0) chunks.push(e.data);
-        };
-
-        recorder.onstop = function() {
-          var blob = new Blob(chunks, { type: mimeType });
-          ctx.close();
-          _encodeAndFinish(blob, ext, mimeType, renderedBuffer, targetRate, targetChannels, tempCtx);
-        };
-
-        /* Progress updates during playback */
-        var duration = renderedBuffer.duration;
-        var startTime = Date.now();
-        var _progressTimer = setInterval(function() {
-          var elapsed = (Date.now() - startTime) / 1000;
-          var pct = Math.min(95, 70 + Math.round((elapsed / duration) * 25));
-          progressBar.style.width = pct + '%';
-          var remaining = Math.max(0, Math.ceil(duration - elapsed));
-          progressText.textContent = 'Encoding ' + fmt.toUpperCase() + '… ' + remaining + 's remaining';
-        }, 500);
-
-        source.onended = function() {
-          clearInterval(_progressTimer);
-          /* Small delay to capture final audio data */
-          setTimeout(function() { recorder.stop(); }, 200);
-        };
-
-        recorder.start(100); /* collect data every 100ms */
-        source.start(0);
-
-      } catch (err) {
-        showError(fmt.toUpperCase() + ' encoding failed: ' + err.message);
-        if (tempCtx) tempCtx.close();
-      }
-    }
-
     /* ── WAV encoder (PCM 16-bit) ── */
     function encodeWAV(audioBuffer) {
       var numChannels = audioBuffer.numberOfChannels;
       var sampleRate = audioBuffer.sampleRate;
       var length = audioBuffer.length;
 
+      /* Interleave channels */
       var interleaved;
       if (numChannels === 1) {
         interleaved = audioBuffer.getChannelData(0);
@@ -663,24 +484,27 @@
         }
       }
 
-      var dataLength = interleaved.length * 2;
+      /* Convert float32 → int16 */
+      var dataLength = interleaved.length * 2; /* 16-bit = 2 bytes */
       var buffer = new ArrayBuffer(44 + dataLength);
       var view = new DataView(buffer);
 
+      /* WAV header */
       writeString(view, 0, 'RIFF');
       view.setUint32(4, 36 + dataLength, true);
       writeString(view, 8, 'WAVE');
       writeString(view, 12, 'fmt ');
-      view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true);
+      view.setUint32(16, 16, true);              /* chunk size */
+      view.setUint16(20, 1, true);               /* PCM format */
       view.setUint16(22, numChannels, true);
       view.setUint32(24, sampleRate, true);
-      view.setUint32(28, sampleRate * numChannels * 2, true);
-      view.setUint16(32, numChannels * 2, true);
-      view.setUint16(34, 16, true);
+      view.setUint32(28, sampleRate * numChannels * 2, true); /* byte rate */
+      view.setUint16(32, numChannels * 2, true);  /* block align */
+      view.setUint16(34, 16, true);               /* bits per sample */
       writeString(view, 36, 'data');
       view.setUint32(40, dataLength, true);
 
+      /* Write PCM samples */
       var offset = 44;
       for (var s = 0; s < interleaved.length; s++) {
         var sample = Math.max(-1, Math.min(1, interleaved[s]));
