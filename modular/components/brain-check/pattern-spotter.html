@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pattern Spotter — Brain Check</title>
+    <link rel="icon" type="image/png" href="../../icons/mode-recovery.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            color-scheme: light;
+        }
+
+        html.aa-dark {
+            color-scheme: dark;
+        }
+
+        html.aa-dark body {
+            background: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+
+        body {
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            background: linear-gradient(180deg, #e8f5e9 0%, #f1f8e9 40%, #fafaf9 100%);
+            color: #1b5e20;
+            min-height: 100vh;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        html.aa-dark body {
+            background: #0a3d0a !important;
+            color: #c8e6c9 !important;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            gap: 15px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(27, 94, 32, 0.1);
+            border: 2px solid #2e7d32;
+            border-radius: 6px;
+            color: #1b5e20;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        html.aa-dark .back-link {
+            background: rgba(76, 175, 80, 0.15);
+            border-color: #66bb6a;
+            color: #c8e6c9;
+        }
+
+        .back-link:hover {
+            background: rgba(27, 94, 32, 0.2);
+            transform: translateX(-2px);
+        }
+
+        html.aa-dark .back-link:hover {
+            background: rgba(76, 175, 80, 0.25);
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1b5e20;
+            text-align: center;
+        }
+
+        html.aa-dark .title {
+            color: #c8e6c9;
+        }
+
+        #shared-header-root {
+            margin-bottom: 30px;
+        }
+
+        .game-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        html.aa-dark .game-section {
+            background: #1e1e1e;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .round-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: rgba(76, 175, 80, 0.1);
+            border-left: 4px solid #2e7d32;
+            border-radius: 4px;
+        }
+
+        html.aa-dark .round-info {
+            background: rgba(76, 175, 80, 0.15);
+            border-left-color: #66bb6a;
+        }
+
+        .round-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1b5e20;
+        }
+
+        html.aa-dark .round-label {
+            color: #c8e6c9;
+        }
+
+        .timer {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2e7d32;
+            font-variant-numeric: tabular-nums;
+        }
+
+        html.aa-dark .timer {
+            color: #66bb6a;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+        }
+
+        @media (max-width: 480px) {
+            .grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+        }
+
+        .item {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            background: #f5f5f5;
+            border: 3px solid #c8e6c9;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html.aa-dark .item {
+            background: #2a2a2a;
+            border-color: #388e3c;
+        }
+
+        .item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        html.aa-dark .item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .item.selected {
+            border-color: #2e7d32;
+            background: #e8f5e9;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3);
+        }
+
+        html.aa-dark .item.selected {
+            background: #1b5e20;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        }
+
+        .item.correct {
+            border-color: #2e7d32;
+            background: #c8e6c9;
+            animation: correct-pulse 0.6s ease-out;
+        }
+
+        html.aa-dark .item.correct {
+            background: #2e7d32;
+        }
+
+        @keyframes correct-pulse {
+            0% { transform: scale(1.1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .item.incorrect {
+            border-color: #c62828;
+            background: #ffcdd2;
+            animation: incorrect-shake 0.4s ease-out;
+        }
+
+        html.aa-dark .item.incorrect {
+            background: #5e2f2f;
+        }
+
+        @keyframes incorrect-shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .item:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #2e7d32;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1b5e20;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        html.aa-dark .btn-primary {
+            background: #66bb6a;
+            color: #0a3d0a;
+        }
+
+        html.aa-dark .btn-primary:hover {
+            background: #81c784;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #424242;
+        }
+
+        .btn-secondary:hover {
+            background: #bdbdbd;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        html.aa-dark .btn-secondary {
+            background: #424242;
+            color: #e0e0e0;
+        }
+
+        html.aa-dark .btn-secondary:hover {
+            background: #555555;
+        }
+
+        .results {
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .results-emoji {
+            font-size: 80px;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .results-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #1b5e20;
+        }
+
+        html.aa-dark .results-title {
+            color: #c8e6c9;
+        }
+
+        .results-message {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #558b2f;
+        }
+
+        html.aa-dark .results-message {
+            color: #aed581;
+        }
+
+        .results-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 25px 0;
+        }
+
+        .stat-box {
+            padding: 15px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 6px;
+            border-left: 3px solid #2e7d32;
+        }
+
+        html.aa-dark .stat-box {
+            background: rgba(76, 175, 80, 0.15);
+            border-left-color: #66bb6a;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        html.aa-dark .stat-label {
+            color: #999;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1b5e20;
+        }
+
+        html.aa-dark .stat-value {
+            color: #c8e6c9;
+        }
+
+        .score-green {
+            color: #2e7d32 !important;
+        }
+
+        .score-yellow {
+            color: #f57c00 !important;
+        }
+
+        .score-red {
+            color: #c62828 !important;
+        }
+
+        .intro {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .intro-emoji {
+            font-size: 60px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .intro-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1b5e20;
+            margin-bottom: 15px;
+        }
+
+        html.aa-dark .intro-title {
+            color: #c8e6c9;
+        }
+
+        .intro-description {
+            font-size: 16px;
+            color: #558b2f;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        html.aa-dark .intro-description {
+            color: #aed581;
+        }
+
+        .difficulty-note {
+            font-size: 14px;
+            color: #999;
+            font-style: italic;
+            margin-top: 15px;
+        }
+
+        html.aa-dark .difficulty-note {
+            color: #ccc;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Claude: 2026-04-01 — Pattern Spotter brain check game.
+         Tests visual processing via odd-one-out pattern recognition.
+         Disabled by default; network lead enables per student via student-config. -->
+
+    <div id="shared-header-root"></div>
+
+    <div class="container">
+        <div class="header">
+            <a href="/Academic-Allies/modular/components/comfort-games/game-center.html" class="back-link">← Back</a>
+            <h1 class="title">Pattern Spotter</h1>
+            <div style="width: 80px;"></div>
+        </div>
+
+        <div id="game-content">
+            <!-- Intro screen -->
+            <div id="intro-screen" class="game-section intro">
+                <span class="intro-emoji">🎨</span>
+                <h2 class="intro-title">Pattern Spotter</h2>
+                <p class="intro-description">
+                    Find the odd one out! Look carefully at each group and tap the item that's different from the rest.
+                </p>
+                <p class="difficulty-note">
+                    Starts easy, gets trickier!
+                </p>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="startGame()">Start Game</button>
+                </div>
+            </div>
+
+            <!-- Game screen (hidden initially) -->
+            <div id="game-screen" class="hidden game-section">
+                <div class="round-info">
+                    <span class="round-label">Round <span id="round-number">1</span> / 10</span>
+                    <span class="timer">
+                        <span id="round-timer">0</span>s
+                    </span>
+                </div>
+                <div class="grid" id="grid"></div>
+                <div class="button-group">
+                    <button class="btn-secondary" onclick="skipRound()">Skip</button>
+                </div>
+            </div>
+
+            <!-- Results screen (hidden initially) -->
+            <div id="results-screen" class="hidden game-section results">
+                <span class="results-emoji" id="results-emoji">🎉</span>
+                <h2 class="results-title" id="results-title">Finished!</h2>
+                <p class="results-message" id="results-message">Great work!</p>
+                <div class="results-stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Correct</div>
+                        <div class="stat-value" id="results-score">0/10</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Avg Time</div>
+                        <div class="stat-value" id="results-time">0.0s</div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="playAgain()">Play Again</button>
+                    <button class="btn-secondary" onclick="goHome()">Home</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        try {
+            if (localStorage.getItem("AA_DARK_MODE") === "true") {
+                document.documentElement.classList.add("aa-dark");
+            }
+        } catch (e) {}
+
+        var AA = window.AA || {};
+        var gameState = {
+            currentRound: 0,
+            correctCount: 0,
+            roundTimes: [],
+            currentRoundStartTime: null,
+            roundAnswered: false,
+            roundData: []
+        };
+
+        var EASY_ROUNDS = [
+            { items: ['🐱','🐱','🐱','🐶','🐱','🐱'], oddIndex: 3 },
+            { items: ['🌸','🌸','🌸','🌸','🌵','🌸'], oddIndex: 4 },
+            { items: ['🍎','🍎','🍎','🍋','🍎','🍎'], oddIndex: 3 }
+        ];
+
+        var MEDIUM_ROUNDS = [
+            { items: ['🍊','🍊','🍊','🍑','🍊','🍊'], oddIndex: 3 },
+            { items: ['🌻','🌻','🌼','🌻','🌻','🌻'], oddIndex: 2 },
+            { items: ['🐸','🐸','🐸','🐸','🐢','🐸'], oddIndex: 4 }
+        ];
+
+        var HARD_ROUNDS = [
+            { items: ['🟢','🟢','🟢','🟢','🟩','🟢'], oddIndex: 4 },
+            { items: ['🔵','🔵','🔵','🟦','🔵','🔵'], oddIndex: 3 },
+            { items: ['⭐','⭐','⭐','🌟','⭐','⭐'], oddIndex: 3 }
+        ];
+
+        function getRoundData(roundIndex) {
+            var difficulty;
+            if (roundIndex < 3) {
+                difficulty = EASY_ROUNDS[roundIndex % EASY_ROUNDS.length];
+            } else if (roundIndex < 6) {
+                difficulty = MEDIUM_ROUNDS[(roundIndex - 3) % MEDIUM_ROUNDS.length];
+            } else {
+                difficulty = HARD_ROUNDS[(roundIndex - 6) % HARD_ROUNDS.length];
+            }
+
+            var items = difficulty.items.slice();
+            var oddIndex = difficulty.oddIndex;
+            var shuffled = shuffleArray(items, oddIndex);
+
+            return shuffled;
+        }
+
+        function shuffleArray(arr, oddIndex) {
+            var items = arr.slice();
+            var oddItem = items[oddIndex];
+            var newIndex = Math.floor(Math.random() * items.length);
+
+            var result = [];
+            for (var i = 0; i < items.length; i++) {
+                if (i === oddIndex) {
+                    result[newIndex] = oddItem;
+                } else if (i !== newIndex) {
+                    result[i] = items[i];
+                } else {
+                    result[i] = items[(i + 1) % items.length];
+                }
+            }
+
+            return { items: items.slice(), oddIndex: newIndex, displayItems: result };
+        }
+
+        function startGame() {
+            gameState.currentRound = 0;
+            gameState.correctCount = 0;
+            gameState.roundTimes = [];
+            gameState.roundData = [];
+
+            for (var i = 0; i < 10; i++) {
+                gameState.roundData.push(getRoundData(i));
+            }
+
+            document.getElementById('intro-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('results-screen').classList.add('hidden');
+
+            loadRound();
+        }
+
+        function loadRound() {
+            gameState.roundAnswered = false;
+            gameState.currentRoundStartTime = Date.now();
+            var roundData = gameState.roundData[gameState.currentRound];
+
+            document.getElementById('round-number').textContent = gameState.currentRound + 1;
+            renderGrid(roundData.displayItems, roundData.oddIndex);
+
+            startRoundTimer();
+        }
+
+        function renderGrid(items, oddIndex) {
+            var gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+
+            for (var i = 0; i < items.length; i++) {
+                var itemEl = document.createElement('button');
+                itemEl.className = 'item';
+                itemEl.textContent = items[i];
+                itemEl.setAttribute('data-index', i);
+                itemEl.onclick = function() {
+                    handleItemClick(parseInt(this.getAttribute('data-index')));
+                };
+                gridEl.appendChild(itemEl);
+            }
+        }
+
+        function handleItemClick(index) {
+            if (gameState.roundAnswered) return;
+
+            gameState.roundAnswered = true;
+            var roundData = gameState.roundData[gameState.currentRound];
+            var isCorrect = index === roundData.oddIndex;
+            var roundTime = (Date.now() - gameState.currentRoundStartTime) / 1000;
+            gameState.roundTimes.push(roundTime);
+
+            if (isCorrect) {
+                gameState.correctCount += 1;
+                document.querySelector('[data-index="' + index + '"]').classList.add('correct');
+            } else {
+                document.querySelector('[data-index="' + index + '"]').classList.add('incorrect');
+            }
+
+            setTimeout(function() {
+                gameState.currentRound += 1;
+                if (gameState.currentRound < 10) {
+                    loadRound();
+                } else {
+                    finishGame();
+                }
+            }, 1500);
+        }
+
+        function skipRound() {
+            if (gameState.roundAnswered) return;
+
+            gameState.roundAnswered = true;
+            var roundTime = (Date.now() - gameState.currentRoundStartTime) / 1000;
+            gameState.roundTimes.push(roundTime);
+
+            setTimeout(function() {
+                gameState.currentRound += 1;
+                if (gameState.currentRound < 10) {
+                    loadRound();
+                } else {
+                    finishGame();
+                }
+            }, 800);
+        }
+
+        function startRoundTimer() {
+            var timerEl = document.getElementById('round-timer');
+            timerEl.textContent = '0';
+
+            var timerInterval = setInterval(function() {
+                if (gameState.roundAnswered) {
+                    clearInterval(timerInterval);
+                    return;
+                }
+                var elapsed = Math.floor((Date.now() - gameState.currentRoundStartTime) / 1000);
+                timerEl.textContent = elapsed;
+            }, 100);
+        }
+
+        function finishGame() {
+            var avgTime = gameState.roundTimes.reduce(function(a, b) { return a + b; }, 0) / gameState.roundTimes.length;
+            var score = gameState.correctCount;
+            var emoji, title, message, scoreClass;
+
+            if (score <= 4) {
+                emoji = '🌱';
+                title = 'Visual processing needs rest';
+                message = 'Your brain might need a break. That\'s okay! Try again later.';
+                scoreClass = 'score-red';
+            } else if (score <= 7) {
+                emoji = '🌿';
+                title = 'Pattern recognition is online';
+                message = 'Good work! Your visual processing is steady.';
+                scoreClass = 'score-yellow';
+            } else {
+                emoji = '🦅';
+                title = 'Eagle eyes today!';
+                message = 'Excellent! Your pattern recognition is sharp!';
+                scoreClass = 'score-green';
+            }
+
+            document.getElementById('results-emoji').textContent = emoji;
+            document.getElementById('results-title').textContent = title;
+            document.getElementById('results-message').textContent = message;
+            document.getElementById('results-score').textContent = score + '/10';
+            document.getElementById('results-score').className = 'stat-value ' + scoreClass;
+            document.getElementById('results-time').textContent = avgTime.toFixed(1) + 's';
+
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('results-screen').classList.remove('hidden');
+
+            saveResults(score, avgTime);
+        }
+
+        function saveResults(score, avgTime) {
+            if (typeof AA.db === 'undefined' || typeof AA.auth === 'undefined') {
+                console.log('Firebase not loaded; skipping save');
+                return;
+            }
+
+            var uid = AA_uid();
+            if (!uid) return;
+
+            var history = [];
+            try {
+                var stored = localStorage.getItem('AA_PatternSpotter_History');
+                if (stored) {
+                    history = JSON.parse(stored);
+                }
+            } catch (e) {}
+
+            var today = new Date().toISOString().split('T')[0];
+            history.push({
+                date: today,
+                score: score,
+                avgTime: avgTime
+            });
+
+            var sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            var cutoff = sevenDaysAgo.toISOString().split('T')[0];
+
+            history = history.filter(function(entry) {
+                return entry.date >= cutoff;
+            });
+
+            try {
+                localStorage.setItem('AA_PatternSpotter_History', JSON.stringify(history));
+            } catch (e) {}
+
+            var docPath = 'users/' + uid;
+            var updateData = {
+                patternSpotter: {
+                    history: history,
+                    lastScore: score,
+                    lastPlayed: new Date().toISOString()
+                }
+            };
+
+            AA.db.doc(docPath).set(updateData, { merge: true }).catch(function(err) {
+                console.log('Error saving pattern spotter results:', err);
+            });
+        }
+
+        function playAgain() {
+            startGame();
+        }
+
+        function goHome() {
+            window.location.href = '/Academic-Allies/modular/components/comfort-games/game-center.html';
+        }
+
+        function AA_uid() {
+            if (typeof window.AA_MIRROR_UID !== 'undefined' && window.AA_MIRROR_UID) {
+                return window.AA_MIRROR_UID;
+            }
+            if (typeof window.AA !== 'undefined' && typeof window.AA.auth !== 'undefined') {
+                var user = window.AA.auth.currentUser;
+                if (user) return user.uid;
+            }
+            return null;
+        }
+
+        // Load shared header
+        fetch('/Academic-Allies/modular/shared-header.html?v=20260401')
+            .then(function(response) { return response.text(); })
+            .then(function(html) {
+                document.getElementById('shared-header-root').innerHTML = html;
+            })
+            .catch(function(err) {
+                console.log('Error loading shared header:', err);
+            });
+    </script>
+</body>
+</html>

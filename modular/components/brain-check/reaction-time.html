@@ -1,0 +1,774 @@
+<!-- Claude: 2026-04-01 — Reaction Time brain check game.
+     Tests processing speed via tap-on-green reflex test.
+     Disabled by default; network lead enables per student via student-config. -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reaction Time — Academic Allies Brain Check</title>
+    <link rel="icon" type="image/png" href="../../icons/mode-recovery.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            color-scheme: light;
+        }
+
+        html.aa-dark {
+            color-scheme: dark;
+        }
+
+        body {
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            background: linear-gradient(180deg, #e8f5e9 0%, #f1f8e9 40%, #fafaf9 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 16px;
+            color: #1b5e20;
+        }
+
+        html.aa-dark body {
+            background: #121212;
+            color: #e0e0e0;
+        }
+
+        #shared-header-root {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        html.aa-dark .container {
+            background: #1e1e1e;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: #1b5e20;
+        }
+
+        html.aa-dark .header h1 {
+            color: #81c784;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #558b2f;
+            margin-bottom: 4px;
+        }
+
+        html.aa-dark .header p {
+            color: #a5d6a7;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #9ccc65;
+            margin-top: 8px;
+        }
+
+        html.aa-dark .subtitle {
+            color: #7cb342;
+        }
+
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .target {
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.05s ease, box-shadow 0.2s ease;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        @media (max-width: 500px) {
+            .target {
+                width: 240px;
+                height: 240px;
+                font-size: 20px;
+            }
+        }
+
+        .target.waiting {
+            background: linear-gradient(135deg, #ef5350 0%, #e53935 100%);
+        }
+
+        .target.ready {
+            background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+            animation: pulse-ready 0.3s ease-out;
+        }
+
+        @keyframes pulse-ready {
+            0% { transform: scale(0.95); }
+            100% { transform: scale(1); }
+        }
+
+        .target.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .target-text {
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        .round-info {
+            font-size: 14px;
+            text-align: center;
+            color: #558b2f;
+            min-height: 20px;
+        }
+
+        html.aa-dark .round-info {
+            color: #a5d6a7;
+        }
+
+        .feedback {
+            min-height: 30px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 8px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .feedback.show {
+            display: block;
+        }
+
+        .feedback.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        html.aa-dark .feedback.error {
+            background: #5d1f1a;
+            color: #ef9a9a;
+        }
+
+        .feedback.success {
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+
+        html.aa-dark .feedback.success {
+            background: #1b5e20;
+            color: #81c784;
+        }
+
+        .feedback.easter {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        html.aa-dark .feedback.easter {
+            background: #5d4037;
+            color: #ffb74d;
+        }
+
+        .results {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: #f1f8e9;
+            border-radius: 8px;
+            border-left: 4px solid #558b2f;
+        }
+
+        html.aa-dark .results {
+            background: #1b5e20;
+            border-left-color: #81c784;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .results h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #1b5e20;
+        }
+
+        html.aa-dark .results h2 {
+            color: #81c784;
+        }
+
+        .result-score {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 12px 0;
+            color: #558b2f;
+        }
+
+        html.aa-dark .result-score {
+            color: #a5d6a7;
+        }
+
+        .result-score.lightning {
+            color: #fbc02d;
+        }
+
+        html.aa-dark .result-score.lightning {
+            color: #ffb74d;
+        }
+
+        .result-score.good {
+            color: #66bb6a;
+        }
+
+        html.aa-dark .result-score.good {
+            color: #a5d6a7;
+        }
+
+        .result-score.sluggish {
+            color: #ef5350;
+        }
+
+        html.aa-dark .result-score.sluggish {
+            color: #ef9a9a;
+        }
+
+        .result-message {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: #558b2f;
+        }
+
+        html.aa-dark .result-message {
+            color: #a5d6a7;
+        }
+
+        .result-message.robot {
+            font-size: 18px;
+            font-weight: bold;
+            color: #9c27b0;
+            animation: robot-blink 0.5s ease-in-out;
+        }
+
+        html.aa-dark .result-message.robot {
+            color: #ce93d8;
+        }
+
+        @keyframes robot-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .history-list {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(27, 94, 32, 0.2);
+            font-size: 13px;
+            text-align: left;
+        }
+
+        html.aa-dark .history-list {
+            border-top-color: rgba(129, 199, 132, 0.2);
+        }
+
+        .history-item {
+            padding: 4px 0;
+            color: #558b2f;
+        }
+
+        html.aa-dark .history-item {
+            color: #a5d6a7;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(67, 160, 71, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 160, 71, 0.4);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #424242;
+        }
+
+        html.aa-dark .btn-secondary {
+            background: #424242;
+            color: #e0e0e0;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #d0d0d0;
+        }
+
+        html.aa-dark .btn-secondary:hover:not(:disabled) {
+            background: #525252;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 16px;
+            background: #e8f5e9;
+            color: #1b5e20;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        html.aa-dark .back-link {
+            background: #1b5e20;
+            color: #81c784;
+        }
+
+        .back-link:hover {
+            background: #c8e6c9;
+        }
+
+        html.aa-dark .back-link:hover {
+            background: #2e7d32;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #558b2f;
+        }
+
+        html.aa-dark .loading {
+            color: #a5d6a7;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(85, 139, 47, 0.2);
+            border-top-color: #558b2f;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        html.aa-dark .loading-spinner {
+            border-color: rgba(165, 214, 167, 0.2);
+            border-top-color: #a5d6a7;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="shared-header-root"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Reaction Time</h1>
+            <p>How fast can you catch the firefly?</p>
+            <p class="subtitle">Tests your processing speed and alertness.</p>
+        </div>
+
+        <div class="game-area">
+            <div class="round-info" id="roundInfo"></div>
+            <div class="target waiting" id="target">
+                <div class="target-text" id="targetText">Wait...</div>
+            </div>
+            <div class="feedback" id="feedback"></div>
+        </div>
+
+        <div class="results" id="results">
+            <h2>Game Over!</h2>
+            <div class="result-score" id="resultScore">0 ms</div>
+            <div class="result-message" id="resultMessage"></div>
+            <div class="history-list" id="historyList"></div>
+            <div class="controls" style="margin-top: 20px;">
+                <button class="btn-primary" id="playAgainBtn">Play Again</button>
+                <button class="btn-secondary" id="backBtn">Back to Game Center</button>
+            </div>
+        </div>
+
+        <div id="loadingArea"></div>
+    </div>
+
+    <script>
+        // Early dark mode detection
+        try {
+            if (localStorage.getItem("AA_DARK_MODE") === "true") {
+                document.documentElement.classList.add("aa-dark");
+                document.write('<style id="aa-dark-early">html.aa-dark{color-scheme:dark}html.aa-dark body{background:#121212!important;color:#e0e0e0!important}</style>');
+            }
+        } catch (e) {}
+
+        // Global state
+        var gameState = {
+            currentRound: 0,
+            totalRounds: 5,
+            reactionTimes: [],
+            isWaiting: false,
+            isReady: false,
+            startTime: null,
+            uid: null,
+            isMirror: false,
+            isSaving: false
+        };
+
+        // Initialize
+        function initGame() {
+            loadSharedHeader();
+            checkAuth();
+        }
+
+        function loadSharedHeader() {
+            var headerRoot = document.getElementById('shared-header-root');
+            var cacheVersion = '20260401';
+            var url = '/Academic-Allies/modular/shared-header.html?v=' + cacheVersion;
+
+            fetch(url)
+                .then(function(response) {
+                    if (!response.ok) throw new Error('Failed to load header');
+                    return response.text();
+                })
+                .then(function(html) {
+                    headerRoot.innerHTML = html;
+                    executeHeaderScripts();
+                })
+                .catch(function(err) {
+                    console.error('Header load error:', err);
+                    headerRoot.innerHTML = '<div style="padding:20px;color:#c62828;text-align:center;">Unable to load navigation. Please refresh.</div>';
+                });
+        }
+
+        function executeHeaderScripts() {
+            var scripts = document.getElementById('shared-header-root').querySelectorAll('script');
+            scripts.forEach(function(script) {
+                var newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                document.body.appendChild(newScript);
+            });
+        }
+
+        function checkAuth() {
+            if (typeof AA === 'undefined' || !AA.auth) {
+                setTimeout(checkAuth, 100);
+                return;
+            }
+
+            AA.auth.onAuthStateChanged(function(user) {
+                if (user) {
+                    gameState.uid = user.uid;
+                    gameState.isMirror = typeof window.AA_MIRROR_UID !== 'undefined' && window.AA_MIRROR_UID;
+                    loadGameData();
+                    startGame();
+                } else {
+                    window.location.href = '/Academic-Allies/';
+                }
+            });
+        }
+
+        function loadGameData() {
+            if (!gameState.uid || !AA.db) return;
+
+            var userRef = AA.db.collection('users').doc(gameState.uid);
+            userRef.get().then(function(doc) {
+                if (doc.exists && doc.data().reactionTime) {
+                    var reactionData = doc.data().reactionTime;
+                    if (reactionData.history && Array.isArray(reactionData.history)) {
+                        gameState.reactionTimes = reactionData.history.slice();
+                    }
+                }
+            }).catch(function(err) {
+                console.error('Error loading reaction time data:', err);
+            });
+        }
+
+        function startGame() {
+            gameState.currentRound = 0;
+            gameState.reactionTimes = [];
+            updateUI();
+            nextRound();
+        }
+
+        function nextRound() {
+            gameState.currentRound += 1;
+
+            if (gameState.currentRound > gameState.totalRounds) {
+                showResults();
+                return;
+            }
+
+            resetTarget();
+            updateUI();
+
+            var delay = Math.random() * 4000 + 2000;
+            setTimeout(function() {
+                activateTarget();
+            }, delay);
+        }
+
+        function resetTarget() {
+            var target = document.getElementById('target');
+            var targetText = document.getElementById('targetText');
+
+            target.className = 'target waiting';
+            targetText.textContent = 'Wait...';
+
+            gameState.isWaiting = true;
+            gameState.isReady = false;
+            gameState.startTime = null;
+
+            var feedback = document.getElementById('feedback');
+            feedback.className = 'feedback';
+            feedback.textContent = '';
+        }
+
+        function activateTarget() {
+            if (gameState.currentRound > gameState.totalRounds) return;
+
+            var target = document.getElementById('target');
+            var targetText = document.getElementById('targetText');
+
+            target.className = 'target ready';
+            targetText.textContent = 'TAP NOW!';
+
+            gameState.isWaiting = false;
+            gameState.isReady = true;
+            gameState.startTime = Date.now();
+        }
+
+        function handleTargetTap() {
+            if (gameState.isWaiting) {
+                showFeedback('Too early! Try again.', 'error');
+                setTimeout(nextRound, 1500);
+                return;
+            }
+
+            if (!gameState.isReady) {
+                return;
+            }
+
+            var reactionTime = Date.now() - gameState.startTime;
+            gameState.reactionTimes.push(reactionTime);
+
+            var target = document.getElementById('target');
+            target.className = 'target disabled';
+
+            if (reactionTime < 200) {
+                showFeedback('Are you a robot?! ' + reactionTime + ' ms', 'easter');
+            } else {
+                showFeedback('Great! ' + reactionTime + ' ms', 'success');
+            }
+
+            gameState.isReady = false;
+            setTimeout(nextRound, 1500);
+        }
+
+        function showFeedback(message, className) {
+            var feedback = document.getElementById('feedback');
+            feedback.textContent = message;
+            feedback.className = 'feedback show ' + className;
+        }
+
+        function updateUI() {
+            var roundInfo = document.getElementById('roundInfo');
+            roundInfo.textContent = 'Round ' + gameState.currentRound + ' of ' + gameState.totalRounds;
+        }
+
+        function showResults() {
+            if (gameState.reactionTimes.length === 0) {
+                showFeedback('No data recorded. Please try again.', 'error');
+                return;
+            }
+
+            var avg = Math.round(gameState.reactionTimes.reduce(function(a, b) { return a + b; }) / gameState.reactionTimes.length);
+
+            var resultScore = document.getElementById('resultScore');
+            var resultMessage = document.getElementById('resultMessage');
+            var results = document.getElementById('results');
+            var gameAreaRound = document.getElementById('roundInfo');
+
+            resultScore.textContent = avg + ' ms';
+            gameAreaRound.style.display = 'none';
+
+            resultScore.className = 'result-score';
+            var message = '';
+            var messageMood = '';
+
+            if (avg < 200) {
+                resultScore.className = 'result-score lightning';
+                message = 'Are you a robot?! Seriously, that\'s lightning-fast!';
+                messageMood = 'robot';
+            } else if (avg < 300) {
+                resultScore.className = 'result-score lightning';
+                message = 'Lightning reflexes! You\'re firing on all cylinders.';
+                messageMood = 'lightning';
+            } else if (avg < 500) {
+                resultScore.className = 'result-score good';
+                message = 'Reflexes are working well. Your firefly is caught!';
+                messageMood = 'good';
+            } else {
+                resultScore.className = 'result-score sluggish';
+                message = 'Processing is sluggish today. That\'s OK — brain fog is real. Rest well.';
+                messageMood = 'sluggish';
+            }
+
+            resultMessage.className = 'result-message';
+            if (messageMood === 'robot') {
+                resultMessage.className = 'result-message robot';
+            }
+            resultMessage.textContent = message;
+
+            var historyList = document.getElementById('historyList');
+            historyList.innerHTML = '<strong>Today\'s rounds:</strong><br>';
+            gameState.reactionTimes.forEach(function(time, idx) {
+                var item = document.createElement('div');
+                item.className = 'history-item';
+                item.textContent = 'Round ' + (idx + 1) + ': ' + time + ' ms';
+                historyList.appendChild(item);
+            });
+
+            results.className = 'results show';
+
+            saveToFirebase(avg);
+        }
+
+        function saveToFirebase(avgMs) {
+            if (gameState.isMirror || !gameState.uid || !AA.db || gameState.isSaving) {
+                return;
+            }
+
+            gameState.isSaving = true;
+
+            var now = new Date();
+            var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+            var userRef = AA.db.collection('users').doc(gameState.uid);
+
+            userRef.get().then(function(doc) {
+                var existingHistory = [];
+                if (doc.exists && doc.data().reactionTime && doc.data().reactionTime.history) {
+                    existingHistory = doc.data().reactionTime.history.filter(function(entry) {
+                        var entryDate = new Date(entry.date);
+                        return entryDate > sevenDaysAgo;
+                    });
+                }
+
+                var newEntry = {
+                    score: avgMs,
+                    date: now.toISOString(),
+                    rounds: gameState.reactionTimes
+                };
+
+                var newHistory = existingHistory.concat([newEntry]);
+
+                return userRef.set({
+                    reactionTime: {
+                        history: newHistory,
+                        lastScore: avgMs,
+                        lastPlayed: now.toISOString()
+                    }
+                }, { merge: true });
+            }).then(function() {
+                console.log('Reaction time saved: ' + avgMs + ' ms');
+                gameState.isSaving = false;
+            }).catch(function(err) {
+                console.error('Error saving reaction time:', err);
+                gameState.isSaving = false;
+            });
+        }
+
+        function playAgain() {
+            document.getElementById('results').className = 'results';
+            document.getElementById('roundInfo').style.display = 'block';
+            startGame();
+        }
+
+        function goBack() {
+            window.location.href = '/Academic-Allies/modular/components/comfort-games/game-center.html';
+        }
+
+        // Event listeners
+        document.getElementById('target').addEventListener('click', handleTargetTap);
+        document.getElementById('target').addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            handleTargetTap();
+        });
+
+        document.getElementById('playAgainBtn').addEventListener('click', playAgain);
+        document.getElementById('backBtn').addEventListener('click', goBack);
+
+        // Start on load
+        window.addEventListener('load', initGame);
+    </script>
+</body>
+</html>
