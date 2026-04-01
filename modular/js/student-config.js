@@ -42,6 +42,8 @@
           { id: 'bedroom',    label: 'Bedroom Planner',      enabled: true },
           /* Claude: 2026-03-30 — Brain Bloom disabled by default; network lead enables per student */
           { id: 'brain-bloom', label: 'Brain Bloom',          enabled: false },
+          /* Claude: 2026-03-30 — Emoticon Defense comfort game (external link) */
+          { id: 'emoticon-defense', label: 'Emoticon Defense', enabled: true },
           { id: 'journal',    label: 'A Gentle Moment',      enabled: true }
         ],
         'bad-brain': [
