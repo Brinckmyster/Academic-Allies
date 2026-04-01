@@ -264,7 +264,7 @@
       var running = false;
       var gameOver = false;
       var tickInterval = null;
-      var TICK_MS = 130; /* ms between moves — comfortable speed */
+      var TICK_MS = 200; /* Claude: 2026-04-01 — slowed from 130 to 200ms start, gentler ramp */
 
       function initGame() {
         snake = [
@@ -324,8 +324,9 @@
           if (score > best) best = score;
           placeFood();
           /* Speed up slightly every 50 points */
-          if (score % 50 === 0 && TICK_MS > 70) {
-            TICK_MS -= 10;
+          /* Claude: 2026-04-01 — gentler speed ramp: -8ms every 50pts, floor 90ms */
+          if (score % 50 === 0 && TICK_MS > 90) {
+            TICK_MS -= 8;
             clearInterval(tickInterval);
             tickInterval = setInterval(tick, TICK_MS);
           }
@@ -530,7 +531,7 @@
           draw();
         } else {
           if (gameOver) {
-            TICK_MS = 130;
+            TICK_MS = 200;
             initGame();
           }
           running = true;
