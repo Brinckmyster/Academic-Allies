@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emoticon Defense — Academic Allies</title>
+  <!-- Claude: 2026-03-31 — Emoticon Defense comfort game embed page.
+       Uses Ruffle (open-source Flash emulator) to run the original .swf.
+       SWF source: Newgrounds portal/view/512265 by fortunacus (Bless Flasher).
+       Author comment: "for any webmaster, feel free to host the game on your website,
+       I just removed the site locked, thanks" — explicit hosting permission granted.
+       Game loaded from Newgrounds CDN (uploads.ungrounded.net). -->
+
+  <style>
+    /* Claude: 2026-03-31 — comfort game page styling */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Header bar ─────────────────────────────────────────────── */
+    .ed-header {
+      width: 100%;
+      max-width: 900px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ed-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #90caf9;
+      text-decoration: none;
+      font-size: 14pt;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: rgba(144, 202, 249, 0.1);
+      transition: background 0.2s;
+    }
+    .ed-back:hover, .ed-back:focus {
+      background: rgba(144, 202, 249, 0.2);
+      outline: 2px solid #90caf9;
+    }
+
+    .ed-title {
+      flex: 1;
+      text-align: center;
+    }
+    .ed-title h1 {
+      font-size: 18pt;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+    .ed-title p {
+      font-size: 11pt;
+      color: #888;
+    }
+
+    /* ── Game container ─────────────────────────────────────────── */
+    .ed-game-wrap {
+      width: 100%;
+      max-width: 800px;
+      padding: 0 16px;
+      margin-bottom: 16px;
+    }
+
+    #game-container {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      border: 2px solid #333;
+    }
+
+    /* Ruffle player fills the container */
+    #game-container ruffle-embed,
+    #game-container ruffle-player,
+    #game-container ruffle-object,
+    #game-container object,
+    #game-container embed {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* ── Loading / error states ─────────────────────────────────── */
+    .ed-loading {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: #000;
+      z-index: 10;
+    }
+
+    .ed-loading .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #333;
+      border-top-color: #90caf9;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .ed-loading p {
+      font-size: 13pt;
+      color: #aaa;
+    }
+
+    .ed-error {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: #000;
+      z-index: 11;
+      padding: 24px;
+      text-align: center;
+    }
+    .ed-error.visible { display: flex; }
+    .ed-error .icon { font-size: 40pt; }
+    .ed-error h2 { color: #ff8a80; font-size: 16pt; }
+    .ed-error p { color: #aaa; font-size: 12pt; max-width: 500px; line-height: 1.5; }
+    .ed-error a {
+      color: #90caf9;
+      text-decoration: underline;
+      font-size: 12pt;
+    }
+
+    /* ── Tips section ───────────────────────────────────────────── */
+    .ed-tips {
+      width: 100%;
+      max-width: 800px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }
+
+    .ed-tips h2 {
+      font-size: 14pt;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .ed-tips ul {
+      list-style: none;
+      padding: 0;
+    }
+    .ed-tips li {
+      font-size: 12pt;
+      color: #bbb;
+      padding: 4px 0;
+      line-height: 1.5;
+    }
+    .ed-tips li::before {
+      content: '\1F6E1\FE0F ';
+    }
+
+    /* ── Credits ────────────────────────────────────────────────── */
+    .ed-credits {
+      width: 100%;
+      max-width: 800px;
+      padding: 12px 20px;
+      margin-bottom: 32px;
+      font-size: 10pt;
+      color: #666;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .ed-credits a { color: #777; }
+
+    /* ── Mobile responsive ──────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .ed-header { padding: 12px; }
+      .ed-title h1 { font-size: 15pt; }
+      .ed-back { font-size: 12pt; padding: 6px 10px; }
+      .ed-tips { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <div class="ed-header">
+    <a href="/Academic-Allies/modular/components/recovery-mode.html" class="ed-back" aria-label="Back to Recovery Mode">
+      &#8592; Recovery
+    </a>
+    <div class="ed-title">
+      <h1>&#x1F6E1;&#xFE0F; Emoticon Defense</h1>
+      <p>Classic tower defense with surprise emoticon towers</p>
+    </div>
+  </div>
+
+  <!-- ── Game ───────────────────────────────────────────────────── -->
+  <div class="ed-game-wrap">
+    <div id="game-container">
+      <div class="ed-loading" id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading Ruffle + Emoticon Defense...</p>
+        <p style="font-size:10pt;color:#666;">This may take a moment on first load</p>
+      </div>
+      <div class="ed-error" id="error-overlay">
+        <div class="icon">&#x1F61E;</div>
+        <h2>Could not load the game</h2>
+        <p id="error-message">Something went wrong loading the Flash emulator or game file.</p>
+        <a href="https://www.newgrounds.com/portal/view/512265" target="_blank" rel="noopener">
+          Play on Newgrounds instead &#x2197;
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tips ───────────────────────────────────────────────────── -->
+  <div class="ed-tips">
+    <h2>Game Tips</h2>
+    <ul>
+      <li>Dress up your emoticon towers with costumes for surprise bonus effects</li>
+      <li>Try different combinations — santa, zorro, and more change the tower behavior</li>
+      <li>No pressure, no score tracking here — just a chill tower defense session</li>
+      <li>Works best on desktop; mobile may need landscape mode</li>
+    </ul>
+  </div>
+
+  <!-- ── Credits ────────────────────────────────────────────────── -->
+  <div class="ed-credits">
+    Original game by <strong>fortunacus</strong> (Bless Flasher / Fortunacus Lucas) &mdash;
+    <a href="https://www.newgrounds.com/portal/view/512265" target="_blank" rel="noopener">Newgrounds</a>
+    &bull; Published Sep 2009
+    <br>
+    Hosted with author permission. Powered by
+    <a href="https://ruffle.rs" target="_blank" rel="noopener">Ruffle</a> Flash emulator.
+  </div>
+
+  <!-- ── Ruffle CDN ─────────────────────────────────────────────── -->
+  <!-- Claude: 2026-03-31 — Ruffle is the open-source Flash emulator (Rust/WASM).
+       We load the Ruffle CDN bundle, then create a player instance manually
+       and point it at the SWF hosted on Newgrounds' CDN. -->
+  <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+
+  <script>
+    /* Claude: 2026-03-31 — Emoticon Defense Ruffle loader
+       Strategy: load Ruffle CDN → create player → load SWF from Newgrounds CDN.
+       If Ruffle or SWF fails, show error with fallback link to Newgrounds. */
+    (function () {
+      'use strict';
+
+      var SWF_URL = 'https://uploads.ungrounded.net/512000/512265_smile_defense.swf';
+      var RUFFLE_CDN = 'https://unpkg.com/@ruffle-rs/ruffle';
+      var container = document.getElementById('game-container');
+      var loadingEl = document.getElementById('loading-overlay');
+      var errorEl   = document.getElementById('error-overlay');
+      var errorMsg  = document.getElementById('error-message');
+
+      function showError(msg) {
+        loadingEl.style.display = 'none';
+        errorMsg.textContent = msg || 'Something went wrong.';
+        errorEl.classList.add('visible');
+      }
+
+      function tryRuffle() {
+        if (typeof window.RufflePlayer === 'undefined') {
+          showError('Ruffle Flash emulator did not load. Try refreshing the page.');
+          return;
+        }
+
+        try {
+          var ruffle = window.RufflePlayer.newest();
+          var player = ruffle.createPlayer();
+
+          /* Style the player to fill the container */
+          player.style.width = '100%';
+          player.style.height = '100%';
+
+          container.appendChild(player);
+
+          player.load({ url: SWF_URL }).then(function () {
+            loadingEl.style.display = 'none';
+          }).catch(function (err) {
+            showError('Game file failed to load: ' + (err.message || err));
+          });
+        } catch (err) {
+          showError('Ruffle initialization failed: ' + (err.message || err));
+        }
+      }
+
+      /* Wait for page + Ruffle to be ready, then launch */
+      function init() {
+        /* Give Ruffle CDN script time to register */
+        var attempts = 0;
+        var maxAttempts = 20; /* 10 seconds max */
+        var poll = setInterval(function () {
+          attempts++;
+          if (typeof window.RufflePlayer !== 'undefined') {
+            clearInterval(poll);
+            tryRuffle();
+          } else if (attempts >= maxAttempts) {
+            clearInterval(poll);
+            /* Last resort: try loading Ruffle again */
+            var script = document.createElement('script');
+            script.src = RUFFLE_CDN;
+            script.onerror = function () {
+              showError('Could not load the Ruffle Flash emulator. Check your internet connection.');
+            };
+            script.onload = function () {
+              setTimeout(tryRuffle, 1000);
+            };
+            document.head.appendChild(script);
+          }
+        }, 500);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+
+</body>
+</html>
