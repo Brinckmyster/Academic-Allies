@@ -1,0 +1,630 @@
+<!-- Claude: 2026-04-01 — Reading Check brain check game.
+     Tests reading comprehension with short passages + questions.
+     Disabled by default; network lead enables per student via student-config. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reading Check — Brain Check</title>
+    <link rel="icon" type="image/png" href="../../icons/mode-recovery.png">
+    <style>
+        /* Dark mode early detection */
+        html.aa-dark { color-scheme: dark; }
+        html.aa-dark body { background: #121212 !important; color: #e0e0e0 !important; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            color: #1b5e20;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        html.aa-dark body {
+            background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%) !important;
+            color: #a5d6a7 !important;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            flex: 1;
+            width: 100%;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #1b5e20;
+            text-decoration: none;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        html.aa-dark .back-link { color: #a5d6a7; }
+        .back-link:hover { opacity: 0.7; }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .header p {
+            font-size: 1em;
+            opacity: 0.85;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 4px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        html.aa-dark .progress-bar { background: rgba(255,255,255,0.15); }
+        .progress-fill {
+            height: 100%;
+            background: #2e7d32;
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+        html.aa-dark .progress-fill { background: #81c784; }
+
+        .round-label {
+            text-align: center;
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-bottom: 20px;
+        }
+
+        /* Passage card */
+        .passage-card {
+            background: rgba(255,255,255,0.85);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            line-height: 1.7;
+            font-size: 1.1em;
+        }
+        html.aa-dark .passage-card {
+            background: rgba(27, 94, 32, 0.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* Question */
+        .question-text {
+            font-size: 1.05em;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        /* Answer buttons */
+        .answers {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .answer-btn {
+            display: block;
+            width: 100%;
+            padding: 14px 20px;
+            border: 2px solid #1b5e20;
+            background: white;
+            color: #1b5e20;
+            border-radius: 12px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+            min-height: 48px;
+        }
+        html.aa-dark .answer-btn {
+            border-color: #a5d6a7;
+            background: #1b5e20;
+            color: #a5d6a7;
+        }
+        .answer-btn:hover:not(:disabled) {
+            background: #1b5e20;
+            color: white;
+        }
+        html.aa-dark .answer-btn:hover:not(:disabled) {
+            background: #2e7d32;
+        }
+        .answer-btn:disabled { cursor: not-allowed; opacity: 0.8; }
+        .answer-btn.correct {
+            background: #2e7d32 !important;
+            color: white !important;
+            border-color: #2e7d32 !important;
+        }
+        .answer-btn.wrong {
+            background: #c62828 !important;
+            color: white !important;
+            border-color: #c62828 !important;
+        }
+
+        /* Feedback line */
+        .feedback {
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1em;
+            min-height: 30px;
+            margin-bottom: 16px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .control-btn {
+            padding: 12px 24px;
+            border: 2px solid #1b5e20;
+            background: white;
+            color: #1b5e20;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
+        }
+        html.aa-dark .control-btn {
+            border-color: #a5d6a7;
+            background: #1b5e20;
+            color: #a5d6a7;
+        }
+        .control-btn:hover:not(:disabled) { background: #1b5e20; color: white; }
+        html.aa-dark .control-btn:hover:not(:disabled) { background: #2e7d32; }
+        .control-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .control-btn.primary {
+            background: #1b5e20;
+            color: white;
+            border-color: #1b5e20;
+        }
+        html.aa-dark .control-btn.primary {
+            background: #2e7d32;
+            border-color: #a5d6a7;
+            color: #a5d6a7;
+        }
+        .control-btn.primary:hover:not(:disabled) { background: #0d3817; }
+
+        /* Results */
+        .results-screen {
+            display: none;
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+        html.aa-dark .results-screen {
+            background: rgba(27, 94, 32, 0.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .results-screen.show { display: block; }
+        .results-score { font-size: 3em; font-weight: 700; margin-bottom: 10px; }
+        .results-message { font-size: 1.3em; font-weight: 600; margin-bottom: 15px; }
+        .results-feedback { font-size: 0.95em; opacity: 0.85; line-height: 1.5; }
+        .difficulty-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .difficulty-red { background: #ffebee; color: #c62828; }
+        html.aa-dark .difficulty-red { background: rgba(198, 40, 40, 0.3); color: #ff8787; }
+        .difficulty-yellow { background: #fff3e0; color: #e65100; }
+        html.aa-dark .difficulty-yellow { background: rgba(230, 81, 0, 0.3); color: #ffb74d; }
+        .difficulty-green { background: #e8f5e9; color: #1b5e20; }
+        html.aa-dark .difficulty-green { background: rgba(27, 94, 32, 0.3); color: #81c784; }
+
+        /* Start screen */
+        .start-screen {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .start-screen p {
+            font-size: 1em;
+            opacity: 0.85;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        /* Game area hidden until started */
+        .game-area { display: none; }
+        .game-area.active { display: block; }
+
+        @media (max-width: 480px) {
+            .header h1 { font-size: 1.6em; }
+            .passage-card { padding: 18px; font-size: 1em; }
+            .results-score { font-size: 2.5em; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Shared header -->
+    <div id="shared-header-root"></div>
+
+    <div class="container">
+        <a href="/Academic-Allies/modular/components/comfort-games/game-center.html" class="back-link">← Back to Game Center</a>
+
+        <div class="header">
+            <h1>📖 Reading Check</h1>
+            <p>Read a short passage, then answer the question. No rush — take your time.</p>
+        </div>
+
+        <!-- Start screen -->
+        <div class="start-screen" id="startScreen">
+            <p>This checks how well your brain is processing words today. There are 8 short passages, each with one question. Read carefully and pick the best answer.</p>
+            <button class="control-btn primary" id="startBtn">Start Reading Check</button>
+        </div>
+
+        <!-- Game area -->
+        <div class="game-area" id="gameArea">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="round-label" id="roundLabel">Passage 1 of 8</div>
+            <div class="passage-card" id="passageCard"></div>
+            <div class="question-text" id="questionText"></div>
+            <div class="answers" id="answersContainer"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="controls">
+                <button class="control-btn primary" id="nextBtn" style="display:none;">Next Passage</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results-screen" id="resultsScreen">
+            <div class="results-score" id="resultsScore">0/8</div>
+            <div class="results-message" id="resultsMessage"></div>
+            <div class="results-feedback" id="resultsFeedback"></div>
+            <div class="difficulty-badge" id="difficultyBadge"></div>
+            <div style="margin-top:20px;">
+                <button class="control-btn primary" id="playAgainBtn">Try Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* Dark mode early detection */
+        try {
+            if (localStorage.getItem('AA_DARK_MODE') === 'true') {
+                document.documentElement.classList.add('aa-dark');
+            }
+        } catch (e) {}
+
+        /* ── Passage bank ─────────────────────────────────────────── */
+        /* Claude: 2026-04-01 — Short, clear passages. Three difficulty tiers:
+           easy (explicit answer in text), medium (requires inference),
+           hard (requires synthesis of two facts). All wholesome content. */
+        var PASSAGES = [
+            /* ── Easy tier ── */
+            {
+                text: 'Maya put on her raincoat and grabbed her umbrella before leaving the house. The sky was dark gray and the wind was picking up.',
+                question: 'What was the weather like outside?',
+                answers: ['Sunny and warm', 'Rainy or about to rain', 'Snowy and cold', 'Clear and calm'],
+                correct: 1,
+                tier: 'easy'
+            },
+            {
+                text: 'The library closes at 5:00 PM on weekdays. Sam arrived at 4:45 PM and needed to return three books.',
+                question: 'How much time did Sam have before the library closed?',
+                answers: ['30 minutes', '15 minutes', '45 minutes', '1 hour'],
+                correct: 1,
+                tier: 'easy'
+            },
+            {
+                text: 'The cat sat by the window every morning, watching the birds at the feeder. When a squirrel climbed up, the cat chirped and tapped the glass.',
+                question: 'What did the cat do when it saw the squirrel?',
+                answers: ['Ran away', 'Fell asleep', 'Chirped and tapped the glass', 'Ignored it'],
+                correct: 2,
+                tier: 'easy'
+            },
+            /* ── Medium tier ── */
+            {
+                text: 'After three hours of studying, Jordan closed the textbook and stretched. The coffee mug was empty and the highlighter had run dry.',
+                question: 'What can you tell about Jordan\'s study session?',
+                answers: ['It was short and easy', 'Jordan gave up quickly', 'It was long and intensive', 'Jordan was reading for fun'],
+                correct: 2,
+                tier: 'medium'
+            },
+            {
+                text: 'Grandma always made extra cookies on Fridays. She said it was because the neighbors might stop by, but the grandchildren suspected she just liked having leftovers for the weekend.',
+                question: 'Why did the grandchildren think Grandma made extra cookies?',
+                answers: ['For the neighbors', 'To sell at a bake sale', 'Because she wanted leftovers for herself', 'She forgot how many she made'],
+                correct: 2,
+                tier: 'medium'
+            },
+            {
+                text: 'The garden had not been watered in over a week. The tomato plants drooped, and the soil cracked in the heat. Only the cactus in the corner looked happy.',
+                question: 'Why was the cactus doing well?',
+                answers: ['Someone watered it secretly', 'Cacti need very little water', 'It was in the shade', 'It was a fake plant'],
+                correct: 1,
+                tier: 'medium'
+            },
+            /* ── Hard tier ── */
+            {
+                text: 'Dr. Chen scheduled the appointment for Tuesday at 2:00 PM. The note on the fridge said the bus takes 40 minutes and runs every half hour, with the last bus leaving at 1:00 PM.',
+                question: 'If you take the last bus, will you arrive on time?',
+                answers: ['Yes, with 20 minutes to spare', 'No, you will be 40 minutes late', 'Yes, exactly on time', 'No, you will be 20 minutes late'],
+                correct: 0,
+                tier: 'hard'
+            },
+            {
+                text: 'Emma packed her bag with sunscreen, a towel, and a novel. She told her roommate she would be back before dinner, which they always eat at 6:00 PM. Her phone showed 11:30 AM.',
+                question: 'About how long did Emma plan to be out?',
+                answers: ['About 2 hours', 'About 6 hours', 'About 4 to 6 hours', 'All day and night'],
+                correct: 2,
+                tier: 'hard'
+            }
+        ];
+
+        /* ── Game state ───────────────────────────────────────────── */
+        var TOTAL_ROUNDS = 8;
+        var rcState = {
+            currentRound: 0,
+            score: 0,
+            shuffledPassages: [],
+            answered: false,
+            history: []
+        };
+
+        var rcEl = {
+            startScreen: document.getElementById('startScreen'),
+            startBtn: document.getElementById('startBtn'),
+            gameArea: document.getElementById('gameArea'),
+            progressFill: document.getElementById('progressFill'),
+            roundLabel: document.getElementById('roundLabel'),
+            passageCard: document.getElementById('passageCard'),
+            questionText: document.getElementById('questionText'),
+            answersContainer: document.getElementById('answersContainer'),
+            feedback: document.getElementById('feedback'),
+            nextBtn: document.getElementById('nextBtn'),
+            resultsScreen: document.getElementById('resultsScreen'),
+            resultsScore: document.getElementById('resultsScore'),
+            resultsMessage: document.getElementById('resultsMessage'),
+            resultsFeedback: document.getElementById('resultsFeedback'),
+            difficultyBadge: document.getElementById('difficultyBadge'),
+            playAgainBtn: document.getElementById('playAgainBtn')
+        };
+
+        /* ── Shuffle utility ──────────────────────────────────────── */
+        function _shuffle(arr) {
+            var copy = arr.slice();
+            for (var i = copy.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = copy[i];
+                copy[i] = copy[j];
+                copy[j] = temp;
+            }
+            return copy;
+        }
+
+        /* ── Start game ───────────────────────────────────────────── */
+        function _startGame() {
+            rcState.currentRound = 0;
+            rcState.score = 0;
+            rcState.answered = false;
+            rcState.shuffledPassages = _shuffle(PASSAGES).slice(0, TOTAL_ROUNDS);
+            rcEl.startScreen.style.display = 'none';
+            rcEl.resultsScreen.classList.remove('show');
+            rcEl.gameArea.classList.add('active');
+            _showPassage();
+        }
+
+        /* ── Show current passage ─────────────────────────────────── */
+        function _showPassage() {
+            var p = rcState.shuffledPassages[rcState.currentRound];
+            rcState.answered = false;
+
+            rcEl.progressFill.style.width = ((rcState.currentRound / TOTAL_ROUNDS) * 100) + '%';
+            rcEl.roundLabel.textContent = 'Passage ' + (rcState.currentRound + 1) + ' of ' + TOTAL_ROUNDS;
+            rcEl.passageCard.textContent = p.text;
+            rcEl.questionText.textContent = p.question;
+            rcEl.feedback.textContent = '';
+            rcEl.nextBtn.style.display = 'none';
+
+            /* Build answer buttons with shuffled order */
+            rcEl.answersContainer.innerHTML = '';
+            var indices = [];
+            for (var i = 0; i < p.answers.length; i++) { indices.push(i); }
+            var shuffledIndices = _shuffle(indices);
+
+            for (var j = 0; j < shuffledIndices.length; j++) {
+                var idx = shuffledIndices[j];
+                var btn = document.createElement('button');
+                btn.className = 'answer-btn';
+                btn.textContent = p.answers[idx];
+                btn.setAttribute('data-index', idx);
+                btn.addEventListener('click', _onAnswer);
+                rcEl.answersContainer.appendChild(btn);
+            }
+        }
+
+        /* ── Handle answer ────────────────────────────────────────── */
+        function _onAnswer(evt) {
+            if (rcState.answered) return;
+            rcState.answered = true;
+
+            var chosen = parseInt(evt.target.getAttribute('data-index'), 10);
+            var p = rcState.shuffledPassages[rcState.currentRound];
+            var isCorrect = chosen === p.correct;
+
+            if (isCorrect) {
+                rcState.score++;
+                evt.target.classList.add('correct');
+                rcEl.feedback.textContent = 'Correct!';
+                rcEl.feedback.style.color = '#2e7d32';
+            } else {
+                evt.target.classList.add('wrong');
+                rcEl.feedback.textContent = 'Not quite — the answer was: ' + p.answers[p.correct];
+                rcEl.feedback.style.color = '#c62828';
+                /* Highlight the correct one */
+                var allBtns = rcEl.answersContainer.querySelectorAll('.answer-btn');
+                for (var k = 0; k < allBtns.length; k++) {
+                    if (parseInt(allBtns[k].getAttribute('data-index'), 10) === p.correct) {
+                        allBtns[k].classList.add('correct');
+                    }
+                }
+            }
+
+            /* Disable all buttons */
+            var allButtons = rcEl.answersContainer.querySelectorAll('.answer-btn');
+            for (var b = 0; b < allButtons.length; b++) {
+                allButtons[b].disabled = true;
+            }
+
+            /* Show next or finish */
+            if (rcState.currentRound < TOTAL_ROUNDS - 1) {
+                rcEl.nextBtn.style.display = 'inline-block';
+            } else {
+                setTimeout(_showResults, 1200);
+            }
+        }
+
+        /* ── Next passage ─────────────────────────────────────────── */
+        function _nextPassage() {
+            rcState.currentRound++;
+            _showPassage();
+        }
+
+        /* ── Show results ─────────────────────────────────────────── */
+        function _showResults() {
+            rcEl.gameArea.classList.remove('active');
+            rcEl.progressFill.style.width = '100%';
+
+            var score = rcState.score;
+            var message = '';
+            var feedback = '';
+            var badgeClass = '';
+
+            if (score <= 3) {
+                message = 'Words are fuzzy today';
+                feedback = 'Your reading brain is taking it slow — that is okay. Rest and try again when you are ready.';
+                badgeClass = 'difficulty-red';
+            } else if (score <= 5) {
+                message = 'Comprehension is working';
+                feedback = 'You caught most of the details! Your reading circuits are doing their job.';
+                badgeClass = 'difficulty-yellow';
+            } else {
+                message = 'Sharp reader today!';
+                feedback = 'You are processing words clearly and catching the details. Nice work!';
+                badgeClass = 'difficulty-green';
+            }
+
+            rcEl.resultsScore.textContent = score + '/' + TOTAL_ROUNDS;
+            rcEl.resultsMessage.textContent = message;
+            rcEl.resultsFeedback.textContent = feedback;
+            rcEl.difficultyBadge.textContent = 'Reading Score: ' + score + '/' + TOTAL_ROUNDS;
+            rcEl.difficultyBadge.className = 'difficulty-badge ' + badgeClass;
+            rcEl.resultsScreen.classList.add('show');
+
+            _saveToFirestore(score);
+        }
+
+        /* ── Firestore persistence ────────────────────────────────── */
+        function _pad(num) { return num < 10 ? '0' + num : num.toString(); }
+
+        function _loadHistoryFromFirestore() {
+            if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
+            var uid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+            AA.db.collection('users').doc(uid).get().then(function(doc) {
+                if (doc.exists && doc.data().readingCheck && doc.data().readingCheck.history) {
+                    rcState.history = doc.data().readingCheck.history;
+                }
+            }).catch(function(err) {
+                console.warn('[ReadingCheck] load history:', err);
+            });
+        }
+
+        function _saveToFirestore(score) {
+            if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
+
+            var today = new Date();
+            var dateStr = today.getFullYear() + '-' + _pad(today.getMonth() + 1) + '-' + _pad(today.getDate());
+            var newEntry = { date: dateStr, score: score, total: TOTAL_ROUNDS, timestamp: new Date().toISOString() };
+
+            var sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            var filtered = rcState.history.filter(function(entry) {
+                return new Date(entry.date) >= sevenDaysAgo;
+            });
+
+            var existingIndex = -1;
+            for (var i = 0; i < filtered.length; i++) {
+                if (filtered[i].date === dateStr) { existingIndex = i; break; }
+            }
+
+            if (existingIndex !== -1) {
+                if (score > filtered[existingIndex].score) { filtered[existingIndex] = newEntry; }
+            } else {
+                filtered.push(newEntry);
+            }
+
+            rcState.history = filtered;
+
+            var uid = (window.AA_uid ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid);
+            AA.db.collection('users').doc(uid).set({
+                readingCheck: {
+                    history: filtered,
+                    lastScore: score,
+                    lastTotal: TOTAL_ROUNDS,
+                    lastPlayed: new Date().toISOString()
+                }
+            }, { merge: true }).catch(function(err) {
+                console.warn('[ReadingCheck] save:', err);
+            });
+        }
+
+        /* ── Event listeners ──────────────────────────────────────── */
+        rcEl.startBtn.addEventListener('click', _startGame);
+        rcEl.nextBtn.addEventListener('click', _nextPassage);
+        rcEl.playAgainBtn.addEventListener('click', _startGame);
+
+        /* ── Load shared header + init ────────────────────────────── */
+        function _init() {
+            if (window.AA && AA.auth) {
+                AA.auth.onAuthStateChanged(function(user) {
+                    if (user) { _loadHistoryFromFirestore(); }
+                });
+            }
+        }
+
+        if (document.getElementById('shared-header-root')) {
+            fetch('/Academic-Allies/modular/shared-header.html?v=20260401')
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    document.getElementById('shared-header-root').innerHTML = html;
+                    _init();
+                })
+                .catch(function(err) {
+                    console.warn('[ReadingCheck] header load:', err);
+                    _init();
+                });
+        } else {
+            _init();
+        }
+    </script>
+</body>
+</html>

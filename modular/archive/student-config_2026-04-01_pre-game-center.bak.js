@@ -40,19 +40,15 @@
           { id: 'scripture',  label: 'A Word of Comfort',    enabled: true },
           { id: 'youmatter',  label: 'You Matter',           enabled: true },
           { id: 'bedroom',    label: 'Bedroom Planner',      enabled: true },
-          /* Claude: 2026-04-01 — Game Center hub replaces individual game cards on recovery page */
-          { id: 'game-center', label: 'Game Center', enabled: true },
-          /* Claude: 2026-04-01 — Individual game visibility (used by Game Center page) */
+          /* Claude: 2026-03-30 — Brain Bloom disabled by default; network lead enables per student */
+          { id: 'brain-bloom', label: 'Brain Bloom',          enabled: false },
+          /* Claude: 2026-03-30 — Emoticon Defense comfort game (external link) */
           { id: 'emoticon-defense', label: 'Emoticon Defense', enabled: true },
+          /* Claude: 2026-04-01 — Secret Agent (SAM) DOS game via js-dos */
           { id: 'secret-agent', label: 'Secret Agent (SAM)', enabled: true },
+          /* Claude: 2026-04-01 — Brick Breaker + Snake vanilla JS comfort games */
           { id: 'brick-breaker', label: 'Brick Breaker', enabled: true },
           { id: 'snake', label: 'Snake', enabled: true },
-          /* Claude: 2026-04-01 — Brain check games: disabled by default, network lead enables per student */
-          { id: 'brain-bloom', label: 'Brain Bloom', enabled: false },
-          { id: 'simon-says', label: 'Simon Says', enabled: false },
-          { id: 'reaction-time', label: 'Reaction Time', enabled: false },
-          { id: 'pattern-spotter', label: 'Pattern Spotter', enabled: false },
-          { id: 'reading-check', label: 'Reading Check', enabled: false },
           { id: 'journal',    label: 'A Gentle Moment',      enabled: true }
         ],
         'bad-brain': [
