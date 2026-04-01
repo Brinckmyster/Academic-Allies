@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Brick Breaker — Academic Allies</title>
+  <!-- Claude: 2026-04-01 — Brick Breaker comfort game.
+       Pure vanilla JS, no dependencies. Touch-friendly for mobile.
+       Inspired by Breakout/Arkanoid — bounce ball, smash bricks, no pressure. -->
+
+  <style>
+    /* Claude: 2026-04-01 — Brick Breaker styling */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0c29;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .bb-header {
+      width: 100%;
+      max-width: 900px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .bb-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #f39c12;
+      text-decoration: none;
+      font-size: 13pt;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: rgba(243, 156, 18, 0.1);
+    }
+    .bb-back:hover { background: rgba(243, 156, 18, 0.2); }
+    .bb-title { flex: 1; text-align: center; }
+    .bb-title h1 { font-size: 17pt; color: #fff; }
+    .bb-title p { font-size: 10pt; color: #888; }
+
+    /* ── Game area ──────────────────────────────────────────────── */
+    .bb-game-wrap {
+      width: 100%;
+      max-width: 520px;
+      padding: 0 8px;
+      margin-bottom: 8px;
+    }
+    canvas {
+      width: 100%;
+      display: block;
+      border-radius: 10px;
+      border: 2px solid #333;
+      background: #111;
+      touch-action: none;
+    }
+
+    /* ── Score bar ──────────────────────────────────────────────── */
+    .bb-score {
+      width: 100%;
+      max-width: 520px;
+      padding: 0 8px;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 13pt;
+      color: #aaa;
+    }
+    .bb-score span { color: #f39c12; font-weight: 600; }
+
+    /* ── Buttons ────────────────────────────────────────────────── */
+    .bb-controls {
+      width: 100%;
+      max-width: 520px;
+      padding: 0 8px;
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .bb-btn {
+      flex: 1;
+      padding: 12px;
+      font-size: 14pt;
+      font-weight: 600;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      min-height: 50px;
+    }
+    .bb-start { background: #27ae60; }
+    .bb-start:hover { background: #2ecc71; }
+    .bb-fs { background: #8e44ad; }
+    .bb-fs:hover { background: #9b59b6; }
+
+    /* ── Fullscreen ─────────────────────────────────────────────── */
+    canvas:fullscreen, canvas:-webkit-full-screen {
+      width: 100vw !important;
+      height: 100vh !important;
+      border-radius: 0;
+      border: none;
+    }
+
+    /* ── Landscape prompt ───────────────────────────────────────── */
+    .bb-landscape {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      text-align: center;
+      padding: 24px;
+    }
+    .bb-landscape .icon { font-size: 50pt; animation: wiggle 2s ease-in-out infinite; }
+    @keyframes wiggle {
+      0%,100% { transform: rotate(0deg); }
+      25% { transform: rotate(-15deg); }
+      75% { transform: rotate(15deg); }
+    }
+    .bb-landscape h2 { font-size: 16pt; color: #fff; }
+    .bb-landscape p { font-size: 12pt; color: #aaa; }
+    .bb-landscape button {
+      padding: 12px 24px; font-size: 14pt; color: #f39c12;
+      background: rgba(243,156,18,0.15); border: 2px solid #f39c12;
+      border-radius: 10px; cursor: pointer; min-height: 50px;
+    }
+    @media (max-width: 768px) and (orientation: portrait) {
+      .bb-landscape { display: flex; }
+    }
+    .bb-landscape.dismissed { display: none !important; }
+
+    /* ── Tips ────────────────────────────────────────────────────── */
+    .bb-tips {
+      width: 100%;
+      max-width: 520px;
+      padding: 12px 16px;
+    }
+    .bb-tips h2 { font-size: 13pt; color: #fff; margin-bottom: 6px; }
+    .bb-tips ul { list-style: none; padding: 0; }
+    .bb-tips li { font-size: 11pt; color: #bbb; padding: 3px 0; }
+    .bb-tips li::before { content: '\1F9F1 '; }
+
+    /* ── Credits ─────────────────────────────────────────────────── */
+    .bb-credits {
+      width: 100%;
+      max-width: 520px;
+      padding: 8px 16px 24px;
+      font-size: 9pt;
+      color: #555;
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      .bb-header { padding: 8px; }
+      .bb-title h1 { font-size: 14pt; }
+      .bb-back { font-size: 11pt; padding: 6px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Landscape prompt -->
+  <div class="bb-landscape" id="landscape-prompt">
+    <div class="icon">&#x1F4F1;</div>
+    <h2>Rotate for Best Play</h2>
+    <p>Wider screen = easier paddle control!</p>
+    <button id="dismiss-landscape" type="button">Play anyway &#x2192;</button>
+  </div>
+
+  <!-- Header -->
+  <div class="bb-header">
+    <a href="/Academic-Allies/modular/components/recovery-mode.html" class="bb-back">&#8592; Recovery</a>
+    <div class="bb-title">
+      <h1>&#x1F9F1; Brick Breaker</h1>
+      <p>Smash bricks, no pressure</p>
+    </div>
+  </div>
+
+  <!-- Score -->
+  <div class="bb-score">
+    <div>Score: <span id="score">0</span></div>
+    <div>Lives: <span id="lives">3</span></div>
+    <div>Level: <span id="level">1</span></div>
+  </div>
+
+  <!-- Game canvas -->
+  <div class="bb-game-wrap">
+    <canvas id="game" width="500" height="600"></canvas>
+  </div>
+
+  <!-- Controls -->
+  <div class="bb-controls">
+    <button class="bb-btn bb-start" id="start-btn" type="button">&#x25B6; Start</button>
+    <button class="bb-btn bb-fs" id="fs-btn" type="button">&#x26F6; Fullscreen</button>
+  </div>
+
+  <!-- Tips -->
+  <div class="bb-tips">
+    <h2>How to Play</h2>
+    <ul>
+      <li>Mouse or touch to move the paddle</li>
+      <li>Bounce the ball to break all the bricks</li>
+      <li>Don't let the ball fall below the paddle!</li>
+      <li>Clear all bricks to advance to the next level</li>
+    </ul>
+  </div>
+
+  <div class="bb-credits">
+    Built for Academic Allies recovery mode &bull; No tracking, no ads, just bricks.
+  </div>
+
+  <script>
+    /* Claude: 2026-04-01 — Brick Breaker game
+       Pure vanilla JS, ES5 compatible, touch + mouse controls.
+       Comfort game — infinite levels, generous paddle, forgiving physics. */
+    (function () {
+      'use strict';
+
+      var canvas = document.getElementById('game');
+      var ctx = canvas.getContext('2d');
+      var W = canvas.width;
+      var H = canvas.height;
+
+      /* ── Game state ─────────────────────────────────────────── */
+      var score = 0;
+      var lives = 3;
+      var levelNum = 1;
+      var running = false;
+      var launched = false;
+      var animId = null;
+
+      /* ── Paddle ─────────────────────────────────────────────── */
+      var paddle = { w: 90, h: 14, x: 0, y: H - 30 };
+      paddle.x = (W - paddle.w) / 2;
+
+      /* ── Ball ───────────────────────────────────────────────── */
+      var ball = { r: 8, x: 0, y: 0, dx: 0, dy: 0, speed: 4.5 };
+
+      function resetBall() {
+        ball.x = paddle.x + paddle.w / 2;
+        ball.y = paddle.y - ball.r - 1;
+        ball.dx = 0;
+        ball.dy = 0;
+        launched = false;
+      }
+
+      function launchBall() {
+        if (launched) return;
+        launched = true;
+        var angle = -Math.PI / 4 + Math.random() * (-Math.PI / 2 + Math.PI / 4);
+        /* Ensure ball goes upward between -30 and -150 degrees */
+        angle = -0.4 - Math.random() * 0.8; /* roughly -0.4 to -1.2 radians */
+        ball.dx = ball.speed * Math.sin(angle);
+        ball.dy = -ball.speed * Math.cos(angle) * -1;
+        if (ball.dy > -2) ball.dy = -2;
+      }
+
+      /* ── Bricks ─────────────────────────────────────────────── */
+      var bricks = [];
+      var brickRows = 5;
+      var brickCols = 8;
+      var brickW = 55;
+      var brickH = 20;
+      var brickPad = 4;
+      var brickTop = 50;
+      var brickLeft = 0;
+
+      /* Nice brick colors per row */
+      var rowColors = [
+        '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db',
+        '#9b59b6', '#1abc9c', '#e91e63'
+      ];
+
+      function buildBricks() {
+        bricks = [];
+        brickLeft = (W - (brickCols * (brickW + brickPad) - brickPad)) / 2;
+        for (var r = 0; r < brickRows; r++) {
+          for (var c = 0; c < brickCols; c++) {
+            bricks.push({
+              x: brickLeft + c * (brickW + brickPad),
+              y: brickTop + r * (brickH + brickPad),
+              w: brickW,
+              h: brickH,
+              alive: true,
+              color: rowColors[r % rowColors.length]
+            });
+          }
+        }
+      }
+
+      function nextLevel() {
+        levelNum++;
+        brickRows = Math.min(brickRows + 1, 8);
+        ball.speed = Math.min(ball.speed + 0.3, 7);
+        buildBricks();
+        resetBall();
+        updateUI();
+      }
+
+      /* ── Drawing ────────────────────────────────────────────── */
+      function draw() {
+        /* Background */
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, W, H);
+
+        /* Bricks */
+        for (var i = 0; i < bricks.length; i++) {
+          var b = bricks[i];
+          if (!b.alive) continue;
+          ctx.fillStyle = b.color;
+          ctx.beginPath();
+          roundRect(ctx, b.x, b.y, b.w, b.h, 4);
+          ctx.fill();
+          /* Highlight */
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.fillRect(b.x + 2, b.y + 2, b.w - 4, 3);
+        }
+
+        /* Paddle */
+        var grad = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.h);
+        grad.addColorStop(0, '#f39c12');
+        grad.addColorStop(1, '#e67e22');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        roundRect(ctx, paddle.x, paddle.y, paddle.w, paddle.h, 7);
+        ctx.fill();
+
+        /* Ball */
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+        /* Ball glow */
+        ctx.shadowColor = '#f39c12';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        /* Start message */
+        if (!launched && running) {
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.font = '14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Tap or click to launch!', W / 2, H / 2);
+        }
+
+        if (!running) {
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 20px sans-serif';
+          ctx.textAlign = 'center';
+          if (lives <= 0) {
+            ctx.fillText('Game Over!', W / 2, H / 2 - 20);
+            ctx.font = '14px sans-serif';
+            ctx.fillText('Score: ' + score + ' \u2022 Press Start to play again', W / 2, H / 2 + 15);
+          } else {
+            ctx.fillText('Brick Breaker', W / 2, H / 2 - 20);
+            ctx.font = '14px sans-serif';
+            ctx.fillText('Press Start to play!', W / 2, H / 2 + 15);
+          }
+        }
+      }
+
+      function roundRect(c, x, y, w, h, r) {
+        c.moveTo(x + r, y);
+        c.lineTo(x + w - r, y);
+        c.quadraticCurveTo(x + w, y, x + w, y + r);
+        c.lineTo(x + w, y + h - r);
+        c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        c.lineTo(x + r, y + h);
+        c.quadraticCurveTo(x, y + h, x, y + h - r);
+        c.lineTo(x, y + r);
+        c.quadraticCurveTo(x, y, x + r, y);
+      }
+
+      /* ── Physics ────────────────────────────────────────────── */
+      function update() {
+        if (!launched) {
+          ball.x = paddle.x + paddle.w / 2;
+          ball.y = paddle.y - ball.r - 1;
+          return;
+        }
+
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+
+        /* Wall bounces */
+        if (ball.x - ball.r < 0) { ball.x = ball.r; ball.dx = Math.abs(ball.dx); }
+        if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.dx = -Math.abs(ball.dx); }
+        if (ball.y - ball.r < 0) { ball.y = ball.r; ball.dy = Math.abs(ball.dy); }
+
+        /* Paddle bounce */
+        if (ball.dy > 0 &&
+            ball.y + ball.r >= paddle.y &&
+            ball.y + ball.r <= paddle.y + paddle.h + 6 &&
+            ball.x >= paddle.x - ball.r &&
+            ball.x <= paddle.x + paddle.w + ball.r) {
+          /* Where on the paddle did it hit? -1 (left) to +1 (right) */
+          var hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+          hitPos = Math.max(-0.9, Math.min(0.9, hitPos));
+          var angle = hitPos * (Math.PI / 3); /* max 60 degrees */
+          var spd = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+          ball.dx = spd * Math.sin(angle);
+          ball.dy = -spd * Math.cos(angle);
+          ball.y = paddle.y - ball.r - 1;
+        }
+
+        /* Ball lost */
+        if (ball.y - ball.r > H) {
+          lives--;
+          updateUI();
+          if (lives <= 0) {
+            running = false;
+            startBtn.textContent = '\u25B6 New Game';
+          } else {
+            resetBall();
+          }
+          return;
+        }
+
+        /* Brick collisions */
+        var allDead = true;
+        for (var i = 0; i < bricks.length; i++) {
+          var b = bricks[i];
+          if (!b.alive) continue;
+          allDead = false;
+
+          if (ball.x + ball.r > b.x &&
+              ball.x - ball.r < b.x + b.w &&
+              ball.y + ball.r > b.y &&
+              ball.y - ball.r < b.y + b.h) {
+            b.alive = false;
+            score += 10;
+            updateUI();
+
+            /* Determine bounce direction */
+            var overlapLeft = (ball.x + ball.r) - b.x;
+            var overlapRight = (b.x + b.w) - (ball.x - ball.r);
+            var overlapTop = (ball.y + ball.r) - b.y;
+            var overlapBottom = (b.y + b.h) - (ball.y - ball.r);
+            var minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+            if (minOverlap === overlapTop || minOverlap === overlapBottom) {
+              ball.dy = -ball.dy;
+            } else {
+              ball.dx = -ball.dx;
+            }
+            break; /* One brick per frame */
+          }
+        }
+
+        /* Check if level clear */
+        if (allDead) {
+          nextLevel();
+        }
+      }
+
+      /* ── UI updates ─────────────────────────────────────────── */
+      function updateUI() {
+        document.getElementById('score').textContent = score;
+        document.getElementById('lives').textContent = lives;
+        document.getElementById('level').textContent = levelNum;
+      }
+
+      /* ── Game loop ──────────────────────────────────────────── */
+      function loop() {
+        if (!running) { draw(); return; }
+        update();
+        draw();
+        animId = requestAnimationFrame(loop);
+      }
+
+      function startGame() {
+        if (lives <= 0) {
+          /* Reset everything for new game */
+          score = 0;
+          lives = 3;
+          levelNum = 1;
+          brickRows = 5;
+          ball.speed = 4.5;
+          buildBricks();
+        }
+        resetBall();
+        running = true;
+        updateUI();
+        startBtn.textContent = '\u23F8 Pause';
+        loop();
+      }
+
+      /* ── Controls ───────────────────────────────────────────── */
+      /* Mouse */
+      canvas.addEventListener('mousemove', function (e) {
+        var rect = canvas.getBoundingClientRect();
+        var scaleX = W / rect.width;
+        var mx = (e.clientX - rect.left) * scaleX;
+        paddle.x = mx - paddle.w / 2;
+        if (paddle.x < 0) paddle.x = 0;
+        if (paddle.x + paddle.w > W) paddle.x = W - paddle.w;
+      });
+
+      canvas.addEventListener('click', function () {
+        if (running && !launched) launchBall();
+      });
+
+      /* Touch */
+      canvas.addEventListener('touchmove', function (e) {
+        e.preventDefault();
+        var rect = canvas.getBoundingClientRect();
+        var scaleX = W / rect.width;
+        var tx = (e.touches[0].clientX - rect.left) * scaleX;
+        paddle.x = tx - paddle.w / 2;
+        if (paddle.x < 0) paddle.x = 0;
+        if (paddle.x + paddle.w > W) paddle.x = W - paddle.w;
+      }, { passive: false });
+
+      canvas.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        if (running && !launched) launchBall();
+        /* Also move paddle on tap */
+        var rect = canvas.getBoundingClientRect();
+        var scaleX = W / rect.width;
+        var tx = (e.touches[0].clientX - rect.left) * scaleX;
+        paddle.x = tx - paddle.w / 2;
+        if (paddle.x < 0) paddle.x = 0;
+        if (paddle.x + paddle.w > W) paddle.x = W - paddle.w;
+      }, { passive: false });
+
+      /* Keyboard */
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowLeft' || e.key === 'a') {
+          paddle.x -= 30;
+          if (paddle.x < 0) paddle.x = 0;
+        }
+        if (e.key === 'ArrowRight' || e.key === 'd') {
+          paddle.x += 30;
+          if (paddle.x + paddle.w > W) paddle.x = W - paddle.w;
+        }
+        if (e.key === ' ') {
+          e.preventDefault();
+          if (running && !launched) launchBall();
+        }
+      });
+
+      /* ── Buttons ────────────────────────────────────────────── */
+      var startBtn = document.getElementById('start-btn');
+      startBtn.addEventListener('click', function () {
+        if (running) {
+          running = false;
+          startBtn.textContent = '\u25B6 Resume';
+          cancelAnimationFrame(animId);
+          draw();
+        } else {
+          startGame();
+        }
+      });
+
+      var fsBtn = document.getElementById('fs-btn');
+      fsBtn.addEventListener('click', function () {
+        if (canvas.requestFullscreen) canvas.requestFullscreen();
+        else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
+        try {
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(function () {});
+          }
+        } catch (e) {}
+      });
+      document.addEventListener('fullscreenchange', function () {
+        if (document.fullscreenElement) {
+          fsBtn.textContent = '\u2716 Exit';
+        } else {
+          fsBtn.textContent = '\u26F6 Fullscreen';
+          try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+        }
+      });
+
+      /* ── Landscape dismiss ──────────────────────────────────── */
+      var lp = document.getElementById('landscape-prompt');
+      document.getElementById('dismiss-landscape').addEventListener('click', function () {
+        lp.classList.add('dismissed');
+      });
+      window.addEventListener('orientationchange', function () {
+        if (window.screen && window.screen.orientation) {
+          var a = window.screen.orientation.angle;
+          if (a === 90 || a === 270) lp.classList.add('dismissed');
+        }
+      });
+
+      /* ── Init ───────────────────────────────────────────────── */
+      buildBricks();
+      resetBall();
+      updateUI();
+      draw();
+    })();
+  </script>
+
+</body>
+</html>

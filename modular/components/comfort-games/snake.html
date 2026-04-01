@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Snake — Academic Allies</title>
+  <!-- Claude: 2026-04-01 — Snake comfort game.
+       Pure vanilla JS, no dependencies. Touch swipe controls for mobile.
+       Classic snake — eat food, grow longer, don't hit yourself. -->
+
+  <style>
+    /* Claude: 2026-04-01 — Snake game styling */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a1628;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .sn-header {
+      width: 100%;
+      max-width: 900px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #2ecc71;
+      text-decoration: none;
+      font-size: 13pt;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: rgba(46, 204, 113, 0.1);
+    }
+    .sn-back:hover { background: rgba(46, 204, 113, 0.2); }
+    .sn-title { flex: 1; text-align: center; }
+    .sn-title h1 { font-size: 17pt; color: #fff; }
+    .sn-title p { font-size: 10pt; color: #888; }
+
+    /* ── Game area ──────────────────────────────────────────────── */
+    .sn-game-wrap {
+      width: 100%;
+      max-width: 440px;
+      padding: 0 8px;
+      margin-bottom: 8px;
+    }
+    canvas {
+      width: 100%;
+      display: block;
+      border-radius: 10px;
+      border: 2px solid #333;
+      background: #0d1f0d;
+      touch-action: none;
+    }
+
+    /* ── Score bar ──────────────────────────────────────────────── */
+    .sn-score {
+      width: 100%;
+      max-width: 440px;
+      padding: 0 8px;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 13pt;
+      color: #aaa;
+    }
+    .sn-score span { color: #2ecc71; font-weight: 600; }
+
+    /* ── Buttons ────────────────────────────────────────────────── */
+    .sn-controls {
+      width: 100%;
+      max-width: 440px;
+      padding: 0 8px;
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .sn-btn {
+      flex: 1;
+      padding: 12px;
+      font-size: 14pt;
+      font-weight: 600;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      min-height: 50px;
+    }
+    .sn-play { background: #27ae60; }
+    .sn-play:hover { background: #2ecc71; }
+    .sn-fs { background: #2c3e50; }
+    .sn-fs:hover { background: #34495e; }
+
+    /* ── D-pad (mobile touch controls) ──────────────────────────── */
+    .sn-dpad {
+      display: none;
+      width: 100%;
+      max-width: 440px;
+      padding: 0 8px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 768px) {
+      .sn-dpad { display: block; }
+    }
+    .dpad-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+      gap: 4px;
+      width: 180px;
+      height: 180px;
+      margin: 0 auto;
+    }
+    .dpad-btn {
+      background: rgba(46, 204, 113, 0.15);
+      border: 2px solid rgba(46, 204, 113, 0.3);
+      border-radius: 10px;
+      color: #2ecc71;
+      font-size: 22pt;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .dpad-btn:active {
+      background: rgba(46, 204, 113, 0.35);
+    }
+    .dpad-spacer { background: transparent; border: none; }
+
+    /* ── Fullscreen ─────────────────────────────────────────────── */
+    canvas:fullscreen, canvas:-webkit-full-screen {
+      width: 100vw !important;
+      height: 100vh !important;
+      border-radius: 0;
+      border: none;
+    }
+
+    /* ── Tips ────────────────────────────────────────────────────── */
+    .sn-tips {
+      width: 100%;
+      max-width: 440px;
+      padding: 12px 16px;
+    }
+    .sn-tips h2 { font-size: 13pt; color: #fff; margin-bottom: 6px; }
+    .sn-tips ul { list-style: none; padding: 0; }
+    .sn-tips li { font-size: 11pt; color: #bbb; padding: 3px 0; }
+    .sn-tips li::before { content: '\1F40D '; }
+
+    /* ── Credits ─────────────────────────────────────────────────── */
+    .sn-credits {
+      width: 100%;
+      max-width: 440px;
+      padding: 8px 16px 24px;
+      font-size: 9pt;
+      color: #555;
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      .sn-header { padding: 8px; }
+      .sn-title h1 { font-size: 14pt; }
+      .sn-back { font-size: 11pt; padding: 6px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="sn-header">
+    <a href="/Academic-Allies/modular/components/recovery-mode.html" class="sn-back">&#8592; Recovery</a>
+    <div class="sn-title">
+      <h1>&#x1F40D; Snake</h1>
+      <p>Eat, grow, don't crash</p>
+    </div>
+  </div>
+
+  <!-- Score -->
+  <div class="sn-score">
+    <div>Score: <span id="score">0</span></div>
+    <div>Best: <span id="best">0</span></div>
+    <div>Length: <span id="length">3</span></div>
+  </div>
+
+  <!-- Game canvas -->
+  <div class="sn-game-wrap">
+    <canvas id="game" width="400" height="400"></canvas>
+  </div>
+
+  <!-- Controls -->
+  <div class="sn-controls">
+    <button class="sn-btn sn-play" id="start-btn" type="button">&#x25B6; Start</button>
+    <button class="sn-btn sn-fs" id="fs-btn" type="button">&#x26F6; Fullscreen</button>
+  </div>
+
+  <!-- D-pad for mobile -->
+  <div class="sn-dpad">
+    <div class="dpad-grid">
+      <div class="dpad-spacer"></div>
+      <button class="dpad-btn" data-dir="up">&#x25B2;</button>
+      <div class="dpad-spacer"></div>
+      <button class="dpad-btn" data-dir="left">&#x25C0;</button>
+      <div class="dpad-spacer"></div>
+      <button class="dpad-btn" data-dir="right">&#x25B6;</button>
+      <div class="dpad-spacer"></div>
+      <button class="dpad-btn" data-dir="down">&#x25BC;</button>
+      <div class="dpad-spacer"></div>
+    </div>
+  </div>
+
+  <!-- Tips -->
+  <div class="sn-tips">
+    <h2>How to Play</h2>
+    <ul>
+      <li>Arrow keys, WASD, or swipe to steer</li>
+      <li>On mobile, use the D-pad below the game</li>
+      <li>Eat the food to grow longer</li>
+      <li>Don't run into yourself or the walls!</li>
+    </ul>
+  </div>
+
+  <div class="sn-credits">
+    Built for Academic Allies recovery mode &bull; No tracking, no ads, just snek.
+  </div>
+
+  <script>
+    /* Claude: 2026-04-01 — Snake game
+       Pure vanilla JS, ES5 compatible.
+       Grid-based classic snake with swipe + keyboard + d-pad controls.
+       Comfort game — medium speed, clear visuals, satisfying growth. */
+    (function () {
+      'use strict';
+
+      var canvas = document.getElementById('game');
+      var ctx = canvas.getContext('2d');
+      var W = canvas.width;
+      var H = canvas.height;
+
+      var CELL = 20;
+      var COLS = W / CELL;
+      var ROWS = H / CELL;
+
+      /* ── State ──────────────────────────────────────────────── */
+      var snake = [];
+      var dir = { x: 1, y: 0 };
+      var nextDir = { x: 1, y: 0 };
+      var food = { x: 0, y: 0 };
+      var score = 0;
+      var best = 0;
+      var running = false;
+      var gameOver = false;
+      var tickInterval = null;
+      var TICK_MS = 130; /* ms between moves — comfortable speed */
+
+      function initGame() {
+        snake = [
+          { x: 5, y: Math.floor(ROWS / 2) },
+          { x: 4, y: Math.floor(ROWS / 2) },
+          { x: 3, y: Math.floor(ROWS / 2) }
+        ];
+        dir = { x: 1, y: 0 };
+        nextDir = { x: 1, y: 0 };
+        score = 0;
+        gameOver = false;
+        placeFood();
+        updateUI();
+      }
+
+      function placeFood() {
+        var valid = false;
+        while (!valid) {
+          food.x = Math.floor(Math.random() * COLS);
+          food.y = Math.floor(Math.random() * ROWS);
+          valid = true;
+          for (var i = 0; i < snake.length; i++) {
+            if (snake[i].x === food.x && snake[i].y === food.y) {
+              valid = false;
+              break;
+            }
+          }
+        }
+      }
+
+      /* ── Game tick ──────────────────────────────────────────── */
+      function tick() {
+        dir.x = nextDir.x;
+        dir.y = nextDir.y;
+
+        var head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+        /* Wall collision */
+        if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+          endGame();
+          return;
+        }
+
+        /* Self collision */
+        for (var i = 0; i < snake.length; i++) {
+          if (snake[i].x === head.x && snake[i].y === head.y) {
+            endGame();
+            return;
+          }
+        }
+
+        snake.unshift(head);
+
+        /* Eat food? */
+        if (head.x === food.x && head.y === food.y) {
+          score += 10;
+          if (score > best) best = score;
+          placeFood();
+          /* Speed up slightly every 50 points */
+          if (score % 50 === 0 && TICK_MS > 70) {
+            TICK_MS -= 10;
+            clearInterval(tickInterval);
+            tickInterval = setInterval(tick, TICK_MS);
+          }
+        } else {
+          snake.pop(); /* Remove tail if no food eaten */
+        }
+
+        updateUI();
+        draw();
+      }
+
+      function endGame() {
+        gameOver = true;
+        running = false;
+        clearInterval(tickInterval);
+        tickInterval = null;
+        startBtn.textContent = '\u25B6 New Game';
+        draw();
+      }
+
+      /* ── Drawing ────────────────────────────────────────────── */
+      function draw() {
+        /* Background grid */
+        ctx.fillStyle = '#0d1f0d';
+        ctx.fillRect(0, 0, W, H);
+
+        /* Subtle grid lines */
+        ctx.strokeStyle = 'rgba(46, 204, 113, 0.05)';
+        ctx.lineWidth = 1;
+        for (var gx = 0; gx < COLS; gx++) {
+          ctx.beginPath();
+          ctx.moveTo(gx * CELL, 0);
+          ctx.lineTo(gx * CELL, H);
+          ctx.stroke();
+        }
+        for (var gy = 0; gy < ROWS; gy++) {
+          ctx.beginPath();
+          ctx.moveTo(0, gy * CELL);
+          ctx.lineTo(W, gy * CELL);
+          ctx.stroke();
+        }
+
+        /* Snake body */
+        for (var i = 0; i < snake.length; i++) {
+          var seg = snake[i];
+          if (i === 0) {
+            /* Head — brighter */
+            ctx.fillStyle = '#2ecc71';
+          } else {
+            /* Body — gradient fade */
+            var fade = 1 - (i / (snake.length + 5)) * 0.6;
+            var g = Math.floor(204 * fade);
+            ctx.fillStyle = 'rgb(30,' + g + ',80)';
+          }
+          ctx.beginPath();
+          roundRect(ctx, seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, 4);
+          ctx.fill();
+        }
+
+        /* Eyes on head */
+        if (snake.length > 0) {
+          var h = snake[0];
+          ctx.fillStyle = '#fff';
+          var eyeSize = 3;
+          var eyeOff = 5;
+          if (dir.x === 1) { /* right */
+            ctx.beginPath(); ctx.arc(h.x * CELL + CELL - eyeOff, h.y * CELL + eyeOff, eyeSize, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(h.x * CELL + CELL - eyeOff, h.y * CELL + CELL - eyeOff, eyeSize, 0, Math.PI * 2); ctx.fill();
+          } else if (dir.x === -1) { /* left */
+            ctx.beginPath(); ctx.arc(h.x * CELL + eyeOff, h.y * CELL + eyeOff, eyeSize, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(h.x * CELL + eyeOff, h.y * CELL + CELL - eyeOff, eyeSize, 0, Math.PI * 2); ctx.fill();
+          } else if (dir.y === -1) { /* up */
+            ctx.beginPath(); ctx.arc(h.x * CELL + eyeOff, h.y * CELL + eyeOff, eyeSize, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(h.x * CELL + CELL - eyeOff, h.y * CELL + eyeOff, eyeSize, 0, Math.PI * 2); ctx.fill();
+          } else { /* down */
+            ctx.beginPath(); ctx.arc(h.x * CELL + eyeOff, h.y * CELL + CELL - eyeOff, eyeSize, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(h.x * CELL + CELL - eyeOff, h.y * CELL + CELL - eyeOff, eyeSize, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+
+        /* Food */
+        ctx.fillStyle = '#e74c3c';
+        ctx.shadowColor = '#e74c3c';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2, CELL / 2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        /* Overlays */
+        if (gameOver) {
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = '#e74c3c';
+          ctx.font = 'bold 22px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Game Over!', W / 2, H / 2 - 20);
+          ctx.fillStyle = '#fff';
+          ctx.font = '14px sans-serif';
+          ctx.fillText('Score: ' + score + ' \u2022 Best: ' + best, W / 2, H / 2 + 10);
+          ctx.fillText('Press Start for a new game', W / 2, H / 2 + 35);
+        } else if (!running) {
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = '#2ecc71';
+          ctx.font = 'bold 22px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Snake', W / 2, H / 2 - 15);
+          ctx.fillStyle = '#fff';
+          ctx.font = '14px sans-serif';
+          ctx.fillText('Press Start to play!', W / 2, H / 2 + 15);
+        }
+      }
+
+      function roundRect(c, x, y, w, h, r) {
+        c.moveTo(x + r, y);
+        c.lineTo(x + w - r, y);
+        c.quadraticCurveTo(x + w, y, x + w, y + r);
+        c.lineTo(x + w, y + h - r);
+        c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        c.lineTo(x + r, y + h);
+        c.quadraticCurveTo(x, y + h, x, y + h - r);
+        c.lineTo(x, y + r);
+        c.quadraticCurveTo(x, y, x + r, y);
+      }
+
+      /* ── UI ─────────────────────────────────────────────────── */
+      function updateUI() {
+        document.getElementById('score').textContent = score;
+        document.getElementById('best').textContent = best;
+        document.getElementById('length').textContent = snake.length;
+      }
+
+      /* ── Input ──────────────────────────────────────────────── */
+      function setDir(dx, dy) {
+        /* Prevent 180-degree reversal */
+        if (dir.x === -dx && dir.y === -dy) return;
+        if (dx !== 0 && dir.x === dx) return;
+        if (dy !== 0 && dir.y === dy) return;
+        nextDir.x = dx;
+        nextDir.y = dy;
+      }
+
+      /* Keyboard */
+      document.addEventListener('keydown', function (e) {
+        switch (e.key) {
+          case 'ArrowUp':    case 'w': case 'W': e.preventDefault(); setDir(0, -1); break;
+          case 'ArrowDown':  case 's': case 'S': e.preventDefault(); setDir(0, 1);  break;
+          case 'ArrowLeft':  case 'a': case 'A': e.preventDefault(); setDir(-1, 0); break;
+          case 'ArrowRight': case 'd': case 'D': e.preventDefault(); setDir(1, 0);  break;
+        }
+      });
+
+      /* D-pad buttons */
+      var dpadBtns = document.querySelectorAll('.dpad-btn');
+      for (var i = 0; i < dpadBtns.length; i++) {
+        (function (btn) {
+          btn.addEventListener('touchstart', function (e) {
+            e.preventDefault();
+            var d = btn.getAttribute('data-dir');
+            if (d === 'up')    setDir(0, -1);
+            if (d === 'down')  setDir(0, 1);
+            if (d === 'left')  setDir(-1, 0);
+            if (d === 'right') setDir(1, 0);
+          }, { passive: false });
+          btn.addEventListener('click', function () {
+            var d = btn.getAttribute('data-dir');
+            if (d === 'up')    setDir(0, -1);
+            if (d === 'down')  setDir(0, 1);
+            if (d === 'left')  setDir(-1, 0);
+            if (d === 'right') setDir(1, 0);
+          });
+        })(dpadBtns[i]);
+      }
+
+      /* Swipe on canvas */
+      var touchStartX = 0;
+      var touchStartY = 0;
+      canvas.addEventListener('touchstart', function (e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+      canvas.addEventListener('touchend', function (e) {
+        var dx = e.changedTouches[0].clientX - touchStartX;
+        var dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return; /* Too small, ignore */
+        if (Math.abs(dx) > Math.abs(dy)) {
+          setDir(dx > 0 ? 1 : -1, 0);
+        } else {
+          setDir(0, dy > 0 ? 1 : -1);
+        }
+      }, { passive: true });
+
+      /* ── Buttons ────────────────────────────────────────────── */
+      var startBtn = document.getElementById('start-btn');
+      startBtn.addEventListener('click', function () {
+        if (running) {
+          running = false;
+          clearInterval(tickInterval);
+          tickInterval = null;
+          startBtn.textContent = '\u25B6 Resume';
+          draw();
+        } else {
+          if (gameOver) {
+            TICK_MS = 130;
+            initGame();
+          }
+          running = true;
+          startBtn.textContent = '\u23F8 Pause';
+          tickInterval = setInterval(tick, TICK_MS);
+        }
+      });
+
+      var fsBtn = document.getElementById('fs-btn');
+      fsBtn.addEventListener('click', function () {
+        if (canvas.requestFullscreen) canvas.requestFullscreen();
+        else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
+      });
+      document.addEventListener('fullscreenchange', function () {
+        fsBtn.textContent = document.fullscreenElement ? '\u2716 Exit' : '\u26F6 Fullscreen';
+      });
+
+      /* ── Init ───────────────────────────────────────────────── */
+      initGame();
+      draw();
+    })();
+  </script>
+
+</body>
+</html>

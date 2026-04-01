@@ -46,6 +46,9 @@
           { id: 'emoticon-defense', label: 'Emoticon Defense', enabled: true },
           /* Claude: 2026-04-01 — Secret Agent (SAM) DOS game via js-dos */
           { id: 'secret-agent', label: 'Secret Agent (SAM)', enabled: true },
+          /* Claude: 2026-04-01 — Brick Breaker + Snake vanilla JS comfort games */
+          { id: 'brick-breaker', label: 'Brick Breaker', enabled: true },
+          { id: 'snake', label: 'Snake', enabled: true },
           { id: 'journal',    label: 'A Gentle Moment',      enabled: true }
         ],
         'bad-brain': [
