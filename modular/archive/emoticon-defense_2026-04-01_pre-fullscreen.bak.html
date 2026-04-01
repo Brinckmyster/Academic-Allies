@@ -2,18 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Emoticon Defense — Academic Allies</title>
   <!-- Claude: 2026-03-31 — Emoticon Defense comfort game embed page.
        Uses Ruffle (open-source Flash emulator) to run the original .swf.
        SWF source: Newgrounds portal/view/512265 by fortunacus (Bless Flasher).
        Author comment: "for any webmaster, feel free to host the game on your website,
        I just removed the site locked, thanks" — explicit hosting permission granted.
-       Claude: 2026-04-01 — Added fullscreen mode + landscape prompt for mobile. -->
+       Game loaded from Newgrounds CDN (uploads.ungrounded.net). -->
 
   <style>
-    /* Claude: 2026-03-31 — comfort game page styling
-       Claude: 2026-04-01 — fullscreen + landscape mobile enhancements */
+    /* Claude: 2026-03-31 — comfort game page styling */
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
@@ -72,7 +71,7 @@
       width: 100%;
       max-width: 800px;
       padding: 0 16px;
-      margin-bottom: 8px;
+      margin-bottom: 16px;
     }
 
     #game-container {
@@ -93,54 +92,6 @@
     #game-container embed {
       width: 100% !important;
       height: 100% !important;
-    }
-
-    /* ── Fullscreen button ──────────────────────────────────────── */
-    .ed-controls {
-      width: 100%;
-      max-width: 800px;
-      padding: 0 16px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-    }
-
-    .ed-fullscreen-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 24px;
-      font-size: 14pt;
-      font-weight: 600;
-      color: #fff;
-      background: #2962ff;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-      /* Big touch target for fat fingers */
-      min-height: 52px;
-      min-width: 200px;
-      justify-content: center;
-    }
-    .ed-fullscreen-btn:hover {
-      background: #1e88e5;
-    }
-    .ed-fullscreen-btn:active {
-      transform: scale(0.97);
-      background: #1565c0;
-    }
-
-    /* ── Fullscreen styles ──────────────────────────────────────── */
-    #game-container:fullscreen,
-    #game-container:-webkit-full-screen {
-      width: 100vw !important;
-      height: 100vh !important;
-      aspect-ratio: auto;
-      border-radius: 0;
-      border: none;
-      background: #000;
     }
 
     /* ── Loading / error states ─────────────────────────────────── */
@@ -194,60 +145,6 @@
       font-size: 12pt;
     }
 
-    /* ── Landscape prompt overlay (mobile portrait only) ─────── */
-    .ed-landscape-prompt {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.92);
-      z-index: 9999;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      text-align: center;
-      padding: 24px;
-    }
-    .ed-landscape-prompt .rotate-icon {
-      font-size: 60pt;
-      animation: wiggle 2s ease-in-out infinite;
-    }
-    @keyframes wiggle {
-      0%, 100% { transform: rotate(0deg); }
-      25% { transform: rotate(-15deg); }
-      75% { transform: rotate(15deg); }
-    }
-    .ed-landscape-prompt h2 {
-      font-size: 18pt;
-      color: #fff;
-    }
-    .ed-landscape-prompt p {
-      font-size: 13pt;
-      color: #aaa;
-      max-width: 300px;
-    }
-    .ed-landscape-prompt button {
-      padding: 14px 28px;
-      font-size: 14pt;
-      color: #90caf9;
-      background: rgba(144, 202, 249, 0.15);
-      border: 2px solid #90caf9;
-      border-radius: 10px;
-      cursor: pointer;
-      min-height: 52px;
-    }
-
-    /* Show landscape prompt: mobile + portrait + not fullscreen */
-    @media (max-width: 768px) and (orientation: portrait) {
-      .ed-landscape-prompt {
-        display: flex;
-      }
-    }
-    /* Hide when dismissed via JS */
-    .ed-landscape-prompt.dismissed {
-      display: none !important;
-    }
-
     /* ── Tips section ───────────────────────────────────────────── */
     .ed-tips {
       width: 100%;
@@ -295,28 +192,10 @@
       .ed-title h1 { font-size: 15pt; }
       .ed-back { font-size: 12pt; padding: 6px 10px; }
       .ed-tips { padding: 12px; }
-
-      /* Bigger fullscreen button on mobile */
-      .ed-fullscreen-btn {
-        width: 100%;
-        font-size: 16pt;
-        padding: 16px 24px;
-        min-height: 60px;
-      }
-      .ed-controls { padding: 0 12px; }
     }
   </style>
 </head>
 <body>
-
-  <!-- ── Landscape prompt (mobile portrait only) ────────────────── -->
-  <!-- Claude: 2026-04-01 — nudge to rotate phone, dismissible -->
-  <div class="ed-landscape-prompt" id="landscape-prompt">
-    <div class="rotate-icon">&#x1F4F1;</div>
-    <h2>Rotate Your Phone</h2>
-    <p>This game works way better in landscape mode — bigger controls, more room to play!</p>
-    <button id="dismiss-landscape" type="button">Play anyway &#x2192;</button>
-  </div>
 
   <!-- ── Header ─────────────────────────────────────────────────── -->
   <div class="ed-header">
@@ -348,21 +227,13 @@
     </div>
   </div>
 
-  <!-- ── Controls (fullscreen button) ───────────────────────────── -->
-  <!-- Claude: 2026-04-01 — big fat fullscreen button, especially for mobile -->
-  <div class="ed-controls">
-    <button class="ed-fullscreen-btn" id="fullscreen-btn" type="button">
-      &#x26F6;&#xFE0F; Fullscreen
-    </button>
-  </div>
-
   <!-- ── Tips ───────────────────────────────────────────────────── -->
   <div class="ed-tips">
     <h2>Game Tips</h2>
     <ul>
       <li>Place towers, then try dressing them up — discovering the combos is half the fun</li>
       <li>No pressure, no score tracking here — just a chill tower defense session</li>
-      <li>On mobile, tap the Fullscreen button above for bigger controls</li>
+      <li>Works best on desktop; mobile may need landscape mode</li>
     </ul>
   </div>
 
@@ -377,10 +248,15 @@
   </div>
 
   <!-- ── Ruffle CDN ─────────────────────────────────────────────── -->
+  <!-- Claude: 2026-03-31 — Ruffle is the open-source Flash emulator (Rust/WASM).
+       We load the Ruffle CDN bundle, then create a player instance manually
+       and point it at the SWF hosted on Newgrounds' CDN. -->
   <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
 
   <script>
-    /* Claude: 2026-04-01 — Emoticon Defense Ruffle loader + fullscreen + landscape prompt */
+    /* Claude: 2026-03-31 — Emoticon Defense Ruffle loader
+       Strategy: load Ruffle CDN → create player → load SWF from Newgrounds CDN.
+       If Ruffle or SWF fails, show error with fallback link to Newgrounds. */
     (function () {
       'use strict';
 
@@ -392,68 +268,6 @@
       var errorEl   = document.getElementById('error-overlay');
       var errorMsg  = document.getElementById('error-message');
 
-      /* ── Landscape prompt dismiss ─────────────────────────────── */
-      var landscapePrompt = document.getElementById('landscape-prompt');
-      var dismissBtn = document.getElementById('dismiss-landscape');
-      if (dismissBtn) {
-        dismissBtn.addEventListener('click', function () {
-          landscapePrompt.classList.add('dismissed');
-        });
-      }
-
-      /* Auto-hide landscape prompt when phone rotates to landscape */
-      window.addEventListener('orientationchange', function () {
-        /* screen.orientation.angle: 90 or 270 = landscape */
-        if (window.screen && window.screen.orientation) {
-          var angle = window.screen.orientation.angle;
-          if (angle === 90 || angle === 270) {
-            landscapePrompt.classList.add('dismissed');
-          }
-        }
-      });
-
-      /* ── Fullscreen button ────────────────────────────────────── */
-      var fsBtn = document.getElementById('fullscreen-btn');
-      if (fsBtn) {
-        fsBtn.addEventListener('click', function () {
-          var el = container;
-          if (el.requestFullscreen) {
-            el.requestFullscreen();
-          } else if (el.webkitRequestFullscreen) {
-            el.webkitRequestFullscreen();
-          } else if (el.msRequestFullscreen) {
-            el.msRequestFullscreen();
-          }
-
-          /* Also try to lock to landscape on mobile */
-          try {
-            if (screen.orientation && screen.orientation.lock) {
-              screen.orientation.lock('landscape').catch(function () {
-                /* Not all browsers support orientation lock — that's fine */
-              });
-            }
-          } catch (e) { /* ignore */ }
-        });
-
-        /* Update button text when entering/exiting fullscreen */
-        document.addEventListener('fullscreenchange', function () {
-          if (document.fullscreenElement) {
-            fsBtn.innerHTML = '&#x2716; Exit Fullscreen';
-            /* Hide landscape prompt while fullscreen */
-            landscapePrompt.classList.add('dismissed');
-          } else {
-            fsBtn.innerHTML = '&#x26F6;&#xFE0F; Fullscreen';
-            /* Unlock orientation when exiting */
-            try {
-              if (screen.orientation && screen.orientation.unlock) {
-                screen.orientation.unlock();
-              }
-            } catch (e) { /* ignore */ }
-          }
-        });
-      }
-
-      /* ── Ruffle loader ────────────────────────────────────────── */
       function showError(msg) {
         loadingEl.style.display = 'none';
         errorMsg.textContent = msg || 'Something went wrong.';
@@ -470,6 +284,7 @@
           var ruffle = window.RufflePlayer.newest();
           var player = ruffle.createPlayer();
 
+          /* Style the player to fill the container */
           player.style.width = '100%';
           player.style.height = '100%';
 
@@ -485,9 +300,11 @@
         }
       }
 
+      /* Wait for page + Ruffle to be ready, then launch */
       function init() {
+        /* Give Ruffle CDN script time to register */
         var attempts = 0;
-        var maxAttempts = 20;
+        var maxAttempts = 20; /* 10 seconds max */
         var poll = setInterval(function () {
           attempts++;
           if (typeof window.RufflePlayer !== 'undefined') {
@@ -495,6 +312,7 @@
             tryRuffle();
           } else if (attempts >= maxAttempts) {
             clearInterval(poll);
+            /* Last resort: try loading Ruffle again */
             var script = document.createElement('script');
             script.src = RUFFLE_CDN;
             script.onerror = function () {
