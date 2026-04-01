@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260331a'; /* Claude: 2026-03-31 — Emoticon Defense Ruffle embed page */
+var CACHE   = 'aa-shell-20260401a'; /* Claude: 2026-04-01 — Secret Agent (SAM) js-dos embed page */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -43,6 +43,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/recovery-mode.html', /* Claude: 2026-03-25 — energy radiogroup a11y + keyboard nav */
   '/Academic-Allies/modular/components/brain-bloom/brain-bloom.html', /* Claude: 2026-03-29 — Brain Bloom recovery games */
   '/Academic-Allies/modular/components/comfort-games/emoticon-defense.html', /* Claude: 2026-03-31 — Ruffle Flash embed, must be fresh */
+  '/Academic-Allies/modular/components/comfort-games/secret-agent.html', /* Claude: 2026-04-01 — js-dos DOSBox embed, must be fresh */
   '/Academic-Allies/modular/checkin-log.html', /* Claude: 2026-03-25 — clickable div keyboard a11y */
   '/Academic-Allies/modular/components/student-config/student-config-editor.html', /* Claude: 2026-03-25 — tab scroll hint */
   '/Academic-Allies/modular/components/calendar/calendar.html', /* Claude: 2026-03-25 — mobile responsive + offline cache */
