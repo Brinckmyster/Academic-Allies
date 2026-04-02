@@ -969,8 +969,7 @@
         latestFlag: entry.flag || 'green',
         date:       dateKey,
         updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true })
-      .catch(function(err) { console.warn('[AA] saveCheckin write failed:', err); }); /* Claude: 2026-04-01 — C2 fix */
+      }, { merge: true });
   };
 
   /* Get the last N days of check-ins for a student */
@@ -1005,9 +1004,7 @@
       .onSnapshot(function (snap) {
         callback(snap.docs.map(function (d) { return d.data(); }));
       }, function (err) {
-        /* Claude: 2026-04-01 — W6 fix: forward error to callback so UI doesn't hang on "Loading..." */
         console.error('[AA] watchCheckins error:', err);
-        callback([], err);
       });
   };
 
@@ -1027,8 +1024,7 @@
         meals:     meals,
         date:      dateKey,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true })
-      .catch(function(err) { console.warn('[AA] saveMealLog write failed:', err); }); /* Claude: 2026-04-01 — C2 fix */
+      }, { merge: true });
   };
 
   /* Get a specific day's meal log */
@@ -1068,8 +1064,7 @@
   /* Claude: 2026-03-23 — added mirror guard (defense-in-depth; spoon-pal.html also guards) */
   window.AA.saveSpoonPal = function (uid, obj) {
     if (_mirrorWriteBlocked()) return Promise.reject(new Error('Mirror mode: write blocked'));
-    return db.collection('spoonPal').doc(uid).set(obj, { merge: true })
-      .catch(function(err) { console.warn('[AA] saveSpoonPal write failed:', err); }); /* Claude: 2026-04-01 — C2 fix */
+    return db.collection('spoonPal').doc(uid).set(obj, { merge: true });
   };
 
   window.AA.getSpoonPal = function (uid) {
@@ -1140,8 +1135,7 @@
       .then(function () {
         if (window.AA_DEBUG) console.log('[AA] Invite created:', code, '→', role);
         return { code: code, expiresAt: expiresAt };
-      })
-      .catch(function(err) { console.warn('[AA] _doCreateInvite write failed:', err); throw err; }); /* Claude: 2026-04-01 — C2 fix; re-throw so caller gets the rejection */
+      });
   }
 
   /* Claude: 2026-03-25 — added missing mirror mode write guard */
@@ -1442,11 +1436,6 @@
      Added 2026-03-08 by Claude.
   ─────────────────────────────────────────────────────────────────────── */
   window.AA.suggestSpoonPlan = function (studentUid, data) {
-    /* Claude: 2026-04-01 — W9 fix: validate inputs before Firestore write */
-    if (typeof studentUid !== 'string' || !studentUid) return Promise.reject(new Error('suggestSpoonPlan: invalid studentUid'));
-    if (!data || typeof data !== 'object') return Promise.reject(new Error('suggestSpoonPlan: data must be an object'));
-    if (!Array.isArray(data.tasks)) return Promise.reject(new Error('suggestSpoonPlan: data.tasks must be an array'));
-    if (typeof data.dailySpoons !== 'number' || data.dailySpoons < 0) return Promise.reject(new Error('suggestSpoonPlan: data.dailySpoons must be a non-negative number'));
     var user = auth.currentUser;
     if (!user) return Promise.reject(new Error('Not signed in'));
     // Claude: 2026-03-08 — audit log: suggestion created
@@ -1505,8 +1494,7 @@
     });
     return db.collection('spoonPlanSuggestions').doc(uid)
       .collection('pending').doc(suggestionId)
-      .update({ status: 'rejected', respondedAt: firebase.firestore.FieldValue.serverTimestamp() })
-      .catch(function(err) { console.warn('[AA] rejectSuggestion write failed:', err); }); /* Claude: 2026-04-01 — C2 fix */
+      .update({ status: 'rejected', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
   };
 
   /* ── Mode Suggestions (Nope / Semi-Nope) ────────────────────────────────
@@ -1517,10 +1505,6 @@
      Added 2026-03-08 by Claude.
   ─────────────────────────────────────────────────────────────────────── */
   window.AA.suggestMode = function (studentUid, mode, semiVisible) {
-    /* Claude: 2026-04-01 — W9 fix: validate inputs before Firestore write */
-    if (typeof studentUid !== 'string' || !studentUid) return Promise.reject(new Error('suggestMode: invalid studentUid'));
-    var validModes = ['nope', 'semi-nope', 'cancel'];
-    if (typeof mode !== 'string' || validModes.indexOf(mode) === -1) return Promise.reject(new Error('suggestMode: mode must be one of ' + validModes.join(', ')));
     var user = auth.currentUser;
     if (!user) return Promise.reject(new Error('Not signed in'));
     // Claude: 2026-03-08 — audit log: mode suggestion created
@@ -1560,8 +1544,7 @@
     });
     return db.collection('modeSuggestions').doc(uid)
       .collection('pending').doc(suggestionId)
-      .update({ status: accepted ? 'accepted' : 'dismissed', respondedAt: firebase.firestore.FieldValue.serverTimestamp() })
-      .catch(function(err) { console.warn('[AA] respondModeSuggestion write failed:', err); }); /* Claude: 2026-04-01 — C2 fix */
+      .update({ status: accepted ? 'accepted' : 'dismissed', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
   };
 
   /* ── Meal Suggestions ──────────────────────────────────────────────────
@@ -1572,10 +1555,6 @@
      Added 2026-03-08 by Claude.
   ─────────────────────────────────────────────────────────────────────── */
   window.AA.suggestMeals = function (studentUid, dateKey, meals) {
-    /* Claude: 2026-04-01 — W9 fix: validate inputs before Firestore write */
-    if (typeof studentUid !== 'string' || !studentUid) return Promise.reject(new Error('suggestMeals: invalid studentUid'));
-    if (typeof dateKey !== 'string' || !dateKey) return Promise.reject(new Error('suggestMeals: invalid dateKey'));
-    if (!Array.isArray(meals)) return Promise.reject(new Error('suggestMeals: meals must be an array'));
     var user = auth.currentUser;
     if (!user) return Promise.reject(new Error('Not signed in'));
     // Claude: 2026-03-08 — audit log: meal suggestion created
@@ -1614,8 +1593,7 @@
     });
     return db.collection('mealSuggestions').doc(uid)
       .collection('pending').doc(suggestionId)
-      .update({ status: accepted ? 'accepted' : 'dismissed', respondedAt: firebase.firestore.FieldValue.serverTimestamp() })
-      .catch(function(err) { console.warn('[AA] respondMealSuggestion write failed:', err); }); /* Claude: 2026-04-01 — C2 fix */
+      .update({ status: accepted ? 'accepted' : 'dismissed', respondedAt: firebase.firestore.FieldValue.serverTimestamp() });
   };
 
   /* ── Supporter Notifications — Claude 2026-03-12 ──────────────────────

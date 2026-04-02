@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260401c'; /* Claude: 2026-04-01 — Game Center hub + brain check games */
+var CACHE   = 'aa-shell-20260402a'; /* Claude: 2026-04-02 — audit fixes: mirror guards, bedroom-planner, recovery truncation */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -51,6 +51,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/brain-check/reaction-time.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/pattern-spotter.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/reading-check.html', /* Claude: 2026-04-01 — brain check game */
+  '/Academic-Allies/modular/components/bedroom-planner/bedroom-planner.html', /* Claude: 2026-04-01 — re-add: was dropped in sw.js rewrite */
   '/Academic-Allies/modular/checkin-log.html', /* Claude: 2026-03-25 — clickable div keyboard a11y */
   '/Academic-Allies/modular/components/student-config/student-config-editor.html', /* Claude: 2026-03-25 — tab scroll hint */
   '/Academic-Allies/modular/components/calendar/calendar.html', /* Claude: 2026-03-25 — mobile responsive + offline cache */
