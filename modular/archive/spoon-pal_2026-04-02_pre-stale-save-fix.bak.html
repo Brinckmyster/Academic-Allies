@@ -872,7 +872,6 @@
   var currentUid = null;  // set by Firebase auth
   // Claude: BUG #1 FIX — flag to prevent auto-save during initial load cycle
   var isInitialLoad = true;
-  var _pendingRollover = false; // Claude: 2026-04-02 — blocks saves until rollover completes
   // Claude: BUG #8 FIX — Day templates only; individual task templates removed
   // All task quick-add functionality moved to LMJ Code buttons in Normal Day
   var templates = {
@@ -1839,13 +1838,11 @@
     };
     function cancelRollover() {
       closeModal('rolloverPreviewModal');
-      _pendingRollover = false; // Claude: 2026-04-02 — unlock saves on cancel too
       // Revert ZZ back to incomplete so user isn't accidentally rolled over
       if (zzIndex >= 0 && zzIndex < timeline.length) {
         timeline[zzIndex].status = 'incomplete';
+        calculateSpoons(); renderTimeline(); saveData();
       }
-      // Always save after cancel — persists ZZ revert AND unlocked stale-data state
-      calculateSpoons(); renderTimeline(); saveData();
     }
     document.getElementById('rolloverCancelBtn').onclick = cancelRollover;
     document.getElementById('rolloverPreviewClose').onclick = cancelRollover;
@@ -1927,7 +1924,6 @@
     }
 
     // Recalculate for new day (show borrowed spoon warning if applicable)
-    _pendingRollover = false; // Claude: 2026-04-02 — unlock saves now that rollover is done
     calculateSpoons();
     renderTimeline();
     saveData();
@@ -2129,13 +2125,6 @@
     // Skip save during initial load to prevent overwriting remote data
     if (isInitialLoad) {
       console.warn('[SpoonPal] saveData blocked — still in initial load');
-      return;
-    }
-    // Claude: 2026-04-02 — block saves while rollover is pending. Without this,
-    // the stale SpoonPlanner rebuild (16 tasks) gets written to Firestore before
-    // rollover applies Normal Day (17 tasks), causing a 17↔16 flicker.
-    if (_pendingRollover) {
-      console.warn('[SpoonPal] saveData blocked — rollover pending');
       return;
     }
 
@@ -2344,11 +2333,6 @@
             var storedDateKey = tracking.dateKey || null;
             var todayKey = getTodayKey();
             if (storedDateKey && storedDateKey < todayKey) {
-              // Claude: 2026-04-02 — block ALL saves until rollover completes.
-              // Previously the callback saved a stale SpoonPlanner rebuild (16 tasks)
-              // with today's dateKey BEFORE rollover applied Normal Day (17 tasks),
-              // causing a 17↔16 flicker and overwriting the real savedTimeline.
-              _pendingRollover = true;
               isInitialLoad = false;
               if (callback) callback();
               setTimeout(function() { showRolloverPreview(-1); }, 800);
