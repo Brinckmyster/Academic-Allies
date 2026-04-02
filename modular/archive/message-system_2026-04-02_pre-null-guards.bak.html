@@ -293,7 +293,7 @@
 
   <!-- Load shared header -->
   <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260402')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260330')
       .then(function(r) { return r.text(); })
       .then(function(html) {
         var c = document.getElementById('site-header');
@@ -413,8 +413,6 @@
 
     /* ── Build contact list ──────────────────────────────── */
     function loadContacts() {
-      /* Claude: 2026-04-02 — added null guards for currentUser and AA */
-      if (!currentUser || !AA || !AA.getUserDoc) return;
       AA.getUserDoc(currentUser.uid).then(function(doc) {
         if (!doc.exists) { document.getElementById('msg-loading').textContent = 'Profile not found.'; return; }
         var data   = doc.data();
@@ -594,8 +592,6 @@
     };
 
     function openThread(uid, name, tier, icon, el) {
-      /* Claude: 2026-04-02 — added null guard for currentUser */
-      if (!currentUser) return;
       /* Clear previous listeners */
       if (unsubMessages) { unsubMessages(); unsubMessages = null; }
       if (unsubThreadDoc) { unsubThreadDoc(); unsubThreadDoc = null; }
@@ -719,8 +715,6 @@
 
     /* ── Send a message ──────────────────────────────────── */
     function sendMessage() {
-      /* Claude: 2026-04-02 — added null guard for currentUser and AA */
-      if (!currentUser || !AA || !AA.db || !AA.FieldValue) return;
       /* Claude: 2026-03-13 — mirror guard: supporters cannot send messages as the student */
       if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       var textarea = document.getElementById('compose-text');
@@ -795,8 +789,7 @@
     /* Claude: 2026-03-14 — Mark ALL threads as read. Clears the nav red dot
        for all conversations, including orphaned ones the user can no longer reach. */
     window.markAllThreadsRead = function () {
-      /* Claude: 2026-04-02 — added null guard for currentUser */
-      if (!currentUser || !AA || !AA.db) return;
+      if (!currentUser) return;
       AA.db.collection('messages')
         .where('participants', 'array-contains', currentUser.uid)
         .get().then(function(snap) {
@@ -876,8 +869,6 @@
     /* Listens to all threads this user participates in.
        Updates each contact item's preview text and unread badge. */
     function watchThreads() {
-      /* Claude: 2026-04-02 — added null guards for currentUser and AA */
-      if (!currentUser || !AA || !AA.db) return;
       if (unsubThreads) { unsubThreads(); unsubThreads = null; }
       unsubThreads = AA.db.collection('messages')
         .where('participants', 'array-contains', currentUser.uid)
@@ -993,8 +984,6 @@
     var _draftTimer = null;
 
     function _draftRef(tid) {
-      /* Claude: 2026-04-02 — added null guard for currentUser */
-      if (!currentUser) return null;
       return AA.db.collection('messageDrafts').doc(currentUser.uid + '_' + tid);
     }
 
@@ -1005,20 +994,12 @@
       var text = document.getElementById('compose-text').value;
       var statusEl = document.getElementById('draft-status');
       if (!text.trim()) {
-        /* Claude: 2026-04-02 — added null guard before calling _draftRef */
-        var ref = _draftRef(activeThreadId);
-        if (ref) ref.delete().catch(function() {});
+        _draftRef(activeThreadId).delete().catch(function() {});
         if (statusEl) statusEl.style.display = 'none';
         return;
       }
       if (statusEl) { statusEl.textContent = 'Saving draft…'; statusEl.style.display = 'block'; }
-      /* Claude: 2026-04-02 — added null guard before calling _draftRef */
-      var ref = _draftRef(activeThreadId);
-      if (!ref) {
-        if (statusEl) statusEl.style.display = 'none';
-        return;
-      }
-      ref.set({ text: text, savedAt: new Date().toISOString() }, { merge: true }) /* Claude: 2026-03-16 — merge:true for data safety */
+      _draftRef(activeThreadId).set({ text: text, savedAt: new Date().toISOString() }, { merge: true }) /* Claude: 2026-03-16 — merge:true for data safety */
         .then(function() {
           if (statusEl) {
             statusEl.textContent = 'Draft saved';
@@ -1037,10 +1018,7 @@
       ta.value = '';
       if (statusEl) statusEl.style.display = 'none';
       if (!currentUser) return;
-      /* Claude: 2026-04-02 — added null guard before calling _draftRef */
-      var ref = _draftRef(tid);
-      if (!ref) return;
-      ref.get().then(function(doc) {
+      _draftRef(tid).get().then(function(doc) {
         if (doc.exists && doc.data().text) {
           ta.value = doc.data().text;
           if (statusEl) {
@@ -1056,9 +1034,7 @@
       /* Claude: 2026-03-25 — added mirror guard to prevent supporters clearing drafts as student */
       if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       if (!currentUser) return;
-      /* Claude: 2026-04-02 — added null guard before calling _draftRef */
-      var ref = _draftRef(tid);
-      if (ref) ref.delete().catch(function() {});
+      _draftRef(tid).delete().catch(function() {});
       var statusEl = document.getElementById('draft-status');
       if (statusEl) statusEl.style.display = 'none';
     }
@@ -1102,8 +1078,6 @@
       }
 
       /* Query all students linked to this user */
-      /* Claude: 2026-04-02 — added null guard for currentUser before accessing uid */
-      if (!currentUser) return;
       var currentUid = currentUser.uid;
       AA.db.collection('users').get().then(function (snap) {
         var linkedStudents = [];
@@ -1217,7 +1191,6 @@
           });
         });
 
-        /* Claude: 2026-04-02 — added .catch() to Promise.all */
         Promise.all(fetches).then(function (peers) {
           peers.filter(Boolean).forEach(function (p) {
             var name = p.data.displayName || p.data.email || 'Unknown';
@@ -1239,8 +1212,6 @@
             });
             ncList.appendChild(item);
           });
-        }).catch(function(err) {
-          console.warn('[AA Messages] Error fetching network chat peers:', err.message || err);
         });
       }).catch(function (err) {
         console.error('[AA] loadNetworkChat error:', err);
@@ -1302,8 +1273,6 @@
     // Claude: BUG #6 FIX — Network Chat messaging for support, network-lead, and other non-student roles
     // Claude: BUG #9 FIX — Guard against null ncStudentUid with user-facing error message (2026-03-03)
     function sendNcMessage() {
-      /* Claude: 2026-04-02 — added null guards for currentUser and AA */
-      if (!currentUser || !AA || !AA.db || !AA.FieldValue) return;
       /* Claude: 2026-03-13 — mirror guard: supporters cannot send network chat messages as the student */
       if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       if (!ncStudentUid) {

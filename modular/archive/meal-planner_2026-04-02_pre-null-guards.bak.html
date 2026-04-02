@@ -136,7 +136,7 @@
 
   <!-- Load shared header + Firebase -->
   <script>
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260402')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260330')
       .then(function(r) { return r.text(); })
       .then(function(html) {
         var c = document.getElementById('site-header');
@@ -394,10 +394,6 @@
               .then(function(json) {
                 basePlan = json;
                 renderBasePlanPanel();
-              })
-              /* Claude: 2026-04-02 — catch missing on fallback fetch chain */
-              .catch(function(err) {
-                console.warn('[MealPlanner] fallback JSON load failed:', err);
               });
           }
         })
@@ -410,10 +406,7 @@
               return r.json();
             })
             .then(function(json) { basePlan = json; renderBasePlanPanel(); })
-            /* Claude: 2026-04-02 — catch missing on offline fallback fetch chain */
-            .catch(function(err) {
-              console.warn('[MealPlanner] offline JSON fallback failed:', err);
-            });
+            .catch(function() {});
         });
     }
 
@@ -487,9 +480,8 @@
 
     /* Claude 2026-03-08: mirror check helper */
     function _isMealMirror() {
-      /* Claude: 2026-04-02 — null guard: verify currentUser exists before accessing .uid */
-      if (!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser)) return false;
-      return window.AA_MIRROR_UID !== AA.auth.currentUser.uid;
+      return !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
+        && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
     }
 
     /* ── Add a meal ── */

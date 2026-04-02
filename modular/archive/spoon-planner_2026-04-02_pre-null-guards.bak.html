@@ -410,7 +410,7 @@
 <div id="site-header"></div>
 <script>
     /* Claude: 2026-03-25 — converted to ES5 var/function style */
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260402')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260330')
       .then(function(response) { return response.text(); })
       .then(function(html) {
         var container = document.getElementById('site-header');
@@ -606,22 +606,16 @@
 
         // Load saved data — localStorage first (fast), then Firebase if signed in
         function loadSavedData() {
-            /* Claude: 2026-04-02 — wrapped localStorage access in try/catch for private browsing mode */
-            try {
-                var saved = localStorage.getItem('spoonPlannerTasks');
-                if (saved) {
-                    originalTasks = JSON.parse(saved);
-                    tasks = JSON.parse(JSON.stringify(originalTasks));
-                }
-                var savedSpoons = localStorage.getItem('dailySpoons');
-                /* Claude: 2026-03-25 — parseInt NaN guard: parseInt('abc') = NaN → breaks all spoon math */
-                if (savedSpoons) {
-                    var parsed = parseInt(savedSpoons, 10);
-                    if (!isNaN(parsed)) totalSpoons = parsed;
-                }
-            } catch(e) {
-                /* Claude: 2026-04-02 — localStorage access failed; continue with defaults */
-                console.warn('[SpoonPlanner] localStorage unavailable:', e.message);
+            var saved = localStorage.getItem('spoonPlannerTasks');
+            if (saved) {
+                originalTasks = JSON.parse(saved);
+                tasks = JSON.parse(JSON.stringify(originalTasks));
+            }
+            var savedSpoons = localStorage.getItem('dailySpoons');
+            /* Claude: 2026-03-25 — parseInt NaN guard: parseInt('abc') = NaN → breaks all spoon math */
+            if (savedSpoons) {
+                var parsed = parseInt(savedSpoons, 10);
+                if (!isNaN(parsed)) totalSpoons = parsed;
             }
             renderTasks();
 
@@ -633,23 +627,17 @@
 
         var _spPlannerUid = null;
         function _waitForFirebase() {
-            /* Claude: 2026-04-02 — added null guard for AA and AA.auth */
-            if (!window.AA || !AA.auth) {
-                setTimeout(_waitForFirebase, 300);
-                return;
-            }
-            AA.auth.onAuthStateChanged(function(user) {
-                if (!user) return;
-                var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(user.uid) : user.uid;
-                // Claude: 2026-03-07 — guard against token-refresh re-fires
-                if (effectiveUid === _spPlannerUid) return;
-                _spPlannerUid = effectiveUid;
+            if (window.AA && AA.auth) {
+                AA.auth.onAuthStateChanged(function(user) {
+                    if (!user) return;
+                    var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(user.uid) : user.uid;
+                    // Claude: 2026-03-07 — guard against token-refresh re-fires
+                    if (effectiveUid === _spPlannerUid) return;
+                    _spPlannerUid = effectiveUid;
 
-                /* Claude: 2026-03-09 — fetch role and enforce suggest-only for supporters */
-                /* Claude: 2026-03-16 — added .catch() for missing error handler */
-                /* Claude: 2026-04-02 — added null guard for AA and AA.db */
-                if (!window.AA || !AA.db) return;
-                AA.db.collection('users').doc(user.uid).get().then(function(doc) {
+                    /* Claude: 2026-03-09 — fetch role and enforce suggest-only for supporters */
+                    /* Claude: 2026-03-16 — added .catch() for missing error handler */
+                    AA.db.collection('users').doc(user.uid).get().then(function(doc) {
                         var role = (doc.exists && doc.data().role) ? doc.data().role : 'pending';
                         var supporterRoles = ['family', 'support', 'nearby-help'];
                         _isSupporterRole = (supporterRoles.indexOf(role) !== -1);
@@ -669,8 +657,6 @@
                         firstName = (user.displayName || user.email || '').split(/[\s@]/)[0];
                     }
                     if (firstName) document.title = 'Spoon Planner \u2014 ' + firstName + '\u2019s Safe Space';
-                    /* Claude: 2026-04-02 — added null guard for AA before accessing AA.getSpoonPlan */
-                    if (!window.AA || !AA.getSpoonPlan) return;
                     AA.getSpoonPlan(effectiveUid).then(function(data) {
                         if (!data) return;
                         if (data.tasks)       { tasks = data.tasks; originalTasks = JSON.parse(JSON.stringify(tasks)); }
@@ -698,15 +684,8 @@
         function saveTasks() {
             var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && window.AA && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
             if (isMirror || _isSupporterRole) return; // Supporters use "Suggest Plan" — no direct saves.
-            /* Claude: 2026-04-02 — wrapped localStorage access in try/catch for private browsing mode */
-            try {
-                localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
-            } catch(e) {
-                /* Claude: 2026-04-02 — localStorage write failed; continue anyway */
-                console.warn('[SpoonPlanner] localStorage setItem failed:', e.message);
-            }
-            /* Claude: 2026-04-02 — added null guard for AA and AA.auth before Firebase call */
-            if (window.AA && AA.auth && AA.auth.currentUser && typeof AA.saveSpoonPlan === 'function') {
+            localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
+            if (window.AA && AA.auth && AA.auth.currentUser) {
                 AA.saveSpoonPlan(AA.auth.currentUser.uid, {
                     tasks: tasks,
                     dailySpoons: totalSpoons
@@ -930,22 +909,14 @@
         // Updated 2026-03-08 by Claude: use AA_uid() for mirror mode
         /* Claude: 2026-03-20 — NLs (AA_MIRROR_CAN_WRITE) can use localStorage too */
         function duplicateDay() {
-            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && window.AA && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
-            /* Claude: 2026-04-02 — wrapped localStorage access in try/catch for private browsing mode */
-            var yesterday = null;
-            if (!isMirror) {
-                try {
-                    yesterday = localStorage.getItem('yesterdayTasks');
-                } catch(e) {
-                    console.warn('[SpoonPlanner] localStorage getItem failed:', e.message);
-                }
-            }
+            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && AA.auth && AA.auth.currentUser && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            var yesterday = isMirror ? null : localStorage.getItem('yesterdayTasks');
             if (yesterday) {
                 tasks = JSON.parse(yesterday);
                 renderTasks();
                 /* Claude: 2026-03-23 — was missing saveTasks() */
                 saveTasks();
-            } else if (window.AA && AA.auth && AA.auth.currentUser && typeof AA.getSpoonPlan === 'function') {
+            } else if (window.AA && AA.auth && AA.auth.currentUser) {
                 var effectiveUid = (typeof window.AA_uid === 'function') ? window.AA_uid(AA.auth.currentUser.uid) : AA.auth.currentUser.uid;
                 AA.getSpoonPlan(effectiveUid).then(function(data) {
                     if (data && data.yesterdayTasks && data.yesterdayTasks.length > 0) {
@@ -956,10 +927,6 @@
                     } else {
                         alert('No tasks from yesterday to duplicate.');
                     }
-                }).catch(function(err) {
-                    /* Claude: 2026-04-02 — added missing .catch() handler */
-                    console.warn('[SpoonPlanner] Failed to fetch yesterday tasks:', err.message);
-                    alert('Could not load yesterday\'s tasks.');
                 });
             } else {
                 alert('No tasks from yesterday to duplicate.');
@@ -1013,12 +980,7 @@
         function confirmPlan() {
             // Save to localStorage
             saveTasks();
-            /* Claude: 2026-04-02 — wrapped localStorage access in try/catch for private browsing mode */
-            try {
-                localStorage.setItem('yesterdayTasks', JSON.stringify(tasks));
-            } catch(e) {
-                console.warn('[SpoonPlanner] localStorage setItem failed:', e.message);
-            }
+            localStorage.setItem('yesterdayTasks', JSON.stringify(tasks));
             originalTasks = JSON.parse(JSON.stringify(tasks));
 
             /* Claude: 2026-03-09 — block confirm for supporters AND mirror mode */
@@ -1032,8 +994,7 @@
             }
 
             // Save yesterdayTasks to Firebase (own plan only)
-            /* Claude: 2026-04-02 — added null guard for AA and AA.auth.currentUser */
-            if (window.AA && AA.auth && AA.auth.currentUser && typeof AA.saveSpoonPlan === 'function') {
+            if (window.AA && AA.auth && AA.auth.currentUser) {
                 AA.saveSpoonPlan(AA.auth.currentUser.uid, {
                     tasks: tasks,
                     dailySpoons: totalSpoons,
@@ -1082,9 +1043,7 @@
            always see Suggest instead of Confirm, even when not in mirror mode */
         /* Claude: 2026-03-20 — network-leads see Confirm (not Suggest) because they can write */
         function updateMirrorUI() {
-            /* Claude: 2026-04-02 — added null guards for AA and AA.auth before accessing .currentUser */
-            if (!window.AA || !AA.auth) return;
-            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && AA.auth.currentUser
+            var isMirror = !!(window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE && window.AA && AA.auth && AA.auth.currentUser
                 && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
             var suggestOnly = isMirror || _isSupporterRole;
             var confirmBtn = document.getElementById('btn-confirm-plan');
@@ -1139,8 +1098,7 @@
         function submitSuggestion() {
             var reason = document.getElementById('suggest-reason').value.trim();
             if (!reason) { alert('Please provide a reason for your suggestion.'); return; }
-            /* Claude: 2026-04-02 — added null guard for AA before using AA.suggestSpoonPlan */
-            if (!window.AA || !window.AA_MIRROR_UID || !AA.suggestSpoonPlan) { alert('Not in mirror mode.'); return; }
+            if (!window.AA || !window.AA_MIRROR_UID) { alert('Not in mirror mode.'); return; }
             var studentUid = window.AA_MIRROR_UID;
             AA.suggestSpoonPlan(studentUid, {
                 tasks: tasks,
@@ -1161,10 +1119,10 @@
         var _suggestionsUnsub = null;
         /* Claude: 2026-03-12 — added debug logging to help trace suggestion delivery issues */
         function checkForSuggestions() {
-            /* Claude: 2026-04-02 — added null guard for AA.db and AA.auth before using them */
-            if (!window.AA || !AA.auth || !AA.auth.currentUser || !AA.db) return;
-            var isMirror = !!(window.AA_MIRROR_UID && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
+            var isMirror = !!(window.AA_MIRROR_UID && window.AA && AA.auth && AA.auth.currentUser
+                && window.AA_MIRROR_UID !== AA.auth.currentUser.uid);
             if (isMirror) return;
+            if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
             var uid = AA.auth.currentUser.uid;
             /* Unsubscribe any previous listener */
             if (_suggestionsUnsub) { _suggestionsUnsub(); _suggestionsUnsub = null; }
@@ -1241,11 +1199,7 @@
         }
 
         function acceptSuggestion(id) {
-            /* Claude: 2026-04-02 — added null guard for AA and AA.auth.currentUser */
-            if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
             var uid = AA.auth.currentUser.uid;
-            /* Claude: 2026-04-02 — added null guard for AA.acceptSuggestion function */
-            if (typeof AA.acceptSuggestion !== 'function') return;
             AA.acceptSuggestion(uid, id).then(function() {
                 closeReviewModal();
                 alert('Plan accepted! Your tasks have been updated.');
@@ -1257,11 +1211,7 @@
         }
 
         function rejectSuggestion(id) {
-            /* Claude: 2026-04-02 — added null guard for AA and AA.auth.currentUser */
-            if (!window.AA || !AA.auth || !AA.auth.currentUser) return;
             var uid = AA.auth.currentUser.uid;
-            /* Claude: 2026-04-02 — added null guard for AA.rejectSuggestion function */
-            if (typeof AA.rejectSuggestion !== 'function') return;
             AA.rejectSuggestion(uid, id).then(function() {
                 _pendingSuggestions = _pendingSuggestions.filter(function(s) { return s.id !== id; });
                 closeReviewModal();
@@ -1294,8 +1244,6 @@
         });
 
         // Claude 2026-03-08: wait for AA + auth before checking mirror state & suggestions
-        /* Claude: 2026-04-02 — NOTE: duplicate onAuthStateChanged listener exists here and in _waitForFirebase()
-           (line ~631). Both listeners are active and will fire on auth state changes. Consolidate in future refactor. */
         function _initSuggestions() {
             if (window.AA && AA.auth) {
                 AA.auth.onAuthStateChanged(function() {

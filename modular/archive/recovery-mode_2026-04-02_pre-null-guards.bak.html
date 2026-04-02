@@ -357,7 +357,7 @@
 <div id="site-header"></div>
 <script>
     /* Claude: 2026-03-25 — converted to ES5 var/function style */
-    fetch('/Academic-Allies/modular/shared-header.html?v=20260402')
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260330')
       .then(function(response) { return response.text(); })
       .then(function(html) {
         var container = document.getElementById('site-header');
@@ -719,12 +719,7 @@
                 remainingSpoons += tasks[index].spoons;
             }
             // Claude: persist completed state so re-renders don't lose it — 2026-02-27
-            /* Claude: 2026-04-02 — wrap localStorage.setItem in try/catch for private browsing */
-            try {
-                localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
-            } catch (e) {
-                console.warn('[RecoveryMode] localStorage blocked (private mode?):', e);
-            }
+            localStorage.setItem('spoonPlannerTasks', JSON.stringify(tasks));
             updateSpoonCounter();
             // Claude: toggle class directly — avoids re-render race — 2026-02-27
             var items = document.querySelectorAll('#todo-list .todo-item');
@@ -749,12 +744,7 @@
             remainingSpoons = level;
             updateSpoonCounter();
 
-            /* Claude: 2026-04-02 — wrap localStorage in try/catch for private browsing mode */
-            try {
-                localStorage.setItem('energyLevel', level);
-            } catch (e) {
-                console.warn('[RecoveryMode] localStorage blocked (private mode?):', e);
-            }
+            localStorage.setItem('energyLevel', level);
             /* Claude: 2026-03-14 — replaced dorothy email check with AA_MIRROR_CAN_WRITE */
             // Firebase sync (silent, non-blocking) — skip in read-only mirror mode
             if (window.AA && AA.auth && AA.auth.currentUser) {
@@ -987,14 +977,7 @@
             showNewMessage();
             showNewScripture();
             startBreathing();
-            /* Claude: 2026-04-02 — wrap localStorage.getItem in try/catch for private browsing */
-            var savedEnergy;
-            try {
-                savedEnergy = localStorage.getItem('energyLevel');
-            } catch (e) {
-                console.warn('[RecoveryMode] localStorage blocked:', e);
-                savedEnergy = null;
-            }
+            var savedEnergy = localStorage.getItem('energyLevel');
             if (savedEnergy) {
                 var el = document.querySelector('[data-level="' + savedEnergy + '"]');
                 if (el) el.classList.add('selected');
@@ -1020,10 +1003,7 @@
                     /* Claude: 2026-03-09 — fetch user role and set _isSupporterRole flag */
                     if (window.AA && AA.db) {
                         AA.db.collection('users').doc(user.uid).get().then(function(doc) {
-                            /* Claude: 2026-04-02 — avoid calling doc.data() twice; cache result */
-                            if (!doc.exists) return;
-                            var docData = doc.data();
-                            var role = (docData && docData.role) ? docData.role : 'pending';
+                            var role = (doc.exists && doc.data().role) ? doc.data().role : 'pending';
                             var supporterRoles = ['family', 'support', 'nearby-help'];
                             _isSupporterRole = (supporterRoles.indexOf(role) !== -1);
                             /* Hide edit/save/journal controls if supporter */
@@ -1087,15 +1067,7 @@
                         AA.db.collection('users').doc(_readUid).get().then(function(doc) {
                             if (!doc.exists) return;
                             var data = doc.data();
-                            /* Claude: 2026-04-02 — wrap localStorage.getItem in try/catch for private browsing */
-                            var storedEnergy;
-                            try {
-                                storedEnergy = localStorage.getItem('energyLevel');
-                            } catch (e) {
-                                console.warn('[RecoveryMode] localStorage blocked:', e);
-                                storedEnergy = null;
-                            }
-                            if (data.energyLevel && !storedEnergy) {
+                            if (data.energyLevel && !localStorage.getItem('energyLevel')) {
                                 var energyEls = document.querySelectorAll('.energy-option');
                                 energyEls.forEach(function(opt) { opt.classList.remove('selected'); });
                                 var energyEl = document.querySelector('[data-level="' + data.energyLevel + '"]');
@@ -1149,14 +1121,7 @@
         }
 
         function loadSpoonPlanFromStorage() {
-            /* Claude: 2026-04-02 — wrap localStorage.getItem in try/catch for private browsing */
-            var saved;
-            try {
-                saved = localStorage.getItem('spoonPlannerTasks');
-            } catch (e) {
-                console.warn('[RecoveryMode] localStorage blocked:', e);
-                saved = null;
-            }
+            var saved = localStorage.getItem('spoonPlannerTasks');
             renderTodoList(saved ? JSON.parse(saved) : []);
         }
 
@@ -1175,12 +1140,7 @@
                     AA.getSpoonPlan(window.AA_MIRROR_UID || user.uid).then(function(data) {
                         if (data && data.tasks && data.tasks.length > 0) {
                             renderTodoList(data.tasks);
-                            /* Claude: 2026-04-02 — wrap localStorage.setItem in try/catch for private browsing */
-                            try {
-                                localStorage.setItem('spoonPlannerTasks', JSON.stringify(data.tasks));
-                            } catch (e) {
-                                console.warn('[RecoveryMode] localStorage blocked:', e);
-                            }
+                            localStorage.setItem('spoonPlannerTasks', JSON.stringify(data.tasks));
                         }
                     }).catch(function(err) {
                         console.warn('[AA] Could not load spoon plan:', err);
@@ -1204,15 +1164,7 @@
         ];
 
         function getStoredTZ() {
-            /* Claude: 2026-04-02 — wrap localStorage.getItem in try/catch for private browsing */
-            var stored;
-            try {
-                stored = localStorage.getItem('recoveryTZ');
-            } catch (e) {
-                console.warn('[RecoveryMode] localStorage blocked:', e);
-                stored = null;
-            }
-            return stored || Intl.DateTimeFormat().resolvedOptions().timeZone;
+            return localStorage.getItem('recoveryTZ') || Intl.DateTimeFormat().resolvedOptions().timeZone;
         }
 
         function formatSessionStart(isoStr, tz) {
@@ -1245,44 +1197,21 @@
         }
 
         function saveTZ(tz) {
-            /* Claude: 2026-04-02 — wrap localStorage calls in try/catch for private browsing */
-            try {
-                localStorage.setItem('recoveryTZ', tz);
-            } catch (e) {
-                console.warn('[RecoveryMode] localStorage blocked:', e);
-            }
-            var stored;
-            try {
-                stored = localStorage.getItem('recoverySessionStart');
-            } catch (e) {
-                console.warn('[RecoveryMode] localStorage blocked:', e);
-                stored = null;
-            }
+            localStorage.setItem('recoveryTZ', tz);
+            var stored = localStorage.getItem('recoverySessionStart');
             updateSessionDisplay(stored, tz);
         }
 
         function resetSession() {
             // Archive completed tasks to Firebase before clearing
-            /* Claude: 2026-04-02 — wrap localStorage.getItem in try/catch for private browsing */
-            var saved;
-            try {
-                saved = localStorage.getItem('spoonPlannerTasks');
-            } catch (e) {
-                console.warn('[RecoveryMode] localStorage blocked:', e);
-                saved = null;
-            }
+            var saved = localStorage.getItem('spoonPlannerTasks');
             var allTasks = saved ? JSON.parse(saved) : [];
             var completed = allTasks.filter(function(t) { return t.completed; });
 
             function _doReset() {
                 // Claude: clear plan entirely for new day — 2026-02-27
                 ['spoonPlannerTasks', 'energyLevel', 'flowerCount', 'reportedFlowers', 'recoverySessionStart'].forEach(function(k) {
-                    /* Claude: 2026-04-02 — wrap localStorage.removeItem in try/catch for private browsing */
-                    try {
-                        localStorage.removeItem(k);
-                    } catch (e) {
-                        console.warn('[RecoveryMode] localStorage blocked:', e);
-                    }
+                    localStorage.removeItem(k);
                 });
                 location.reload();
             }
@@ -1313,21 +1242,10 @@
 
         function initSession() {
             var tz = getStoredTZ();
-            /* Claude: 2026-04-02 — wrap localStorage calls in try/catch for private browsing */
-            var stored;
-            try {
-                stored = localStorage.getItem('recoverySessionStart');
-            } catch (e) {
-                console.warn('[RecoveryMode] localStorage blocked:', e);
-                stored = null;
-            }
+            var stored = localStorage.getItem('recoverySessionStart');
             if (!stored) {
                 stored = new Date().toISOString();
-                try {
-                    localStorage.setItem('recoverySessionStart', stored);
-                } catch (e) {
-                    console.warn('[RecoveryMode] localStorage blocked:', e);
-                }
+                localStorage.setItem('recoverySessionStart', stored);
             }
             updateSessionDisplay(stored, tz);
             populateTZSelect(tz);
@@ -1531,11 +1449,8 @@
             if (!window.AA || !AA.db) return;
             var dataUid = (window.AA_uid ? window.AA_uid(uid) : uid);
             AA.db.collection('users').doc(dataUid).get().then(function(doc) {
-                /* Claude: 2026-04-02 — add null guard and cache doc.data() result */
-                if (!doc.exists) return;
-                var docData = doc.data();
-                if (docData && Array.isArray(docData.customJournalPrompts)) {
-                    _customPrompts = docData.customJournalPrompts;
+                if (doc.exists && Array.isArray(doc.data().customJournalPrompts)) {
+                    _customPrompts = doc.data().customJournalPrompts;
                     _rebuildAllPrompts();
                     _renderCustomList();
                     journalShowPrompt();
@@ -1616,20 +1531,9 @@
          Archive: recovery-mode_2026-03-12_pre-mode-switch.bak.html -->
     <script>
     (function () {
-      /* Claude: 2026-04-02 — wrap localStorage calls in try/catch for private browsing */
-      var currentMode;
-      try {
-        currentMode = localStorage.getItem('appMode');
-      } catch (e) {
-        console.warn('[AA] localStorage blocked:', e);
-        currentMode = null;
-      }
+      var currentMode = localStorage.getItem('appMode');
       if (currentMode !== 'recovery') {
-        try {
-          localStorage.setItem('appMode', 'recovery');
-        } catch (e) {
-          console.warn('[AA] localStorage blocked:', e);
-        }
+        localStorage.setItem('appMode', 'recovery');
         window.dispatchEvent(new CustomEvent('modeChange', { detail: { mode: 'recovery' } }));
         if (window.AA_DEBUG) console.log('[AA] Mode set to recovery');
         /* Claude: 2026-03-12 — notify supporters when student switches to recovery mode.
