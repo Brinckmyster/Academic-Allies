@@ -2629,24 +2629,8 @@
 
           // Now load user data with config in place
           loadData(function() {
-            // Claude: 2026-04-01 — auto-load Normal Day when timeline is empty.
-            // Without this, a new day with no SpoonPlanner tasks and no savedTimeline
-            // shows a blank page. The user's full day should always load automatically.
-            var _autoLoaded = false;
-            if (timeline.length === 0) {
-              if (window.AA_DEBUG) console.log('[SpoonPal] Empty timeline after load — auto-applying Normal Day template');
-              timeline = NORMAL_DAY_TEMPLATE.tasks.map(function(t) {
-                return {
-                  time: t.time, lmj: t.lmj, description: stripLeadingEmoji(t.description || ''),
-                  spoon: t.spoon, priority: t.priority, fixed: t.fixed,
-                  status: 'incomplete', notes: ''
-                };
-              });
-              _autoLoaded = true;
-            }
             calculateSpoons();
             renderTimeline();
-            if (_autoLoaded) saveData(); // persist so reload doesn't re-trigger
             restoreQuickEntry(); // reflect loaded checkIn state in the buttons
             fetchWeather();      // safe to fetch now — Firestore data already loaded
             // Claude 2026-03-06: check for missed tasks immediately after data loads
@@ -2656,22 +2640,8 @@
           console.warn('[SpoonPal] Config load failed, proceeding with defaults:', err);
           // Fall back to default behavior if config load fails
           loadData(function() {
-            // Claude: 2026-04-01 — same auto-load in fallback path
-            var _autoLoaded2 = false;
-            if (timeline.length === 0) {
-              if (window.AA_DEBUG) console.log('[SpoonPal] Empty timeline (fallback) — auto-applying Normal Day template');
-              timeline = NORMAL_DAY_TEMPLATE.tasks.map(function(t) {
-                return {
-                  time: t.time, lmj: t.lmj, description: stripLeadingEmoji(t.description || ''),
-                  spoon: t.spoon, priority: t.priority, fixed: t.fixed,
-                  status: 'incomplete', notes: ''
-                };
-              });
-              _autoLoaded2 = true;
-            }
             calculateSpoons();
             renderTimeline();
-            if (_autoLoaded2) saveData();
             restoreQuickEntry();
             fetchWeather();
             checkOverdueTasks();
