@@ -1286,7 +1286,6 @@
     t.status = document.getElementById('taskStatus').value;
     t.notes = document.getElementById('taskNotes').value.trim();
     // Fix #3: emoji not saved — derived at render time
-    console.log('[SpoonPal] saveTask: index=' + selectedIndex + ' desc="' + t.description + '" _savePending=' + _savePending + ' isInitialLoad=' + isInitialLoad);
     calculateSpoons();
     renderTimeline();
     saveData();
@@ -2113,20 +2112,13 @@
     /* Claude: 2026-03-16 — double-click protection: guard against concurrent writes */
     if (_savePending) {
       _saveQueued = true;
-      console.log('[SpoonPal] saveData queued (pending write in progress)');
       return;
     }
 
     /* Claude: 2026-03-17 — standardized mirror guard (was custom uid compare, now uses standard pattern) */
-    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) {
-      console.warn('[SpoonPal] saveData blocked by mirror guard');
-      return;
-    }
+    if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
     // Skip save during initial load to prevent overwriting remote data
-    if (isInitialLoad) {
-      console.warn('[SpoonPal] saveData blocked — still in initial load');
-      return;
-    }
+    if (isInitialLoad) return; /* Claude: 2026-03-14 — debug log removed */
 
     // Build per-task tracking array (indexes match SpoonPlanner task order)
     var taskTracking = timeline.map(function(t) {
@@ -2172,31 +2164,17 @@
     };
     if (window.AA && window.AA.db && currentUid) {
       _savePending = true;
-      console.log('[SpoonPal] saveData → writing to Firestore (dateKey=' + obj.dateKey + ', timeline=' + obj.savedTimeline.length + ' tasks)');
-      /* Claude: 2026-04-01 — safety timeout: if Firestore .set() neither resolves nor rejects
-         within 15s (e.g. offline with no error callback), unlock _savePending so the UI
-         doesn't permanently lose the ability to save. */
-      var _saveTimeout = setTimeout(function() {
-        if (_savePending) {
-          console.warn('[SpoonPal] saveData timed out after 15s — unlocking _savePending');
-          _savePending = false;
-          if (_saveQueued) { _saveQueued = false; saveData(); }
-        }
-      }, 15000);
       /* Claude: 2026-03-16 — merge:true for data safety */
       window.AA.db.collection('spoonPal').doc(currentUid).set(obj, { merge: true })
         .then(function() {
-          clearTimeout(_saveTimeout);
           /* Claude: 2026-03-16 — debounce: handle queued saves */
           _savePending = false;
-          console.log('[SpoonPal] saveData ✓ written to Firestore');
           if (_saveQueued) {
             _saveQueued = false;
             saveData();
           }
         })
         .catch(function(err) {
-          clearTimeout(_saveTimeout);
           console.error('[SpoonPal] Firestore save error:', err);
           /* Claude: 2026-03-16 — clear flag on error to allow retries */
           _savePending = false;
