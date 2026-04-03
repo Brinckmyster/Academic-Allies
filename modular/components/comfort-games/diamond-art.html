@@ -1,7 +1,7 @@
-<!-- Claude: 2026-04-02 — Diamond Art comfort game.
-     Grid color-fill: tap a color, tap cells to place diamonds.
+<!-- Claude: 2026-04-02 — Brilliant Sort: Diamond Puzzle (comfort game).
+     Drag colored gems from tray to matching grid cells to reveal pixel art.
      Theme packs: Floral, Cats, Nature, Patterns.
-     Pure vanilla JS (ES5), no dependencies. Touch-friendly. -->
+     Pure vanilla JS (ES5), no dependencies. Touch-friendly drag-and-drop. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,12 +10,9 @@
   <title>Diamond Art — Academic Allies</title>
   <link rel="icon" type="image/png" href="../../icons/mode-recovery.png">
   <style>
-    /* Dark mode early */
     html.aa-dark { color-scheme: dark; }
     html.aa-dark body { background: #1a1a2e !important; color: #e0e0e0 !important; }
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
       font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
       background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
@@ -26,879 +23,745 @@
       align-items: center;
       overflow-x: hidden;
       touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
     }
-
-    /* ── Header ─────────────────────────────────────────────── */
+    /* ── Header ─────────────────────────────── */
     .da-header {
-      width: 100%;
-      max-width: 600px;
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      width: 100%; max-width: 600px;
+      padding: 12px 16px; display: flex;
+      align-items: center; gap: 12px;
     }
     .da-back {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: #9c27b0;
-      text-decoration: none;
-      font-size: 13pt;
-      padding: 8px 14px;
-      border-radius: 8px;
-      background: rgba(156, 39, 176, 0.1);
+      display: inline-flex; align-items: center; gap: 6px;
+      color: #9c27b0; text-decoration: none; font-size: 13pt;
+      padding: 8px 14px; border-radius: 8px;
+      background: rgba(156,39,176,0.1);
     }
-    html.aa-dark .da-back { color: #ce93d8; background: rgba(206, 147, 216, 0.15); }
-    .da-back:hover { background: rgba(156, 39, 176, 0.2); }
-    .da-title { flex: 1; text-align: center; }
-    .da-title h1 { font-size: 17pt; }
-    .da-title p { font-size: 10pt; opacity: 0.7; }
-    html.aa-dark .da-title h1 { color: #ce93d8; }
+    .da-back:hover { background: rgba(156,39,176,0.2); }
+    html.aa-dark .da-back { color: #ce93d8; background: rgba(206,147,216,0.12); }
+    .da-title { font-size: 15pt; font-weight: 700; }
 
-    /* ── Design Picker ──────────────────────────────────────── */
-    .da-picker {
-      width: 100%;
-      max-width: 600px;
-      padding: 0 16px;
-      margin-bottom: 16px;
+    /* ── Pack / Design Picker ─────────────────── */
+    .picker-area {
+      width: 100%; max-width: 600px; padding: 8px 16px;
     }
-    .da-picker label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 6px;
-      font-size: 11pt;
+    .pack-tabs {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
     }
-    .da-theme-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
+    .pack-tab {
+      padding: 6px 14px; border-radius: 20px; border: 2px solid #ce93d8;
+      background: transparent; color: #9c27b0; font-size: 11pt;
+      cursor: pointer; font-weight: 600;
     }
-    .da-theme-tab {
-      padding: 6px 14px;
-      border-radius: 20px;
-      border: 2px solid rgba(156, 39, 176, 0.3);
-      background: rgba(255,255,255,0.6);
-      color: #4a148c;
-      font-size: 10pt;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
+    .pack-tab.active { background: #9c27b0; color: #fff; }
+    html.aa-dark .pack-tab { border-color: #7b1fa2; color: #ce93d8; }
+    html.aa-dark .pack-tab.active { background: #7b1fa2; color: #fff; }
+    .design-row {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px;
     }
-    html.aa-dark .da-theme-tab {
-      background: rgba(255,255,255,0.08);
-      color: #ce93d8;
-      border-color: rgba(206, 147, 216, 0.3);
+    .design-btn {
+      min-width: 80px; padding: 8px 12px; border-radius: 10px;
+      border: 2px solid #e1bee7; background: #fce4ec; color: #4a148c;
+      font-size: 10pt; cursor: pointer; white-space: nowrap; font-weight: 600;
     }
-    .da-theme-tab.active {
-      background: #9c27b0;
-      color: #fff;
-      border-color: #9c27b0;
-    }
-    html.aa-dark .da-theme-tab.active {
-      background: #7b1fa2;
-      border-color: #7b1fa2;
-      color: #fff;
-    }
-    .da-design-list {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .da-design-btn {
-      padding: 8px 16px;
-      border-radius: 12px;
-      border: 2px solid rgba(156, 39, 176, 0.2);
-      background: rgba(255,255,255,0.7);
-      color: #4a148c;
-      font-size: 10pt;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    html.aa-dark .da-design-btn {
-      background: rgba(255,255,255,0.06);
-      color: #ce93d8;
-      border-color: rgba(206, 147, 216, 0.2);
-    }
-    .da-design-btn.active {
-      background: #ce93d8;
-      color: #4a148c;
-      border-color: #9c27b0;
-      font-weight: 700;
-    }
+    .design-btn.active { border-color: #9c27b0; background: #ce93d8; color: #fff; }
+    html.aa-dark .design-btn { background: #2a1a3e; border-color: #4a148c; color: #ce93d8; }
+    html.aa-dark .design-btn.active { background: #7b1fa2; color: #fff; }
 
-    /* ── Game area ───────────────────────────────────────────── */
-    .da-game-wrap {
-      width: 100%;
-      max-width: 600px;
-      padding: 0 16px;
+    /* ── Progress Bar ──────────────────────────── */
+    .progress-wrap {
+      width: 100%; max-width: 600px; padding: 4px 16px 8px;
     }
-
-    /* Progress bar */
-    .da-progress-wrap {
-      margin-bottom: 12px;
-    }
-    .da-progress-label {
-      font-size: 10pt;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .da-progress-bar {
-      height: 14px;
-      background: rgba(0,0,0,0.08);
-      border-radius: 7px;
+    .progress-bar {
+      height: 10px; background: rgba(156,39,176,0.15); border-radius: 5px;
       overflow: hidden;
-      position: relative;
     }
-    html.aa-dark .da-progress-bar { background: rgba(255,255,255,0.1); }
-    .da-progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #ab47bc, #e040fb);
-      border-radius: 7px;
-      transition: width 0.3s ease;
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, #ab47bc, #e91e63);
+      border-radius: 5px; width: 0%; transition: width 0.3s;
     }
+    .progress-text {
+      font-size: 10pt; text-align: center; margin-top: 4px; color: #9c27b0;
+    }
+    html.aa-dark .progress-text { color: #ce93d8; }
 
-    /* Color palette */
-    .da-palette {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: center;
-      margin-bottom: 14px;
-      padding: 10px;
+    /* ── Grid (the pixel art canvas) ──────────── */
+    .grid-area {
+      width: 100%; max-width: 600px; padding: 0 16px;
+      display: flex; justify-content: center;
+    }
+    .grid {
+      display: inline-grid; gap: 2px; border-radius: 8px;
+      padding: 4px; background: rgba(0,0,0,0.06);
+    }
+    html.aa-dark .grid { background: rgba(255,255,255,0.05); }
+    .cell {
+      width: 100%; aspect-ratio: 1; border-radius: 3px;
+      border: 1px solid rgba(156,39,176,0.2);
       background: rgba(255,255,255,0.5);
-      border-radius: 12px;
-    }
-    html.aa-dark .da-palette { background: rgba(255,255,255,0.06); }
-    .da-color-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      border: 3px solid transparent;
-      cursor: pointer;
-      transition: transform 0.15s, border-color 0.15s;
+      transition: background 0.2s, transform 0.15s;
       position: relative;
     }
-    .da-color-btn:hover { transform: scale(1.1); }
-    .da-color-btn.selected {
-      border-color: #4a148c;
+    html.aa-dark .cell { background: rgba(255,255,255,0.08); border-color: rgba(206,147,216,0.15); }
+    .cell.filled {
+      border-color: transparent;
+      transform: scale(1);
+    }
+    .cell.drop-target {
       transform: scale(1.15);
-      box-shadow: 0 0 8px rgba(156, 39, 176, 0.5);
+      box-shadow: 0 0 8px rgba(156,39,176,0.5);
     }
-    html.aa-dark .da-color-btn.selected {
-      border-color: #fff;
-      box-shadow: 0 0 8px rgba(206, 147, 216, 0.6);
+    .cell.hint-glow {
+      animation: hintPulse 1s ease-in-out;
     }
-    .da-color-num {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 9pt;
-      font-weight: 700;
-      color: #fff;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-      pointer-events: none;
+    @keyframes hintPulse {
+      0%, 100% { box-shadow: none; }
+      50% { box-shadow: 0 0 12px rgba(233,30,99,0.6); }
     }
 
-    /* Grid */
-    .da-grid-container {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 20px;
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
+    /* ── Gem Tray ──────────────────────────────── */
+    .tray-area {
+      width: 100%; max-width: 600px; padding: 12px 16px;
+      position: sticky; bottom: 0; z-index: 10;
+      background: linear-gradient(transparent, #f3e5f5 20%);
     }
-    .da-grid {
-      display: inline-grid;
-      gap: 1px;
-      background: rgba(0,0,0,0.15);
-      border-radius: 8px;
-      padding: 2px;
-      user-select: none;
-      -webkit-user-select: none;
+    html.aa-dark .tray-area { background: linear-gradient(transparent, #1a1a2e 20%); }
+    .tray-label {
+      font-size: 10pt; text-align: center; margin-bottom: 6px;
+      color: #9c27b0; font-weight: 600;
     }
-    html.aa-dark .da-grid { background: rgba(255,255,255,0.1); }
-    .da-cell {
-      width: 28px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 8pt;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.15s;
-      border-radius: 3px;
-      position: relative;
+    html.aa-dark .tray-label { color: #ce93d8; }
+    .tray {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      justify-content: center; padding: 8px;
+      background: rgba(255,255,255,0.7); border-radius: 12px;
+      border: 2px solid rgba(156,39,176,0.2);
+      min-height: 50px; max-height: 180px; overflow-y: auto;
     }
-    .da-cell.empty {
-      background: rgba(255,255,255,0.7);
-      color: #888;
+    html.aa-dark .tray { background: rgba(40,20,60,0.8); border-color: rgba(123,31,162,0.3); }
+    .gem {
+      width: 32px; height: 32px; border-radius: 6px;
+      cursor: grab; position: relative; z-index: 1;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; transition: transform 0.1s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
-    html.aa-dark .da-cell.empty {
-      background: rgba(255,255,255,0.12);
-      color: #999;
-    }
-    .da-cell.filled {
-      color: transparent;
-    }
-    .da-cell.filled .da-sparkle {
-      animation: sparkle 0.4s ease-out forwards;
+    .gem:active { cursor: grabbing; transform: scale(1.2); }
+    .gem.dragging {
+      position: fixed; z-index: 1000; pointer-events: none;
+      transform: scale(1.3); box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-    /* Sparkle animation */
-    @keyframes sparkle {
-      0% { transform: scale(0.5); opacity: 1; }
-      50% { transform: scale(1.3); opacity: 0.8; }
-      100% { transform: scale(1); opacity: 0; }
+    /* ── Completion Overlay ────────────────────── */
+    .complete-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 100;
+      justify-content: center; align-items: center;
     }
-    .da-sparkle {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      border-radius: 3px;
-      background: rgba(255,255,255,0.6);
-      opacity: 0;
+    .complete-overlay.show { display: flex; }
+    .complete-box {
+      background: #fff; border-radius: 16px; padding: 32px;
+      text-align: center; max-width: 320px; width: 90%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
+    html.aa-dark .complete-box { background: #2a1a3e; color: #e0e0e0; }
+    .complete-box h2 { font-size: 18pt; margin-bottom: 8px; }
+    .complete-box p { font-size: 11pt; margin-bottom: 16px; color: #666; }
+    html.aa-dark .complete-box p { color: #aaa; }
+    .complete-btn {
+      padding: 10px 24px; border-radius: 10px; border: none;
+      background: #9c27b0; color: #fff; font-size: 12pt;
+      cursor: pointer; margin: 4px;
+    }
+    .complete-btn:hover { background: #7b1fa2; }
 
-    /* Completion message */
-    .da-complete {
-      text-align: center;
-      padding: 24px;
-      display: none;
+    /* ── Sparkle ───────────────────────────────── */
+    .sparkle {
+      position: fixed; pointer-events: none; z-index: 200;
+      font-size: 18px; animation: sparkAnim 0.6s ease-out forwards;
     }
-    .da-complete.show { display: block; }
-    .da-complete h2 {
-      font-size: 1.6em;
-      margin-bottom: 8px;
-      color: #9c27b0;
-    }
-    html.aa-dark .da-complete h2 { color: #ce93d8; }
-    .da-complete p {
-      font-size: 1em;
-      opacity: 0.8;
-      margin-bottom: 16px;
-    }
-    .da-complete-btn {
-      padding: 10px 24px;
-      border-radius: 20px;
-      border: none;
-      background: #9c27b0;
-      color: #fff;
-      font-size: 11pt;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .da-complete-btn:hover { background: #7b1fa2; }
-
-    /* Eraser indicator */
-    .da-eraser-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      border: 3px solid transparent;
-      cursor: pointer;
-      transition: transform 0.15s, border-color 0.15s;
-      background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 12px 12px;
-      position: relative;
-    }
-    .da-eraser-btn.selected {
-      border-color: #4a148c;
-      transform: scale(1.15);
-      box-shadow: 0 0 8px rgba(156, 39, 176, 0.5);
-    }
-    html.aa-dark .da-eraser-btn.selected {
-      border-color: #fff;
-    }
-
-    /* Responsive */
-    @media (max-width: 480px) {
-      .da-cell { width: 24px; height: 24px; font-size: 7pt; }
-      .da-color-btn { width: 32px; height: 32px; }
-      .da-eraser-btn { width: 32px; height: 32px; }
-      .da-title h1 { font-size: 14pt; }
+    @keyframes sparkAnim {
+      0% { opacity: 1; transform: scale(0.5) translateY(0); }
+      100% { opacity: 0; transform: scale(1.2) translateY(-30px); }
     }
   </style>
 </head>
 <body>
-  <script>
-    /* Dark mode early */
+  <div class="da-header">
+    <a class="da-back" href="/Academic-Allies/modular/components/comfort-games/game-center.html">
+      &#8592; Games
+    </a>
+    <span class="da-title">Diamond Art</span>
+  </div>
+
+  <div class="picker-area">
+    <div class="pack-tabs" id="packTabs"></div>
+    <div class="design-row" id="designRow"></div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-text" id="progressText">0 / 0</div>
+  </div>
+
+  <div class="grid-area">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="tray-area">
+    <div class="tray-label">Drag gems to matching spots</div>
+    <div class="tray" id="tray"></div>
+  </div>
+
+  <div class="complete-overlay" id="completeOverlay">
+    <div class="complete-box">
+      <h2 id="completeTitle">Beautiful!</h2>
+      <p id="completeMsg">You revealed the picture!</p>
+      <button class="complete-btn" onclick="nextDesign()">Next Design</button>
+      <button class="complete-btn" onclick="replayDesign()">Play Again</button>
+    </div>
+  </div>
+
+<script>
+/* Claude: 2026-04-02 — Brilliant Sort: Diamond Puzzle
+   Drag-and-drop gem sorting reveals pixel art. ES5 compliant. */
+(function() {
+  'use strict';
+
+  /* ── Color Palette ─────────────────────────── */
+  var COLORS = {
+    R: '#e53935', G: '#43a047', B: '#1e88e5', Y: '#fdd835',
+    P: '#8e24aa', O: '#fb8c00', K: '#d81b60', W: '#eceff1',
+    T: '#00897b', N: '#5d4037', L: '#c0ca33', S: '#546e7a',
+    C: '#00acc1', M: '#f06292', V: '#7e57c2', I: '#ffb300'
+  };
+
+  /* ── Designs: each is { name, cols, rows, data } ──
+     data is a string, one char per cell, using COLORS keys.
+     Spaces = empty (no gem needed). */
+  var PACKS = {
+    Floral: [
+      { name: 'Tulip', cols: 10, rows: 10, data:
+        '    RR    ' +
+        '   RRRR   ' +
+        '  RRRRRR  ' +
+        '  RMRRMR  ' +
+        '  RRRRRR  ' +
+        '   RRRR   ' +
+        '    GG    ' +
+        '    GG    ' +
+        '   GGGG   ' +
+        '    GG    '
+      },
+      { name: 'Daisy', cols: 10, rows: 10, data:
+        '    WW    ' +
+        '  WWWWWW  ' +
+        ' WW YY WW ' +
+        ' WWYYYYWW ' +
+        '  WYYYYW  ' +
+        ' WWYYYYWW ' +
+        ' WW YY WW ' +
+        '  WWWWWW  ' +
+        '    GG    ' +
+        '   GGGG   '
+      },
+      { name: 'Rose', cols: 10, rows: 10, data:
+        '   KKKK   ' +
+        '  KKMKKK  ' +
+        ' KKMMMMKK ' +
+        ' KMMMMMKK ' +
+        ' KKMMMMK  ' +
+        '  KKMMKK  ' +
+        '   KKKK   ' +
+        '    GG    ' +
+        '   GLGG   ' +
+        '   GGGG   '
+      }
+    ],
+    Cats: [
+      { name: 'Kitty', cols: 10, rows: 10, data:
+        ' S  SS  S ' +
+        ' SS SS SS ' +
+        ' SSSSSSSS ' +
+        ' SGSSSGSS ' +
+        ' SSSSSSSS ' +
+        ' SSSKSSSS ' +
+        ' SSSSSSSS ' +
+        '  SSSSSS  ' +
+        '   SSSS   ' +
+        '  S    S  '
+      },
+      { name: 'Duchess', cols: 10, rows: 10, data:
+        ' W  WW  W ' +
+        ' WW WW WW ' +
+        ' WWWWWWWW ' +
+        ' WIWWWIWW ' +
+        ' WWWWWWWW ' +
+        ' WWWKWWWW ' +
+        ' WWMWWMWW ' +
+        '  WWWWWW  ' +
+        '   WWWW   ' +
+        '  W    W  '
+      },
+      { name: 'Nap Cat', cols: 10, rows: 10, data:
+        '          ' +
+        ' NNNNNNNN ' +
+        ' NNSSSSNN ' +
+        ' NSSSSSNN ' +
+        ' NSSSSSN  ' +
+        ' NNSSSSN  ' +
+        '  NNNNNN  ' +
+        '  NNNNNN  ' +
+        '  NNNNNN  ' +
+        '          '
+      }
+    ],
+    Nature: [
+      { name: 'Mountain', cols: 10, rows: 10, data:
+        'BBBBBBBBBB' +
+        'BBBWWBBBBB' +
+        'BBWWWWBBBB' +
+        'BWWSSSWBBB' +
+        'BSSSSSSSBB' +
+        'SSSSSSSSSS' +
+        'GGGGGGGGGG' +
+        'GGGGGGGGGG' +
+        'GLGLGLGLGL' +
+        'GGGGGGGGGG'
+      },
+      { name: 'Sunset', cols: 10, rows: 10, data:
+        'OOOOOOOOOO' +
+        'OOYYYYYOOO' +
+        'OYYYYYYYYO' +
+        'OOOOOOOOOO' +
+        'RRRRRRRRRR' +
+        'KKRRKRRKKR' +
+        'BBBBBBBBBB' +
+        'BCBBCBBCBB' +
+        'BBBBBBBBBB' +
+        'BCBBBCBBCB'
+      },
+      { name: 'Tree', cols: 10, rows: 10, data:
+        '    GG    ' +
+        '   GGGG   ' +
+        '  GGGGGG  ' +
+        ' GGGGGGGG ' +
+        '  GGGGGG  ' +
+        ' GLGGGGGG ' +
+        'GGGGGGGLGG' +
+        '    NN    ' +
+        '    NN    ' +
+        '   NNNN   '
+      }
+    ],
+    Patterns: [
+      { name: 'Heart', cols: 10, rows: 10, data:
+        '          ' +
+        ' RR  RR   ' +
+        'RRRRRRRR  ' +
+        'RRRRRRRR  ' +
+        'RRRRRRRR  ' +
+        ' RRRRRR   ' +
+        '  RRRR    ' +
+        '   RR     ' +
+        '          ' +
+        '          '
+      },
+      { name: 'Star', cols: 10, rows: 10, data:
+        '    YY    ' +
+        '    YY    ' +
+        '   YYYY   ' +
+        'YYYYYYYYYY' +
+        ' YYYYYYYY ' +
+        '  YYYYYY  ' +
+        '  YY  YY  ' +
+        ' YY    YY ' +
+        'YY      YY' +
+        '          '
+      },
+      { name: 'Rainbow', cols: 10, rows: 10, data:
+        '  RRRRRR  ' +
+        ' RORRRRRO ' +
+        'ROYYYYYOR ' +
+        'ROYGGGYOR ' +
+        'ROYGBGYOR ' +
+        'ROYGGGYOR ' +
+        'ROYYYYYOR ' +
+        ' RORRRRRO ' +
+        '  RRRRRR  ' +
+        '          '
+      }
+    ]
+  };
+
+  /* ── State ──────────────────────────────────── */
+  var currentPack = 'Floral';
+  var currentIdx = 0;
+  var grid = [];       /* array of { color, filled } */
+  var totalCells = 0;
+  var filledCount = 0;
+  var dragGem = null;
+  var dragOffX = 0;
+  var dragOffY = 0;
+  var audioCtx = null;
+
+  /* ── DOM refs ───────────────────────────────── */
+  var $packTabs = document.getElementById('packTabs');
+  var $designRow = document.getElementById('designRow');
+  var $grid = document.getElementById('grid');
+  var $tray = document.getElementById('tray');
+  var $progressFill = document.getElementById('progressFill');
+  var $progressText = document.getElementById('progressText');
+  var $overlay = document.getElementById('completeOverlay');
+
+  /* ── Audio ──────────────────────────────────── */
+  function getAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+    return audioCtx;
+  }
+  function playTone(freq, dur) {
+    var ctx = getAudio();
+    if (!ctx) return;
     try {
-      if (localStorage.getItem('AA_DARK_MODE') === 'true') {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.value = 0.08;
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+      osc.start(); osc.stop(ctx.currentTime + dur);
+    } catch(e) {}
+  }
+  function playPlace() { playTone(880, 0.12); }
+  function playComplete() {
+    playTone(523, 0.15);
+    setTimeout(function() { playTone(659, 0.15); }, 100);
+    setTimeout(function() { playTone(784, 0.15); }, 200);
+    setTimeout(function() { playTone(1047, 0.3); }, 300);
+  }
+
+  /* ── Sparkle ────────────────────────────────── */
+  function sparkleAt(x, y) {
+    var chars = ['✦', '✧', '💎', '✨'];
+    for (var i = 0; i < 3; i++) {
+      var sp = document.createElement('span');
+      sp.className = 'sparkle';
+      sp.textContent = chars[Math.floor(Math.random() * chars.length)];
+      sp.style.left = (x + (Math.random() - 0.5) * 30) + 'px';
+      sp.style.top = (y + (Math.random() - 0.5) * 30) + 'px';
+      document.body.appendChild(sp);
+      (function(el) {
+        setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 700);
+      })(sp);
+    }
+  }
+
+  /* ── Build Pack Tabs ────────────────────────── */
+  function buildPacks() {
+    $packTabs.innerHTML = '';
+    var packs = Object.keys(PACKS);
+    for (var i = 0; i < packs.length; i++) {
+      (function(pName) {
+        var btn = document.createElement('button');
+        btn.className = 'pack-tab' + (pName === currentPack ? ' active' : '');
+        btn.textContent = pName;
+        btn.onclick = function() {
+          currentPack = pName;
+          currentIdx = 0;
+          buildPacks();
+          buildDesignRow();
+          loadDesign();
+        };
+        $packTabs.appendChild(btn);
+      })(packs[i]);
+    }
+  }
+
+  /* ── Build Design Row ───────────────────────── */
+  function buildDesignRow() {
+    $designRow.innerHTML = '';
+    var designs = PACKS[currentPack];
+    for (var i = 0; i < designs.length; i++) {
+      (function(idx) {
+        var btn = document.createElement('button');
+        btn.className = 'design-btn' + (idx === currentIdx ? ' active' : '');
+        btn.textContent = designs[idx].name;
+        btn.onclick = function() {
+          currentIdx = idx;
+          buildDesignRow();
+          loadDesign();
+        };
+        $designRow.appendChild(btn);
+      })(i);
+    }
+  }
+
+  /* ── Load Design ────────────────────────────── */
+  function loadDesign() {
+    var design = PACKS[currentPack][currentIdx];
+    var cols = design.cols;
+    var rows = design.rows;
+    var data = design.data;
+
+    /* Build grid state */
+    grid = [];
+    totalCells = 0;
+    filledCount = 0;
+    for (var i = 0; i < data.length; i++) {
+      var ch = data[i];
+      if (ch !== ' ' && COLORS[ch]) {
+        grid.push({ color: ch, filled: false });
+        totalCells++;
+      } else {
+        grid.push({ color: null, filled: false });
+      }
+    }
+
+    /* Render grid */
+    $grid.innerHTML = '';
+    $grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    var cellSize = Math.min(Math.floor((window.innerWidth - 40) / cols), 40);
+    $grid.style.width = (cellSize * cols + (cols - 1) * 2 + 8) + 'px';
+
+    for (var c = 0; c < grid.length; c++) {
+      var cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.style.width = cellSize + 'px';
+      cell.style.height = cellSize + 'px';
+      cell.setAttribute('data-idx', c);
+      if (!grid[c].color) {
+        cell.style.visibility = 'hidden';
+      }
+      $grid.appendChild(cell);
+    }
+
+    /* Build tray with shuffled gems */
+    buildTray();
+    updateProgress();
+    $overlay.classList.remove('show');
+  }
+
+  /* ── Build Gem Tray (shuffled) ──────────────── */
+  function buildTray() {
+    $tray.innerHTML = '';
+    var gems = [];
+    for (var i = 0; i < grid.length; i++) {
+      if (grid[i].color && !grid[i].filled) {
+        gems.push(grid[i].color);
+      }
+    }
+    /* Shuffle */
+    for (var j = gems.length - 1; j > 0; j--) {
+      var k = Math.floor(Math.random() * (j + 1));
+      var tmp = gems[j]; gems[j] = gems[k]; gems[k] = tmp;
+    }
+    /* Only show a batch (so tray doesn't overflow) */
+    var batchSize = Math.min(gems.length, 30);
+    for (var g = 0; g < batchSize; g++) {
+      var gem = createGemEl(gems[g]);
+      $tray.appendChild(gem);
+    }
+  }
+
+  /* ── Create a Gem Element ───────────────────── */
+  function createGemEl(colorKey) {
+    var el = document.createElement('div');
+    el.className = 'gem';
+    el.style.background = COLORS[colorKey];
+    el.setAttribute('data-color', colorKey);
+    el.textContent = '💎';
+
+    /* Mouse events */
+    el.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      startDrag(el, e.clientX, e.clientY);
+    });
+    /* Touch events */
+    el.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      var t = e.touches[0];
+      startDrag(el, t.clientX, t.clientY);
+    }, { passive: false });
+
+    return el;
+  }
+
+  /* ── Drag & Drop ────────────────────────────── */
+  function startDrag(el, x, y) {
+    var rect = el.getBoundingClientRect();
+    dragOffX = x - rect.left;
+    dragOffY = y - rect.top;
+    dragGem = el;
+    el.classList.add('dragging');
+    el.style.left = (x - dragOffX) + 'px';
+    el.style.top = (y - dragOffY) + 'px';
+    el.style.width = '36px';
+    el.style.height = '36px';
+
+    /* Highlight matching cells */
+    var color = el.getAttribute('data-color');
+    var cells = $grid.querySelectorAll('.cell');
+    for (var i = 0; i < cells.length; i++) {
+      var idx = parseInt(cells[i].getAttribute('data-idx'));
+      if (grid[idx].color === color && !grid[idx].filled) {
+        cells[i].classList.add('hint-glow');
+      }
+    }
+  }
+
+  function moveDrag(x, y) {
+    if (!dragGem) return;
+    dragGem.style.left = (x - dragOffX) + 'px';
+    dragGem.style.top = (y - dragOffY) + 'px';
+
+    /* Highlight cell under cursor */
+    var cells = $grid.querySelectorAll('.cell');
+    for (var i = 0; i < cells.length; i++) {
+      cells[i].classList.remove('drop-target');
+    }
+    var target = getCellAt(x, y);
+    if (target) {
+      target.classList.add('drop-target');
+    }
+  }
+
+  function endDrag(x, y) {
+    if (!dragGem) return;
+    var color = dragGem.getAttribute('data-color');
+    var target = getCellAt(x, y);
+    var placed = false;
+
+    if (target) {
+      var idx = parseInt(target.getAttribute('data-idx'));
+      if (grid[idx].color === color && !grid[idx].filled) {
+        /* Correct placement! */
+        grid[idx].filled = true;
+        filledCount++;
+        target.style.background = COLORS[color];
+        target.classList.add('filled');
+        placed = true;
+        playPlace();
+
+        var tRect = target.getBoundingClientRect();
+        sparkleAt(tRect.left + tRect.width / 2, tRect.top + tRect.height / 2);
+        updateProgress();
+
+        /* Remove gem from DOM */
+        if (dragGem.parentNode) dragGem.parentNode.removeChild(dragGem);
+
+        /* Refill tray if needed */
+        var remaining = 0;
+        for (var r = 0; r < grid.length; r++) {
+          if (grid[r].color && !grid[r].filled) remaining++;
+        }
+        if (remaining > 0 && $tray.children.length < 5) {
+          buildTray();
+        }
+
+        /* Check completion */
+        if (filledCount >= totalCells) {
+          setTimeout(function() {
+            playComplete();
+            $overlay.classList.add('show');
+          }, 400);
+        }
+      }
+    }
+
+    /* Reset gem if not placed */
+    if (!placed) {
+      dragGem.classList.remove('dragging');
+      dragGem.style.position = '';
+      dragGem.style.left = '';
+      dragGem.style.top = '';
+      dragGem.style.width = '';
+      dragGem.style.height = '';
+    }
+
+    /* Clear highlights */
+    var allCells = $grid.querySelectorAll('.cell');
+    for (var c = 0; c < allCells.length; c++) {
+      allCells[c].classList.remove('drop-target');
+      allCells[c].classList.remove('hint-glow');
+    }
+    dragGem = null;
+  }
+
+  function getCellAt(x, y) {
+    /* temporarily hide the dragged gem so elementFromPoint finds the cell */
+    var prev = null;
+    if (dragGem) {
+      prev = dragGem.style.display;
+      dragGem.style.display = 'none';
+    }
+    var el = document.elementFromPoint(x, y);
+    if (dragGem) {
+      dragGem.style.display = prev || '';
+    }
+    if (el && el.classList && el.classList.contains('cell')) return el;
+    return null;
+  }
+
+  /* Global mouse/touch move and up */
+  document.addEventListener('mousemove', function(e) {
+    if (dragGem) { e.preventDefault(); moveDrag(e.clientX, e.clientY); }
+  });
+  document.addEventListener('mouseup', function(e) {
+    if (dragGem) endDrag(e.clientX, e.clientY);
+  });
+  document.addEventListener('touchmove', function(e) {
+    if (dragGem) {
+      e.preventDefault();
+      var t = e.touches[0];
+      moveDrag(t.clientX, t.clientY);
+    }
+  }, { passive: false });
+  document.addEventListener('touchend', function(e) {
+    if (dragGem) {
+      var t = e.changedTouches[0];
+      endDrag(t.clientX, t.clientY);
+    }
+  });
+
+  /* ── Progress ───────────────────────────────── */
+  function updateProgress() {
+    var pct = totalCells > 0 ? Math.round((filledCount / totalCells) * 100) : 0;
+    $progressFill.style.width = pct + '%';
+    $progressText.textContent = filledCount + ' / ' + totalCells + ' (' + pct + '%)';
+  }
+
+  /* ── Navigation ─────────────────────────────── */
+  window.nextDesign = function() {
+    var designs = PACKS[currentPack];
+    currentIdx = (currentIdx + 1) % designs.length;
+    buildDesignRow();
+    loadDesign();
+  };
+  window.replayDesign = function() {
+    loadDesign();
+  };
+
+  /* ── Dark mode sync ─────────────────────────── */
+  function syncDark() {
+    try {
+      var pref = localStorage.getItem('aa_dark_mode');
+      if (pref === 'true') {
         document.documentElement.classList.add('aa-dark');
       }
-    } catch (e) {}
-  </script>
+    } catch(e) {}
+  }
 
-  <div class="da-header">
-    <a href="/Academic-Allies/modular/components/comfort-games/game-center.html" class="da-back">← Games</a>
-    <div class="da-title">
-      <h1>💎 Diamond Art</h1>
-      <p>Tap colors, fill the grid, relax</p>
-    </div>
-  </div>
+  /* ── Init ───────────────────────────────────── */
+  syncDark();
+  buildPacks();
+  buildDesignRow();
+  loadDesign();
 
-  <!-- Theme / Design picker -->
-  <div class="da-picker">
-    <label>Choose a design:</label>
-    <div class="da-theme-tabs" id="themeTabs"></div>
-    <div class="da-design-list" id="designList"></div>
-  </div>
-
-  <!-- Game area -->
-  <div class="da-game-wrap">
-    <div class="da-progress-wrap">
-      <div class="da-progress-label" id="progressLabel">0 / 0 diamonds placed</div>
-      <div class="da-progress-bar">
-        <div class="da-progress-fill" id="progressFill" style="width: 0%"></div>
-      </div>
-    </div>
-
-    <div class="da-palette" id="palette"></div>
-
-    <div class="da-grid-container">
-      <div class="da-grid" id="grid"></div>
-    </div>
-
-    <div class="da-complete" id="completeMsg">
-      <h2>✨ Beautiful!</h2>
-      <p>You finished the design. Take a moment to admire your work.</p>
-      <button class="da-complete-btn" id="nextDesignBtn">Try Another</button>
-    </div>
-  </div>
-
-  <script>
-    /* ══════════════════════════════════════════════════════════
-       DESIGN DATA
-       Each design: { name, cols, rows, palette (hex array),
-                      grid (2D array of palette indices, 0 = empty/background) }
-       ══════════════════════════════════════════════════════════ */
-
-    var THEMES = {
-      'Floral': [
-        {
-          name: 'Tulip',
-          cols: 12, rows: 12,
-          palette: ['#e8e8e8', '#e91e63', '#c2185b', '#4caf50', '#388e3c', '#ffeb3b'],
-          grid: [
-            [0,0,0,0,0,1,1,0,0,0,0,0],
-            [0,0,0,0,1,1,1,1,0,0,0,0],
-            [0,0,0,1,2,1,1,2,1,0,0,0],
-            [0,0,0,1,2,1,1,2,1,0,0,0],
-            [0,0,0,1,1,2,2,1,1,0,0,0],
-            [0,0,0,0,1,1,1,1,0,0,0,0],
-            [0,0,0,0,0,3,3,0,0,0,0,0],
-            [0,0,0,0,0,3,3,0,0,0,0,0],
-            [0,0,0,0,4,3,3,4,0,0,0,0],
-            [0,0,0,4,0,3,3,0,4,0,0,0],
-            [0,0,4,0,0,3,3,0,0,4,0,0],
-            [0,0,0,0,0,3,3,0,0,0,0,0]
-          ]
-        },
-        {
-          name: 'Daisy',
-          cols: 12, rows: 12,
-          palette: ['#e8e8e8', '#ffffff', '#ffeb3b', '#fdd835', '#4caf50', '#81c784'],
-          grid: [
-            [0,0,0,0,1,1,1,0,0,0,0,0],
-            [0,0,0,1,1,1,1,1,0,0,0,0],
-            [0,0,1,1,0,0,0,1,1,0,0,0],
-            [0,1,1,0,0,2,0,0,1,1,0,0],
-            [1,1,0,0,2,3,2,0,0,1,1,0],
-            [1,1,0,2,3,3,3,2,0,1,1,0],
-            [1,1,0,0,2,3,2,0,0,1,1,0],
-            [0,1,1,0,0,2,0,0,1,1,0,0],
-            [0,0,1,1,0,4,0,1,1,0,0,0],
-            [0,0,0,1,1,4,1,1,0,0,0,0],
-            [0,0,0,0,0,4,0,0,0,0,0,0],
-            [0,0,0,0,5,4,5,0,0,0,0,0]
-          ]
-        },
-        {
-          name: 'Rose',
-          cols: 14, rows: 14,
-          palette: ['#e8e8e8', '#f44336', '#d32f2f', '#e91e63', '#4caf50', '#2e7d32'],
-          grid: [
-            [0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,1,1,1,1,0,0,0,0,0],
-            [0,0,0,0,1,2,1,1,2,1,0,0,0,0],
-            [0,0,0,1,2,3,2,2,3,2,1,0,0,0],
-            [0,0,1,2,3,1,3,3,1,3,2,1,0,0],
-            [0,0,1,2,3,3,2,2,3,3,2,1,0,0],
-            [0,0,0,1,2,3,3,3,3,2,1,0,0,0],
-            [0,0,0,1,1,2,3,3,2,1,1,0,0,0],
-            [0,0,0,0,1,1,2,2,1,1,0,0,0,0],
-            [0,0,0,0,0,1,1,1,1,0,0,0,0,0],
-            [0,0,0,0,0,0,4,4,0,0,0,0,0,0],
-            [0,0,0,0,0,4,4,4,4,0,0,0,0,0],
-            [0,0,0,0,5,0,4,4,0,5,0,0,0,0],
-            [0,0,0,5,0,0,4,4,0,0,5,0,0,0]
-          ]
-        }
-      ],
-
-      'Cats': [
-        {
-          name: 'Cat Face',
-          cols: 12, rows: 12,
-          palette: ['#e8e8e8', '#795548', '#5d4037', '#ffcc80', '#e91e63', '#212121'],
-          grid: [
-            [0,0,1,0,0,0,0,0,0,1,0,0],
-            [0,1,2,1,0,0,0,0,1,2,1,0],
-            [0,1,2,2,1,1,1,1,2,2,1,0],
-            [1,2,2,2,2,2,2,2,2,2,2,1],
-            [1,2,2,6,2,2,2,2,6,2,2,1],
-            [1,2,2,6,2,2,2,2,6,2,2,1],
-            [1,2,2,2,2,4,4,2,2,2,2,1],
-            [1,2,3,2,2,2,2,2,2,3,2,1],
-            [1,2,3,2,2,2,2,2,2,3,2,1],
-            [0,1,2,2,2,2,2,2,2,2,1,0],
-            [0,0,1,2,2,2,2,2,2,1,0,0],
-            [0,0,0,1,1,1,1,1,1,0,0,0]
-          ]
-        },
-        {
-          name: 'Paw Print',
-          cols: 10, rows: 12,
-          palette: ['#e8e8e8', '#e91e63', '#f48fb1'],
-          grid: [
-            [0,0,1,1,0,0,1,1,0,0],
-            [0,1,2,2,1,1,2,2,1,0],
-            [0,1,2,2,1,1,2,2,1,0],
-            [0,0,1,1,0,0,1,1,0,0],
-            [0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,1,1,1,1,0,0,0],
-            [0,0,1,2,2,2,2,1,0,0],
-            [0,1,2,2,2,2,2,2,1,0],
-            [1,2,2,2,2,2,2,2,2,1],
-            [1,2,2,2,2,2,2,2,2,1],
-            [0,1,2,2,2,2,2,2,1,0],
-            [0,0,1,1,1,1,1,1,0,0]
-          ]
-        },
-        {
-          name: 'Duchess',
-          cols: 14, rows: 14,
-          palette: ['#e8e8e8', '#ffffff', '#bdbdbd', '#e0e0e0', '#ffb74d', '#e91e63', '#4caf50'],
-          grid: [
-            [0,0,1,0,0,0,0,0,0,0,0,1,0,0],
-            [0,1,2,1,0,0,0,0,0,0,1,2,1,0],
-            [0,1,3,2,1,0,0,0,0,1,2,3,1,0],
-            [1,3,3,3,2,1,1,1,1,2,3,3,3,1],
-            [1,3,3,3,3,3,3,3,3,3,3,3,3,1],
-            [1,3,3,6,3,3,3,3,3,6,3,3,3,1],
-            [1,3,3,6,3,3,3,3,3,6,3,3,3,1],
-            [1,3,3,3,3,3,5,3,3,3,3,3,3,1],
-            [1,3,2,3,3,3,3,3,3,3,2,3,3,1],
-            [1,3,2,3,3,3,3,3,3,3,2,3,3,1],
-            [0,1,3,3,3,3,3,3,3,3,3,3,1,0],
-            [0,0,1,3,3,3,3,3,3,3,3,1,0,0],
-            [0,0,0,1,1,3,3,3,1,1,1,0,0,0],
-            [0,0,0,0,0,1,1,1,0,0,0,0,0,0]
-          ]
-        }
-      ],
-
-      'Nature': [
-        {
-          name: 'Butterfly',
-          cols: 14, rows: 10,
-          palette: ['#e8e8e8', '#ff9800', '#f57c00', '#ffeb3b', '#212121'],
-          grid: [
-            [0,0,1,1,0,0,0,0,0,0,1,1,0,0],
-            [0,1,2,2,1,0,0,0,0,1,2,2,1,0],
-            [1,2,3,3,2,1,0,0,1,2,3,3,2,1],
-            [1,2,3,3,2,2,4,4,2,2,3,3,2,1],
-            [1,1,2,2,1,2,4,4,2,1,2,2,1,1],
-            [0,1,1,2,2,2,4,4,2,2,2,1,1,0],
-            [0,0,1,1,2,2,4,4,2,2,1,1,0,0],
-            [0,0,0,1,1,2,4,4,2,1,1,0,0,0],
-            [0,0,0,0,1,1,4,4,1,1,0,0,0,0],
-            [0,0,0,0,0,0,4,4,0,0,0,0,0,0]
-          ]
-        },
-        {
-          name: 'Mountain',
-          cols: 14, rows: 10,
-          palette: ['#e8e8e8', '#5d4037', '#795548', '#ffffff', '#87ceeb', '#4caf50'],
-          grid: [
-            [4,4,4,4,4,4,4,4,4,4,4,4,4,4],
-            [4,4,4,4,4,4,3,4,4,4,4,4,4,4],
-            [4,4,4,4,4,3,3,3,4,4,4,4,4,4],
-            [4,4,4,4,3,1,3,1,3,4,4,4,4,4],
-            [4,4,4,3,1,1,1,1,1,3,4,4,4,4],
-            [4,4,3,2,1,1,1,1,1,2,3,4,4,4],
-            [4,3,2,2,2,1,1,1,2,2,2,3,4,4],
-            [3,2,2,2,2,2,1,2,2,2,2,2,3,4],
-            [5,5,5,5,5,5,5,5,5,5,5,5,5,5],
-            [5,5,5,5,5,5,5,5,5,5,5,5,5,5]
-          ]
-        },
-        {
-          name: 'Sun',
-          cols: 12, rows: 12,
-          palette: ['#e8e8e8', '#ffeb3b', '#fdd835', '#ff9800', '#f57c00'],
-          grid: [
-            [0,0,0,0,0,1,1,0,0,0,0,0],
-            [0,0,1,0,0,0,0,0,0,1,0,0],
-            [0,0,0,1,0,0,0,0,1,0,0,0],
-            [0,0,0,0,2,2,2,2,0,0,0,0],
-            [0,0,0,2,3,3,3,3,2,0,0,0],
-            [1,0,0,2,3,4,4,3,2,0,0,1],
-            [1,0,0,2,3,4,4,3,2,0,0,1],
-            [0,0,0,2,3,3,3,3,2,0,0,0],
-            [0,0,0,0,2,2,2,2,0,0,0,0],
-            [0,0,0,1,0,0,0,0,1,0,0,0],
-            [0,0,1,0,0,0,0,0,0,1,0,0],
-            [0,0,0,0,0,1,1,0,0,0,0,0]
-          ]
-        }
-      ],
-
-      'Patterns': [
-        {
-          name: 'Heart',
-          cols: 12, rows: 11,
-          palette: ['#e8e8e8', '#e91e63', '#c2185b', '#f48fb1'],
-          grid: [
-            [0,0,1,1,1,0,0,1,1,1,0,0],
-            [0,1,3,3,1,1,1,1,3,3,1,0],
-            [1,3,1,1,1,1,1,1,1,1,3,1],
-            [1,1,1,2,1,1,1,1,2,1,1,1],
-            [1,1,2,2,2,1,1,2,2,2,1,1],
-            [0,1,1,2,1,1,1,1,2,1,1,0],
-            [0,0,1,1,1,2,2,1,1,1,0,0],
-            [0,0,0,1,1,1,1,1,1,0,0,0],
-            [0,0,0,0,1,1,1,1,0,0,0,0],
-            [0,0,0,0,0,1,1,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0,0,0]
-          ]
-        },
-        {
-          name: 'Star',
-          cols: 11, rows: 11,
-          palette: ['#e8e8e8', '#ffd600', '#ffab00', '#ff6f00'],
-          grid: [
-            [0,0,0,0,0,1,0,0,0,0,0],
-            [0,0,0,0,1,2,1,0,0,0,0],
-            [0,0,0,0,1,2,1,0,0,0,0],
-            [1,1,1,1,2,3,2,1,1,1,1],
-            [0,1,2,2,3,3,3,2,2,1,0],
-            [0,0,1,2,3,3,3,2,1,0,0],
-            [0,0,1,2,2,3,2,2,1,0,0],
-            [0,1,2,1,2,3,2,1,2,1,0],
-            [1,2,1,0,1,2,1,0,1,2,1],
-            [1,1,0,0,0,1,0,0,0,1,1],
-            [0,0,0,0,0,0,0,0,0,0,0]
-          ]
-        },
-        {
-          name: 'Diamond',
-          cols: 11, rows: 11,
-          palette: ['#e8e8e8', '#00bcd4', '#0097a7', '#b2ebf2', '#e0f7fa'],
-          grid: [
-            [0,0,0,0,0,4,0,0,0,0,0],
-            [0,0,0,0,4,3,4,0,0,0,0],
-            [0,0,0,4,3,1,3,4,0,0,0],
-            [0,0,4,3,1,2,1,3,4,0,0],
-            [0,4,3,1,2,2,2,1,3,4,0],
-            [4,3,1,2,2,2,2,2,1,3,4],
-            [0,4,3,1,2,2,2,1,3,4,0],
-            [0,0,4,3,1,2,1,3,4,0,0],
-            [0,0,0,4,3,1,3,4,0,0,0],
-            [0,0,0,0,4,3,4,0,0,0,0],
-            [0,0,0,0,0,4,0,0,0,0,0]
-          ]
-        }
-      ]
-    };
-
-    /* ══════════════════════════════════════════════════════════
-       GAME STATE
-       ══════════════════════════════════════════════════════════ */
-    var currentTheme = 'Floral';
-    var currentDesignIdx = 0;
-    var selectedColor = 1;        /* palette index (1-based, 0=empty) */
-    var eraserMode = false;
-    var playerGrid = [];          /* what the player has placed */
-    var totalCells = 0;
-    var filledCells = 0;
-
-    /* ── Audio context for click sounds ─────────────────────── */
-    var audioCtx = null;
-    function _playClick() {
-      try {
-        if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-        var osc = audioCtx.createOscillator();
-        var gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.type = 'sine';
-        osc.frequency.value = 800 + Math.random() * 400;
-        gain.gain.value = 0.08;
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-        osc.start(audioCtx.currentTime);
-        osc.stop(audioCtx.currentTime + 0.15);
-      } catch (e) {}
-    }
-    function _playComplete() {
-      try {
-        if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-        var notes = [523, 659, 784, 1047];
-        for (var n = 0; n < notes.length; n++) {
-          (function(freq, delay) {
-            var osc = audioCtx.createOscillator();
-            var gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.type = 'sine';
-            osc.frequency.value = freq;
-            gain.gain.value = 0.1;
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.3);
-            osc.start(audioCtx.currentTime + delay);
-            osc.stop(audioCtx.currentTime + delay + 0.3);
-          })(notes[n], n * 0.15);
-        }
-      } catch (e) {}
-    }
-
-    /* ── Build theme tabs ───────────────────────────────────── */
-    function renderThemeTabs() {
-      var container = document.getElementById('themeTabs');
-      var html = '';
-      var themeNames = Object.keys(THEMES);
-      for (var i = 0; i < themeNames.length; i++) {
-        var t = themeNames[i];
-        var icons = { 'Floral': '🌸', 'Cats': '🐱', 'Nature': '🦋', 'Patterns': '✨' };
-        var icon = icons[t] || '';
-        var cls = (t === currentTheme) ? 'da-theme-tab active' : 'da-theme-tab';
-        html += '<button class="' + cls + '" data-theme="' + t + '">' + icon + ' ' + t + '</button>';
-      }
-      container.innerHTML = html;
-
-      /* Attach listeners */
-      var btns = container.querySelectorAll('.da-theme-tab');
-      for (var j = 0; j < btns.length; j++) {
-        btns[j].onclick = function() {
-          currentTheme = this.getAttribute('data-theme');
-          currentDesignIdx = 0;
-          renderThemeTabs();
-          renderDesignList();
-          loadDesign();
-        };
-      }
-    }
-
-    /* ── Build design list ──────────────────────────────────── */
-    function renderDesignList() {
-      var container = document.getElementById('designList');
-      var designs = THEMES[currentTheme];
-      var html = '';
-      for (var i = 0; i < designs.length; i++) {
-        var cls = (i === currentDesignIdx) ? 'da-design-btn active' : 'da-design-btn';
-        html += '<button class="' + cls + '" data-idx="' + i + '">' + designs[i].name + '</button>';
-      }
-      container.innerHTML = html;
-
-      var btns = container.querySelectorAll('.da-design-btn');
-      for (var j = 0; j < btns.length; j++) {
-        btns[j].onclick = function() {
-          currentDesignIdx = parseInt(this.getAttribute('data-idx'), 10);
-          renderDesignList();
-          loadDesign();
-        };
-      }
-    }
-
-    /* ── Load a design into the grid ────────────────────────── */
-    function loadDesign() {
-      var design = THEMES[currentTheme][currentDesignIdx];
-      var palette = design.palette;
-      var gridData = design.grid;
-      var rows = design.rows;
-      var cols = design.cols;
-
-      /* Reset state */
-      playerGrid = [];
-      totalCells = 0;
-      filledCells = 0;
-      selectedColor = 1;
-      eraserMode = false;
-
-      for (var r = 0; r < rows; r++) {
-        playerGrid[r] = [];
-        for (var c = 0; c < cols; c++) {
-          playerGrid[r][c] = 0;
-          if (gridData[r][c] !== 0) { totalCells++; }
-        }
-      }
-
-      /* Hide completion */
-      document.getElementById('completeMsg').className = 'da-complete';
-
-      renderPalette(palette);
-      renderGrid(design);
-      updateProgress();
-    }
-
-    /* ── Render color palette ───────────────────────────────── */
-    function renderPalette(palette) {
-      var container = document.getElementById('palette');
-      var html = '';
-
-      /* Color buttons (skip index 0 = background) */
-      for (var i = 1; i < palette.length; i++) {
-        var cls = (i === selectedColor && !eraserMode) ? 'da-color-btn selected' : 'da-color-btn';
-        html += '<button class="' + cls + '" data-ci="' + i + '" style="background:' + palette[i] + '">';
-        html += '<span class="da-color-num">' + i + '</span>';
-        html += '</button>';
-      }
-
-      /* Eraser */
-      var eCls = eraserMode ? 'da-eraser-btn selected' : 'da-eraser-btn';
-      html += '<button class="' + eCls + '" id="eraserBtn" title="Eraser"><span class="da-color-num" style="color:#888">✕</span></button>';
-
-      container.innerHTML = html;
-
-      /* Attach listeners */
-      var btns = container.querySelectorAll('.da-color-btn');
-      for (var j = 0; j < btns.length; j++) {
-        btns[j].onclick = function() {
-          selectedColor = parseInt(this.getAttribute('data-ci'), 10);
-          eraserMode = false;
-          renderPalette(palette);
-        };
-      }
-      var eraser = document.getElementById('eraserBtn');
-      if (eraser) {
-        eraser.onclick = function() {
-          eraserMode = true;
-          selectedColor = 0;
-          renderPalette(palette);
-        };
-      }
-    }
-
-    /* ── Render the grid ────────────────────────────────────── */
-    function renderGrid(design) {
-      var container = document.getElementById('grid');
-      var gridData = design.grid;
-      var palette = design.palette;
-      var rows = design.rows;
-      var cols = design.cols;
-
-      container.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
-
-      var html = '';
-      for (var r = 0; r < rows; r++) {
-        for (var c = 0; c < cols; c++) {
-          var target = gridData[r][c];
-          if (target === 0) {
-            /* Empty / background cell */
-            html += '<div class="da-cell" style="background:transparent;cursor:default;" data-r="' + r + '" data-c="' + c + '"></div>';
-          } else {
-            var placed = playerGrid[r][c];
-            if (placed !== 0) {
-              /* Filled cell */
-              html += '<div class="da-cell filled" style="background:' + palette[placed] + ';" data-r="' + r + '" data-c="' + c + '">';
-              html += '<span class="da-sparkle"></span></div>';
-            } else {
-              /* Empty cell needing a diamond */
-              html += '<div class="da-cell empty" data-r="' + r + '" data-c="' + c + '">' + target + '</div>';
-            }
-          }
-        }
-      }
-      container.innerHTML = html;
-
-      /* Attach click/tap listeners */
-      var cells = container.querySelectorAll('.da-cell');
-      for (var i = 0; i < cells.length; i++) {
-        cells[i].onclick = handleCellClick;
-      }
-    }
-
-    /* ── Handle cell click ──────────────────────────────────── */
-    function handleCellClick() {
-      var r = parseInt(this.getAttribute('data-r'), 10);
-      var c = parseInt(this.getAttribute('data-c'), 10);
-      var design = THEMES[currentTheme][currentDesignIdx];
-      var target = design.grid[r][c];
-
-      /* Can't place on background cells */
-      if (target === 0) return;
-
-      if (eraserMode) {
-        /* Erase */
-        if (playerGrid[r][c] !== 0) {
-          playerGrid[r][c] = 0;
-          filledCells--;
-          _playClick();
-          renderGrid(design);
-          updateProgress();
-        }
-        return;
-      }
-
-      /* Place color */
-      if (playerGrid[r][c] === selectedColor) return; /* already placed same color */
-
-      var wasEmpty = (playerGrid[r][c] === 0);
-      playerGrid[r][c] = selectedColor;
-      if (wasEmpty) { filledCells++; }
-
-      _playClick();
-      renderGrid(design);
-      updateProgress();
-
-      /* Check completion */
-      if (filledCells >= totalCells) {
-        checkCompletion(design);
-      }
-    }
-
-    /* ── Check if all cells are correctly filled ────────────── */
-    function checkCompletion(design) {
-      var gridData = design.grid;
-      var correct = true;
-      for (var r = 0; r < design.rows; r++) {
-        for (var c = 0; c < design.cols; c++) {
-          if (gridData[r][c] !== 0 && playerGrid[r][c] !== gridData[r][c]) {
-            correct = false;
-            break;
-          }
-        }
-        if (!correct) break;
-      }
-
-      if (correct) {
-        _playComplete();
-        document.getElementById('completeMsg').className = 'da-complete show';
-      }
-    }
-
-    /* ── Update progress bar ────────────────────────────────── */
-    function updateProgress() {
-      var pct = totalCells > 0 ? Math.round((filledCells / totalCells) * 100) : 0;
-      document.getElementById('progressLabel').textContent = filledCells + ' / ' + totalCells + ' diamonds placed (' + pct + '%)';
-      document.getElementById('progressFill').style.width = pct + '%';
-    }
-
-    /* ── Next design button ─────────────────────────────────── */
-    document.getElementById('nextDesignBtn').onclick = function() {
-      var designs = THEMES[currentTheme];
-      currentDesignIdx = (currentDesignIdx + 1) % designs.length;
-      renderDesignList();
-      loadDesign();
-      window.scrollTo(0, 0);
-    };
-
-    /* ── Init ───────────────────────────────────────────────── */
-    renderThemeTabs();
-    renderDesignList();
-    loadDesign();
-  </script>
+})();
+</script>
 </body>
 </html>
