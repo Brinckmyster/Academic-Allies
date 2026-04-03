@@ -67,7 +67,6 @@
     .dot-meal     { background: #f59e0b; }
     .dot-nope     { background: #ef4444; }
     .dot-spoon    { background: #8b5cf6; }
-    .dot-class    { background: #e91e63; }  /* Claude: 2026-04-02 — class schedule dot */
 
     /* ── Detail panel ── */
     #detail-panel {
@@ -123,16 +122,6 @@
     .btn-gcal:hover { background: #e8f0fe; }
     .btn-gcal.connected { border-color: #10b981; color: #10b981; }
     .dot-gcal { background: #4285f4; }
-    /* Claude: 2026-04-02 — class schedule styles */
-    .class-email-link {
-      display: inline-flex; align-items: center; gap: 4px;
-      color: #1565c0; text-decoration: none; font-size: 0.82rem; font-weight: 600;
-      padding: 3px 8px; border-radius: 4px; background: rgba(21, 101, 192, 0.08);
-      transition: background 0.15s;
-    }
-    .class-email-link:hover { background: rgba(21, 101, 192, 0.15); }
-    html.aa-dark .class-email-link { color: #64b5f6; background: rgba(100, 181, 246, 0.1); }
-    html.aa-dark .class-email-link:hover { background: rgba(100, 181, 246, 0.2); }
 
     /* Claude: 2026-03-25 — I3 fix: calendar mobile responsiveness */
     /* Claude: 2026-03-25 — I11: loading spinner */
@@ -229,7 +218,6 @@
       <div class="legend-item"><div class="legend-dot dot-checkin"></div> Check-in logged</div>
       <div class="legend-item"><div class="legend-dot dot-meal"></div> Meals logged</div>
       <div class="legend-item"><div class="legend-dot dot-gcal"></div> Google Calendar event</div>
-      <div class="legend-item"><div class="legend-dot dot-class"></div> Class</div>
     </div>
 
     <div id="detail-panel">
@@ -275,55 +263,6 @@
     var selectedDateKey = null;
     var gcalToken  = null;   // Google Calendar OAuth access token
     var gcalEvents = {};     // { 'YYYY-MM-DD': ['Event title', ...] }
-
-    /* Claude: 2026-04-02 — Class schedule support.
-       Loaded from Firestore: users/{uid}.classSchedule (array of class objects).
-       Each class: { code, name, days:['Mon','Wed'], startTime, endTime,
-                     building, room, instructor, instructorEmail? } */
-    var classSchedule = [];  // loaded from Firestore
-    var DOW_MAP = { 'Sun':0, 'Mon':1, 'Tue':2, 'Wed':3, 'Thu':4, 'Fri':5, 'Sat':6 };
-
-    /* Check if a given date falls on a class day (within semester range) */
-    function getClassesForDate(dk) {
-      if (!classSchedule || !classSchedule.length) return [];
-      var parts = dk.split('-');
-      var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      var dayOfWeek = d.getDay(); // 0=Sun
-      var matches = [];
-      for (var i = 0; i < classSchedule.length; i++) {
-        var cls = classSchedule[i];
-        /* Check if this day of week matches */
-        var classDays = cls.days || [];
-        for (var j = 0; j < classDays.length; j++) {
-          if (DOW_MAP[classDays[j]] === dayOfWeek) {
-            /* Check semester date range if provided */
-            if (cls.semesterStart && dk < cls.semesterStart) break;
-            if (cls.semesterEnd && dk > cls.semesterEnd) break;
-            matches.push(cls);
-            break;
-          }
-        }
-      }
-      return matches;
-    }
-
-    /* Load class schedule from Firestore */
-    function loadClassSchedule(uid, cb) {
-      AA.db.collection('users').doc(uid).get()
-        .then(function(doc) {
-          if (doc.exists && doc.data().classSchedule) {
-            classSchedule = doc.data().classSchedule;
-          } else {
-            classSchedule = [];
-          }
-          if (cb) cb();
-        })
-        .catch(function(err) {
-          console.warn('[AA] Class schedule load failed:', err);
-          classSchedule = [];
-          if (cb) cb();
-        });
-    }
 
     /* ── Google Calendar: connect + multi-calendar fetch ──── */
     /* Fixed 2026-02-20 by Claude: moved inside IIFE so gcalConnect can access
@@ -548,7 +487,6 @@
         if (hasCheckin) extras.push('check-in logged');
         if (hasMeal) extras.push('meals logged');
         if (gcalEvents && gcalEvents[dk] && gcalEvents[dk].length > 0) extras.push('calendar event');
-        if (dk && getClassesForDate(dk).length > 0) extras.push('class');
         if (extras.length) label += ', ' + extras.join(', ');
         if (isToday) label += ' (today)';
         cell.setAttribute('aria-label', label);
@@ -566,10 +504,6 @@
         if (hasMeal)              { var d = document.createElement('div'); d.className = 'day-dot dot-meal';    dots.appendChild(d); }
         if (gcalEvents && gcalEvents[dk] && gcalEvents[dk].length > 0) {
           var d = document.createElement('div'); d.className = 'day-dot dot-gcal'; dots.appendChild(d);
-        }
-        /* Claude: 2026-04-02 — class schedule dot */
-        if (dk && getClassesForDate(dk).length > 0) {
-          var d = document.createElement('div'); d.className = 'day-dot dot-class'; dots.appendChild(d);
         }
         cell.appendChild(dots);
 
@@ -624,10 +558,7 @@
 
       var gcalDayEvents = (gcalEvents && gcalEvents[dk]) ? gcalEvents[dk] : [];
 
-      /* Claude: 2026-04-02 — class schedule for this day */
-      var dayClasses = dk ? getClassesForDate(dk) : [];
-
-      if (entries.length === 0 && meals.length === 0 && gcalDayEvents.length === 0 && dayClasses.length === 0) {
+      if (entries.length === 0 && meals.length === 0 && gcalDayEvents.length === 0) {
         content.innerHTML = '<div id="detail-empty">Nothing logged for this day.</div>';
         panel.style.display = 'block';
         return;
@@ -728,42 +659,6 @@
         if (emptyEl && emptyEl.parentNode) emptyEl.parentNode.removeChild(emptyEl);
       }
 
-      /* Claude: 2026-04-02 — class schedule section with instructor email links */
-      if (dayClasses.length > 0) {
-        var sec4 = document.createElement('div');
-        sec4.className = 'detail-section';
-        sec4.innerHTML = '<div class="detail-section-title">📚 Classes</div>';
-
-        for (var ci = 0; ci < dayClasses.length; ci++) {
-          var cls = dayClasses[ci];
-          var entry = document.createElement('div');
-          entry.className = 'detail-entry';
-
-          var timeStr = (cls.startTime || '') + (cls.endTime ? ' – ' + cls.endTime : '');
-          var locStr = '';
-          if (cls.building || cls.room) {
-            locStr = (cls.building || '') + (cls.room ? ', Room ' + cls.room : '');
-          }
-
-          var html = '<div class="entry-icon">📚</div><div class="entry-text">';
-          html += '<strong>' + esc(cls.code || '') + '</strong> — ' + esc(cls.name || '');
-          if (timeStr) html += '<br><small>' + esc(timeStr) + '</small>';
-          if (locStr) html += '<br><small>📍 ' + esc(locStr) + '</small>';
-          if (cls.instructor) {
-            html += '<br><small>👤 ' + esc(cls.instructor);
-            if (cls.instructorEmail) {
-              html += ' — <a href="mailto:' + esc(cls.instructorEmail) + '" class="class-email-link">✉ Email</a>';
-            }
-            html += '</small>';
-          }
-          html += '</div>';
-
-          entry.innerHTML = html;
-          sec4.appendChild(entry);
-        }
-        content.appendChild(sec4);
-      }
-
       panel.style.display = 'block';
     }
 
@@ -839,10 +734,7 @@
           var gcalBar = document.getElementById('gcal-bar');
           if (gcalBar) gcalBar.style.display = 'none';
         }
-        /* Claude: 2026-04-02 — load class schedule before rendering */
-        loadClassSchedule(currentUid, function() {
-          refreshCalendar();
-        });
+        refreshCalendar();
       });
     });
 
