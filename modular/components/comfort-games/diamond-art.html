@@ -1,7 +1,7 @@
-<!-- Claude: 2026-04-02 — Brilliant Sort: Diamond Puzzle (comfort game).
-     Shelf-sorting mechanic: gems arrive mixed, place on shelf, match 3+ adjacent
-     same-color to clear them onto the grid and reveal pixel art.
-     Theme packs: Floral, Cats, Nature, Patterns.
+<!-- Claude: 2026-04-02 — Diamond Art: color-sorting shelf puzzle.
+     Gems arrive mixed. Place on shelf. Rearrange to group by color.
+     Tap a color group to send gems to their correct grid spots.
+     Don't overflow the shelf! Theme packs with pixel art designs.
      Pure vanilla JS (ES5), no dependencies. Touch-friendly. -->
 <!DOCTYPE html>
 <html lang="en">
@@ -52,164 +52,140 @@
     .pack-tab.active { background: #9c27b0; color: #fff; }
     html.aa-dark .pack-tab { border-color: #7b1fa2; color: #ce93d8; }
     html.aa-dark .pack-tab.active { background: #7b1fa2; color: #fff; }
-    .design-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+    .design-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     .design-btn {
-      min-width: 80px; padding: 8px 12px; border-radius: 10px;
-      border: 2px solid #e1bee7; background: #fce4ec; color: #4a148c;
-      font-size: 10pt; cursor: pointer; white-space: nowrap; font-weight: 600;
+      padding: 5px 12px; border-radius: 14px; border: 1px solid #ce93d8;
+      background: transparent; color: #9c27b0; font-size: 10pt; cursor: pointer;
     }
-    .design-btn.active { border-color: #9c27b0; background: #ce93d8; color: #fff; }
-    html.aa-dark .design-btn { background: #2a1a3e; border-color: #4a148c; color: #ce93d8; }
+    .design-btn.active { background: #ce93d8; color: #fff; }
+    html.aa-dark .design-btn { border-color: #7b1fa2; color: #ce93d8; }
     html.aa-dark .design-btn.active { background: #7b1fa2; color: #fff; }
 
-    /* ── Progress Bar ──────────────────────────── */
-    .progress-wrap { width: 100%; max-width: 600px; padding: 4px 16px 8px; }
+    /* ── Progress ─────────────────────────────── */
+    .progress-wrap {
+      width: 90%; max-width: 560px; padding: 4px 0;
+      display: flex; align-items: center; gap: 10px;
+    }
     .progress-bar {
-      height: 10px; background: rgba(156,39,176,0.15); border-radius: 5px; overflow: hidden;
+      flex: 1; height: 10px; border-radius: 5px;
+      background: rgba(156,39,176,0.15); overflow: hidden;
     }
-    .progress-fill {
-      height: 100%; background: linear-gradient(90deg, #ab47bc, #e91e63);
-      border-radius: 5px; width: 0%; transition: width 0.3s;
-    }
-    .progress-text { font-size: 10pt; text-align: center; margin-top: 4px; color: #9c27b0; }
-    html.aa-dark .progress-text { color: #ce93d8; }
+    .progress-fill { height: 100%; background: #9c27b0; border-radius: 5px; width: 0; transition: width 0.3s; }
+    .progress-text { font-size: 10pt; font-weight: 600; min-width: 60px; text-align: right; }
 
-    /* ── Grid (pixel art canvas) ──────────────── */
-    .grid-area {
-      width: 100%; max-width: 600px; padding: 0 16px;
-      display: flex; justify-content: center;
-    }
+    /* ── Grid ──────────────────────────────────── */
+    .grid-area { padding: 8px; }
     .grid {
-      display: inline-grid; gap: 2px; border-radius: 8px;
-      padding: 4px; background: rgba(0,0,0,0.06);
+      display: grid; gap: 2px; padding: 4px;
+      background: rgba(156,39,176,0.08); border-radius: 8px;
     }
-    html.aa-dark .grid { background: rgba(255,255,255,0.05); }
     .cell {
-      border-radius: 3px;
-      border: 1px solid rgba(156,39,176,0.15);
-      background: rgba(255,255,255,0.4);
-      transition: background 0.3s, transform 0.2s;
+      aspect-ratio: 1; border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px; transition: background 0.3s, transform 0.2s;
     }
-    html.aa-dark .cell { background: rgba(255,255,255,0.06); border-color: rgba(206,147,216,0.1); }
-    .cell.filled { border-color: transparent; }
-    .cell.pop-in {
-      animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    .cell.empty-cell { background: rgba(200,200,200,0.2); }
+    .cell.target {
+      border: 1.5px dashed rgba(0,0,0,0.15);
+      background: rgba(200,200,200,0.12);
     }
+    html.aa-dark .cell.target { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); }
+    .cell.filled { transform: scale(1); }
+    .cell.pop { animation: popIn 0.3s ease-out; }
     @keyframes popIn {
       0% { transform: scale(0.3); opacity: 0.5; }
-      60% { transform: scale(1.12); }
+      70% { transform: scale(1.15); }
       100% { transform: scale(1); opacity: 1; }
     }
+    .cell.target .hint-dot {
+      width: 6px; height: 6px; border-radius: 50%; opacity: 0.4;
+    }
 
-    /* ── Incoming Queue ───────────────────────── */
+    /* ── Queue (incoming gems) ────────────────── */
     .queue-area {
-      width: 100%; max-width: 600px; padding: 8px 16px;
+      width: 90%; max-width: 560px; padding: 8px 0;
       text-align: center;
     }
-    .queue-label {
-      font-size: 10pt; color: #9c27b0; font-weight: 600; margin-bottom: 6px;
-    }
-    html.aa-dark .queue-label { color: #ce93d8; }
+    .queue-label { font-size: 9pt; color: #888; margin-bottom: 4px; }
     .queue {
-      display: flex; gap: 6px; justify-content: center; align-items: center;
-      flex-wrap: wrap; padding: 8px;
-      background: rgba(255,255,255,0.6); border-radius: 12px;
-      border: 2px solid rgba(156,39,176,0.15);
-      min-height: 52px;
+      display: flex; gap: 4px; justify-content: center;
+      min-height: 40px; flex-wrap: wrap;
     }
-    html.aa-dark .queue { background: rgba(40,20,60,0.7); border-color: rgba(123,31,162,0.25); }
-    .q-gem {
-      width: 38px; height: 38px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
-      transition: transform 0.12s;
+    .queue-gem {
+      width: 36px; height: 36px; border-radius: 6px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 16px; border: 2px solid rgba(0,0,0,0.1);
+      transition: transform 0.15s;
     }
-    .q-gem:hover { transform: scale(1.1); }
-    .q-gem:active { transform: scale(0.92); }
+    .queue-gem:hover { transform: scale(1.1); }
+    .queue-gem:active { transform: scale(0.95); }
 
     /* ── Shelf ─────────────────────────────────── */
     .shelf-area {
-      width: 100%; max-width: 600px; padding: 8px 16px 16px;
-      position: sticky; bottom: 0; z-index: 10;
-      background: linear-gradient(transparent 0%, #f3e5f5 15%);
+      width: 90%; max-width: 560px; padding: 8px 0;
     }
-    html.aa-dark .shelf-area { background: linear-gradient(transparent 0%, #1a1a2e 15%); }
-    .shelf-label {
-      font-size: 10pt; color: #9c27b0; font-weight: 600;
-      margin-bottom: 6px; text-align: center;
-    }
-    html.aa-dark .shelf-label { color: #ce93d8; }
+    .shelf-label { font-size: 9pt; color: #888; margin-bottom: 4px; text-align: center; }
+    .shelf-count { font-size: 9pt; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .shelf-count.warning { color: #e53935; }
     .shelf {
       display: flex; gap: 4px; justify-content: center;
-      padding: 10px 8px;
-      background: rgba(255,255,255,0.8); border-radius: 14px;
-      border: 2px solid rgba(156,39,176,0.25);
-      min-height: 56px;
+      min-height: 44px; flex-wrap: wrap;
+      background: rgba(156,39,176,0.06); border-radius: 10px; padding: 6px;
+      border: 2px solid rgba(156,39,176,0.15);
     }
-    html.aa-dark .shelf { background: rgba(40,20,60,0.85); border-color: rgba(123,31,162,0.35); }
+    html.aa-dark .shelf { background: rgba(206,147,216,0.06); border-color: rgba(206,147,216,0.12); }
     .shelf-slot {
-      width: 42px; height: 42px; border-radius: 8px;
-      border: 2px dashed rgba(156,39,176,0.25);
+      width: 40px; height: 40px; border-radius: 6px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px; transition: all 0.15s;
-      position: relative;
+      font-size: 18px; cursor: pointer; border: 2px solid transparent;
+      transition: transform 0.15s, border-color 0.15s;
     }
-    html.aa-dark .shelf-slot { border-color: rgba(206,147,216,0.2); }
-    .shelf-slot.occupied {
-      border-style: solid; border-color: transparent;
-      cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    }
-    .shelf-slot.occupied:hover { transform: scale(1.08); }
-    .shelf-slot.selected {
-      border: 3px solid #fdd835 !important;
-      transform: scale(1.12);
-      box-shadow: 0 0 12px rgba(253,216,53,0.5);
-    }
-    .shelf-slot.match-glow {
-      animation: matchGlow 0.4s ease-out;
-    }
-    @keyframes matchGlow {
-      0% { box-shadow: 0 0 0 rgba(233,30,99,0); }
-      50% { box-shadow: 0 0 16px rgba(233,30,99,0.6); }
-      100% { box-shadow: 0 0 0 rgba(233,30,99,0); }
+    .shelf-slot.has-gem { border-color: rgba(0,0,0,0.1); }
+    .shelf-slot.selected { border-color: #ff9800; transform: scale(1.1); box-shadow: 0 0 8px rgba(255,152,0,0.4); }
+    .shelf-slot.empty-slot {
+      border: 2px dashed rgba(156,39,176,0.2);
+      background: rgba(156,39,176,0.03);
     }
 
-    /* ── Hint / Help Button ───────────────────── */
-    .help-row {
-      width: 100%; max-width: 600px; padding: 4px 16px;
-      display: flex; justify-content: center; gap: 10px;
+    /* ── Buttons ───────────────────────────────── */
+    .btn-row {
+      display: flex; gap: 8px; justify-content: center;
+      padding: 6px 0; flex-wrap: wrap;
     }
-    .help-btn {
-      padding: 6px 16px; border-radius: 8px; border: 2px solid #ce93d8;
+    .action-btn {
+      padding: 8px 16px; border-radius: 8px; border: 2px solid #9c27b0;
       background: transparent; color: #9c27b0; font-size: 10pt;
       cursor: pointer; font-weight: 600;
     }
-    .help-btn:hover { background: rgba(156,39,176,0.1); }
-    html.aa-dark .help-btn { color: #ce93d8; border-color: #7b1fa2; }
+    .action-btn:hover { background: rgba(156,39,176,0.1); }
+    .action-btn:disabled { opacity: 0.4; cursor: default; }
+    .action-btn.primary { background: #9c27b0; color: #fff; }
+    .action-btn.primary:hover { background: #7b1fa2; }
+    html.aa-dark .action-btn { border-color: #7b1fa2; color: #ce93d8; }
+    html.aa-dark .action-btn.primary { background: #7b1fa2; color: #fff; }
 
-    /* ── Completion Overlay ────────────────────── */
-    .complete-overlay {
-      display: none; position: fixed; inset: 0;
+    /* ── Overlays ──────────────────────────────── */
+    .overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.6); z-index: 100;
-      justify-content: center; align-items: center;
+      align-items: center; justify-content: center;
     }
-    .complete-overlay.show { display: flex; }
-    .complete-box {
-      background: #fff; border-radius: 16px; padding: 32px;
+    .overlay.show { display: flex; }
+    .overlay-box {
+      background: #fff; border-radius: 16px; padding: 28px;
       text-align: center; max-width: 320px; width: 90%;
       box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
-    html.aa-dark .complete-box { background: #2a1a3e; color: #e0e0e0; }
-    .complete-box h2 { font-size: 18pt; margin-bottom: 8px; }
-    .complete-box p { font-size: 11pt; margin-bottom: 16px; color: #666; }
-    html.aa-dark .complete-box p { color: #aaa; }
-    .complete-btn {
+    html.aa-dark .overlay-box { background: #2a1a3e; color: #e0e0e0; }
+    .overlay-box h2 { font-size: 18pt; margin-bottom: 8px; }
+    .overlay-box p { font-size: 11pt; margin-bottom: 16px; color: #666; }
+    html.aa-dark .overlay-box p { color: #aaa; }
+    .overlay-btn {
       padding: 10px 24px; border-radius: 10px; border: none;
       background: #9c27b0; color: #fff; font-size: 12pt;
       cursor: pointer; margin: 4px;
     }
-    .complete-btn:hover { background: #7b1fa2; }
+    .overlay-btn:hover { background: #7b1fa2; }
 
     /* ── Sparkle ───────────────────────────────── */
     .sparkle {
@@ -247,134 +223,250 @@
     <div class="queue" id="queue"></div>
   </div>
 
-  <div class="help-row">
-    <button class="help-btn" id="sortBtn" onclick="sortShelf()">Sort Shelf</button>
-    <button class="help-btn" id="clearBtn" onclick="clearLargest()">Clear Group</button>
-  </div>
-
   <div class="shelf-area">
-    <div class="shelf-label">Shelf — group same colors together! (tap to swap)</div>
+    <div class="shelf-count" id="shelfCount">Shelf: 0 / 10</div>
     <div class="shelf" id="shelf"></div>
   </div>
 
-  <div class="complete-overlay" id="completeOverlay">
-    <div class="complete-box">
+  <div class="btn-row">
+    <button class="action-btn primary" id="sendBtn" disabled>Send Group to Grid</button>
+    <button class="action-btn" id="sortBtn">Auto Sort</button>
+  </div>
+
+  <div class="overlay" id="completeOverlay">
+    <div class="overlay-box">
       <h2>Beautiful!</h2>
       <p>You revealed the picture!</p>
-      <button class="complete-btn" onclick="nextDesign()">Next Design</button>
-      <button class="complete-btn" onclick="replayDesign()">Play Again</button>
+      <button class="overlay-btn" id="nextBtn">Next Design</button>
+      <button class="overlay-btn" id="replayBtn1">Play Again</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="gameOverOverlay">
+    <div class="overlay-box">
+      <h2>Shelf Full!</h2>
+      <p>No room left. Try again?</p>
+      <button class="overlay-btn" id="retryBtn">Try Again</button>
     </div>
   </div>
 
 <script>
-/* Claude: 2026-04-02 — Brilliant Sort: Diamond Puzzle
-   Shelf-sorting mechanic. ES5 compliant. */
+/* Claude: 2026-04-02 — Diamond Art v3: correct shelf-sorting puzzle.
+   Gems arrive mixed -> place on shelf -> rearrange by color ->
+   send grouped colors to their correct grid spots -> reveal art.
+   ES5 compliant (var/function only). */
 (function() {
   'use strict';
 
+  /* ── Colors ────────────────────────────────── */
   var COLORS = {
-    R: '#e53935', G: '#43a047', B: '#1e88e5', Y: '#fdd835',
-    P: '#8e24aa', O: '#fb8c00', K: '#d81b60', W: '#eceff1',
-    T: '#00897b', N: '#5d4037', L: '#c0ca33', S: '#546e7a',
-    C: '#00acc1', M: '#f06292', V: '#7e57c2', I: '#ffb300'
+    R: { hex: '#e53935', name: 'Red',    gem: '\u2764\uFE0F' },
+    G: { hex: '#43a047', name: 'Green',  gem: '\uD83D\uDC9A' },
+    B: { hex: '#1e88e5', name: 'Blue',   gem: '\uD83D\uDC99' },
+    Y: { hex: '#fdd835', name: 'Yellow', gem: '\uD83D\uDC9B' },
+    P: { hex: '#8e24aa', name: 'Purple', gem: '\uD83D\uDC9C' },
+    O: { hex: '#fb8c00', name: 'Orange', gem: '\uD83E\uDDE1' },
+    K: { hex: '#d81b60', name: 'Pink',   gem: '\uD83D\uDC97' },
+    W: { hex: '#eceff1', name: 'White',  gem: '\uD83E\uDD0D' },
+    T: { hex: '#00897b', name: 'Teal',   gem: '\uD83D\uDC8E' },
+    N: { hex: '#795548', name: 'Brown',  gem: '\uD83E\uDD0E' },
+    L: { hex: '#c0ca33', name: 'Lime',   gem: '\uD83D\uDFE2' },
+    S: { hex: '#78909c', name: 'Silver', gem: '\u2B1C' },
+    C: { hex: '#00acc1', name: 'Cyan',   gem: '\uD83E\uDDE3' }
   };
 
+  /* ── Pixel Art Designs ─────────────────────── */
   var PACKS = {
     Floral: [
       { name: 'Tulip', cols: 10, rows: 10, data:
-        '    RR    ' + '   RRRR   ' + '  RRRRRR  ' + '  RMRRMR  ' +
-        '  RRRRRR  ' + '   RRRR   ' + '    GG    ' + '    GG    ' +
-        '   GGGG   ' + '    GG    '
+        '    RR    ' +
+        '   RRRR   ' +
+        '  RRRRRR  ' +
+        '  RKRRKR  ' +
+        '  RRRRRR  ' +
+        '   RRRR   ' +
+        '    GG    ' +
+        '    GG    ' +
+        '   GGGG   ' +
+        '    GG    '
       },
       { name: 'Daisy', cols: 10, rows: 10, data:
-        '    WW    ' + '  WWWWWW  ' + ' WW YY WW ' + ' WWYYYYWW ' +
-        '  WYYYYW  ' + ' WWYYYYWW ' + ' WW YY WW ' + '  WWWWWW  ' +
-        '    GG    ' + '   GGGG   '
+        '    WW    ' +
+        '  WWWWWW  ' +
+        ' WW YY WW ' +
+        ' WWYYYYWW ' +
+        '  WYYYYW  ' +
+        ' WWYYYYWW ' +
+        ' WW YY WW ' +
+        '  WWWWWW  ' +
+        '    GG    ' +
+        '   GGGG   '
       },
       { name: 'Rose', cols: 10, rows: 10, data:
-        '   KKKK   ' + '  KKMKKK  ' + ' KKMMMMKK ' + ' KMMMMMKK ' +
-        ' KKMMMMK  ' + '  KKMMKK  ' + '   KKKK   ' + '    GG    ' +
-        '   GLGG   ' + '   GGGG   '
+        '   KKKK   ' +
+        '  KKRKKK  ' +
+        ' KKRRRRKK ' +
+        ' KRRRRRKK ' +
+        ' KKRRRRKK ' +
+        '  KKRRKK  ' +
+        '   KKKK   ' +
+        '    GG    ' +
+        '   GLGG   ' +
+        '   GGGG   '
       }
     ],
     Cats: [
       { name: 'Kitty', cols: 10, rows: 10, data:
-        ' S  SS  S ' + ' SS SS SS ' + ' SSSSSSSS ' + ' SGSSSGSS ' +
-        ' SSSSSSSS ' + ' SSSKSSSS ' + ' SSSSSSSS ' + '  SSSSSS  ' +
-        '   SSSS   ' + '  S    S  '
+        ' S  SS  S ' +
+        ' SS SS SS ' +
+        ' SSSSSSSS ' +
+        ' SGSSSGSS ' +
+        ' SSSSSSSS ' +
+        ' SSSKSSSS ' +
+        ' SSSSSSSS ' +
+        '  SSSSSS  ' +
+        '   SSSS   ' +
+        '  S    S  '
       },
       { name: 'Duchess', cols: 10, rows: 10, data:
-        ' W  WW  W ' + ' WW WW WW ' + ' WWWWWWWW ' + ' WIWWWIWW ' +
-        ' WWWWWWWW ' + ' WWWKWWWW ' + ' WWMWWMWW ' + '  WWWWWW  ' +
-        '   WWWW   ' + '  W    W  '
+        ' W  WW  W ' +
+        ' WW WW WW ' +
+        ' WWWWWWWW ' +
+        ' WBWWWBWW ' +
+        ' WWWWWWWW ' +
+        ' WWWKWWWW ' +
+        ' WWKWWKWW ' +
+        '  WWWWWW  ' +
+        '   WWWW   ' +
+        '  W    W  '
       },
       { name: 'Nap Cat', cols: 10, rows: 10, data:
-        '          ' + ' NNNNNNNN ' + ' NNSSSSNN ' + ' NSSSSSNN ' +
-        ' NSSSSSN  ' + ' NNSSSSN  ' + '  NNNNNN  ' + '  NNNNNN  ' +
-        '  NNNNNN  ' + '          '
+        '          ' +
+        ' NNNNNNNN ' +
+        ' NNSSSSNN ' +
+        ' NSSSSSNN ' +
+        ' NSSSSSN  ' +
+        ' NNSSSSN  ' +
+        '  NNNNNN  ' +
+        '  NNNNNN  ' +
+        '  NNNNNN  ' +
+        '          '
       }
     ],
     Nature: [
       { name: 'Mountain', cols: 10, rows: 10, data:
-        'BBBBBBBBBB' + 'BBBWWBBBBB' + 'BBWWWWBBBB' + 'BWWSSSWBBB' +
-        'BSSSSSSSBB' + 'SSSSSSSSSS' + 'GGGGGGGGGG' + 'GGGGGGGGGG' +
-        'GLGLGLGLGL' + 'GGGGGGGGGG'
+        'BBBBBBBBBB' +
+        'BBBWWBBBBB' +
+        'BBWWWWBBBB' +
+        'BWWSSSWBBB' +
+        'BSSSSSSSBB' +
+        'SSSSSSSSSS' +
+        'GGGGGGGGGG' +
+        'GGGGGGGGGG' +
+        'GLGLGLGLGL' +
+        'GGGGGGGGGG'
       },
       { name: 'Sunset', cols: 10, rows: 10, data:
-        'OOOOOOOOOO' + 'OOYYYYYOOO' + 'OYYYYYYYYO' + 'OOOOOOOOOO' +
-        'RRRRRRRRRR' + 'KKRRKRRKKR' + 'BBBBBBBBBB' + 'BCBBCBBCBB' +
-        'BBBBBBBBBB' + 'BCBBBCBBCB'
+        'OOOOOOOOOO' +
+        'OOYYYYYOOO' +
+        'OYYYYYYYYO' +
+        'OOOOOOOOOO' +
+        'RRRRRRRRRR' +
+        'KKRRKRRKKR' +
+        'BBBBBBBBBB' +
+        'BCBBCBBCBB' +
+        'BBBBBBBBBB' +
+        'BCBBBCBBCB'
       },
       { name: 'Tree', cols: 10, rows: 10, data:
-        '    GG    ' + '   GGGG   ' + '  GGGGGG  ' + ' GGGGGGGG ' +
-        '  GGGGGG  ' + ' GLGGGGGG ' + 'GGGGGGGLGG' + '    NN    ' +
-        '    NN    ' + '   NNNN   '
+        '    GG    ' +
+        '   GGGG   ' +
+        '  GGGGGG  ' +
+        ' GGGGGGGG ' +
+        '  GGGGGG  ' +
+        ' GLGGGGGG ' +
+        'GGGGGGGLGG' +
+        '    NN    ' +
+        '    NN    ' +
+        '   NNNN   '
       }
     ],
     Patterns: [
       { name: 'Heart', cols: 10, rows: 10, data:
-        '          ' + ' RR  RR   ' + 'RRRRRRRR  ' + 'RRRRRRRR  ' +
-        'RRRRRRRR  ' + ' RRRRRR   ' + '  RRRR    ' + '   RR     ' +
-        '          ' + '          '
+        '          ' +
+        ' RR  RR   ' +
+        'RRRRRRRR  ' +
+        'RRRRRRRR  ' +
+        'RRRRRRRR  ' +
+        ' RRRRRR   ' +
+        '  RRRR    ' +
+        '   RR     ' +
+        '          ' +
+        '          '
       },
       { name: 'Star', cols: 10, rows: 10, data:
-        '    YY    ' + '    YY    ' + '   YYYY   ' + 'YYYYYYYYYY' +
-        ' YYYYYYYY ' + '  YYYYYY  ' + '  YY  YY  ' + ' YY    YY ' +
-        'YY      YY' + '          '
+        '    YY    ' +
+        '    YY    ' +
+        '   YYYY   ' +
+        'YYYYYYYYYY' +
+        ' YYYYYYYY ' +
+        '  YYYYYY  ' +
+        '  YY  YY  ' +
+        ' YY    YY ' +
+        'YY      YY' +
+        '          '
       },
       { name: 'Rainbow', cols: 10, rows: 10, data:
-        '  RRRRRR  ' + ' RORRRRRO ' + 'ROYYYYYOR ' + 'ROYGGGYOR ' +
-        'ROYGBGYOR ' + 'ROYGGGYOR ' + 'ROYYYYYOR ' + ' RORRRRRO ' +
-        '  RRRRRR  ' + '          '
+        '  RRRRRR  ' +
+        ' RORRRRRO ' +
+        'ROYYYYYOR ' +
+        'ROYGGGYOR ' +
+        'ROYGBGYOR ' +
+        'ROYGGGYOR ' +
+        'ROYYYYYOR ' +
+        ' RORRRRRO ' +
+        '  RRRRRR  ' +
+        '          '
       }
     ]
   };
 
-  /* ── State ──────────────────────────────────── */
-  var SHELF_SIZE = 9;
-  var QUEUE_SIZE = 7;
-  var MATCH_MIN = 3;
+  /* ── Config ────────────────────────────────── */
+  var SHELF_MAX = 10;
+  var QUEUE_SHOW = 7;
 
+  /* ── State ─────────────────────────────────── */
   var currentPack = 'Floral';
   var currentIdx = 0;
-  var gridData = [];
+  var gridCells = [];
   var totalCells = 0;
   var filledCount = 0;
-  var gemQueue = [];       /* array of color keys waiting to be placed */
-  var shelf = [];          /* array of { color } or null, length = SHELF_SIZE */
-  var selectedSlot = -1;   /* index of selected shelf slot for swapping */
-  var animating = false;
+  var gemBag = [];
+  var shelfGems = [];
+  var selectedShelf = -1;
   var audioCtx = null;
+  var popTracker = {};  /* tracks which grid cells just got filled for pop animation */
 
-  /* ── DOM ────────────────────────────────────── */
-  var $packTabs = document.getElementById('packTabs');
-  var $designRow = document.getElementById('designRow');
-  var $grid = document.getElementById('grid');
-  var $queue = document.getElementById('queue');
-  var $shelf = document.getElementById('shelf');
+  /* ── DOM refs ──────────────────────────────── */
+  var $packTabs   = document.getElementById('packTabs');
+  var $designRow  = document.getElementById('designRow');
+  var $grid       = document.getElementById('grid');
+  var $queue      = document.getElementById('queue');
+  var $shelf      = document.getElementById('shelf');
+  var $shelfCount = document.getElementById('shelfCount');
   var $progressFill = document.getElementById('progressFill');
   var $progressText = document.getElementById('progressText');
-  var $overlay = document.getElementById('completeOverlay');
+  var $completeOverlay = document.getElementById('completeOverlay');
+  var $gameOverOverlay = document.getElementById('gameOverOverlay');
+  var $sendBtn    = document.getElementById('sendBtn');
+  var $sortBtn    = document.getElementById('sortBtn');
+
+  /* ── Wire up buttons ────────────────────────── */
+  $sendBtn.onclick  = function() { sendColorGroup(); };
+  $sortBtn.onclick  = function() { autoSortShelf(); };
+  document.getElementById('nextBtn').onclick    = function() { nextDesign(); };
+  document.getElementById('replayBtn1').onclick = function() { replayDesign(); };
+  document.getElementById('retryBtn').onclick   = function() { replayDesign(); };
 
   /* ── Audio ──────────────────────────────────── */
   function getAudio() {
@@ -383,29 +475,30 @@
     }
     return audioCtx;
   }
-  function playTone(freq, dur) {
+  function playTone(freq, dur, type) {
     var ctx = getAudio(); if (!ctx) return;
     try {
       var o = ctx.createOscillator(), g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination);
-      o.frequency.value = freq; o.type = 'sine'; g.gain.value = 0.08;
+      o.frequency.value = freq; o.type = type || 'sine'; g.gain.value = 0.08;
       g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
       o.start(); o.stop(ctx.currentTime + dur);
     } catch(e) {}
   }
-  function playPlace() { playTone(660, 0.08); }
-  function playMatch() {
+  function sfxPlace()    { playTone(660, 0.08); }
+  function sfxSwap()     { playTone(440, 0.06); }
+  function sfxSend()     {
     playTone(784, 0.12);
     setTimeout(function() { playTone(988, 0.12); }, 80);
     setTimeout(function() { playTone(1175, 0.15); }, 160);
   }
-  function playComplete() {
+  function sfxComplete() {
     playTone(523, 0.15);
     setTimeout(function() { playTone(659, 0.15); }, 100);
     setTimeout(function() { playTone(784, 0.15); }, 200);
     setTimeout(function() { playTone(1047, 0.3); }, 300);
   }
-  function playSwap() { playTone(440, 0.06); }
+  function sfxFail() { playTone(220, 0.3, 'sawtooth'); }
 
   /* ── Sparkle ────────────────────────────────── */
   function sparkleAt(x, y) {
@@ -415,7 +508,7 @@
       sp.className = 'sparkle';
       sp.textContent = chars[Math.floor(Math.random() * chars.length)];
       sp.style.left = (x + (Math.random() - 0.5) * 30) + 'px';
-      sp.style.top = (y + (Math.random() - 0.5) * 30) + 'px';
+      sp.style.top  = (y + (Math.random() - 0.5) * 30) + 'px';
       document.body.appendChild(sp);
       (function(el) {
         setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 700);
@@ -423,7 +516,16 @@
     }
   }
 
-  /* ── Pack / Design UI ───────────────────────── */
+  /* ── Shuffle (Fisher-Yates) ─────────────────── */
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  /* ── Pack / Design Tabs ─────────────────────── */
   function buildPacks() {
     $packTabs.innerHTML = '';
     var packs = Object.keys(PACKS);
@@ -433,7 +535,6 @@
         b.className = 'pack-tab' + (p === currentPack ? ' active' : '');
         b.textContent = p;
         b.onclick = function() {
-          if (animating) return;
           currentPack = p; currentIdx = 0;
           buildPacks(); buildDesignRow(); loadDesign();
         };
@@ -441,6 +542,7 @@
       })(packs[i]);
     }
   }
+
   function buildDesignRow() {
     $designRow.innerHTML = '';
     var designs = PACKS[currentPack];
@@ -450,7 +552,6 @@
         b.className = 'design-btn' + (idx === currentIdx ? ' active' : '');
         b.textContent = designs[idx].name;
         b.onclick = function() {
-          if (animating) return;
           currentIdx = idx; buildDesignRow(); loadDesign();
         };
         $designRow.appendChild(b);
@@ -458,331 +559,277 @@
     }
   }
 
-  /* ── Load Design ────────────────────────────── */
+  /* ── Load a Design ──────────────────────────── */
   function loadDesign() {
     var design = PACKS[currentPack][currentIdx];
     var cols = design.cols;
     var data = design.data;
 
-    gridData = []; totalCells = 0; filledCount = 0;
-    selectedSlot = -1; animating = false;
-    shelf = [];
-    for (var s = 0; s < SHELF_SIZE; s++) shelf.push(null);
+    gridCells = []; totalCells = 0; filledCount = 0;
+    shelfGems = []; selectedShelf = -1; popTracker = {};
+    $completeOverlay.className = 'overlay';
+    $gameOverOverlay.className = 'overlay';
 
-    /* Parse grid */
+    /* Parse grid + collect needed gems */
     var allGems = [];
     for (var i = 0; i < data.length; i++) {
-      var ch = data[i];
+      var ch = data[i].toUpperCase();
       if (ch !== ' ' && COLORS[ch]) {
-        gridData.push({ color: ch, filled: false });
+        gridCells.push({ color: ch, filled: false });
         totalCells++;
         allGems.push(ch);
       } else {
-        gridData.push({ color: null, filled: false });
+        gridCells.push({ color: null, filled: false });
       }
     }
 
-    /* Shuffle gems into queue */
-    for (var j = allGems.length - 1; j > 0; j--) {
-      var k = Math.floor(Math.random() * (j + 1));
-      var tmp = allGems[j]; allGems[j] = allGems[k]; allGems[k] = tmp;
-    }
-    gemQueue = allGems;
+    /* Shuffle gems into the bag */
+    gemBag = shuffle(allGems);
 
-    /* Render grid */
-    $grid.innerHTML = '';
-    $grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
-    var cellSize = Math.min(Math.floor((window.innerWidth - 40) / cols), 36);
-    $grid.style.width = (cellSize * cols + (cols - 1) * 2 + 8) + 'px';
-    for (var c = 0; c < gridData.length; c++) {
-      var cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.style.width = cellSize + 'px';
-      cell.style.height = cellSize + 'px';
-      cell.setAttribute('data-idx', c);
-      if (!gridData[c].color) cell.style.visibility = 'hidden';
-      $grid.appendChild(cell);
-    }
-
+    renderGrid(cols);
     renderQueue();
     renderShelf();
     updateProgress();
-    $overlay.classList.remove('show');
   }
 
-  /* ── Render Queue (show next N gems) ────────── */
+  /* ── Render Grid ────────────────────────────── */
+  function renderGrid(cols) {
+    $grid.innerHTML = '';
+    if (cols) $grid.setAttribute('data-cols', cols);
+    var useCols = cols || parseInt($grid.getAttribute('data-cols')) || 10;
+    $grid.style.gridTemplateColumns = 'repeat(' + useCols + ', 1fr)';
+    var cellSize = Math.min(Math.floor((window.innerWidth - 40) / useCols), 36);
+    $grid.style.width = (useCols * cellSize + (useCols - 1) * 2 + 8) + 'px';
+
+    for (var i = 0; i < gridCells.length; i++) {
+      var cell = document.createElement('div');
+      cell.className = 'cell';
+      var gc = gridCells[i];
+
+      if (!gc.color) {
+        cell.className += ' empty-cell';
+      } else if (gc.filled) {
+        cell.className += ' filled';
+        cell.style.background = COLORS[gc.color].hex;
+        if (popTracker[i]) {
+          cell.classList.add('pop');
+        }
+      } else {
+        cell.className += ' target';
+        var dot = document.createElement('div');
+        dot.className = 'hint-dot';
+        dot.style.background = COLORS[gc.color].hex;
+        cell.appendChild(dot);
+      }
+      $grid.appendChild(cell);
+    }
+    popTracker = {};
+  }
+
+  /* ── Render Queue ───────────────────────────── */
   function renderQueue() {
     $queue.innerHTML = '';
-    var show = Math.min(gemQueue.length, QUEUE_SIZE);
+    var show = Math.min(QUEUE_SHOW, gemBag.length);
     for (var i = 0; i < show; i++) {
       (function(idx) {
-        var g = document.createElement('div');
-        g.className = 'q-gem';
-        g.style.background = COLORS[gemQueue[idx]];
-        g.textContent = '\uD83D\uDC8E';
-        g.onclick = function() {
-          if (animating) return;
-          placeOnShelf(idx);
-        };
-        $queue.appendChild(g);
+        var gem = document.createElement('div');
+        gem.className = 'queue-gem';
+        gem.style.background = COLORS[gemBag[idx]].hex;
+        gem.textContent = COLORS[gemBag[idx]].gem;
+        gem.onclick = function() { placeOnShelf(idx); };
+        $queue.appendChild(gem);
       })(i);
     }
-    if (gemQueue.length > QUEUE_SIZE) {
-      var more = document.createElement('span');
-      more.style.cssText = 'font-size:10pt;color:#9c27b0;font-weight:600;padding:4px;';
-      more.textContent = '+' + (gemQueue.length - QUEUE_SIZE);
-      $queue.appendChild(more);
-    }
-    if (gemQueue.length === 0 && filledCount < totalCells) {
-      var done = document.createElement('span');
-      done.style.cssText = 'font-size:10pt;color:#9c27b0;font-weight:600;';
-      done.textContent = 'Clear the shelf!';
-      $queue.appendChild(done);
+    if (gemBag.length === 0 && filledCount < totalCells) {
+      var msg = document.createElement('span');
+      msg.style.cssText = 'font-size:10pt;color:#888;';
+      msg.textContent = 'No more gems \u2014 send your shelf groups!';
+      $queue.appendChild(msg);
     }
   }
 
   /* ── Render Shelf ───────────────────────────── */
   function renderShelf() {
     $shelf.innerHTML = '';
-    for (var i = 0; i < SHELF_SIZE; i++) {
+
+    for (var i = 0; i < shelfGems.length; i++) {
       (function(idx) {
         var slot = document.createElement('div');
-        slot.className = 'shelf-slot';
-        if (shelf[idx]) {
-          slot.classList.add('occupied');
-          slot.style.background = COLORS[shelf[idx].color];
-          slot.textContent = '\uD83D\uDC8E';
-          if (idx === selectedSlot) slot.classList.add('selected');
-          slot.onclick = function() {
-            if (animating) return;
-            onShelfTap(idx);
-          };
-        }
+        slot.className = 'shelf-slot has-gem';
+        if (idx === selectedShelf) slot.className += ' selected';
+        slot.style.background = COLORS[shelfGems[idx]].hex;
+        slot.textContent = COLORS[shelfGems[idx]].gem;
+        slot.onclick = function() { tapShelfSlot(idx); };
         $shelf.appendChild(slot);
       })(i);
     }
+
+    /* Empty slot placeholders */
+    var empties = SHELF_MAX - shelfGems.length;
+    for (var e = 0; e < empties; e++) {
+      var empty = document.createElement('div');
+      empty.className = 'shelf-slot empty-slot';
+      $shelf.appendChild(empty);
+    }
+
+    /* Shelf counter */
+    $shelfCount.textContent = 'Shelf: ' + shelfGems.length + ' / ' + SHELF_MAX;
+    $shelfCount.className = (shelfGems.length >= SHELF_MAX - 1) ? 'shelf-count warning' : 'shelf-count';
+
+    /* Update send button */
+    var group = findLargestGroup();
+    if (group) {
+      $sendBtn.textContent = 'Send ' + group.count + ' ' + COLORS[group.color].name + ' to Grid';
+      $sendBtn.disabled = false;
+    } else {
+      $sendBtn.textContent = 'Send Group to Grid';
+      $sendBtn.disabled = true;
+    }
   }
 
-  /* ── Place Gem from Queue onto Shelf ────────── */
+  /* ── Place gem from queue to shelf ──────────── */
   function placeOnShelf(queueIdx) {
-    /* Find first empty shelf slot */
-    var emptyIdx = -1;
-    for (var i = 0; i < SHELF_SIZE; i++) {
-      if (!shelf[i]) { emptyIdx = i; break; }
+    if (shelfGems.length >= SHELF_MAX) {
+      sfxFail();
+      $gameOverOverlay.className = 'overlay show';
+      return;
     }
-    if (emptyIdx === -1) return; /* shelf full */
 
-    var color = gemQueue[queueIdx];
-    gemQueue.splice(queueIdx, 1);
-    shelf[emptyIdx] = { color: color };
-    playPlace();
+    var color = gemBag.splice(queueIdx, 1)[0];
+    shelfGems.push(color);
+    selectedShelf = -1;
+    sfxPlace();
 
-    selectedSlot = -1;
     renderQueue();
     renderShelf();
 
-    /* Check for matches after a tiny delay for visual feedback */
-    setTimeout(function() { checkMatches(); }, 150);
-  }
-
-  /* ── Tap Shelf Slot (select/swap) ───────────── */
-  function onShelfTap(idx) {
-    if (selectedSlot === -1) {
-      /* Select this slot */
-      selectedSlot = idx;
-      renderShelf();
-    } else if (selectedSlot === idx) {
-      /* Deselect */
-      selectedSlot = -1;
-      renderShelf();
-    } else {
-      /* Swap */
-      var tmp = shelf[selectedSlot];
-      shelf[selectedSlot] = shelf[idx];
-      shelf[idx] = tmp;
-      selectedSlot = -1;
-      playSwap();
-      renderShelf();
-      setTimeout(function() { checkMatches(); }, 150);
-    }
-  }
-
-  /* ── Check for Adjacent Matches ─────────────── */
-  function checkMatches() {
-    /* Find runs of MATCH_MIN+ adjacent same-color gems */
-    var runs = [];
-    var i = 0;
-    while (i < SHELF_SIZE) {
-      if (!shelf[i]) { i++; continue; }
-      var color = shelf[i].color;
-      var start = i;
-      while (i < SHELF_SIZE && shelf[i] && shelf[i].color === color) i++;
-      var len = i - start;
-      if (len >= MATCH_MIN) {
-        runs.push({ color: color, start: start, len: len });
-      }
-    }
-
-    if (runs.length === 0) return;
-
-    animating = true;
-    playMatch();
-
-    /* Clear matched gems from shelf and fill grid */
-    var totalToFill = 0;
-    for (var r = 0; r < runs.length; r++) {
-      totalToFill += runs[r].len;
-    }
-
-    var fillDelay = 0;
-    for (var r2 = 0; r2 < runs.length; r2++) {
-      var run = runs[r2];
-      for (var s = run.start; s < run.start + run.len; s++) {
-        (function(slotIdx, color, d) {
-          setTimeout(function() {
-            /* Add glow to shelf slot */
-            var slots = $shelf.querySelectorAll('.shelf-slot');
-            if (slots[slotIdx]) slots[slotIdx].classList.add('match-glow');
-
-            /* Fill one grid cell of this color */
-            fillOneGridCell(color);
-          }, d);
-        })(s, run.color, fillDelay);
-        fillDelay += 60;
-      }
-      /* Null out shelf slots */
-      for (var n = run.start; n < run.start + run.len; n++) {
-        shelf[n] = null;
-      }
-    }
-
-    /* Compact shelf (slide gems to left to fill gaps) */
-    setTimeout(function() {
-      compactShelf();
-      renderShelf();
-      renderQueue();
-      updateProgress();
-      animating = false;
-
-      if (filledCount >= totalCells) {
+    /* Check if shelf is full with no sendable groups */
+    if (shelfGems.length >= SHELF_MAX) {
+      var group = findLargestGroup();
+      if (!group) {
         setTimeout(function() {
-          playComplete();
-          $overlay.classList.add('show');
-        }, 300);
-      } else {
-        /* Check for chain matches after compacting */
-        setTimeout(function() { checkMatches(); }, 200);
-      }
-    }, fillDelay + 100);
-  }
-
-  /* ── Fill One Grid Cell of Given Color ──────── */
-  function fillOneGridCell(color) {
-    var cells = $grid.querySelectorAll('.cell');
-    for (var i = 0; i < gridData.length; i++) {
-      if (gridData[i].color === color && !gridData[i].filled) {
-        gridData[i].filled = true;
-        filledCount++;
-        cells[i].style.background = COLORS[color];
-        cells[i].classList.add('filled', 'pop-in');
-        var rect = cells[i].getBoundingClientRect();
-        sparkleAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        updateProgress();
-        return;
+          sfxFail();
+          $gameOverOverlay.className = 'overlay show';
+        }, 500);
       }
     }
   }
 
-  /* ── Compact Shelf (remove gaps) ────────────── */
-  function compactShelf() {
-    var compacted = [];
-    for (var i = 0; i < SHELF_SIZE; i++) {
-      if (shelf[i]) compacted.push(shelf[i]);
+  /* ── Tap shelf slot: select or swap ─────────── */
+  function tapShelfSlot(idx) {
+    if (selectedShelf === -1) {
+      selectedShelf = idx;
+    } else if (selectedShelf === idx) {
+      selectedShelf = -1;
+    } else {
+      var tmp = shelfGems[selectedShelf];
+      shelfGems[selectedShelf] = shelfGems[idx];
+      shelfGems[idx] = tmp;
+      selectedShelf = -1;
+      sfxSwap();
     }
-    shelf = [];
-    for (var j = 0; j < SHELF_SIZE; j++) {
-      shelf.push(compacted[j] || null);
-    }
-  }
-
-  /* ── Sort Shelf Button ──────────────────────── */
-  window.sortShelf = function() {
-    if (animating) return;
-    var items = [];
-    for (var i = 0; i < SHELF_SIZE; i++) {
-      if (shelf[i]) items.push(shelf[i]);
-    }
-    items.sort(function(a, b) {
-      return a.color < b.color ? -1 : a.color > b.color ? 1 : 0;
-    });
-    shelf = [];
-    for (var j = 0; j < SHELF_SIZE; j++) {
-      shelf.push(items[j] || null);
-    }
-    selectedSlot = -1;
-    playSwap();
     renderShelf();
-    setTimeout(function() { checkMatches(); }, 200);
-  };
+  }
 
-  /* ── Clear Largest Group Button ─────────────── */
-  window.clearLargest = function() {
-    if (animating) return;
-    /* Find the largest adjacent group (even if < MATCH_MIN) */
-    var bestStart = -1, bestLen = 0, bestColor = null;
+  /* ── Find largest adjacent same-color group ─── */
+  function findLargestGroup() {
+    if (shelfGems.length === 0) return null;
+    var best = null;
     var i = 0;
-    while (i < SHELF_SIZE) {
-      if (!shelf[i]) { i++; continue; }
-      var color = shelf[i].color;
+    while (i < shelfGems.length) {
+      var color = shelfGems[i];
       var start = i;
-      while (i < SHELF_SIZE && shelf[i] && shelf[i].color === color) i++;
-      var len = i - start;
-      if (len > bestLen) { bestLen = len; bestStart = start; bestColor = color; }
-    }
-    if (bestLen < 2) return; /* need at least 2 */
-
-    animating = true;
-    playMatch();
-    var fillDelay = 0;
-    for (var s = bestStart; s < bestStart + bestLen; s++) {
-      (function(color, d) {
-        setTimeout(function() { fillOneGridCell(color); }, d);
-      })(bestColor, fillDelay);
-      shelf[s] = null;
-      fillDelay += 60;
-    }
-    setTimeout(function() {
-      compactShelf(); renderShelf(); renderQueue();
-      updateProgress(); animating = false;
-      if (filledCount >= totalCells) {
-        setTimeout(function() { playComplete(); $overlay.classList.add('show'); }, 300);
+      while (i < shelfGems.length && shelfGems[i] === color) i++;
+      var count = i - start;
+      if (count >= 2 && (!best || count > best.count)) {
+        best = { color: color, start: start, count: count };
       }
-    }, fillDelay + 100);
-  };
+    }
+    return best;
+  }
 
-  /* ── Progress ───────────────────────────────── */
+  /* ── Send color group to grid ───────────────── */
+  function sendColorGroup() {
+    var group = findLargestGroup();
+    if (!group) return;
+
+    /* Remove from shelf */
+    shelfGems.splice(group.start, group.count);
+    selectedShelf = -1;
+
+    /* Place on grid in matching unfilled spots */
+    var placed = 0;
+    for (var i = 0; i < gridCells.length && placed < group.count; i++) {
+      if (gridCells[i].color === group.color && !gridCells[i].filled) {
+        gridCells[i].filled = true;
+        popTracker[i] = true;
+        placed++;
+        filledCount++;
+      }
+    }
+
+    sfxSend();
+
+    /* Re-render everything */
+    renderGrid();
+    renderShelf();
+    renderQueue();
+    updateProgress();
+
+    /* Sparkle on some newly placed cells */
+    setTimeout(function() {
+      var allDom = $grid.children;
+      for (var j = 0; j < gridCells.length; j++) {
+        if (gridCells[j].filled && allDom[j] && allDom[j].classList.contains('pop')) {
+          if (Math.random() < 0.4) {
+            var rect = allDom[j].getBoundingClientRect();
+            sparkleAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          }
+        }
+      }
+    }, 50);
+
+    /* Win check */
+    if (filledCount >= totalCells) {
+      setTimeout(function() {
+        sfxComplete();
+        $completeOverlay.className = 'overlay show';
+      }, 400);
+    }
+  }
+
+  /* ── Auto-sort shelf by color ───────────────── */
+  function autoSortShelf() {
+    shelfGems.sort();
+    selectedShelf = -1;
+    sfxSwap();
+    renderShelf();
+  }
+
+  /* ── Progress bar ───────────────────────────── */
   function updateProgress() {
     var pct = totalCells > 0 ? Math.round((filledCount / totalCells) * 100) : 0;
     $progressFill.style.width = pct + '%';
-    $progressText.textContent = filledCount + ' / ' + totalCells + ' (' + pct + '%)';
+    $progressText.textContent = filledCount + ' / ' + totalCells;
   }
 
-  /* ── Nav ────────────────────────────────────── */
-  window.nextDesign = function() {
+  /* ── Next / Replay ──────────────────────────── */
+  function nextDesign() {
     var designs = PACKS[currentPack];
     currentIdx = (currentIdx + 1) % designs.length;
-    buildDesignRow(); loadDesign();
-  };
-  window.replayDesign = function() { loadDesign(); };
+    buildDesignRow();
+    loadDesign();
+  }
+  function replayDesign() {
+    loadDesign();
+  }
 
   /* ── Dark mode ──────────────────────────────── */
-  (function() {
-    try {
-      if (localStorage.getItem('aa_dark_mode') === 'true') {
-        document.documentElement.classList.add('aa-dark');
-      }
-    } catch(e) {}
-  })();
+  try {
+    if (localStorage.getItem('aa-dark-mode') === 'true') {
+      document.documentElement.classList.add('aa-dark');
+    }
+  } catch(e) {}
 
   /* ── Init ───────────────────────────────────── */
   buildPacks();
