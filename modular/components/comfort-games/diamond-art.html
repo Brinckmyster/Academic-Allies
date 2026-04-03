@@ -1,7 +1,7 @@
 <!-- Claude: 2026-04-02 — Brilliant Sort: Diamond Puzzle (comfort game).
-     Drag colored gems from tray to matching grid cells to reveal pixel art.
+     Tap a color swatch to fill ALL matching cells at once with cascade sparkle.
      Theme packs: Floral, Cats, Nature, Patterns.
-     Pure vanilla JS (ES5), no dependencies. Touch-friendly drag-and-drop. -->
+     Pure vanilla JS (ES5), no dependencies. Touch-friendly. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,6 +26,7 @@
       -webkit-user-select: none;
       user-select: none;
     }
+
     /* ── Header ─────────────────────────────── */
     .da-header {
       width: 100%; max-width: 600px;
@@ -100,58 +101,68 @@
       width: 100%; aspect-ratio: 1; border-radius: 3px;
       border: 1px solid rgba(156,39,176,0.2);
       background: rgba(255,255,255,0.5);
-      transition: background 0.2s, transform 0.15s;
+      transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
       position: relative;
     }
     html.aa-dark .cell { background: rgba(255,255,255,0.08); border-color: rgba(206,147,216,0.15); }
     .cell.filled {
       border-color: transparent;
-      transform: scale(1);
     }
-    .cell.drop-target {
-      transform: scale(1.15);
-      box-shadow: 0 0 8px rgba(156,39,176,0.5);
+    .cell.pop-in {
+      animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     }
-    .cell.hint-glow {
-      animation: hintPulse 1s ease-in-out;
+    @keyframes popIn {
+      0% { transform: scale(0.3); opacity: 0.5; }
+      60% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
     }
-    @keyframes hintPulse {
-      0%, 100% { box-shadow: none; }
-      50% { box-shadow: 0 0 12px rgba(233,30,99,0.6); }
+    .cell.preview {
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.5);
     }
 
-    /* ── Gem Tray ──────────────────────────────── */
-    .tray-area {
+    /* ── Color Palette (replaces gem tray) ─────── */
+    .palette-area {
       width: 100%; max-width: 600px; padding: 12px 16px;
       position: sticky; bottom: 0; z-index: 10;
       background: linear-gradient(transparent, #f3e5f5 20%);
     }
-    html.aa-dark .tray-area { background: linear-gradient(transparent, #1a1a2e 20%); }
-    .tray-label {
+    html.aa-dark .palette-area { background: linear-gradient(transparent, #1a1a2e 20%); }
+    .palette-label {
       font-size: 10pt; text-align: center; margin-bottom: 6px;
       color: #9c27b0; font-weight: 600;
     }
-    html.aa-dark .tray-label { color: #ce93d8; }
-    .tray {
-      display: flex; flex-wrap: wrap; gap: 6px;
-      justify-content: center; padding: 8px;
+    html.aa-dark .palette-label { color: #ce93d8; }
+    .palette {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      justify-content: center; padding: 10px;
       background: rgba(255,255,255,0.7); border-radius: 12px;
       border: 2px solid rgba(156,39,176,0.2);
-      min-height: 50px; max-height: 180px; overflow-y: auto;
     }
-    html.aa-dark .tray { background: rgba(40,20,60,0.8); border-color: rgba(123,31,162,0.3); }
-    .gem {
-      width: 32px; height: 32px; border-radius: 6px;
-      cursor: grab; position: relative; z-index: 1;
+    html.aa-dark .palette { background: rgba(40,20,60,0.8); border-color: rgba(123,31,162,0.3); }
+    .swatch {
+      width: 44px; height: 44px; border-radius: 10px;
+      cursor: pointer; position: relative;
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px; transition: transform 0.1s;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      font-size: 18px; font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      border: 3px solid transparent;
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
     }
-    .gem:active { cursor: grabbing; transform: scale(1.2); }
-    .gem.dragging {
-      position: fixed; z-index: 1000; pointer-events: none;
-      transform: scale(1.3); box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    .swatch:hover { transform: scale(1.1); }
+    .swatch:active { transform: scale(0.95); }
+    .swatch.used {
+      opacity: 0.35;
+      cursor: default;
+      transform: scale(0.9) !important;
+      box-shadow: none;
     }
+    .swatch .count {
+      position: absolute; bottom: -2px; right: -2px;
+      background: #4a148c; color: #fff; font-size: 9px;
+      padding: 1px 4px; border-radius: 8px; min-width: 16px;
+      text-align: center; font-weight: 700;
+    }
+    html.aa-dark .swatch .count { background: #ce93d8; color: #1a1a2e; }
 
     /* ── Completion Overlay ────────────────────── */
     .complete-overlay {
@@ -209,9 +220,9 @@
     <div class="grid" id="grid"></div>
   </div>
 
-  <div class="tray-area">
-    <div class="tray-label">Drag gems to matching spots</div>
-    <div class="tray" id="tray"></div>
+  <div class="palette-area">
+    <div class="palette-label">Tap a color to place all its gems</div>
+    <div class="palette" id="palette"></div>
   </div>
 
   <div class="complete-overlay" id="completeOverlay">
@@ -225,7 +236,8 @@
 
 <script>
 /* Claude: 2026-04-02 — Brilliant Sort: Diamond Puzzle
-   Drag-and-drop gem sorting reveals pixel art. ES5 compliant. */
+   Tap a color swatch and ALL matching cells fill in with a cascade.
+   ES5 compliant. */
 (function() {
   'use strict';
 
@@ -237,9 +249,7 @@
     C: '#00acc1', M: '#f06292', V: '#7e57c2', I: '#ffb300'
   };
 
-  /* ── Designs: each is { name, cols, rows, data } ──
-     data is a string, one char per cell, using COLORS keys.
-     Spaces = empty (no gem needed). */
+  /* ── Designs ────────────────────────────────── */
   var PACKS = {
     Floral: [
       { name: 'Tulip', cols: 10, rows: 10, data:
@@ -398,19 +408,18 @@
   /* ── State ──────────────────────────────────── */
   var currentPack = 'Floral';
   var currentIdx = 0;
-  var grid = [];       /* array of { color, filled } */
+  var grid = [];
   var totalCells = 0;
   var filledCount = 0;
-  var dragGem = null;
-  var dragOffX = 0;
-  var dragOffY = 0;
+  var colorsUsed = {};
+  var animating = false;
   var audioCtx = null;
 
   /* ── DOM refs ───────────────────────────────── */
   var $packTabs = document.getElementById('packTabs');
   var $designRow = document.getElementById('designRow');
   var $grid = document.getElementById('grid');
-  var $tray = document.getElementById('tray');
+  var $palette = document.getElementById('palette');
   var $progressFill = document.getElementById('progressFill');
   var $progressText = document.getElementById('progressText');
   var $overlay = document.getElementById('completeOverlay');
@@ -436,7 +445,11 @@
       osc.start(); osc.stop(ctx.currentTime + dur);
     } catch(e) {}
   }
-  function playPlace() { playTone(880, 0.12); }
+  function playCascade(index, total) {
+    /* Rising pitch as cells fill */
+    var base = 400 + (index / total) * 600;
+    playTone(base, 0.1);
+  }
   function playComplete() {
     playTone(523, 0.15);
     setTimeout(function() { playTone(659, 0.15); }, 100);
@@ -470,6 +483,7 @@
         btn.className = 'pack-tab' + (pName === currentPack ? ' active' : '');
         btn.textContent = pName;
         btn.onclick = function() {
+          if (animating) return;
           currentPack = pName;
           currentIdx = 0;
           buildPacks();
@@ -491,6 +505,7 @@
         btn.className = 'design-btn' + (idx === currentIdx ? ' active' : '');
         btn.textContent = designs[idx].name;
         btn.onclick = function() {
+          if (animating) return;
           currentIdx = idx;
           buildDesignRow();
           loadDesign();
@@ -504,18 +519,22 @@
   function loadDesign() {
     var design = PACKS[currentPack][currentIdx];
     var cols = design.cols;
-    var rows = design.rows;
     var data = design.data;
 
-    /* Build grid state */
     grid = [];
     totalCells = 0;
     filledCount = 0;
+    colorsUsed = {};
+    animating = false;
+
+    /* Count colors in this design */
+    var colorCounts = {};
     for (var i = 0; i < data.length; i++) {
       var ch = data[i];
       if (ch !== ' ' && COLORS[ch]) {
         grid.push({ color: ch, filled: false });
         totalCells++;
+        colorCounts[ch] = (colorCounts[ch] || 0) + 1;
       } else {
         grid.push({ color: null, filled: false });
       }
@@ -539,193 +558,102 @@
       $grid.appendChild(cell);
     }
 
-    /* Build tray with shuffled gems */
-    buildTray();
+    /* Build palette swatches */
+    buildPalette(colorCounts);
     updateProgress();
     $overlay.classList.remove('show');
   }
 
-  /* ── Build Gem Tray (shuffled) ──────────────── */
-  function buildTray() {
-    $tray.innerHTML = '';
-    var gems = [];
-    for (var i = 0; i < grid.length; i++) {
-      if (grid[i].color && !grid[i].filled) {
-        gems.push(grid[i].color);
-      }
-    }
-    /* Shuffle */
-    for (var j = gems.length - 1; j > 0; j--) {
-      var k = Math.floor(Math.random() * (j + 1));
-      var tmp = gems[j]; gems[j] = gems[k]; gems[k] = tmp;
-    }
-    /* Only show a batch (so tray doesn't overflow) */
-    var batchSize = Math.min(gems.length, 30);
-    for (var g = 0; g < batchSize; g++) {
-      var gem = createGemEl(gems[g]);
-      $tray.appendChild(gem);
+  /* ── Build Color Palette ────────────────────── */
+  function buildPalette(colorCounts) {
+    $palette.innerHTML = '';
+    /* Sort colors by count descending for nice layout */
+    var keys = Object.keys(colorCounts);
+    keys.sort(function(a, b) { return colorCounts[b] - colorCounts[a]; });
+
+    for (var i = 0; i < keys.length; i++) {
+      (function(colorKey) {
+        var swatch = document.createElement('div');
+        swatch.className = 'swatch';
+        swatch.style.background = COLORS[colorKey];
+        swatch.setAttribute('data-color', colorKey);
+        swatch.textContent = '💎';
+
+        var countBadge = document.createElement('span');
+        countBadge.className = 'count';
+        countBadge.textContent = colorCounts[colorKey];
+        swatch.appendChild(countBadge);
+
+        swatch.onclick = function() {
+          if (animating) return;
+          if (colorsUsed[colorKey]) return;
+          fillColor(colorKey, swatch);
+        };
+
+        $palette.appendChild(swatch);
+      })(keys[i]);
     }
   }
 
-  /* ── Create a Gem Element ───────────────────── */
-  function createGemEl(colorKey) {
-    var el = document.createElement('div');
-    el.className = 'gem';
-    el.style.background = COLORS[colorKey];
-    el.setAttribute('data-color', colorKey);
-    el.textContent = '💎';
-
-    /* Mouse events */
-    el.addEventListener('mousedown', function(e) {
-      e.preventDefault();
-      startDrag(el, e.clientX, e.clientY);
-    });
-    /* Touch events */
-    el.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      var t = e.touches[0];
-      startDrag(el, t.clientX, t.clientY);
-    }, { passive: false });
-
-    return el;
-  }
-
-  /* ── Drag & Drop ────────────────────────────── */
-  function startDrag(el, x, y) {
-    var rect = el.getBoundingClientRect();
-    dragOffX = x - rect.left;
-    dragOffY = y - rect.top;
-    dragGem = el;
-    el.classList.add('dragging');
-    el.style.left = (x - dragOffX) + 'px';
-    el.style.top = (y - dragOffY) + 'px';
-    el.style.width = '36px';
-    el.style.height = '36px';
-
-    /* Highlight matching cells */
-    var color = el.getAttribute('data-color');
+  /* ── Fill All Cells of a Color (cascade) ────── */
+  function fillColor(colorKey, swatchEl) {
+    animating = true;
     var cells = $grid.querySelectorAll('.cell');
+    var targets = [];
+
+    /* Find all unfilled cells of this color */
     for (var i = 0; i < cells.length; i++) {
       var idx = parseInt(cells[i].getAttribute('data-idx'));
-      if (grid[idx].color === color && !grid[idx].filled) {
-        cells[i].classList.add('hint-glow');
-      }
-    }
-  }
-
-  function moveDrag(x, y) {
-    if (!dragGem) return;
-    dragGem.style.left = (x - dragOffX) + 'px';
-    dragGem.style.top = (y - dragOffY) + 'px';
-
-    /* Highlight cell under cursor */
-    var cells = $grid.querySelectorAll('.cell');
-    for (var i = 0; i < cells.length; i++) {
-      cells[i].classList.remove('drop-target');
-    }
-    var target = getCellAt(x, y);
-    if (target) {
-      target.classList.add('drop-target');
-    }
-  }
-
-  function endDrag(x, y) {
-    if (!dragGem) return;
-    var color = dragGem.getAttribute('data-color');
-    var target = getCellAt(x, y);
-    var placed = false;
-
-    if (target) {
-      var idx = parseInt(target.getAttribute('data-idx'));
-      if (grid[idx].color === color && !grid[idx].filled) {
-        /* Correct placement! */
-        grid[idx].filled = true;
-        filledCount++;
-        target.style.background = COLORS[color];
-        target.classList.add('filled');
-        placed = true;
-        playPlace();
-
-        var tRect = target.getBoundingClientRect();
-        sparkleAt(tRect.left + tRect.width / 2, tRect.top + tRect.height / 2);
-        updateProgress();
-
-        /* Remove gem from DOM */
-        if (dragGem.parentNode) dragGem.parentNode.removeChild(dragGem);
-
-        /* Refill tray if needed */
-        var remaining = 0;
-        for (var r = 0; r < grid.length; r++) {
-          if (grid[r].color && !grid[r].filled) remaining++;
-        }
-        if (remaining > 0 && $tray.children.length < 5) {
-          buildTray();
-        }
-
-        /* Check completion */
-        if (filledCount >= totalCells) {
-          setTimeout(function() {
-            playComplete();
-            $overlay.classList.add('show');
-          }, 400);
-        }
+      if (grid[idx].color === colorKey && !grid[idx].filled) {
+        targets.push({ el: cells[i], idx: idx });
       }
     }
 
-    /* Reset gem if not placed */
-    if (!placed) {
-      dragGem.classList.remove('dragging');
-      dragGem.style.position = '';
-      dragGem.style.left = '';
-      dragGem.style.top = '';
-      dragGem.style.width = '';
-      dragGem.style.height = '';
+    if (targets.length === 0) {
+      animating = false;
+      return;
     }
 
-    /* Clear highlights */
-    var allCells = $grid.querySelectorAll('.cell');
-    for (var c = 0; c < allCells.length; c++) {
-      allCells[c].classList.remove('drop-target');
-      allCells[c].classList.remove('hint-glow');
+    /* Cascade fill: stagger each cell by 50ms */
+    var delay = Math.min(50, 800 / targets.length);
+    for (var t = 0; t < targets.length; t++) {
+      (function(target, d, tIdx, total) {
+        setTimeout(function() {
+          grid[target.idx].filled = true;
+          filledCount++;
+          target.el.style.background = COLORS[colorKey];
+          target.el.classList.add('filled');
+          target.el.classList.add('pop-in');
+
+          /* Sparkle on every 3rd cell or if few cells */
+          if (total < 6 || tIdx % 3 === 0) {
+            var rect = target.el.getBoundingClientRect();
+            sparkleAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          }
+
+          /* Cascade sound */
+          playCascade(tIdx, total);
+
+          updateProgress();
+
+          /* Last cell in this color */
+          if (tIdx === total - 1) {
+            colorsUsed[colorKey] = true;
+            swatchEl.classList.add('used');
+            animating = false;
+
+            /* Check if entire design complete */
+            if (filledCount >= totalCells) {
+              setTimeout(function() {
+                playComplete();
+                $overlay.classList.add('show');
+              }, 300);
+            }
+          }
+        }, d);
+      })(targets[t], t * delay, t, targets.length);
     }
-    dragGem = null;
   }
-
-  function getCellAt(x, y) {
-    /* temporarily hide the dragged gem so elementFromPoint finds the cell */
-    var prev = null;
-    if (dragGem) {
-      prev = dragGem.style.display;
-      dragGem.style.display = 'none';
-    }
-    var el = document.elementFromPoint(x, y);
-    if (dragGem) {
-      dragGem.style.display = prev || '';
-    }
-    if (el && el.classList && el.classList.contains('cell')) return el;
-    return null;
-  }
-
-  /* Global mouse/touch move and up */
-  document.addEventListener('mousemove', function(e) {
-    if (dragGem) { e.preventDefault(); moveDrag(e.clientX, e.clientY); }
-  });
-  document.addEventListener('mouseup', function(e) {
-    if (dragGem) endDrag(e.clientX, e.clientY);
-  });
-  document.addEventListener('touchmove', function(e) {
-    if (dragGem) {
-      e.preventDefault();
-      var t = e.touches[0];
-      moveDrag(t.clientX, t.clientY);
-    }
-  }, { passive: false });
-  document.addEventListener('touchend', function(e) {
-    if (dragGem) {
-      var t = e.changedTouches[0];
-      endDrag(t.clientX, t.clientY);
-    }
-  });
 
   /* ── Progress ───────────────────────────────── */
   function updateProgress() {
