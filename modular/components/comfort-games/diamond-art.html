@@ -1,7 +1,7 @@
-<!-- Claude: 2026-04-02 — Diamond Art: color-sorting shelf puzzle.
-     Gems arrive mixed. Place on shelf. Rearrange to group by color.
-     Tap a color group to send gems to their correct grid spots.
-     Don't overflow the shelf! Theme packs with pixel art designs.
+<!-- Claude: 2026-04-03 — Diamond Art v4: Jewel Coloring style.
+     Gems start on grid in WRONG spots. Tap a gem to pick up its
+     entire connected same-color group onto the shelf. Sort on shelf,
+     then place groups back into correct grid spots. Relaxing, no timer.
      Pure vanilla JS (ES5), no dependencies. Touch-friendly. -->
 <!DOCTYPE html>
 <html lang="en">
@@ -17,184 +17,133 @@
     body {
       font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
       background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
-      color: #4a148c;
-      min-height: 100vh;
+      color: #4a148c; min-height: 100vh;
       display: flex; flex-direction: column; align-items: center;
-      overflow-x: hidden;
-      touch-action: manipulation;
+      overflow-x: hidden; touch-action: manipulation;
       -webkit-user-select: none; user-select: none;
     }
 
-    /* ── Header ─────────────────────────────── */
-    .da-header {
-      width: 100%; max-width: 600px;
-      padding: 12px 16px; display: flex;
-      align-items: center; gap: 12px;
-    }
+    .da-header { width:100%; max-width:600px; padding:12px 16px; display:flex; align-items:center; gap:12px; }
     .da-back {
-      display: inline-flex; align-items: center; gap: 6px;
-      color: #9c27b0; text-decoration: none; font-size: 13pt;
-      padding: 8px 14px; border-radius: 8px;
-      background: rgba(156,39,176,0.1);
+      display:inline-flex; align-items:center; gap:6px; color:#9c27b0;
+      text-decoration:none; font-size:13pt; padding:8px 14px; border-radius:8px;
+      background:rgba(156,39,176,0.1);
     }
-    .da-back:hover { background: rgba(156,39,176,0.2); }
-    html.aa-dark .da-back { color: #ce93d8; background: rgba(206,147,216,0.12); }
-    .da-title { font-size: 15pt; font-weight: 700; }
+    .da-back:hover { background:rgba(156,39,176,0.2); }
+    html.aa-dark .da-back { color:#ce93d8; background:rgba(206,147,216,0.12); }
+    .da-title { font-size:15pt; font-weight:700; }
 
-    /* ── Pack / Design Picker ─────────────────── */
-    .picker-area { width: 100%; max-width: 600px; padding: 8px 16px; }
-    .pack-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .picker-area { width:100%; max-width:600px; padding:8px 16px; }
+    .pack-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
     .pack-tab {
-      padding: 6px 14px; border-radius: 20px; border: 2px solid #ce93d8;
-      background: transparent; color: #9c27b0; font-size: 11pt;
-      cursor: pointer; font-weight: 600;
+      padding:6px 14px; border-radius:20px; border:2px solid #ce93d8;
+      background:transparent; color:#9c27b0; font-size:11pt; cursor:pointer; font-weight:600;
     }
-    .pack-tab.active { background: #9c27b0; color: #fff; }
-    html.aa-dark .pack-tab { border-color: #7b1fa2; color: #ce93d8; }
-    html.aa-dark .pack-tab.active { background: #7b1fa2; color: #fff; }
-    .design-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .pack-tab.active { background:#9c27b0; color:#fff; }
+    html.aa-dark .pack-tab { border-color:#7b1fa2; color:#ce93d8; }
+    html.aa-dark .pack-tab.active { background:#7b1fa2; color:#fff; }
+    .design-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
     .design-btn {
-      padding: 5px 12px; border-radius: 14px; border: 1px solid #ce93d8;
-      background: transparent; color: #9c27b0; font-size: 10pt; cursor: pointer;
+      padding:5px 12px; border-radius:14px; border:1px solid #ce93d8;
+      background:transparent; color:#9c27b0; font-size:10pt; cursor:pointer;
     }
-    .design-btn.active { background: #ce93d8; color: #fff; }
-    html.aa-dark .design-btn { border-color: #7b1fa2; color: #ce93d8; }
-    html.aa-dark .design-btn.active { background: #7b1fa2; color: #fff; }
+    .design-btn.active { background:#ce93d8; color:#fff; }
+    html.aa-dark .design-btn { border-color:#7b1fa2; color:#ce93d8; }
+    html.aa-dark .design-btn.active { background:#7b1fa2; color:#fff; }
 
-    /* ── Progress ─────────────────────────────── */
-    .progress-wrap {
-      width: 90%; max-width: 560px; padding: 4px 0;
-      display: flex; align-items: center; gap: 10px;
-    }
-    .progress-bar {
-      flex: 1; height: 10px; border-radius: 5px;
-      background: rgba(156,39,176,0.15); overflow: hidden;
-    }
-    .progress-fill { height: 100%; background: #9c27b0; border-radius: 5px; width: 0; transition: width 0.3s; }
-    .progress-text { font-size: 10pt; font-weight: 600; min-width: 60px; text-align: right; }
+    .progress-wrap { width:90%; max-width:560px; padding:4px 0; display:flex; align-items:center; gap:10px; }
+    .progress-bar { flex:1; height:10px; border-radius:5px; background:rgba(156,39,176,0.15); overflow:hidden; }
+    .progress-fill { height:100%; background:#9c27b0; border-radius:5px; width:0; transition:width 0.3s; }
+    .progress-text { font-size:10pt; font-weight:600; min-width:60px; text-align:right; }
 
-    /* ── Grid ──────────────────────────────────── */
-    .grid-area { padding: 8px; }
-    .grid {
-      display: grid; gap: 2px; padding: 4px;
-      background: rgba(156,39,176,0.08); border-radius: 8px;
-    }
+    .info-line { font-size:9pt; color:#888; text-align:center; padding:2px 0; min-height:18px; }
+
+    /* ── Grid ── */
+    .grid-area { padding:8px; }
+    .grid { display:grid; gap:2px; padding:4px; background:rgba(156,39,176,0.08); border-radius:8px; }
     .cell {
-      aspect-ratio: 1; border-radius: 3px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 8px; transition: background 0.3s, transform 0.2s;
+      aspect-ratio:1; border-radius:4px; display:flex; align-items:center; justify-content:center;
+      font-size:14px; transition:background 0.2s, transform 0.2s, opacity 0.2s; cursor:pointer;
+      position:relative;
     }
-    .cell.empty-cell { background: rgba(200,200,200,0.2); }
-    .cell.target {
-      border: 1.5px dashed rgba(0,0,0,0.15);
-      background: rgba(200,200,200,0.12);
+    .cell.blank { background:rgba(200,200,200,0.15); cursor:default; }
+    .cell.wrong { opacity:0.85; }
+    .cell.wrong:hover { transform:scale(1.08); opacity:1; }
+    .cell.correct { cursor:default; }
+    .cell.correct.pop { animation:popIn 0.3s ease-out; }
+    .cell.empty-spot {
+      border:1.5px dashed rgba(0,0,0,0.12); background:rgba(200,200,200,0.08);
     }
-    html.aa-dark .cell.target { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); }
-    .cell.filled { transform: scale(1); }
-    .cell.pop { animation: popIn 0.3s ease-out; }
+    html.aa-dark .cell.empty-spot { border-color:rgba(255,255,255,0.1); }
+    .cell .hint-dot { width:6px; height:6px; border-radius:50%; opacity:0.35; }
     @keyframes popIn {
-      0% { transform: scale(0.3); opacity: 0.5; }
-      70% { transform: scale(1.15); }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    .cell.target .hint-dot {
-      width: 6px; height: 6px; border-radius: 50%; opacity: 0.4;
+      0% { transform:scale(0.3); opacity:0.5; }
+      70% { transform:scale(1.15); }
+      100% { transform:scale(1); opacity:1; }
     }
 
-    /* ── Queue (incoming gems) ────────────────── */
-    .queue-area {
-      width: 90%; max-width: 560px; padding: 8px 0;
-      text-align: center;
-    }
-    .queue-label { font-size: 9pt; color: #888; margin-bottom: 4px; }
-    .queue {
-      display: flex; gap: 4px; justify-content: center;
-      min-height: 40px; flex-wrap: wrap;
-    }
-    .queue-gem {
-      width: 36px; height: 36px; border-radius: 6px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      font-size: 16px; border: 2px solid rgba(0,0,0,0.1);
-      transition: transform 0.15s;
-    }
-    .queue-gem:hover { transform: scale(1.1); }
-    .queue-gem:active { transform: scale(0.95); }
-
-    /* ── Shelf ─────────────────────────────────── */
-    .shelf-area {
-      width: 90%; max-width: 560px; padding: 8px 0;
-    }
-    .shelf-label { font-size: 9pt; color: #888; margin-bottom: 4px; text-align: center; }
-    .shelf-count { font-size: 9pt; font-weight: 700; text-align: center; margin-bottom: 4px; }
-    .shelf-count.warning { color: #e53935; }
+    /* ── Shelf ── */
+    .shelf-area { width:90%; max-width:560px; padding:8px 0; }
+    .shelf-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding:0 4px; }
+    .shelf-count { font-size:9pt; font-weight:700; }
+    .shelf-count.warning { color:#e53935; }
     .shelf {
-      display: flex; gap: 4px; justify-content: center;
-      min-height: 44px; flex-wrap: wrap;
-      background: rgba(156,39,176,0.06); border-radius: 10px; padding: 6px;
-      border: 2px solid rgba(156,39,176,0.15);
+      display:flex; gap:3px; justify-content:center; min-height:44px; flex-wrap:wrap;
+      background:rgba(156,39,176,0.06); border-radius:10px; padding:6px;
+      border:2px solid rgba(156,39,176,0.15);
     }
-    html.aa-dark .shelf { background: rgba(206,147,216,0.06); border-color: rgba(206,147,216,0.12); }
-    .shelf-slot {
-      width: 40px; height: 40px; border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; cursor: pointer; border: 2px solid transparent;
-      transition: transform 0.15s, border-color 0.15s;
+    html.aa-dark .shelf { background:rgba(206,147,216,0.06); border-color:rgba(206,147,216,0.12); }
+    .shelf-gem {
+      width:38px; height:38px; border-radius:6px; display:flex; align-items:center; justify-content:center;
+      font-size:16px; cursor:pointer; border:2px solid rgba(0,0,0,0.1); transition:transform 0.15s, border-color 0.15s;
     }
-    .shelf-slot.has-gem { border-color: rgba(0,0,0,0.1); }
-    .shelf-slot.selected { border-color: #ff9800; transform: scale(1.1); box-shadow: 0 0 8px rgba(255,152,0,0.4); }
-    .shelf-slot.empty-slot {
-      border: 2px dashed rgba(156,39,176,0.2);
-      background: rgba(156,39,176,0.03);
+    .shelf-gem:hover { transform:scale(1.08); }
+    .shelf-gem.selected { border-color:#ff9800; transform:scale(1.1); box-shadow:0 0 8px rgba(255,152,0,0.4); }
+    .shelf-empty {
+      width:38px; height:38px; border-radius:6px; border:2px dashed rgba(156,39,176,0.2);
+      background:rgba(156,39,176,0.03);
     }
 
-    /* ── Buttons ───────────────────────────────── */
-    .btn-row {
-      display: flex; gap: 8px; justify-content: center;
-      padding: 6px 0; flex-wrap: wrap;
-    }
+    /* ── Buttons ── */
+    .btn-row { display:flex; gap:8px; justify-content:center; padding:6px 0; flex-wrap:wrap; }
     .action-btn {
-      padding: 8px 16px; border-radius: 8px; border: 2px solid #9c27b0;
-      background: transparent; color: #9c27b0; font-size: 10pt;
-      cursor: pointer; font-weight: 600;
+      padding:8px 16px; border-radius:8px; border:2px solid #9c27b0;
+      background:transparent; color:#9c27b0; font-size:10pt; cursor:pointer; font-weight:600;
     }
-    .action-btn:hover { background: rgba(156,39,176,0.1); }
-    .action-btn:disabled { opacity: 0.4; cursor: default; }
-    .action-btn.primary { background: #9c27b0; color: #fff; }
-    .action-btn.primary:hover { background: #7b1fa2; }
-    html.aa-dark .action-btn { border-color: #7b1fa2; color: #ce93d8; }
-    html.aa-dark .action-btn.primary { background: #7b1fa2; color: #fff; }
+    .action-btn:hover { background:rgba(156,39,176,0.1); }
+    .action-btn:disabled { opacity:0.4; cursor:default; }
+    .action-btn.primary { background:#9c27b0; color:#fff; }
+    .action-btn.primary:hover { background:#7b1fa2; }
+    html.aa-dark .action-btn { border-color:#7b1fa2; color:#ce93d8; }
+    html.aa-dark .action-btn.primary { background:#7b1fa2; color:#fff; }
 
-    /* ── Overlays ──────────────────────────────── */
+    /* ── Overlay ── */
     .overlay {
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6); z-index: 100;
-      align-items: center; justify-content: center;
+      display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center;
     }
-    .overlay.show { display: flex; }
+    .overlay.show { display:flex; }
     .overlay-box {
-      background: #fff; border-radius: 16px; padding: 28px;
-      text-align: center; max-width: 320px; width: 90%;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      background:#fff; border-radius:16px; padding:28px; text-align:center;
+      max-width:320px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.3);
     }
-    html.aa-dark .overlay-box { background: #2a1a3e; color: #e0e0e0; }
-    .overlay-box h2 { font-size: 18pt; margin-bottom: 8px; }
-    .overlay-box p { font-size: 11pt; margin-bottom: 16px; color: #666; }
-    html.aa-dark .overlay-box p { color: #aaa; }
+    html.aa-dark .overlay-box { background:#2a1a3e; color:#e0e0e0; }
+    .overlay-box h2 { font-size:18pt; margin-bottom:8px; }
+    .overlay-box p { font-size:11pt; margin-bottom:16px; color:#666; }
+    html.aa-dark .overlay-box p { color:#aaa; }
     .overlay-btn {
-      padding: 10px 24px; border-radius: 10px; border: none;
-      background: #9c27b0; color: #fff; font-size: 12pt;
-      cursor: pointer; margin: 4px;
+      padding:10px 24px; border-radius:10px; border:none;
+      background:#9c27b0; color:#fff; font-size:12pt; cursor:pointer; margin:4px;
     }
-    .overlay-btn:hover { background: #7b1fa2; }
+    .overlay-btn:hover { background:#7b1fa2; }
 
-    /* ── Sparkle ───────────────────────────────── */
     .sparkle {
-      position: fixed; pointer-events: none; z-index: 200;
-      font-size: 18px; animation: sparkAnim 0.6s ease-out forwards;
+      position:fixed; pointer-events:none; z-index:200;
+      font-size:18px; animation:sparkAnim 0.6s ease-out forwards;
     }
     @keyframes sparkAnim {
-      0% { opacity: 1; transform: scale(0.5) translateY(0); }
-      100% { opacity: 0; transform: scale(1.2) translateY(-30px); }
+      0% { opacity:1; transform:scale(0.5) translateY(0); }
+      100% { opacity:0; transform:scale(1.2) translateY(-30px); }
     }
   </style>
 </head>
@@ -214,268 +163,181 @@
     <div class="progress-text" id="progressText">0 / 0</div>
   </div>
 
+  <div class="info-line" id="infoLine">Tap a misplaced gem to pick up its group</div>
+
   <div class="grid-area">
     <div class="grid" id="grid"></div>
   </div>
 
-  <div class="queue-area">
-    <div class="queue-label">Tap a gem to place it on the shelf</div>
-    <div class="queue" id="queue"></div>
-  </div>
-
   <div class="shelf-area">
-    <div class="shelf-count" id="shelfCount">Shelf: 0 / 10</div>
+    <div class="shelf-header">
+      <span class="shelf-count" id="shelfCount">Shelf: 0 / 12</span>
+      <span style="font-size:9pt;color:#888;">Tap shelf gem, then correct grid spot</span>
+    </div>
     <div class="shelf" id="shelf"></div>
   </div>
 
   <div class="btn-row">
-    <button class="action-btn primary" id="sendBtn" disabled>Send Group to Grid</button>
-    <button class="action-btn" id="sortBtn">Auto Sort</button>
+    <button class="action-btn" id="sortBtn">Sort Shelf</button>
+    <button class="action-btn" id="undoBtn" disabled>Put Back</button>
   </div>
 
   <div class="overlay" id="completeOverlay">
     <div class="overlay-box">
       <h2>Beautiful!</h2>
-      <p>You revealed the picture!</p>
+      <p id="completeMsg">You unscrambled the picture!</p>
       <button class="overlay-btn" id="nextBtn">Next Design</button>
-      <button class="overlay-btn" id="replayBtn1">Play Again</button>
+      <button class="overlay-btn" id="replayBtn">Play Again</button>
     </div>
   </div>
 
-  <div class="overlay" id="gameOverOverlay">
+  <div class="overlay" id="shelfFullOverlay">
     <div class="overlay-box">
       <h2>Shelf Full!</h2>
-      <p>No room left. Try again?</p>
-      <button class="overlay-btn" id="retryBtn">Try Again</button>
+      <p>Try placing some gems before picking up more.</p>
+      <button class="overlay-btn" id="okBtn">OK</button>
     </div>
   </div>
 
 <script>
-/* Claude: 2026-04-02 — Diamond Art v3: correct shelf-sorting puzzle.
-   Gems arrive mixed -> place on shelf -> rearrange by color ->
-   send grouped colors to their correct grid spots -> reveal art.
-   ES5 compliant (var/function only). */
+/* Claude: 2026-04-03 — Diamond Art v4: Jewel Coloring style.
+   Grid starts scrambled. Tap misplaced gem -> picks up connected
+   same-color group onto shelf. Tap shelf gem then correct grid spot
+   to place it. ES5 compliant. */
 (function() {
   'use strict';
 
-  /* ── Colors ────────────────────────────────── */
   var COLORS = {
-    R: { hex: '#e53935', name: 'Red',    gem: '\u2764\uFE0F' },
-    G: { hex: '#43a047', name: 'Green',  gem: '\uD83D\uDC9A' },
-    B: { hex: '#1e88e5', name: 'Blue',   gem: '\uD83D\uDC99' },
-    Y: { hex: '#fdd835', name: 'Yellow', gem: '\uD83D\uDC9B' },
-    P: { hex: '#8e24aa', name: 'Purple', gem: '\uD83D\uDC9C' },
-    O: { hex: '#fb8c00', name: 'Orange', gem: '\uD83E\uDDE1' },
-    K: { hex: '#d81b60', name: 'Pink',   gem: '\uD83D\uDC97' },
-    W: { hex: '#eceff1', name: 'White',  gem: '\uD83E\uDD0D' },
-    T: { hex: '#00897b', name: 'Teal',   gem: '\uD83D\uDC8E' },
-    N: { hex: '#795548', name: 'Brown',  gem: '\uD83E\uDD0E' },
-    L: { hex: '#c0ca33', name: 'Lime',   gem: '\uD83D\uDFE2' },
-    S: { hex: '#78909c', name: 'Silver', gem: '\u2B1C' },
-    C: { hex: '#00acc1', name: 'Cyan',   gem: '\uD83E\uDDE3' }
+    R: { hex:'#e53935', gem:'\u2764\uFE0F' },
+    G: { hex:'#43a047', gem:'\uD83D\uDC9A' },
+    B: { hex:'#1e88e5', gem:'\uD83D\uDC99' },
+    Y: { hex:'#fdd835', gem:'\uD83D\uDC9B' },
+    P: { hex:'#8e24aa', gem:'\uD83D\uDC9C' },
+    O: { hex:'#fb8c00', gem:'\uD83E\uDDE1' },
+    K: { hex:'#d81b60', gem:'\uD83D\uDC97' },
+    W: { hex:'#eceff1', gem:'\uD83E\uDD0D' },
+    T: { hex:'#00897b', gem:'\uD83D\uDC8E' },
+    N: { hex:'#795548', gem:'\uD83E\uDD0E' },
+    L: { hex:'#c0ca33', gem:'\uD83D\uDFE2' },
+    S: { hex:'#78909c', gem:'\u2B1C' },
+    C: { hex:'#00acc1', gem:'\uD83E\uDDE3' }
   };
 
-  /* ── Pixel Art Designs ─────────────────────── */
   var PACKS = {
     Floral: [
-      { name: 'Tulip', cols: 10, rows: 10, data:
-        '    RR    ' +
-        '   RRRR   ' +
-        '  RRRRRR  ' +
-        '  RKRRKR  ' +
-        '  RRRRRR  ' +
-        '   RRRR   ' +
-        '    GG    ' +
-        '    GG    ' +
-        '   GGGG   ' +
-        '    GG    '
+      { name:'Tulip', cols:10, data:
+        '    RR    ' + '   RRRR   ' + '  RRRRRR  ' + '  RKRRKR  ' +
+        '  RRRRRR  ' + '   RRRR   ' + '    GG    ' + '    GG    ' +
+        '   GGGG   ' + '    GG    '
       },
-      { name: 'Daisy', cols: 10, rows: 10, data:
-        '    WW    ' +
-        '  WWWWWW  ' +
-        ' WW YY WW ' +
-        ' WWYYYYWW ' +
-        '  WYYYYW  ' +
-        ' WWYYYYWW ' +
-        ' WW YY WW ' +
-        '  WWWWWW  ' +
-        '    GG    ' +
-        '   GGGG   '
+      { name:'Daisy', cols:10, data:
+        '    WW    ' + '  WWWWWW  ' + ' WW YY WW ' + ' WWYYYYWW ' +
+        '  WYYYYW  ' + ' WWYYYYWW ' + ' WW YY WW ' + '  WWWWWW  ' +
+        '    GG    ' + '   GGGG   '
       },
-      { name: 'Rose', cols: 10, rows: 10, data:
-        '   KKKK   ' +
-        '  KKRKKK  ' +
-        ' KKRRRRKK ' +
-        ' KRRRRRKK ' +
-        ' KKRRRRKK ' +
-        '  KKRRKK  ' +
-        '   KKKK   ' +
-        '    GG    ' +
-        '   GLGG   ' +
-        '   GGGG   '
+      { name:'Rose', cols:10, data:
+        '   KKKK   ' + '  KKRKKK  ' + ' KKRRRRKK ' + ' KRRRRRKK ' +
+        ' KKRRRRKK ' + '  KKRRKK  ' + '   KKKK   ' + '    GG    ' +
+        '   GLGG   ' + '   GGGG   '
       }
     ],
     Cats: [
-      { name: 'Kitty', cols: 10, rows: 10, data:
-        ' S  SS  S ' +
-        ' SS SS SS ' +
-        ' SSSSSSSS ' +
-        ' SGSSSGSS ' +
-        ' SSSSSSSS ' +
-        ' SSSKSSSS ' +
-        ' SSSSSSSS ' +
-        '  SSSSSS  ' +
-        '   SSSS   ' +
-        '  S    S  '
+      { name:'Kitty', cols:10, data:
+        ' S  SS  S ' + ' SS SS SS ' + ' SSSSSSSS ' + ' SGSSSGSS ' +
+        ' SSSSSSSS ' + ' SSSKSSSS ' + ' SSSSSSSS ' + '  SSSSSS  ' +
+        '   SSSS   ' + '  S    S  '
       },
-      { name: 'Duchess', cols: 10, rows: 10, data:
-        ' W  WW  W ' +
-        ' WW WW WW ' +
-        ' WWWWWWWW ' +
-        ' WBWWWBWW ' +
-        ' WWWWWWWW ' +
-        ' WWWKWWWW ' +
-        ' WWKWWKWW ' +
-        '  WWWWWW  ' +
-        '   WWWW   ' +
-        '  W    W  '
+      { name:'Duchess', cols:10, data:
+        ' W  WW  W ' + ' WW WW WW ' + ' WWWWWWWW ' + ' WBWWWBWW ' +
+        ' WWWWWWWW ' + ' WWWKWWWW ' + ' WWKWWKWW ' + '  WWWWWW  ' +
+        '   WWWW   ' + '  W    W  '
       },
-      { name: 'Nap Cat', cols: 10, rows: 10, data:
-        '          ' +
-        ' NNNNNNNN ' +
-        ' NNSSSSNN ' +
-        ' NSSSSSNN ' +
-        ' NSSSSSN  ' +
-        ' NNSSSSN  ' +
-        '  NNNNNN  ' +
-        '  NNNNNN  ' +
-        '  NNNNNN  ' +
-        '          '
+      { name:'Nap Cat', cols:10, data:
+        '          ' + ' NNNNNNNN ' + ' NNSSSSNN ' + ' NSSSSSNN ' +
+        ' NSSSSSN  ' + ' NNSSSSN  ' + '  NNNNNN  ' + '  NNNNNN  ' +
+        '  NNNNNN  ' + '          '
       }
     ],
     Nature: [
-      { name: 'Mountain', cols: 10, rows: 10, data:
-        'BBBBBBBBBB' +
-        'BBBWWBBBBB' +
-        'BBWWWWBBBB' +
-        'BWWSSSWBBB' +
-        'BSSSSSSSBB' +
-        'SSSSSSSSSS' +
-        'GGGGGGGGGG' +
-        'GGGGGGGGGG' +
-        'GLGLGLGLGL' +
-        'GGGGGGGGGG'
+      { name:'Mountain', cols:10, data:
+        'BBBBBBBBBB' + 'BBBWWBBBBB' + 'BBWWWWBBBB' + 'BWWSSSWBBB' +
+        'BSSSSSSSBB' + 'SSSSSSSSSS' + 'GGGGGGGGGG' + 'GGGGGGGGGG' +
+        'GLGLGLGLGL' + 'GGGGGGGGGG'
       },
-      { name: 'Sunset', cols: 10, rows: 10, data:
-        'OOOOOOOOOO' +
-        'OOYYYYYOOO' +
-        'OYYYYYYYYO' +
-        'OOOOOOOOOO' +
-        'RRRRRRRRRR' +
-        'KKRRKRRKKR' +
-        'BBBBBBBBBB' +
-        'BCBBCBBCBB' +
-        'BBBBBBBBBB' +
-        'BCBBBCBBCB'
+      { name:'Sunset', cols:10, data:
+        'OOOOOOOOOO' + 'OOYYYYYOOO' + 'OYYYYYYYYO' + 'OOOOOOOOOO' +
+        'RRRRRRRRRR' + 'KKRRKRRKKR' + 'BBBBBBBBBB' + 'BCBBCBBCBB' +
+        'BBBBBBBBBB' + 'BCBBBCBBCB'
       },
-      { name: 'Tree', cols: 10, rows: 10, data:
-        '    GG    ' +
-        '   GGGG   ' +
-        '  GGGGGG  ' +
-        ' GGGGGGGG ' +
-        '  GGGGGG  ' +
-        ' GLGGGGGG ' +
-        'GGGGGGGLGG' +
-        '    NN    ' +
-        '    NN    ' +
-        '   NNNN   '
+      { name:'Tree', cols:10, data:
+        '    GG    ' + '   GGGG   ' + '  GGGGGG  ' + ' GGGGGGGG ' +
+        '  GGGGGG  ' + ' GLGGGGGG ' + 'GGGGGGGLGG' + '    NN    ' +
+        '    NN    ' + '   NNNN   '
       }
     ],
     Patterns: [
-      { name: 'Heart', cols: 10, rows: 10, data:
-        '          ' +
-        ' RR  RR   ' +
-        'RRRRRRRR  ' +
-        'RRRRRRRR  ' +
-        'RRRRRRRR  ' +
-        ' RRRRRR   ' +
-        '  RRRR    ' +
-        '   RR     ' +
-        '          ' +
-        '          '
+      { name:'Heart', cols:10, data:
+        '          ' + ' RR  RR   ' + 'RRRRRRRR  ' + 'RRRRRRRR  ' +
+        'RRRRRRRR  ' + ' RRRRRR   ' + '  RRRR    ' + '   RR     ' +
+        '          ' + '          '
       },
-      { name: 'Star', cols: 10, rows: 10, data:
-        '    YY    ' +
-        '    YY    ' +
-        '   YYYY   ' +
-        'YYYYYYYYYY' +
-        ' YYYYYYYY ' +
-        '  YYYYYY  ' +
-        '  YY  YY  ' +
-        ' YY    YY ' +
-        'YY      YY' +
-        '          '
+      { name:'Star', cols:10, data:
+        '    YY    ' + '    YY    ' + '   YYYY   ' + 'YYYYYYYYYY' +
+        ' YYYYYYYY ' + '  YYYYYY  ' + '  YY  YY  ' + ' YY    YY ' +
+        'YY      YY' + '          '
       },
-      { name: 'Rainbow', cols: 10, rows: 10, data:
-        '  RRRRRR  ' +
-        ' RORRRRRO ' +
-        'ROYYYYYOR ' +
-        'ROYGGGYOR ' +
-        'ROYGBGYOR ' +
-        'ROYGGGYOR ' +
-        'ROYYYYYOR ' +
-        ' RORRRRRO ' +
-        '  RRRRRR  ' +
-        '          '
+      { name:'Rainbow', cols:10, data:
+        '  RRRRRR  ' + ' RORRRRRO ' + 'ROYYYYYOR ' + 'ROYGGGYOR ' +
+        'ROYGBGYOR ' + 'ROYGGGYOR ' + 'ROYYYYYOR ' + ' RORRRRRO ' +
+        '  RRRRRR  ' + '          '
       }
     ]
   };
 
-  /* ── Config ────────────────────────────────── */
-  var SHELF_MAX = 10;
-  var QUEUE_SHOW = 7;
-
-  /* ── State ─────────────────────────────────── */
+  var SHELF_MAX = 12;
   var currentPack = 'Floral';
   var currentIdx = 0;
-  var gridCells = [];
-  var totalCells = 0;
-  var filledCount = 0;
-  var gemBag = [];
-  var shelfGems = [];
-  var selectedShelf = -1;
-  var audioCtx = null;
-  var popTracker = {};  /* tracks which grid cells just got filled for pop animation */
 
-  /* ── DOM refs ──────────────────────────────── */
-  var $packTabs   = document.getElementById('packTabs');
-  var $designRow  = document.getElementById('designRow');
-  var $grid       = document.getElementById('grid');
-  var $queue      = document.getElementById('queue');
-  var $shelf      = document.getElementById('shelf');
+  /*  Grid state:
+      solution[i] = color key or null (the correct picture)
+      current[i]  = color key or null (what's currently showing)
+      When current[i] === solution[i] the cell is "correct".
+      When current[i] !== null && current[i] !== solution[i] it's "wrong" (misplaced).
+      When current[i] === null && solution[i] !== null it's an empty spot waiting for the right gem.
+  */
+  var solution = [];
+  var current = [];
+  var cols = 10;
+  var totalGems = 0;
+  var correctCount = 0;
+
+  var shelfGems = [];       /* array of color keys */
+  var selectedShelf = -1;   /* index of selected shelf gem */
+  var audioCtx = null;
+
+  var $packTabs = document.getElementById('packTabs');
+  var $designRow = document.getElementById('designRow');
+  var $grid = document.getElementById('grid');
+  var $shelf = document.getElementById('shelf');
   var $shelfCount = document.getElementById('shelfCount');
   var $progressFill = document.getElementById('progressFill');
   var $progressText = document.getElementById('progressText');
+  var $infoLine = document.getElementById('infoLine');
   var $completeOverlay = document.getElementById('completeOverlay');
-  var $gameOverOverlay = document.getElementById('gameOverOverlay');
-  var $sendBtn    = document.getElementById('sendBtn');
-  var $sortBtn    = document.getElementById('sortBtn');
+  var $shelfFullOverlay = document.getElementById('shelfFullOverlay');
 
-  /* ── Wire up buttons ────────────────────────── */
-  $sendBtn.onclick  = function() { sendColorGroup(); };
-  $sortBtn.onclick  = function() { autoSortShelf(); };
-  document.getElementById('nextBtn').onclick    = function() { nextDesign(); };
-  document.getElementById('replayBtn1').onclick = function() { replayDesign(); };
-  document.getElementById('retryBtn').onclick   = function() { replayDesign(); };
+  document.getElementById('sortBtn').onclick = function() { sortShelf(); };
+  document.getElementById('undoBtn').onclick = function() { undoPickup(); };
+  document.getElementById('nextBtn').onclick = function() { nextDesign(); };
+  document.getElementById('replayBtn').onclick = function() { replayDesign(); };
+  document.getElementById('okBtn').onclick = function() { $shelfFullOverlay.className = 'overlay'; };
 
-  /* ── Audio ──────────────────────────────────── */
+  /* ── Audio ── */
   function getAudio() {
-    if (!audioCtx) {
-      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-    }
+    if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
     return audioCtx;
   }
-  function playTone(freq, dur, type) {
+  function tone(freq, dur, type) {
     var ctx = getAudio(); if (!ctx) return;
     try {
       var o = ctx.createOscillator(), g = ctx.createGain();
@@ -485,47 +347,62 @@
       o.start(); o.stop(ctx.currentTime + dur);
     } catch(e) {}
   }
-  function sfxPlace()    { playTone(660, 0.08); }
-  function sfxSwap()     { playTone(440, 0.06); }
-  function sfxSend()     {
-    playTone(784, 0.12);
-    setTimeout(function() { playTone(988, 0.12); }, 80);
-    setTimeout(function() { playTone(1175, 0.15); }, 160);
-  }
-  function sfxComplete() {
-    playTone(523, 0.15);
-    setTimeout(function() { playTone(659, 0.15); }, 100);
-    setTimeout(function() { playTone(784, 0.15); }, 200);
-    setTimeout(function() { playTone(1047, 0.3); }, 300);
-  }
-  function sfxFail() { playTone(220, 0.3, 'sawtooth'); }
+  function sfxPickup()  { tone(520, 0.06); tone(620, 0.06); }
+  function sfxPlace()   { tone(660, 0.08); }
+  function sfxSwap()    { tone(440, 0.06); }
+  function sfxCorrect() { tone(784, 0.12); setTimeout(function(){ tone(988, 0.12); }, 80); }
+  function sfxComplete(){ tone(523,0.15); setTimeout(function(){tone(659,0.15);},100); setTimeout(function(){tone(784,0.15);},200); setTimeout(function(){tone(1047,0.3);},300); }
+  function sfxWarn()    { tone(220, 0.15, 'sawtooth'); }
 
-  /* ── Sparkle ────────────────────────────────── */
   function sparkleAt(x, y) {
-    var chars = ['\u2726', '\u2727', '\uD83D\uDC8E', '\u2728'];
+    var chars = ['\u2726','\u2727','\uD83D\uDC8E','\u2728'];
     for (var i = 0; i < 3; i++) {
       var sp = document.createElement('span');
       sp.className = 'sparkle';
       sp.textContent = chars[Math.floor(Math.random() * chars.length)];
-      sp.style.left = (x + (Math.random() - 0.5) * 30) + 'px';
-      sp.style.top  = (y + (Math.random() - 0.5) * 30) + 'px';
+      sp.style.left = (x + (Math.random()-0.5)*30) + 'px';
+      sp.style.top  = (y + (Math.random()-0.5)*30) + 'px';
       document.body.appendChild(sp);
-      (function(el) {
-        setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 700);
-      })(sp);
+      (function(el){ setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 700); })(sp);
     }
   }
 
-  /* ── Shuffle (Fisher-Yates) ─────────────────── */
+  /* ── Fisher-Yates ── */
   function shuffle(arr) {
     for (var i = arr.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
-      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
     }
     return arr;
   }
 
-  /* ── Pack / Design Tabs ─────────────────────── */
+  /* ── Flood fill: find connected same-color group ── */
+  function floodGroup(idx) {
+    var color = current[idx];
+    if (!color) return [];
+    var visited = {};
+    var group = [];
+    var stack = [idx];
+    while (stack.length > 0) {
+      var ci = stack.pop();
+      if (visited[ci]) continue;
+      if (current[ci] !== color) continue;
+      /* Don't pick up gems already in correct spot */
+      if (current[ci] === solution[ci]) continue;
+      visited[ci] = true;
+      group.push(ci);
+      var row = Math.floor(ci / cols);
+      var col = ci % cols;
+      /* 4-directional neighbors */
+      if (col > 0) stack.push(ci - 1);
+      if (col < cols - 1) stack.push(ci + 1);
+      if (row > 0) stack.push(ci - cols);
+      if (row < Math.ceil(solution.length / cols) - 1) stack.push(ci + cols);
+    }
+    return group;
+  }
+
+  /* ── Pack / Design UI ── */
   function buildPacks() {
     $packTabs.innerHTML = '';
     var packs = Object.keys(PACKS);
@@ -534,15 +411,11 @@
         var b = document.createElement('button');
         b.className = 'pack-tab' + (p === currentPack ? ' active' : '');
         b.textContent = p;
-        b.onclick = function() {
-          currentPack = p; currentIdx = 0;
-          buildPacks(); buildDesignRow(); loadDesign();
-        };
+        b.onclick = function() { currentPack = p; currentIdx = 0; buildPacks(); buildDesignRow(); loadDesign(); };
         $packTabs.appendChild(b);
       })(packs[i]);
     }
   }
-
   function buildDesignRow() {
     $designRow.innerHTML = '';
     var designs = PACKS[currentPack];
@@ -551,246 +424,210 @@
         var b = document.createElement('button');
         b.className = 'design-btn' + (idx === currentIdx ? ' active' : '');
         b.textContent = designs[idx].name;
-        b.onclick = function() {
-          currentIdx = idx; buildDesignRow(); loadDesign();
-        };
+        b.onclick = function() { currentIdx = idx; buildDesignRow(); loadDesign(); };
         $designRow.appendChild(b);
       })(i);
     }
   }
 
-  /* ── Load a Design ──────────────────────────── */
+  /* ── Load Design ── */
   function loadDesign() {
     var design = PACKS[currentPack][currentIdx];
-    var cols = design.cols;
+    cols = design.cols;
     var data = design.data;
 
-    gridCells = []; totalCells = 0; filledCount = 0;
-    shelfGems = []; selectedShelf = -1; popTracker = {};
+    solution = []; current = []; shelfGems = []; selectedShelf = -1;
+    totalGems = 0; correctCount = 0;
+    lastPickup = null;
     $completeOverlay.className = 'overlay';
-    $gameOverOverlay.className = 'overlay';
+    $shelfFullOverlay.className = 'overlay';
 
-    /* Parse grid + collect needed gems */
-    var allGems = [];
+    /* Parse solution */
     for (var i = 0; i < data.length; i++) {
       var ch = data[i].toUpperCase();
       if (ch !== ' ' && COLORS[ch]) {
-        gridCells.push({ color: ch, filled: false });
-        totalCells++;
-        allGems.push(ch);
+        solution.push(ch);
+        totalGems++;
       } else {
-        gridCells.push({ color: null, filled: false });
+        solution.push(null);
       }
     }
 
-    /* Shuffle gems into the bag */
-    gemBag = shuffle(allGems);
+    /* Create scrambled grid: shuffle gem positions among gem-holding cells */
+    var gemIndices = [];
+    var gemColors = [];
+    for (var g = 0; g < solution.length; g++) {
+      if (solution[g]) {
+        gemIndices.push(g);
+        gemColors.push(solution[g]);
+      }
+    }
+    shuffle(gemColors);
 
-    renderGrid(cols);
-    renderQueue();
+    /* Place shuffled gems - make sure none start in the correct spot
+       (swap away any accidental correct placements) */
+    for (var c = 0; c < solution.length; c++) current.push(null);
+    for (var gi = 0; gi < gemIndices.length; gi++) {
+      current[gemIndices[gi]] = gemColors[gi];
+    }
+
+    /* Fix any accidentally correct placements by swapping */
+    var wrongOnes = [];
+    var correctOnes = [];
+    for (var fi = 0; fi < gemIndices.length; fi++) {
+      var idx = gemIndices[fi];
+      if (current[idx] === solution[idx]) {
+        correctOnes.push(idx);
+      } else {
+        wrongOnes.push(idx);
+      }
+    }
+    /* Swap each accidentally-correct gem with a wrong one of different color */
+    for (var si = 0; si < correctOnes.length && wrongOnes.length > 0; si++) {
+      var ci2 = correctOnes[si];
+      for (var wi = 0; wi < wrongOnes.length; wi++) {
+        var wi2 = wrongOnes[wi];
+        /* Only swap if it won't create new correct placements */
+        if (current[ci2] !== solution[wi2] && current[wi2] !== solution[ci2]) {
+          var tmp = current[ci2];
+          current[ci2] = current[wi2];
+          current[wi2] = tmp;
+          wrongOnes.splice(wi, 1);
+          break;
+        }
+      }
+    }
+
+    /* Count any remaining correct (rare edge case with few colors) */
+    correctCount = 0;
+    for (var cc = 0; cc < solution.length; cc++) {
+      if (solution[cc] && current[cc] === solution[cc]) correctCount++;
+    }
+
+    renderGrid();
     renderShelf();
     updateProgress();
+    $infoLine.textContent = 'Tap a misplaced gem to pick up its group';
   }
 
-  /* ── Render Grid ────────────────────────────── */
-  function renderGrid(cols) {
+  /* ── Render Grid ── */
+  function renderGrid() {
     $grid.innerHTML = '';
-    if (cols) $grid.setAttribute('data-cols', cols);
-    var useCols = cols || parseInt($grid.getAttribute('data-cols')) || 10;
-    $grid.style.gridTemplateColumns = 'repeat(' + useCols + ', 1fr)';
-    var cellSize = Math.min(Math.floor((window.innerWidth - 40) / useCols), 36);
-    $grid.style.width = (useCols * cellSize + (useCols - 1) * 2 + 8) + 'px';
+    $grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    var cellSize = Math.min(Math.floor((window.innerWidth - 40) / cols), 36);
+    $grid.style.width = (cols * cellSize + (cols - 1) * 2 + 8) + 'px';
 
-    for (var i = 0; i < gridCells.length; i++) {
+    for (var i = 0; i < solution.length; i++) {
       var cell = document.createElement('div');
-      cell.className = 'cell';
-      var gc = gridCells[i];
 
-      if (!gc.color) {
-        cell.className += ' empty-cell';
-      } else if (gc.filled) {
-        cell.className += ' filled';
-        cell.style.background = COLORS[gc.color].hex;
-        if (popTracker[i]) {
-          cell.classList.add('pop');
-        }
+      if (!solution[i]) {
+        /* Blank space — no gem belongs here */
+        cell.className = 'cell blank';
+      } else if (current[i] && current[i] === solution[i]) {
+        /* Correct! Gem is in the right place */
+        cell.className = 'cell correct';
+        cell.style.background = COLORS[current[i]].hex;
+        cell.textContent = COLORS[current[i]].gem;
+      } else if (current[i] && current[i] !== solution[i]) {
+        /* Wrong spot — misplaced gem, can be picked up */
+        cell.className = 'cell wrong';
+        cell.style.background = COLORS[current[i]].hex;
+        cell.textContent = COLORS[current[i]].gem;
+        /* Faint border showing what color SHOULD be here */
+        cell.style.boxShadow = 'inset 0 0 0 2px ' + COLORS[solution[i]].hex + '40';
+        (function(idx) {
+          cell.onclick = function() { pickupGroup(idx); };
+        })(i);
       } else {
-        cell.className += ' target';
+        /* Empty spot — gem was picked up, waiting for correct one */
+        cell.className = 'cell empty-spot';
         var dot = document.createElement('div');
         dot.className = 'hint-dot';
-        dot.style.background = COLORS[gc.color].hex;
+        dot.style.background = COLORS[solution[i]].hex;
         cell.appendChild(dot);
+        /* Can place a gem here from shelf */
+        (function(idx) {
+          cell.onclick = function() { placeFromShelf(idx); };
+        })(i);
       }
+
       $grid.appendChild(cell);
     }
-    popTracker = {};
   }
 
-  /* ── Render Queue ───────────────────────────── */
-  function renderQueue() {
-    $queue.innerHTML = '';
-    var show = Math.min(QUEUE_SHOW, gemBag.length);
-    for (var i = 0; i < show; i++) {
-      (function(idx) {
-        var gem = document.createElement('div');
-        gem.className = 'queue-gem';
-        gem.style.background = COLORS[gemBag[idx]].hex;
-        gem.textContent = COLORS[gemBag[idx]].gem;
-        gem.onclick = function() { placeOnShelf(idx); };
-        $queue.appendChild(gem);
-      })(i);
-    }
-    if (gemBag.length === 0 && filledCount < totalCells) {
-      var msg = document.createElement('span');
-      msg.style.cssText = 'font-size:10pt;color:#888;';
-      msg.textContent = 'No more gems \u2014 send your shelf groups!';
-      $queue.appendChild(msg);
-    }
-  }
+  /* ── Pick up connected group from grid ── */
+  var lastPickup = null; /* for undo */
 
-  /* ── Render Shelf ───────────────────────────── */
-  function renderShelf() {
-    $shelf.innerHTML = '';
+  function pickupGroup(idx) {
+    var group = floodGroup(idx);
+    if (group.length === 0) return;
 
-    for (var i = 0; i < shelfGems.length; i++) {
-      (function(idx) {
-        var slot = document.createElement('div');
-        slot.className = 'shelf-slot has-gem';
-        if (idx === selectedShelf) slot.className += ' selected';
-        slot.style.background = COLORS[shelfGems[idx]].hex;
-        slot.textContent = COLORS[shelfGems[idx]].gem;
-        slot.onclick = function() { tapShelfSlot(idx); };
-        $shelf.appendChild(slot);
-      })(i);
-    }
-
-    /* Empty slot placeholders */
-    var empties = SHELF_MAX - shelfGems.length;
-    for (var e = 0; e < empties; e++) {
-      var empty = document.createElement('div');
-      empty.className = 'shelf-slot empty-slot';
-      $shelf.appendChild(empty);
-    }
-
-    /* Shelf counter */
-    $shelfCount.textContent = 'Shelf: ' + shelfGems.length + ' / ' + SHELF_MAX;
-    $shelfCount.className = (shelfGems.length >= SHELF_MAX - 1) ? 'shelf-count warning' : 'shelf-count';
-
-    /* Update send button */
-    var group = findLargestGroup();
-    if (group) {
-      $sendBtn.textContent = 'Send ' + group.count + ' ' + COLORS[group.color].name + ' to Grid';
-      $sendBtn.disabled = false;
-    } else {
-      $sendBtn.textContent = 'Send Group to Grid';
-      $sendBtn.disabled = true;
-    }
-  }
-
-  /* ── Place gem from queue to shelf ──────────── */
-  function placeOnShelf(queueIdx) {
-    if (shelfGems.length >= SHELF_MAX) {
-      sfxFail();
-      $gameOverOverlay.className = 'overlay show';
+    /* Check shelf capacity */
+    if (shelfGems.length + group.length > SHELF_MAX) {
+      sfxWarn();
+      $shelfFullOverlay.className = 'overlay show';
       return;
     }
 
-    var color = gemBag.splice(queueIdx, 1)[0];
-    shelfGems.push(color);
+    /* Pick up: remove from grid, add to shelf */
+    lastPickup = { indices: group, colors: [] };
+    for (var i = 0; i < group.length; i++) {
+      var gi = group[i];
+      lastPickup.colors.push(current[gi]);
+      shelfGems.push(current[gi]);
+      current[gi] = null;
+    }
+
+    sfxPickup();
     selectedShelf = -1;
-    sfxPlace();
-
-    renderQueue();
-    renderShelf();
-
-    /* Check if shelf is full with no sendable groups */
-    if (shelfGems.length >= SHELF_MAX) {
-      var group = findLargestGroup();
-      if (!group) {
-        setTimeout(function() {
-          sfxFail();
-          $gameOverOverlay.className = 'overlay show';
-        }, 500);
-      }
-    }
-  }
-
-  /* ── Tap shelf slot: select or swap ─────────── */
-  function tapShelfSlot(idx) {
-    if (selectedShelf === -1) {
-      selectedShelf = idx;
-    } else if (selectedShelf === idx) {
-      selectedShelf = -1;
-    } else {
-      var tmp = shelfGems[selectedShelf];
-      shelfGems[selectedShelf] = shelfGems[idx];
-      shelfGems[idx] = tmp;
-      selectedShelf = -1;
-      sfxSwap();
-    }
-    renderShelf();
-  }
-
-  /* ── Find largest adjacent same-color group ─── */
-  function findLargestGroup() {
-    if (shelfGems.length === 0) return null;
-    var best = null;
-    var i = 0;
-    while (i < shelfGems.length) {
-      var color = shelfGems[i];
-      var start = i;
-      while (i < shelfGems.length && shelfGems[i] === color) i++;
-      var count = i - start;
-      if (count >= 2 && (!best || count > best.count)) {
-        best = { color: color, start: start, count: count };
-      }
-    }
-    return best;
-  }
-
-  /* ── Send color group to grid ───────────────── */
-  function sendColorGroup() {
-    var group = findLargestGroup();
-    if (!group) return;
-
-    /* Remove from shelf */
-    shelfGems.splice(group.start, group.count);
-    selectedShelf = -1;
-
-    /* Place on grid in matching unfilled spots */
-    var placed = 0;
-    for (var i = 0; i < gridCells.length && placed < group.count; i++) {
-      if (gridCells[i].color === group.color && !gridCells[i].filled) {
-        gridCells[i].filled = true;
-        popTracker[i] = true;
-        placed++;
-        filledCount++;
-      }
-    }
-
-    sfxSend();
-
-    /* Re-render everything */
+    document.getElementById('undoBtn').disabled = false;
     renderGrid();
     renderShelf();
-    renderQueue();
+    $infoLine.textContent = 'Picked up ' + group.length + ' gem' + (group.length > 1 ? 's' : '') + '! Tap a shelf gem, then tap the correct grid spot.';
+  }
+
+  /* ── Place from shelf to grid ── */
+  function placeFromShelf(gridIdx) {
+    if (selectedShelf === -1) return;
+    if (!solution[gridIdx]) return; /* can't place on blank */
+    if (current[gridIdx]) return;   /* spot already occupied */
+
+    var gemColor = shelfGems[selectedShelf];
+
+    /* Only allow placing in the CORRECT spot */
+    if (gemColor !== solution[gridIdx]) {
+      sfxWarn();
+      $infoLine.textContent = 'That spot needs ' + findColorName(solution[gridIdx]) + ', not ' + findColorName(gemColor) + '.';
+      return;
+    }
+
+    /* Place it! */
+    shelfGems.splice(selectedShelf, 1);
+    current[gridIdx] = gemColor;
+    correctCount++;
+    selectedShelf = -1;
+    lastPickup = null;
+    document.getElementById('undoBtn').disabled = true;
+
+    sfxCorrect();
+    renderGrid();
+    renderShelf();
     updateProgress();
 
-    /* Sparkle on some newly placed cells */
-    setTimeout(function() {
-      var allDom = $grid.children;
-      for (var j = 0; j < gridCells.length; j++) {
-        if (gridCells[j].filled && allDom[j] && allDom[j].classList.contains('pop')) {
-          if (Math.random() < 0.4) {
-            var rect = allDom[j].getBoundingClientRect();
-            sparkleAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
-          }
-        }
-      }
-    }, 50);
+    /* Pop animation + sparkle */
+    var cells = $grid.children;
+    if (cells[gridIdx]) {
+      cells[gridIdx].classList.add('pop');
+      var rect = cells[gridIdx].getBoundingClientRect();
+      sparkleAt(rect.left + rect.width/2, rect.top + rect.height/2);
+    }
+
+    $infoLine.textContent = correctCount < totalGems
+      ? 'Nice! ' + (totalGems - correctCount) + ' gems left.'
+      : '';
 
     /* Win check */
-    if (filledCount >= totalCells) {
+    if (correctCount >= totalGems) {
       setTimeout(function() {
         sfxComplete();
         $completeOverlay.className = 'overlay show';
@@ -798,43 +635,95 @@
     }
   }
 
-  /* ── Auto-sort shelf by color ───────────────── */
-  function autoSortShelf() {
+  function findColorName(key) {
+    var names = { R:'Red',G:'Green',B:'Blue',Y:'Yellow',P:'Purple',O:'Orange',
+                  K:'Pink',W:'White',T:'Teal',N:'Brown',L:'Lime',S:'Silver',C:'Cyan' };
+    return names[key] || key;
+  }
+
+  /* ── Shelf interaction: tap to select ── */
+  function tapShelf(idx) {
+    if (selectedShelf === idx) {
+      selectedShelf = -1; /* deselect */
+    } else {
+      selectedShelf = idx;
+    }
+    renderShelf();
+    if (selectedShelf >= 0) {
+      $infoLine.textContent = 'Now tap the correct grid spot for this ' + findColorName(shelfGems[selectedShelf]) + ' gem.';
+    }
+  }
+
+  /* ── Sort shelf by color ── */
+  function sortShelf() {
     shelfGems.sort();
     selectedShelf = -1;
     sfxSwap();
     renderShelf();
   }
 
-  /* ── Progress bar ───────────────────────────── */
-  function updateProgress() {
-    var pct = totalCells > 0 ? Math.round((filledCount / totalCells) * 100) : 0;
-    $progressFill.style.width = pct + '%';
-    $progressText.textContent = filledCount + ' / ' + totalCells;
+  /* ── Undo last pickup: put gems back ── */
+  function undoPickup() {
+    if (!lastPickup) return;
+    for (var i = 0; i < lastPickup.indices.length; i++) {
+      var gi = lastPickup.indices[i];
+      current[gi] = lastPickup.colors[i];
+      /* Remove from shelf (last N items we added) */
+    }
+    /* Remove the gems we added to shelf */
+    shelfGems.splice(shelfGems.length - lastPickup.indices.length, lastPickup.indices.length);
+    lastPickup = null;
+    selectedShelf = -1;
+    document.getElementById('undoBtn').disabled = true;
+    sfxSwap();
+    renderGrid();
+    renderShelf();
+    $infoLine.textContent = 'Put back! Tap a misplaced gem to try again.';
   }
 
-  /* ── Next / Replay ──────────────────────────── */
+  /* ── Render Shelf ── */
+  function renderShelf() {
+    $shelf.innerHTML = '';
+    for (var i = 0; i < shelfGems.length; i++) {
+      (function(idx) {
+        var gem = document.createElement('div');
+        gem.className = 'shelf-gem' + (idx === selectedShelf ? ' selected' : '');
+        gem.style.background = COLORS[shelfGems[idx]].hex;
+        gem.textContent = COLORS[shelfGems[idx]].gem;
+        gem.onclick = function() { tapShelf(idx); };
+        $shelf.appendChild(gem);
+      })(i);
+    }
+    var empties = SHELF_MAX - shelfGems.length;
+    for (var e = 0; e < empties; e++) {
+      var empty = document.createElement('div');
+      empty.className = 'shelf-empty';
+      $shelf.appendChild(empty);
+    }
+    $shelfCount.textContent = 'Shelf: ' + shelfGems.length + ' / ' + SHELF_MAX;
+    $shelfCount.className = (shelfGems.length >= SHELF_MAX - 2) ? 'shelf-count warning' : 'shelf-count';
+  }
+
+  /* ── Progress ── */
+  function updateProgress() {
+    var pct = totalGems > 0 ? Math.round((correctCount / totalGems) * 100) : 0;
+    $progressFill.style.width = pct + '%';
+    $progressText.textContent = correctCount + ' / ' + totalGems;
+  }
+
+  /* ── Next / Replay ── */
   function nextDesign() {
     var designs = PACKS[currentPack];
     currentIdx = (currentIdx + 1) % designs.length;
-    buildDesignRow();
-    loadDesign();
+    buildDesignRow(); loadDesign();
   }
-  function replayDesign() {
-    loadDesign();
-  }
+  function replayDesign() { loadDesign(); }
 
-  /* ── Dark mode ──────────────────────────────── */
-  try {
-    if (localStorage.getItem('aa-dark-mode') === 'true') {
-      document.documentElement.classList.add('aa-dark');
-    }
-  } catch(e) {}
+  /* ── Dark mode ── */
+  try { if (localStorage.getItem('aa-dark-mode') === 'true') document.documentElement.classList.add('aa-dark'); } catch(e) {}
 
-  /* ── Init ───────────────────────────────────── */
-  buildPacks();
-  buildDesignRow();
-  loadDesign();
+  /* ── Init ── */
+  buildPacks(); buildDesignRow(); loadDesign();
 
 })();
 </script>

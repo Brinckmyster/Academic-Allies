@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260402i'; /* Claude: 2026-04-02 — Diamond Art v3: correct sort-and-send mechanic */
+var CACHE   = 'aa-shell-20260403a'; /* Claude: 2026-04-03 — Diamond Art v4: Jewel Coloring style, gems start scrambled */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
