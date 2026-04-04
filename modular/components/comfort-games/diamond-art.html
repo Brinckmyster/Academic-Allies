@@ -587,24 +587,78 @@
   }
 
   /* ── Place from shelf to grid ── */
+  /* Claude: 2026-04-03 — place ALL gems of selected color at once, not one at a time */
   function placeFromShelf(gridIdx) {
     if (selectedShelf === -1) return;
-    if (!solution[gridIdx]) return; /* can't place on blank */
-    if (current[gridIdx]) return;   /* spot already occupied */
+    if (!solution[gridIdx]) return;
+    if (current[gridIdx]) return;
 
     var gemColor = shelfGems[selectedShelf];
 
-    /* Only allow placing in the CORRECT spot */
+    /* Only allow placing if this spot needs that color */
     if (gemColor !== solution[gridIdx]) {
       sfxWarn();
       $infoLine.textContent = 'That spot needs ' + findColorName(solution[gridIdx]) + ', not ' + findColorName(gemColor) + '.';
       return;
     }
 
-    /* Place it! */
-    shelfGems.splice(selectedShelf, 1);
-    current[gridIdx] = gemColor;
-    correctCount++;
+    /* Delegate to placeColorGroup to place ALL of this color at once */
+    placeColorGroup(gemColor);
+  }
+
+  function findColorName(key) {
+    var names = { R:'Red',G:'Green',B:'Blue',Y:'Yellow',P:'Purple',O:'Orange',
+                  K:'Pink',W:'White',T:'Teal',N:'Brown',L:'Lime',S:'Silver',C:'Cyan' };
+    return names[key] || key;
+  }
+
+  /* ── Shelf interaction: tap shelf gem to place all of that color at once ── */
+  /* Claude: 2026-04-03 — double-tap or select+confirm: one tap selects, second tap places all */
+  function tapShelf(idx) {
+    if (selectedShelf === idx) {
+      /* Second tap on same gem — place the whole color group now */
+      placeColorGroup(shelfGems[idx]);
+    } else {
+      selectedShelf = idx;
+      renderShelf();
+      $infoLine.textContent = 'Tap again to place all ' + findColorName(shelfGems[idx]) + ' gems, or tap a grid spot.';
+    }
+  }
+
+  /* Place ALL gems of a given color from shelf to correct grid spots */
+  function placeColorGroup(gemColor) {
+    /* Find empty correct spots */
+    var emptySpots = [];
+    for (var i = 0; i < solution.length; i++) {
+      if (solution[i] === gemColor && !current[i]) emptySpots.push(i);
+    }
+    if (emptySpots.length === 0) {
+      sfxWarn();
+      $infoLine.textContent = 'No empty spots left for ' + findColorName(gemColor) + '.';
+      selectedShelf = -1;
+      renderShelf();
+      return;
+    }
+
+    /* Remove all of this color from shelf */
+    var shelfCount = 0;
+    var newShelf = [];
+    for (var s = 0; s < shelfGems.length; s++) {
+      if (shelfGems[s] === gemColor) shelfCount++;
+      else newShelf.push(shelfGems[s]);
+    }
+    shelfGems = newShelf;
+
+    /* Place on grid */
+    var placedIndices = [];
+    var placed = 0;
+    for (var p = 0; p < emptySpots.length && placed < shelfCount; p++) {
+      current[emptySpots[p]] = gemColor;
+      placedIndices.push(emptySpots[p]);
+      correctCount++;
+      placed++;
+    }
+
     selectedShelf = -1;
     lastPickup = null;
     document.getElementById('undoBtn').disabled = true;
@@ -614,43 +668,24 @@
     renderShelf();
     updateProgress();
 
-    /* Pop animation + sparkle */
     var cells = $grid.children;
-    if (cells[gridIdx]) {
-      cells[gridIdx].classList.add('pop');
-      var rect = cells[gridIdx].getBoundingClientRect();
-      sparkleAt(rect.left + rect.width/2, rect.top + rect.height/2);
+    for (var pp = 0; pp < placedIndices.length; pp++) {
+      var ci = placedIndices[pp];
+      if (cells[ci]) {
+        cells[ci].classList.add('pop');
+        if (Math.random() < 0.5) {
+          var rect = cells[ci].getBoundingClientRect();
+          sparkleAt(rect.left + rect.width/2, rect.top + rect.height/2);
+        }
+      }
     }
 
     $infoLine.textContent = correctCount < totalGems
-      ? 'Nice! ' + (totalGems - correctCount) + ' gems left.'
+      ? 'Placed ' + placed + ' ' + findColorName(gemColor) + ' gems! ' + (totalGems - correctCount) + ' left.'
       : '';
 
-    /* Win check */
     if (correctCount >= totalGems) {
-      setTimeout(function() {
-        sfxComplete();
-        $completeOverlay.className = 'overlay show';
-      }, 400);
-    }
-  }
-
-  function findColorName(key) {
-    var names = { R:'Red',G:'Green',B:'Blue',Y:'Yellow',P:'Purple',O:'Orange',
-                  K:'Pink',W:'White',T:'Teal',N:'Brown',L:'Lime',S:'Silver',C:'Cyan' };
-    return names[key] || key;
-  }
-
-  /* ── Shelf interaction: tap to select ── */
-  function tapShelf(idx) {
-    if (selectedShelf === idx) {
-      selectedShelf = -1; /* deselect */
-    } else {
-      selectedShelf = idx;
-    }
-    renderShelf();
-    if (selectedShelf >= 0) {
-      $infoLine.textContent = 'Now tap the correct grid spot for this ' + findColorName(shelfGems[selectedShelf]) + ' gem.';
+      setTimeout(function() { sfxComplete(); $completeOverlay.className = 'overlay show'; }, 400);
     }
   }
 
