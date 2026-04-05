@@ -47,10 +47,6 @@
           { id: 'secret-agent', label: 'Secret Agent (SAM)', enabled: true },
           { id: 'brick-breaker', label: 'Brick Breaker', enabled: true },
           { id: 'snake', label: 'Snake', enabled: true },
-          /* Claude: 2026-04-03 — added ball-sort, color-fill, pixel-paint */
-          { id: 'ball-sort', label: 'Ball Sort', enabled: true },
-          { id: 'color-fill', label: 'Color Fill', enabled: true },
-          { id: 'pixel-paint', label: 'Pixel Paint', enabled: true },
           /* Claude: 2026-04-01 — Brain check games: disabled by default, network lead enables per student */
           { id: 'brain-bloom', label: 'Brain Bloom', enabled: false },
           { id: 'simon-says', label: 'Simon Says', enabled: false },

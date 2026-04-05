@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Fill — Academic Allies</title>
+    <style>
+        /* Claude: 2026-04-05 — Color Fill comfort game */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            background-color: #f8f6f1;
+            color: #2c2416;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 16px;
+        }
+
+        html.aa-dark {
+            background-color: #1a1a1a;
+            color: #e8e8e8;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .back-link {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #d4a5a5;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+        }
+
+        .back-link:hover,
+        .back-link:active {
+            background-color: #c28b8b;
+        }
+
+        html.aa-dark .back-link {
+            background-color: #8b5a5a;
+        }
+
+        html.aa-dark .back-link:hover,
+        html.aa-dark .back-link:active {
+            background-color: #a67070;
+        }
+
+        h1 {
+            font-size: 28px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .placeholder {
+            width: 44px;
+            height: 44px;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .design-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .design-btn {
+            padding: 10px 16px;
+            background-color: #c4b5a0;
+            border: 2px solid #a89080;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        .design-btn:hover,
+        .design-btn:active {
+            background-color: #b5a590;
+            transform: scale(1.05);
+        }
+
+        .design-btn.active {
+            background-color: #9b8b7e;
+            border-color: #7a6a5d;
+            color: #fff;
+        }
+
+        html.aa-dark .design-btn {
+            background-color: #4a4a4a;
+            border-color: #5a5a5a;
+            color: #e8e8e8;
+        }
+
+        html.aa-dark .design-btn:hover,
+        html.aa-dark .design-btn:active {
+            background-color: #5a5a5a;
+        }
+
+        html.aa-dark .design-btn.active {
+            background-color: #707070;
+            border-color: #909090;
+        }
+
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .grid-container {
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: grid;
+            gap: 2px;
+            grid-template-columns: repeat(10, 1fr);
+            grid-auto-rows: 40px;
+        }
+
+        html.aa-dark .grid-container {
+            background-color: #2a2a2a;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .grid-cell {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        html.aa-dark .grid-cell {
+            border-color: #444;
+        }
+
+        .grid-cell:active {
+            transform: scale(0.95);
+        }
+
+        .grid-cell.empty {
+            background-color: #f0f0f0;
+            cursor: default;
+        }
+
+        html.aa-dark .grid-cell.empty {
+            background-color: #1a1a1a;
+        }
+
+        .grid-cell.filled {
+            animation: fillGlow 0.4s ease-out;
+        }
+
+        .grid-cell.shake {
+            animation: shake 0.3s;
+        }
+
+        @keyframes fillGlow {
+            0% {
+                box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.8);
+            }
+            100% {
+                box-shadow: none;
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .hint-btn,
+        .reset-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 44px;
+            min-width: 100px;
+        }
+
+        .hint-btn {
+            background-color: #a5d4c4;
+            color: #fff;
+        }
+
+        .hint-btn:hover,
+        .hint-btn:active {
+            background-color: #8bc2b0;
+            transform: scale(1.05);
+        }
+
+        .reset-btn {
+            background-color: #d4a5a5;
+            color: #fff;
+        }
+
+        .reset-btn:hover,
+        .reset-btn:active {
+            background-color: #c28b8b;
+            transform: scale(1.05);
+        }
+
+        html.aa-dark .hint-btn {
+            background-color: #5a7a6a;
+        }
+
+        html.aa-dark .hint-btn:hover,
+        html.aa-dark .hint-btn:active {
+            background-color: #6a8a7a;
+        }
+
+        html.aa-dark .reset-btn {
+            background-color: #8b5a5a;
+        }
+
+        html.aa-dark .reset-btn:hover,
+        html.aa-dark .reset-btn:active {
+            background-color: #a67070;
+        }
+
+        .palette {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        html.aa-dark .palette {
+            background-color: #2a2a2a;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .color-btn {
+            width: 50px;
+            height: 50px;
+            border: 3px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: rgba(0, 0, 0, 0.5);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .color-btn:hover,
+        .color-btn:active {
+            transform: scale(1.1);
+        }
+
+        .color-btn.selected {
+            border-color: #FFD700;
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+            transform: scale(1.15);
+        }
+
+        .completion-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .completion-modal.show {
+            display: flex;
+        }
+
+        .celebration-box {
+            background-color: white;
+            border-radius: 16px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: popIn 0.4s ease-out;
+        }
+
+        html.aa-dark .celebration-box {
+            background-color: #2a2a2a;
+            color: #e8e8e8;
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.8) translateY(-20px);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .celebration-box h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: #d4a5a5;
+        }
+
+        html.aa-dark .celebration-box h2 {
+            color: #d4a5a5;
+        }
+
+        .celebration-emoji {
+            font-size: 48px;
+            margin-bottom: 20px;
+            animation: bounce 0.6s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .next-btn {
+            padding: 12px 32px;
+            background-color: #a5d4c4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            min-height: 44px;
+            transition: background-color 0.2s;
+        }
+
+        .next-btn:hover,
+        .next-btn:active {
+            background-color: #8bc2b0;
+        }
+
+        html.aa-dark .next-btn {
+            background-color: #5a7a6a;
+        }
+
+        html.aa-dark .next-btn:hover,
+        html.aa-dark .next-btn:active {
+            background-color: #6a8a7a;
+        }
+
+        .progress {
+            text-align: center;
+            font-size: 14px;
+            color: #7a6a5d;
+        }
+
+        html.aa-dark .progress {
+            color: #a8a8a8;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 12px;
+                gap: 16px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .grid-cell {
+                min-height: 35px;
+            }
+
+            .grid-container {
+                padding: 12px;
+                gap: 1px;
+            }
+
+            .color-btn {
+                width: 44px;
+                height: 44px;
+                font-size: 14px;
+            }
+
+            .design-selector {
+                gap: 8px;
+            }
+
+            .design-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/Academic-Allies/modular/components/comfort-games/game-center.html" class="back-link">← Back</a>
+        <h1>Color Fill</h1>
+        <div class="placeholder"></div>
+    </div>
+
+    <div class="container">
+        <div class="design-selector" id="designSelector"></div>
+
+        <div class="game-area">
+            <div class="progress">
+                <span id="cellCount">0</span> / <span id="totalCount">0</span> filled
+            </div>
+
+            <div class="grid-container" id="gridContainer"></div>
+
+            <div class="palette" id="palette"></div>
+
+            <div class="controls">
+                <button class="hint-btn" id="hintBtn">💡 Hint</button>
+                <button class="reset-btn" id="resetBtn">↻ Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-modal" id="completionModal">
+        <div class="celebration-box">
+            <div class="celebration-emoji">🎉</div>
+            <h2>You did it!</h2>
+            <p>You completed the picture. Well done!</p>
+            <button class="next-btn" id="nextDesignBtn">Next Picture</button>
+        </div>
+    </div>
+
+    <script>
+        /* Claude: 2026-04-05 — Color Fill comfort game */
+
+        var ColorFill = (function() {
+            var state = {
+                currentDesign: 0,
+                selectedColor: null,
+                filledCells: {},
+                hintUsed: false
+            };
+
+            var designs = [
+                {
+                    name: 'Flower',
+                    grid: [
+                        0, 0, 0, 1, 1, 1, 0, 0, 0, 0,
+                        0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                        0, 1, 1, 2, 2, 2, 1, 1, 0, 0,
+                        1, 1, 2, 2, 3, 2, 2, 1, 1, 0,
+                        1, 2, 2, 3, 3, 3, 2, 2, 1, 0,
+                        1, 1, 2, 2, 3, 2, 2, 1, 1, 0,
+                        0, 1, 1, 2, 2, 2, 1, 1, 0, 0,
+                        0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                        0, 0, 0, 1, 1, 1, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    ],
+                    colors: {
+                        1: '#f4d4aa',
+                        2: '#ffeb99',
+                        3: '#ffcc00'
+                    }
+                },
+                {
+                    name: 'Heart',
+                    grid: [
+                        0, 0, 1, 1, 0, 0, 1, 1, 0, 0,
+                        0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+                        1, 1, 1, 2, 2, 2, 1, 1, 1, 1,
+                        1, 1, 2, 2, 2, 2, 2, 1, 1, 1,
+                        1, 2, 2, 2, 2, 2, 2, 2, 1, 1,
+                        1, 2, 2, 2, 2, 2, 2, 2, 1, 1,
+                        1, 1, 2, 2, 2, 2, 2, 1, 1, 1,
+                        0, 1, 1, 2, 2, 2, 1, 1, 1, 0,
+                        0, 0, 1, 1, 2, 1, 1, 1, 0, 0,
+                        0, 0, 0, 1, 1, 1, 0, 0, 0, 0
+                    ],
+                    colors: {
+                        1: '#ffb3c1',
+                        2: '#ff6b9d'
+                    }
+                },
+                {
+                    name: 'Star',
+                    grid: [
+                        0, 0, 0, 1, 1, 1, 0, 0, 0, 0,
+                        0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                        0, 1, 1, 2, 2, 2, 1, 1, 0, 0,
+                        1, 1, 2, 2, 3, 2, 2, 1, 1, 0,
+                        1, 2, 2, 3, 3, 3, 2, 2, 1, 1,
+                        1, 1, 2, 2, 3, 2, 2, 1, 1, 0,
+                        0, 1, 1, 2, 2, 2, 1, 1, 0, 0,
+                        0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                        0, 0, 0, 1, 1, 1, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    ],
+                    colors: {
+                        1: '#fff0b3',
+                        2: '#ffdb66',
+                        3: '#ffcc00'
+                    }
+                },
+                {
+                    name: 'Butterfly',
+                    grid: [
+                        1, 1, 0, 0, 0, 0, 0, 0, 1, 1,
+                        1, 1, 1, 0, 0, 0, 0, 1, 1, 1,
+                        1, 2, 1, 1, 0, 0, 1, 1, 2, 1,
+                        1, 2, 2, 1, 1, 1, 1, 2, 2, 1,
+                        0, 1, 2, 2, 3, 3, 2, 2, 1, 0,
+                        0, 1, 2, 2, 3, 3, 2, 2, 1, 0,
+                        1, 2, 2, 1, 1, 1, 1, 2, 2, 1,
+                        1, 2, 1, 1, 0, 0, 1, 1, 2, 1,
+                        1, 1, 1, 0, 0, 0, 0, 1, 1, 1,
+                        1, 1, 0, 0, 0, 0, 0, 0, 1, 1
+                    ],
+                    colors: {
+                        1: '#b3d9ff',
+                        2: '#66b3ff',
+                        3: '#3366ff'
+                    }
+                },
+                {
+                    name: 'Tree',
+                    grid: [
+                        0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+                        0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+                        0, 0, 1, 1, 2, 2, 1, 1, 0, 0,
+                        0, 1, 1, 2, 2, 2, 2, 1, 1, 0,
+                        1, 1, 2, 2, 2, 2, 2, 2, 1, 1,
+                        0, 0, 0, 1, 3, 3, 1, 0, 0, 0,
+                        0, 0, 0, 1, 3, 3, 1, 0, 0, 0,
+                        0, 0, 0, 1, 3, 3, 1, 0, 0, 0,
+                        0, 0, 0, 0, 3, 3, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    ],
+                    colors: {
+                        1: '#90ee90',
+                        2: '#66bb6a',
+                        3: '#8b6914'
+                    }
+                },
+                {
+                    name: 'Fish',
+                    grid: [
+                        0, 0, 0, 0, 1, 1, 1, 2, 2, 0,
+                        0, 0, 0, 1, 1, 1, 1, 1, 2, 2,
+                        0, 0, 1, 1, 3, 3, 1, 1, 1, 2,
+                        0, 1, 1, 3, 3, 3, 3, 1, 1, 1,
+                        1, 1, 1, 3, 3, 3, 3, 1, 1, 0,
+                        0, 1, 1, 3, 3, 3, 3, 1, 1, 1,
+                        0, 0, 1, 1, 3, 3, 1, 1, 1, 2,
+                        0, 0, 0, 1, 1, 1, 1, 1, 2, 2,
+                        0, 0, 0, 0, 1, 1, 1, 2, 2, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    ],
+                    colors: {
+                        1: '#ffb3d9',
+                        2: '#ff80bf',
+                        3: '#ff6ba6'
+                    }
+                },
+                {
+                    name: 'Cloud',
+                    grid: [
+                        0, 0, 0, 1, 1, 1, 0, 0, 0, 0,
+                        0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                        0, 1, 1, 2, 2, 2, 1, 1, 0, 0,
+                        1, 1, 2, 2, 2, 2, 2, 1, 1, 0,
+                        1, 2, 2, 2, 2, 2, 2, 2, 1, 1,
+                        1, 1, 2, 2, 2, 2, 2, 1, 1, 0,
+                        0, 1, 1, 2, 2, 2, 1, 1, 0, 0,
+                        0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                        0, 0, 0, 1, 1, 1, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    ],
+                    colors: {
+                        1: '#e0e0e0',
+                        2: '#ffffff'
+                    }
+                },
+                {
+                    name: 'Boat',
+                    grid: [
+                        0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+                        0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
+                        0, 0, 0, 1, 1, 2, 2, 1, 1, 0,
+                        0, 0, 1, 1, 2, 2, 2, 2, 1, 1,
+                        0, 1, 1, 2, 2, 2, 2, 2, 1, 1,
+                        1, 1, 3, 3, 3, 3, 3, 3, 3, 1,
+                        1, 3, 3, 3, 3, 3, 3, 3, 3, 1,
+                        1, 1, 3, 3, 3, 3, 3, 3, 1, 1,
+                        0, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    ],
+                    colors: {
+                        1: '#ffcc99',
+                        2: '#ff9900',
+                        3: '#4da6ff'
+                    }
+                }
+            ];
+
+            function initDarkMode() {
+                try {
+                    var isDark = localStorage.getItem('aa-dark-mode') === 'true';
+                    if (isDark) {
+                        document.documentElement.classList.add('aa-dark');
+                    }
+                } catch (e) {
+                    console.log('Dark mode check failed: ' + e.message);
+                }
+            }
+
+            function createDesignSelector() {
+                var selector = document.getElementById('designSelector');
+                selector.innerHTML = '';
+
+                for (var i = 0; i < designs.length; i++) {
+                    var btn = document.createElement('button');
+                    btn.className = 'design-btn' + (i === state.currentDesign ? ' active' : '');
+                    btn.textContent = designs[i].name;
+                    btn.setAttribute('data-design', i);
+                    btn.addEventListener('click', function(e) {
+                        var designIdx = parseInt(e.target.getAttribute('data-design'), 10);
+                        loadDesign(designIdx);
+                    });
+                    selector.appendChild(btn);
+                }
+            }
+
+            function loadDesign(idx) {
+                state.currentDesign = idx;
+                state.selectedColor = null;
+                state.filledCells = {};
+                state.hintUsed = false;
+
+                document.getElementById('completionModal').classList.remove('show');
+
+                createDesignSelector();
+                renderGrid();
+                renderPalette();
+                updateProgress();
+            }
+
+            function renderGrid() {
+                var design = designs[state.currentDesign];
+                var container = document.getElementById('gridContainer');
+                container.innerHTML = '';
+
+                for (var i = 0; i < design.grid.length; i++) {
+                    var regionNum = design.grid[i];
+                    var cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.setAttribute('data-index', i);
+
+                    if (regionNum === 0) {
+                        cell.classList.add('empty');
+                    } else {
+                        if (state.filledCells[i]) {
+                            cell.style.backgroundColor = state.filledCells[i];
+                        } else {
+                            cell.style.backgroundColor = '#f9f9f9';
+                        }
+
+                        cell.addEventListener('click', function(e) {
+                            handleCellClick(parseInt(e.target.getAttribute('data-index'), 10));
+                        });
+                    }
+
+                    container.appendChild(cell);
+                }
+            }
+
+            function renderPalette() {
+                var design = designs[state.currentDesign];
+                var palette = document.getElementById('palette');
+                palette.innerHTML = '';
+
+                var colorEntries = [];
+                for (var num in design.colors) {
+                    if (design.colors.hasOwnProperty(num)) {
+                        colorEntries.push({
+                            num: num,
+                            color: design.colors[num]
+                        });
+                    }
+                }
+
+                colorEntries.sort(function(a, b) {
+                    return parseInt(a.num, 10) - parseInt(b.num, 10);
+                });
+
+                colorEntries.forEach(function(entry) {
+                    var btn = document.createElement('button');
+                    btn.className = 'color-btn';
+                    btn.style.backgroundColor = entry.color;
+                    btn.textContent = entry.num;
+                    btn.setAttribute('data-color-num', entry.num);
+                    btn.setAttribute('data-color', entry.color);
+
+                    if (state.selectedColor === entry.color) {
+                        btn.classList.add('selected');
+                    }
+
+                    btn.addEventListener('click', function(e) {
+                        selectColor(entry.color, entry.num);
+                    });
+
+                    palette.appendChild(btn);
+                });
+            }
+
+            function selectColor(hexColor, colorNum) {
+                state.selectedColor = hexColor;
+
+                var btns = document.querySelectorAll('.color-btn');
+                for (var i = 0; i < btns.length; i++) {
+                    btns[i].classList.remove('selected');
+                }
+
+                var selected = document.querySelector('[data-color="' + hexColor + '"]');
+                if (selected) {
+                    selected.classList.add('selected');
+                }
+            }
+
+            function handleCellClick(idx) {
+                if (!state.selectedColor) {
+                    return;
+                }
+
+                var design = designs[state.currentDesign];
+                var regionNum = design.grid[idx];
+
+                if (regionNum === 0) {
+                    return;
+                }
+
+                if (state.filledCells[idx]) {
+                    return;
+                }
+
+                var expectedColor = design.colors[regionNum];
+
+                var cell = document.querySelector('[data-index="' + idx + '"]');
+
+                if (state.selectedColor === expectedColor) {
+                    state.filledCells[idx] = expectedColor;
+                    cell.style.backgroundColor = expectedColor;
+                    cell.classList.remove('shake');
+                    cell.offsetHeight;
+                    cell.classList.add('filled');
+                    updateProgress();
+                    checkCompletion();
+                } else {
+                    cell.classList.remove('shake');
+                    cell.offsetHeight;
+                    cell.classList.add('shake');
+                }
+            }
+
+            function updateProgress() {
+                var design = designs[state.currentDesign];
+                var totalRegions = {};
+
+                for (var i = 0; i < design.grid.length; i++) {
+                    if (design.grid[i] !== 0) {
+                        totalRegions[design.grid[i]] = true;
+                    }
+                }
+
+                var uniqueRegions = Object.keys(totalRegions).length;
+                var filled = Object.keys(state.filledCells).length;
+
+                document.getElementById('cellCount').textContent = filled;
+                document.getElementById('totalCount').textContent = uniqueRegions;
+            }
+
+            function checkCompletion() {
+                var design = designs[state.currentDesign];
+                var allCells = [];
+
+                for (var i = 0; i < design.grid.length; i++) {
+                    if (design.grid[i] !== 0) {
+                        allCells.push(i);
+                    }
+                }
+
+                var allFilled = allCells.every(function(idx) {
+                    return state.filledCells[idx];
+                });
+
+                if (allFilled) {
+                    setTimeout(function() {
+                        document.getElementById('completionModal').classList.add('show');
+                    }, 300);
+                }
+            }
+
+            function hintNextUnfilled() {
+                var design = designs[state.currentDesign];
+
+                for (var i = 0; i < design.grid.length; i++) {
+                    if (design.grid[i] !== 0 && !state.filledCells[i]) {
+                        var cell = document.querySelector('[data-index="' + i + '"]');
+                        if (cell) {
+                            cell.style.backgroundColor = '#fff9e6';
+                            setTimeout(function() {
+                                if (!state.filledCells[i]) {
+                                    cell.style.backgroundColor = '#f9f9f9';
+                                }
+                            }, 800);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            function resetDesign() {
+                state.selectedColor = null;
+                state.filledCells = {};
+                state.hintUsed = false;
+                renderGrid();
+                renderPalette();
+                updateProgress();
+            }
+
+            function init() {
+                initDarkMode();
+                createDesignSelector();
+                renderGrid();
+                renderPalette();
+                updateProgress();
+
+                document.getElementById('hintBtn').addEventListener('click', hintNextUnfilled);
+                document.getElementById('resetBtn').addEventListener('click', resetDesign);
+                document.getElementById('nextDesignBtn').addEventListener('click', function() {
+                    var nextIdx = (state.currentDesign + 1) % designs.length;
+                    loadDesign(nextIdx);
+                });
+            }
+
+            return {
+                init: init
+            };
+        })();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            ColorFill.init();
+        });
+    </script>
+</body>
+</html>
