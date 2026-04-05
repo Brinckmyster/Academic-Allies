@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260403b'; /* Claude: 2026-04-03 — Diamond Art: place whole color group at once */
+var CACHE   = 'aa-shell-20260403c'; /* Claude: 2026-04-03 — diamond-art.html added to NEVER_CACHE */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -47,6 +47,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/comfort-games/brick-breaker.html', /* Claude: 2026-04-01 — vanilla JS, must be fresh */
   '/Academic-Allies/modular/components/comfort-games/snake.html', /* Claude: 2026-04-01 — vanilla JS, must be fresh */
   '/Academic-Allies/modular/components/comfort-games/game-center.html', /* Claude: 2026-04-01 — Game Center hub, must be fresh */
+  '/Academic-Allies/modular/components/comfort-games/diamond-art.html', /* Claude: 2026-04-03 — updated 4x, must never serve stale */
   '/Academic-Allies/modular/components/brain-check/simon-says.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/reaction-time.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/pattern-spotter.html', /* Claude: 2026-04-01 — brain check game */
