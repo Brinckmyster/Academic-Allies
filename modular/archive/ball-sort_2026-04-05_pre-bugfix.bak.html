@@ -534,38 +534,35 @@
         }
 
         function isGameWon() {
-            /* Claude: 2026-04-05 — win when all color tubes sorted, not all tubes (empty tubes can never lock) */
             var config = getDifficultyConfig(gameState.difficulty);
-            return getLockedTubeCount() === config.colorCount;
+            return getLockedTubeCount() === config.tubeCount;
         }
 
         function selectTube(index) {
-            /* Claude: 2026-04-05 — fixed empty-tube drop and win condition */
             if (isTubeLocked(index)) {
                 playDropSound();
                 return;
             }
 
+            var topBalls = getTopBalls(index);
+            if (topBalls.length === 0) {
+                playDropSound();
+                return;
+            }
+
             if (gameState.selectedTubeIndex === -1) {
-                // Picking up — tube must have balls
-                var topBalls = getTopBalls(index);
-                if (topBalls.length === 0) {
-                    playDropSound();
-                    return;
-                }
                 gameState.selectedTubeIndex = index;
                 playPickupSound();
                 updateDisplay();
             } else if (gameState.selectedTubeIndex === index) {
-                // Deselect
                 gameState.selectedTubeIndex = -1;
                 updateDisplay();
             } else {
-                // Dropping onto another tube (including empty tubes)
                 var sourceTube = gameState.selectedTubeIndex;
                 var ballsToMove = getTopBalls(sourceTube);
 
                 if (canDropBalls(sourceTube, index, ballsToMove)) {
+                    var config = getDifficultyConfig(gameState.difficulty);
                     for (var i = 0; i < ballsToMove.length; i++) {
                         gameState.tubes[sourceTube].pop();
                         gameState.tubes[index].push(ballsToMove[i]);
