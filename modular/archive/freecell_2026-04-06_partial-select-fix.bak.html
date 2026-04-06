@@ -649,48 +649,33 @@ function tapFoundation(idx) {
     if (state.selected) { tryMove('fn', idx); }
 }
 
-/* Claude: 2026-04-06 — pick where to start selection in a column.
-   If cardIdx is given and the cards from cardIdx to top form a valid
-   alternating-color descending sequence, start there.
-   Otherwise fall back to the longest valid sequence from the top. */
-function _pickSeqStart(col, cardIdx) {
-    if (typeof cardIdx === 'number' && cardIdx >= 0 && cardIdx < col.length) {
-        var valid = true;
-        for (var v = cardIdx + 1; v < col.length; v++) {
-            if (col[v].val !== col[v-1].val - 1 || col[v].color === col[v-1].color) {
-                valid = false; break;
-            }
-        }
-        if (valid) { return cardIdx; }
-    }
-    /* Default: longest valid sequence from top */
-    var s = col.length - 1;
-    while (s > 0 &&
-           col[s].val === col[s-1].val - 1 &&
-           col[s].color !== col[s-1].color) {
-        s--;
-    }
-    return s;
-}
-
-function tapColumn(colIdx, cardIdx) {
-    /* Claude: 2026-04-06 — cardIdx lets user tap a specific card mid-stack */
+function tapColumn(colIdx) {
     var col = state.tableau[colIdx];
     if (!state.selected) {
         if (col.length === 0) { return; }
-        var seqStart = _pickSeqStart(col, cardIdx);
-        state.selected = { zone: 'tab', idx: colIdx, cards: col.slice(seqStart) };
+        /* Select top card (or valid sequence from bottom) */
+        /* Find longest valid sequence from the top */
+        var seqStart = col.length - 1;
+        while (seqStart > 0 &&
+               col[seqStart].val === col[seqStart-1].val - 1 &&
+               col[seqStart].color !== col[seqStart-1].color) {
+            seqStart--;
+        }
+        var selectedCards = col.slice(seqStart);
+        state.selected = { zone: 'tab', idx: colIdx, cards: selectedCards };
         render();
     } else {
         if (!tryMove('tab', colIdx)) {
-            /* Move failed — re-select from this column if it's a different column */
+            /* Re-select from this column instead */
             if (col.length > 0 && (state.selected.zone !== 'tab' || state.selected.idx !== colIdx)) {
-                var seqStart2 = _pickSeqStart(col, cardIdx);
+                var seqStart2 = col.length - 1;
+                while (seqStart2 > 0 &&
+                       col[seqStart2].val === col[seqStart2-1].val - 1 &&
+                       col[seqStart2].color !== col[seqStart2-1].color) {
+                    seqStart2--;
+                }
                 state.selected = { zone: 'tab', idx: colIdx, cards: col.slice(seqStart2) };
                 render();
-            } else if (state.selected.zone === 'tab' && state.selected.idx === colIdx) {
-                /* Tapped same column — deselect */
-                clearSelection();
             }
         }
     }
@@ -763,11 +748,10 @@ function renderTableau() {
                 cardEl.classList.add('selected');
             }
 
-            /* Claude: 2026-04-06 — pass card index so user can start selection mid-stack */
-            (function(colIdx, ci) {
-                cardEl.addEventListener('click',    function(e) { e.stopPropagation(); tapColumn(colIdx, ci); });
-                cardEl.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); tapColumn(colIdx, ci); });
-            })(col, i);
+            (function(colIdx) {
+                cardEl.addEventListener('click',    function(e) { e.stopPropagation(); tapColumn(colIdx); });
+                cardEl.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); tapColumn(colIdx); });
+            })(col);
 
             colEl.appendChild(cardEl);
         }
@@ -781,11 +765,9 @@ function renderTableau() {
     }
 }
 
-function makeCardEl(card, compact) {
-    /* Claude: 2026-04-06 — compact=true hides center suit + bottom label (for slots) */
+function makeCardEl(card) {
     var el = document.createElement('div');
     el.className = 'card ' + card.color;
-    if (compact) { el.classList.add('compact'); }
 
     var rankStr = card.rank;
     var suitStr = SUIT_SYM[card.suit];
