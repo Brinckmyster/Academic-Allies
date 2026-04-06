@@ -47,10 +47,9 @@
           { id: 'secret-agent', label: 'Secret Agent (SAM)', enabled: true },
           { id: 'brick-breaker', label: 'Brick Breaker', enabled: true },
           { id: 'snake', label: 'Snake', enabled: true },
-          /* Claude: 2026-04-06 — FreeCell, Spider, Klondike card games */
+          /* Claude: 2026-04-06 — FreeCell + Spider card games */
           { id: 'freecell', label: 'FreeCell', enabled: true },
           { id: 'spider',   label: 'Spider Solitaire', enabled: true },
-          { id: 'klondike', label: 'Klondike Solitaire', enabled: true },
           /* Claude: 2026-04-03 — added ball-sort, color-fill, pixel-paint */
           { id: 'ball-sort', label: 'Ball Sort', enabled: true },
           { id: 'color-fill', label: 'Color Fill', enabled: true },
