@@ -223,11 +223,10 @@
     <button class="diff-btn active" data-d="easy">Easy</button>
     <button class="diff-btn" data-d="medium">Medium</button>
     <button class="diff-btn" data-d="hard">Hard</button>
-    <button class="diff-btn" data-d="advanced">Advanced</button>
 </div>
 
 <div class="card">
-    <div class="instructions" id="instr">
+    <div class="instructions">
         Tap a tube to pick up all same-color balls from the top.<br>
         Tap another tube to drop them there.<br>
         Sort all balls so each tube has one color.
@@ -264,10 +263,9 @@ var state = {
 };
 
 var CONFIGS = {
-    easy:     { tubeCount: 5, colorCount: 4 },
-    medium:   { tubeCount: 6, colorCount: 5 },
-    hard:     { tubeCount: 7, colorCount: 6 },
-    advanced: { tubeCount: 8, colorCount: 6 }  /* 6 colors + 2 empty buffers, color-match drop rule */
+    easy:   { tubeCount: 5, colorCount: 4 },
+    medium: { tubeCount: 6, colorCount: 5 },
+    hard:   { tubeCount: 7, colorCount: 6 }
 };
 
 /* ---- setup ---- */
@@ -279,56 +277,6 @@ function shuffle(arr) {
         var t = a[i]; a[i] = a[j]; a[j] = t;
     }
     return a;
-}
-
-function buildAdvancedTubes() {
-    /* Claude: 2026-04-05 — backwards-generation guarantees solvability with color-match rule.
-       Start from solved state, make random valid moves to scramble. */
-    var colorCount = 6;
-    var tubeCount  = 8;  /* 6 color tubes + 2 empty buffers */
-
-    /* Start solved */
-    var tubes = [];
-    for (var c = 0; c < colorCount; c++) {
-        tubes.push([COLORS[c], COLORS[c], COLORS[c], COLORS[c]]);
-    }
-    tubes.push([]); /* empty buffer 1 */
-    tubes.push([]); /* empty buffer 2 */
-
-    /* Scramble with valid moves */
-    var attempts = 200;
-    for (var m = 0; m < attempts; m++) {
-        var validMoves = [];
-        for (var src = 0; src < tubeCount; src++) {
-            if (tubes[src].length === 0) { continue; }
-            var srcColor = tubes[src][tubes[src].length - 1];
-            /* count group size */
-            var grpSize = 0;
-            for (var gi = tubes[src].length - 1; gi >= 0 && tubes[src][gi] === srcColor; gi--) {
-                grpSize++;
-            }
-            /* skip moving a complete single-color tube to an empty slot — useless move */
-            var srcIsComplete = (tubes[src].length === grpSize);
-            for (var tgt = 0; tgt < tubeCount; tgt++) {
-                if (tgt === src) { continue; }
-                if (tubes[tgt].length + grpSize > 4) { continue; }
-                if (tubes[tgt].length === 0) {
-                    if (srcIsComplete) { continue; } /* useless */
-                    validMoves.push([src, tgt, grpSize]);
-                } else {
-                    if (tubes[tgt][tubes[tgt].length - 1] === srcColor) {
-                        validMoves.push([src, tgt, grpSize]);
-                    }
-                }
-            }
-        }
-        if (validMoves.length === 0) { break; }
-        var pick = validMoves[Math.floor(Math.random() * validMoves.length)];
-        for (var k = 0; k < pick[2]; k++) {
-            tubes[pick[1]].push(tubes[pick[0]].pop());
-        }
-    }
-    return tubes;
 }
 
 function buildTubes(tubeCount, colorCount) {
@@ -349,26 +297,14 @@ function buildTubes(tubeCount, colorCount) {
 }
 
 function startGame(difficulty) {
-    /* Claude: 2026-04-05 — Advanced uses backwards-generated puzzle */
     state.difficulty = difficulty || 'easy';
     var cfg = CONFIGS[state.difficulty];
-    if (state.difficulty === 'advanced') {
-        state.tubes = buildAdvancedTubes();
-    } else {
-        state.tubes = buildTubes(cfg.tubeCount, cfg.colorCount);
-    }
+    state.tubes = buildTubes(cfg.tubeCount, cfg.colorCount);
     state.held = -1;
     state.moves = 0;
     clearHeld();
     render();
     document.getElementById('win-msg').textContent = '';
-    /* update instructions for advanced mode */
-    var instr = document.getElementById('instr');
-    if (state.difficulty === 'advanced') {
-        instr.innerHTML = 'Tap a tube to pick up same-color balls from the top.<br>Drop only onto a matching color or an empty tube.<br>Sort every tube into one color to win.';
-    } else {
-        instr.innerHTML = 'Tap a tube to pick up all same-color balls from the top.<br>Tap another tube to drop them there.<br>Sort all balls so each tube has one color.';
-    }
 }
 
 /* ---- game logic ---- */
@@ -406,19 +342,8 @@ function isWon() {
     return lockedCount() === CONFIGS[state.difficulty].colorCount;
 }
 
-function canDrop(srcIdx, tgtIdx, group) {
-    /* Claude: 2026-04-05 — Advanced requires color match; Easy/Medium/Hard drop anywhere with space */
-    var tgt = state.tubes[tgtIdx];
-    if (tgt.length + group.length > 4) { return false; }
-    if (tgt.length === 0) { return true; }
-    if (state.difficulty === 'advanced') {
-        return tgt[tgt.length - 1] === group[0]; /* top of target must match group color */
-    }
-    return true;
-}
-
 function tapTube(idx) {
-    /* Claude: 2026-04-05 — group pickup, canDrop handles advanced color-match rule */
+    /* Claude: 2026-04-05 — group pickup mechanic */
     if (isLocked(idx)) { return; }
 
     if (state.held === -1) {
@@ -437,27 +362,19 @@ function tapTube(idx) {
         /* drop group onto another tube */
         var src = state.held;
         var group = getGroup(src);
-        if (canDrop(src, idx, group)) {
+        var tgt = state.tubes[idx];
+        if (tgt.length + group.length <= 4) {
             for (var i = 0; i < group.length; i++) {
                 state.tubes[src].pop();
-                state.tubes[idx].push(group[i]);
+                tgt.push(group[i]);
             }
             state.moves++;
-            state.held = -1;
-            clearHeld();
-            render();
-            if (isWon()) {
-                document.getElementById('win-msg').textContent = 'You sorted them all! \uD83C\uDF89';
-            }
-        } else {
-            /* invalid drop — shake the target tube visually */
-            var el = document.querySelectorAll('.tube')[idx];
-            if (el) {
-                el.style.transition = 'transform 0.05s';
-                el.style.transform = 'translateX(6px)';
-                setTimeout(function() { el.style.transform = 'translateX(-6px)'; }, 60);
-                setTimeout(function() { el.style.transform = 'translateX(0)'; el.style.transition = ''; }, 120);
-            }
+        }
+        state.held = -1;
+        clearHeld();
+        render();
+        if (isWon()) {
+            document.getElementById('win-msg').textContent = 'You sorted them all! \uD83C\uDF89';
         }
     }
 }
