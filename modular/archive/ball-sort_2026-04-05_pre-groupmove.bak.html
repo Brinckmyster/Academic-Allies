@@ -101,19 +101,11 @@
         }
 
         .held-ball {
-            width: 42px;
-            height: 42px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             border: 3px solid #ff9500;
             box-shadow: 0 0 14px rgba(255,149,0,0.7);
-            flex-shrink: 0;
-        }
-
-        .held-balls-row {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            justify-content: center;
             animation: bob 0.7s ease-in-out infinite alternate;
         }
 
@@ -227,8 +219,8 @@
 
 <div class="card">
     <div class="instructions">
-        Tap a tube to pick up all same-color balls from the top.<br>
-        Tap another tube to drop them there.<br>
+        Tap a tube to pick up its top ball.<br>
+        Tap another tube to drop it there.<br>
         Sort all balls so each tube has one color.
     </div>
 
@@ -309,16 +301,9 @@ function startGame(difficulty) {
 
 /* ---- game logic ---- */
 
-function getGroup(tubeIdx) {
-    /* Claude: 2026-04-05 — pick up all consecutive same-color balls from top */
+function topBall(tubeIdx) {
     var t = state.tubes[tubeIdx];
-    if (t.length === 0) { return []; }
-    var topColor = t[t.length - 1];
-    var group = [];
-    for (var i = t.length - 1; i >= 0 && t[i] === topColor; i--) {
-        group.push(topColor);
-    }
-    return group; /* group[0] is the topmost ball */
+    return t.length > 0 ? t[t.length - 1] : null;
 }
 
 function isLocked(tubeIdx) {
@@ -343,15 +328,13 @@ function isWon() {
 }
 
 function tapTube(idx) {
-    /* Claude: 2026-04-05 — group pickup mechanic */
     if (isLocked(idx)) { return; }
 
     if (state.held === -1) {
-        /* pick up group */
-        var grp = getGroup(idx);
-        if (grp.length === 0) { return; }
+        /* pick up */
+        if (topBall(idx) === null) { return; }
         state.held = idx;
-        showHeld(grp);
+        showHeld(topBall(idx));
         render();
     } else if (state.held === idx) {
         /* put back */
@@ -359,15 +342,13 @@ function tapTube(idx) {
         clearHeld();
         render();
     } else {
-        /* drop group onto another tube */
+        /* drop onto another tube */
         var src = state.held;
-        var group = getGroup(src);
+        var ball = topBall(src);
         var tgt = state.tubes[idx];
-        if (tgt.length + group.length <= 4) {
-            for (var i = 0; i < group.length; i++) {
-                state.tubes[src].pop();
-                tgt.push(group[i]);
-            }
+        if (tgt.length < 4) {
+            state.tubes[src].pop();
+            tgt.push(ball);
             state.moves++;
         }
         state.held = -1;
@@ -381,21 +362,15 @@ function tapTube(idx) {
 
 /* ---- display ---- */
 
-function showHeld(group) {
-    /* Claude: 2026-04-05 — show all held balls in a row */
+function showHeld(color) {
     var area = document.getElementById('holding-area');
-    document.getElementById('holding-label').textContent = 'Holding ' + group.length + ' ball' + (group.length > 1 ? 's' : '') + ' \u2014 tap any tube to drop';
+    document.getElementById('holding-label').textContent = 'Holding \u2014 tap any tube to drop';
     var old = document.getElementById('held-ball-el');
     if (old) { old.parentNode.removeChild(old); }
-    var row = document.createElement('div');
-    row.className = 'held-balls-row';
-    row.id = 'held-ball-el';
-    for (var i = 0; i < group.length; i++) {
-        var b = document.createElement('div');
-        b.className = 'held-ball c-' + group[i];
-        row.appendChild(b);
-    }
-    area.appendChild(row);
+    var b = document.createElement('div');
+    b.className = 'held-ball c-' + color;
+    b.id = 'held-ball-el';
+    area.appendChild(b);
 }
 
 function clearHeld() {
