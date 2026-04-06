@@ -193,47 +193,6 @@
       text-align: center;
     }
 
-    /* Claude: 2026-04-05 — touch control strip below canvas */
-    .bb-touchpad {
-      width: 100%;
-      max-width: 520px;
-      padding: 0 8px;
-      margin-bottom: 8px;
-      display: none; /* shown only on touch devices via JS */
-    }
-    .bb-touchpad-inner {
-      height: 56px;
-      background: rgba(243, 156, 18, 0.1);
-      border: 2px solid rgba(243, 156, 18, 0.3);
-      border-radius: 28px;
-      position: relative;
-      overflow: hidden;
-      touch-action: none;
-    }
-    .bb-touchpad-label {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 11pt;
-      color: rgba(243, 156, 18, 0.5);
-      pointer-events: none;
-      white-space: nowrap;
-    }
-    .bb-touchpad-knob {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 44px;
-      height: 44px;
-      background: #f39c12;
-      border-radius: 50%;
-      box-shadow: 0 0 12px rgba(243, 156, 18, 0.6);
-      pointer-events: none;
-      display: none;
-    }
-
     @media (max-width: 600px) {
       .bb-header { padding: 8px; }
       .bb-title h1 { font-size: 14pt; }
@@ -274,14 +233,6 @@
   <!-- Game canvas -->
   <div class="bb-game-wrap">
     <canvas id="game" width="500" height="600"></canvas>
-  </div>
-
-  <!-- Touch strip — shown only on touch devices -->
-  <div class="bb-touchpad" id="touchpad-wrap">
-    <div class="bb-touchpad-inner" id="touchpad">
-      <div class="bb-touchpad-label" id="touchpad-label">&#8592; drag here to move paddle &#8594;</div>
-      <div class="bb-touchpad-knob" id="touchpad-knob"></div>
-    </div>
   </div>
 
   <!-- Controls -->
@@ -352,12 +303,12 @@
         } catch (e) {}
       }
 
-      function sndBounce()       { _beep(440, 0.08, 'square', 0.06); }
-      function sndBrickColor(freq){ _beep(freq || 660, 0.1, 'square', 0.07); }  /* Claude: 2026-04-05 — per-color tone */
-      function sndHardBrick(freq) { _beep((freq || 330) * 0.75, 0.06, 'triangle', 0.05); }
-      function sndWall()         { _beep(220, 0.05, 'sine', 0.04); }
-      function sndPowerup()      { _beep(880, 0.15, 'sine', 0.08); _beep(1100, 0.15, 'sine', 0.06); }
-      function sndLoseLife()     { _beep(150, 0.3, 'sawtooth', 0.1); }
+      function sndBounce()   { _beep(440, 0.08, 'square', 0.06); }
+      function sndBrick()    { _beep(660, 0.1, 'square', 0.07); }
+      function sndHardBrick(){ _beep(330, 0.06, 'triangle', 0.05); }
+      function sndWall()     { _beep(220, 0.05, 'sine', 0.04); }
+      function sndPowerup()  { _beep(880, 0.15, 'sine', 0.08); _beep(1100, 0.15, 'sine', 0.06); }
+      function sndLoseLife() { _beep(150, 0.3, 'sawtooth', 0.1); }
       function sndLevelUp()  {
         _beep(523, 0.12, 'square', 0.07);
         setTimeout(function(){ _beep(659, 0.12, 'square', 0.07); }, 120);
@@ -436,8 +387,6 @@
         '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db',
         '#9b59b6', '#1abc9c', '#e91e63'
       ];
-      /* Claude: 2026-04-05 — one musical note per row color (C D E G A B C' E') */
-      var rowFreqs  = [262, 294, 330, 392, 440, 494, 523, 659];
 
       /* ── Level patterns ─────────────────────────────────────── */
       /* Each pattern is an array of strings; '#' = normal brick,
@@ -553,9 +502,8 @@
 
             var hp = 1;
             var color = rowColors[r % rowColors.length];
-            var freq  = rowFreqs[r % rowFreqs.length];
-            if (ch === 'S') { hp = 2; color = '#bdc3c7'; freq = 220; }  /* silver: low thud */
-            if (ch === 'G') { hp = 3; color = '#f1c40f'; freq = 174; }  /* gold: deep thud */
+            if (ch === 'S') { hp = 2; color = '#bdc3c7'; }
+            if (ch === 'G') { hp = 3; color = '#f1c40f'; }
 
             bricks.push({
               x: brickLeft + c * (brickW + brickPad),
@@ -566,8 +514,7 @@
               hp: hp,
               maxHp: hp,
               color: color,
-              origColor: color,
-              freq: freq   /* Claude: 2026-04-05 — per-brick tone */
+              origColor: color
             });
           }
         }
@@ -585,8 +532,9 @@
       ];
 
       var fallingPowerups = []; /* {x, y, type, dy} */
-      var activePowerups = {};  /* Claude: 2026-04-05 — id → true (no timer; persists until replaced or life lost) */
+      var activePowerups = {};  /* id → expiresAt (frame count) */
       var frameCount = 0;
+      var PU_DURATION = 600;   /* ~10 seconds at 60fps */
       var PU_DROP_CHANCE = 0.2; /* 20% chance per brick */
 
       function _spawnPowerup(bx, by) {
@@ -621,32 +569,25 @@
           return; /* instant, no timer */
         }
 
-        /* Claude: 2026-04-05 — persistent power-ups: cancel conflicts, set active, no timer */
+        /* Timed power-ups */
+        activePowerups[id] = frameCount + PU_DURATION;
+
         if (id === 'wide') {
-          delete activePowerups['narrow'];
-          activePowerups['wide'] = true;
           paddle.w = 140;
           paddle.x = Math.min(paddle.x, W - paddle.w);
         }
         if (id === 'narrow') {
-          delete activePowerups['wide'];
-          activePowerups['narrow'] = true;
           paddle.w = 55;
         }
         if (id === 'slow') {
-          delete activePowerups['fast'];
-          activePowerups['slow'] = true;
           ballSpeed = BASE_SPEED * 0.6;
           _rescaleBalls(ballSpeed);
         }
         if (id === 'fast') {
-          delete activePowerups['slow'];
-          activePowerups['fast'] = true;
           ballSpeed = BASE_SPEED * 1.5;
           _rescaleBalls(ballSpeed);
         }
         if (id === 'sticky') {
-          activePowerups['sticky'] = true;
           paddle.sticky = true;
         }
       }
@@ -664,17 +605,34 @@
       }
 
       function _expirePowerups() {
-        /* Claude: 2026-04-05 — no timer; just display what's currently active */
         var bar = document.getElementById('pu-bar');
         var html = '';
         var keys = Object.keys(activePowerups);
         for (var i = 0; i < keys.length; i++) {
           var id = keys[i];
-          for (var j = 0; j < PU_TYPES.length; j++) {
-            if (PU_TYPES[j].id === id) {
-              html += '<span class="pu-tag" style="background:' + PU_TYPES[j].color + '">' +
-                      PU_TYPES[j].emoji + ' ' + PU_TYPES[j].label + '</span>';
-              break;
+          if (frameCount >= activePowerups[id]) {
+            /* Expire */
+            delete activePowerups[id];
+            if (id === 'wide' || id === 'narrow') {
+              paddle.w = PADDLE_DEFAULT_W;
+              paddle.x = Math.min(paddle.x, W - paddle.w);
+            }
+            if (id === 'slow' || id === 'fast') {
+              ballSpeed = BASE_SPEED + (levelNum - 1) * 0.25;
+              _rescaleBalls(ballSpeed);
+            }
+            if (id === 'sticky') {
+              paddle.sticky = false;
+            }
+          } else {
+            /* Still active — show tag */
+            var remaining = Math.ceil((activePowerups[id] - frameCount) / 60);
+            for (var j = 0; j < PU_TYPES.length; j++) {
+              if (PU_TYPES[j].id === id) {
+                html += '<span class="pu-tag" style="background:' + PU_TYPES[j].color + '">' +
+                        PU_TYPES[j].emoji + ' ' + PU_TYPES[j].label + ' (' + remaining + 's)</span>';
+                break;
+              }
             }
           }
         }
@@ -947,10 +905,10 @@
               if (br.hp <= 0) {
                 br.alive = false;
                 score += br.maxHp * 10;
-                sndBrickColor(br.freq);
+                sndBrick();
                 _spawnPowerup(br.x + br.w / 2, br.y + br.h / 2);
               } else {
-                sndHardBrick(br.freq);
+                sndHardBrick();
               }
               updateUI();
 
@@ -1026,46 +984,27 @@
         if (running && launched && paddle.sticky) launchBall();
       });
 
-      /* Claude: 2026-04-05 — touch controls moved to strip below canvas */
+      canvas.addEventListener('touchmove', function (e) {
+        e.preventDefault();
+        var rect = canvas.getBoundingClientRect();
+        var scaleX = W / rect.width;
+        var tx = (e.touches[0].clientX - rect.left) * scaleX;
+        paddle.x = tx - paddle.w / 2;
+        if (paddle.x < 0) paddle.x = 0;
+        if (paddle.x + paddle.w > W) paddle.x = W - paddle.w;
+      }, { passive: false });
+
       canvas.addEventListener('touchstart', function (e) {
         e.preventDefault();
         _ensureAudio();
         if (running && !launched) launchBall();
         if (running && launched && paddle.sticky) launchBall();
-      }, { passive: false });
-
-      /* Show touchpad on touch devices */
-      var touchpadWrap = document.getElementById('touchpad-wrap');
-      var touchpadEl   = document.getElementById('touchpad');
-      var touchpadKnob = document.getElementById('touchpad-knob');
-      var touchpadLabel= document.getElementById('touchpad-label');
-
-      window.addEventListener('touchstart', function () {
-        touchpadWrap.style.display = 'block';
-      }, { once: true });
-
-      function _movePaddleFromTouch(clientX) {
-        var rect = touchpadEl.getBoundingClientRect();
-        var relX = clientX - rect.left;
-        var ratio = Math.max(0, Math.min(1, relX / rect.width));
-        paddle.x = ratio * (W - paddle.w);
-        /* move knob */
-        touchpadKnob.style.display = 'block';
-        touchpadLabel.style.display = 'none';
-        touchpadKnob.style.left = (ratio * 100) + '%';
-      }
-
-      touchpadEl.addEventListener('touchstart', function (e) {
-        e.preventDefault();
-        _ensureAudio();
-        _movePaddleFromTouch(e.touches[0].clientX);
-        if (running && !launched) launchBall();
-        if (running && launched && paddle.sticky) launchBall();
-      }, { passive: false });
-
-      touchpadEl.addEventListener('touchmove', function (e) {
-        e.preventDefault();
-        _movePaddleFromTouch(e.touches[0].clientX);
+        var rect = canvas.getBoundingClientRect();
+        var scaleX = W / rect.width;
+        var tx = (e.touches[0].clientX - rect.left) * scaleX;
+        paddle.x = tx - paddle.w / 2;
+        if (paddle.x < 0) paddle.x = 0;
+        if (paddle.x + paddle.w > W) paddle.x = W - paddle.w;
       }, { passive: false });
 
       document.addEventListener('keydown', function (e) {
