@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260406b'; /* Claude: 2026-04-06 — game files pre-cached for offline play */
+var CACHE   = 'aa-shell-20260406a'; /* Claude: 2026-04-06 — freecell added */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -107,25 +107,6 @@ var SHELL = [
 
   /* App icon */
   '/Academic-Allies/modular/icons/branding.png',
-
-  /* Claude: 2026-04-06 — game files pre-cached for offline access.
-     These are also in NEVER_CACHE so online always gets fresh code.
-     SHELL copy is the offline fallback — updated each time SW version bumps. */
-  '/Academic-Allies/modular/components/comfort-games/game-center.html',
-  '/Academic-Allies/modular/components/comfort-games/emoticon-defense.html',
-  '/Academic-Allies/modular/components/comfort-games/secret-agent.html',
-  '/Academic-Allies/modular/components/comfort-games/brick-breaker.html',
-  '/Academic-Allies/modular/components/comfort-games/snake.html',
-  '/Academic-Allies/modular/components/comfort-games/diamond-art.html',
-  '/Academic-Allies/modular/components/comfort-games/ball-sort.html',
-  '/Academic-Allies/modular/components/comfort-games/color-fill.html',
-  '/Academic-Allies/modular/components/comfort-games/pixel-paint.html',
-  '/Academic-Allies/modular/components/comfort-games/freecell.html',
-  '/Academic-Allies/modular/components/brain-bloom/brain-bloom.html',
-  '/Academic-Allies/modular/components/brain-check/simon-says.html',
-  '/Academic-Allies/modular/components/brain-check/reaction-time.html',
-  '/Academic-Allies/modular/components/brain-check/pattern-spotter.html',
-  '/Academic-Allies/modular/components/brain-check/reading-check.html',
 
   /* Claude: 2026-03-16 — offline fallback page */
   '/Academic-Allies/offline.html'
