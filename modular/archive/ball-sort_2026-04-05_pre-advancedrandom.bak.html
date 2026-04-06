@@ -282,12 +282,50 @@ function shuffle(arr) {
 }
 
 function buildAdvancedTubes() {
-    /* Claude: 2026-04-05 — random mix into 6 tubes + 2 forced empty buffers.
-       Backwards-generation can't split groups with color-match rules, so we use
-       the same random approach as other modes and add the empty buffers after. */
-    var tubes = buildTubes(6, 6); /* 6 colors × 4 balls = 24 balls, shuffled into 6 tubes */
+    /* Claude: 2026-04-05 — backwards-generation guarantees solvability with color-match rule.
+       Start from solved state, make random valid moves to scramble. */
+    var colorCount = 6;
+    var tubeCount  = 8;  /* 6 color tubes + 2 empty buffers */
+
+    /* Start solved */
+    var tubes = [];
+    for (var c = 0; c < colorCount; c++) {
+        tubes.push([COLORS[c], COLORS[c], COLORS[c], COLORS[c]]);
+    }
     tubes.push([]); /* empty buffer 1 */
     tubes.push([]); /* empty buffer 2 */
+
+    /* Scramble with valid moves */
+    var attempts = 200;
+    for (var m = 0; m < attempts; m++) {
+        var validMoves = [];
+        for (var src = 0; src < tubeCount; src++) {
+            if (tubes[src].length === 0) { continue; }
+            var srcColor = tubes[src][tubes[src].length - 1];
+            /* count group size */
+            var grpSize = 0;
+            for (var gi = tubes[src].length - 1; gi >= 0 && tubes[src][gi] === srcColor; gi--) {
+                grpSize++;
+            }
+            /* Claude: 2026-04-05 — allow all valid moves including complete→empty so scrambler can break up solved state */
+            for (var tgt = 0; tgt < tubeCount; tgt++) {
+                if (tgt === src) { continue; }
+                if (tubes[tgt].length + grpSize > 4) { continue; }
+                if (tubes[tgt].length === 0) {
+                    validMoves.push([src, tgt, grpSize]);
+                } else {
+                    if (tubes[tgt][tubes[tgt].length - 1] === srcColor) {
+                        validMoves.push([src, tgt, grpSize]);
+                    }
+                }
+            }
+        }
+        if (validMoves.length === 0) { break; }
+        var pick = validMoves[Math.floor(Math.random() * validMoves.length)];
+        for (var k = 0; k < pick[2]; k++) {
+            tubes[pick[1]].push(tubes[pick[0]].pop());
+        }
+    }
     return tubes;
 }
 
