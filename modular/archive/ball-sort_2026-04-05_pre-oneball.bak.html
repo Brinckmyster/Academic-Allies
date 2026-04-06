@@ -256,40 +256,6 @@
             transform: translateY(0);
         }
 
-        .holding-area {
-            text-align: center;
-            margin-bottom: 18px;
-            min-height: 80px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .holding-label {
-            font-size: 13px;
-            color: var(--text-secondary);
-            margin-bottom: 6px;
-        }
-
-        .holding-ball {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            border: 3px solid #ff9500;
-            box-shadow: 0 0 18px rgba(255,149,0,0.7), 0 4px 8px rgba(0,0,0,0.3);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            animation: bobble 0.6s ease-in-out infinite alternate;
-        }
-
-        @keyframes bobble {
-            from { transform: translateY(-4px); }
-            to   { transform: translateY(4px); }
-        }
-
         .status-message {
             text-align: center;
             font-size: 18px;
@@ -377,11 +343,7 @@
 
     <div class="game-container">
         <div style="text-align:center; color: var(--text-secondary); font-size:15px; margin-bottom:16px; line-height:1.6;">
-            Tap a tube to pick up the top ball &bull; Tap any other tube to drop it &bull; Sort each color into its own tube
-        </div>
-
-        <div class="holding-area" id="holding-area">
-            <div class="holding-label" id="holding-label">Tap a tube to pick up its top ball</div>
+            Tap a tube to pick up balls &bull; Tap another tube to drop them &bull; Sort each color into its own tube
         </div>
 
         <div class="tubes-grid" id="tubes-grid">
@@ -513,18 +475,23 @@
             gameState.tubes = createTubes(config.tubeCount, config.colorCount);
             gameState.selectedTubeIndex = -1;
             gameState.moves = 0;
-            clearHolding();
             updateDisplay();
             updateStatus('');
         }
 
         function getTopBalls(tubeIndex) {
-            /* Claude: 2026-04-05 — one ball at a time for clarity */
             var tube = gameState.tubes[tubeIndex];
             if (tube.length === 0) {
                 return [];
             }
-            return [tube[tube.length - 1]];
+
+            var topColor = tube[tube.length - 1];
+            var count = 0;
+            for (var i = tube.length - 1; i >= 0 && tube[i] === topColor; i--) {
+                count++;
+            }
+
+            return tube.slice(tube.length - count);
         }
 
         function canDropBalls(sourceIndex, targetIndex, ballsToMove) {
@@ -585,11 +552,9 @@
                 gameState.selectedTubeIndex = index;
                 playPickupSound();
                 updateDisplay();
-                showHolding(topBalls[0]);
             } else if (gameState.selectedTubeIndex === index) {
                 // Deselect
                 gameState.selectedTubeIndex = -1;
-                clearHolding();
                 updateDisplay();
             } else {
                 // Dropping onto another tube (including empty tubes)
@@ -621,30 +586,8 @@
                 }
 
                 gameState.selectedTubeIndex = -1;
-                clearHolding();
                 updateDisplay();
             }
-        }
-
-        function showHolding(color) {
-            /* Claude: 2026-04-05 — show held ball visually */
-            var area = document.getElementById('holding-area');
-            var label = document.getElementById('holding-label');
-            label.textContent = 'Holding — tap any tube to drop it';
-            var ballEl = document.createElement('div');
-            ballEl.className = 'holding-ball color-' + color;
-            ballEl.id = 'held-ball';
-            // remove old ball if any
-            var old = document.getElementById('held-ball');
-            if (old) { old.parentNode.removeChild(old); }
-            area.appendChild(ballEl);
-        }
-
-        function clearHolding() {
-            var label = document.getElementById('holding-label');
-            label.textContent = 'Tap a tube to pick up its top ball';
-            var old = document.getElementById('held-ball');
-            if (old) { old.parentNode.removeChild(old); }
         }
 
         function updateDisplay() {
