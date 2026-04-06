@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spider Solitaire - Academic Allies</title>
+    <style>
+        /* Claude: 2026-04-06 — Spider Solitaire, mobile-first, ES5, tap controls */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a3a6b;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 4px;
+            touch-action: manipulation;
+        }
+
+        /* ── Top bar ── */
+        .top-bar {
+            width: 100%;
+            max-width: 680px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .back-link {
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+        }
+
+        .title { color: #fff; font-size: 20px; font-weight: 700; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
+
+        /* ── Difficulty selector ── */
+        .diff-row {
+            width: 100%;
+            max-width: 680px;
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+
+        .diff-btn {
+            flex: 1;
+            padding: 7px 4px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            color: rgba(255,255,255,0.65);
+            background: rgba(0,0,0,0.25);
+            touch-action: manipulation;
+        }
+
+        .diff-btn.active {
+            border-color: #fbbf24;
+            color: #fbbf24;
+        }
+
+        /* ── Stats ── */
+        .stats-row {
+            width: 100%;
+            max-width: 680px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            background: rgba(0,0,0,0.25);
+            color: #fff;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* ── Buttons ── */
+        .btn-row {
+            width: 100%;
+            max-width: 680px;
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 9px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            min-height: 40px;
+            touch-action: manipulation;
+            color: #fff;
+        }
+
+        .btn-new  { background: #2563eb; }
+        .btn-undo { background: #7c3aed; }
+        .btn-deal { background: #1a6b3c; }
+        .btn-hint { background: #b45309; }
+
+        /* ── Game area ── */
+        .game-area {
+            width: 100%;
+            max-width: 680px;
+        }
+
+        /* ── Top zone: 8 foundation slots ── */
+        .top-zone {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 8px;
+            align-items: stretch;
+        }
+
+        .foundations-row {
+            display: flex;
+            gap: 3px;
+            flex: 1;
+        }
+
+        .slot {
+            aspect-ratio: 0.69;
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.15);
+            flex: 1;
+        }
+
+        .slot-label {
+            color: rgba(255,255,255,0.35);
+            font-size: 9px;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .slot.done {
+            background: rgba(250,204,21,0.15);
+            border-color: #fbbf24;
+        }
+
+        .slot.done .slot-label {
+            color: #fbbf24;
+            font-size: 10px;
+        }
+
+        /* ── Stock pile button ── */
+        .stock-pile {
+            width: 46px;
+            flex-shrink: 0;
+            aspect-ratio: 0.69;
+            border-radius: 5px;
+            background: linear-gradient(135deg, #1e3a6e 25%, #2a4d8a 50%, #1e3a6e 75%);
+            border: 2px solid rgba(255,255,255,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            gap: 3px;
+        }
+
+        .stock-pile:active { border-color: #fbbf24; }
+
+        .stock-icon { font-size: 16px; }
+
+        .stock-count-label {
+            color: rgba(255,255,255,0.6);
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        /* ── Tableau ── */
+        .tableau {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 3px;
+            align-items: start;
+        }
+
+        .column {
+            position: relative;
+            min-height: 50px;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        /* ── Cards ── */
+        .card {
+            position: absolute;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid rgba(0,0,0,0.2);
+            background: #fff;
+            cursor: pointer;
+            touch-action: manipulation;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2px;
+            overflow: hidden;
+        }
+
+        .card.face-down {
+            background: repeating-linear-gradient(
+                135deg,
+                #1e3a6e,
+                #1e3a6e 4px,
+                #2a4f8f 4px,
+                #2a4f8f 8px
+            );
+            border-color: rgba(255,255,255,0.2);
+            cursor: default;
+        }
+
+        .card.red   { color: #dc2626; }
+        .card.black { color: #1e293b; }
+
+        .card.selected {
+            box-shadow: 0 0 0 3px #fbbf24, 0 4px 12px rgba(0,0,0,0.4);
+            transform: translateY(-3px);
+        }
+
+        .card-top, .card-bot {
+            font-weight: 700;
+            line-height: 1;
+            font-size: 0.7em;
+        }
+
+        .card-top { text-align: left; }
+        .card-bot { text-align: right; transform: rotate(180deg); }
+
+        .card-suit-center {
+            text-align: center;
+            font-size: 0.95em;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ── Win overlay ── */
+        .win-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .win-overlay.show { display: flex; }
+
+        .win-box {
+            background: #fff;
+            border-radius: 20px;
+            padding: 32px 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .win-box h2 { font-size: 28px; color: #1a3a6b; margin-bottom: 8px; }
+        .win-box p  { font-size: 16px; color: #555; margin-bottom: 20px; }
+
+        .win-btn {
+            padding: 14px 32px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* ── Message bar ── */
+        .msg-bar {
+            width: 100%;
+            max-width: 680px;
+            text-align: center;
+            color: #fbbf24;
+            font-size: 13px;
+            font-weight: 600;
+            min-height: 20px;
+            margin-top: 6px;
+        }
+
+        /* ── How to play ── */
+        .how-to {
+            width: 100%;
+            max-width: 680px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+
+        .how-to strong { color: #fbbf24; }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <a class="back-link" href="/Academic-Allies/modular/components/comfort-games/game-center.html">&#8592; Back</a>
+    <span class="title">&#128027; Spider</span>
+    <div style="width:70px"></div>
+</div>
+
+<div class="diff-row">
+    <button class="diff-btn active" id="diff-1" data-suits="1">1 Suit &#x1F7E2;</button>
+    <button class="diff-btn"        id="diff-2" data-suits="2">2 Suit &#x1F7E1;</button>
+    <button class="diff-btn"        id="diff-4" data-suits="4">4 Suit &#x1F534;</button>
+</div>
+
+<div class="stats-row">
+    <div class="stat">Moves: <span id="move-count">0</span></div>
+    <div class="stat">Done: <span id="comp-count">0</span> / 8</div>
+    <div class="stat">Deals left: <span id="deals-left">5</span></div>
+</div>
+
+<div class="btn-row">
+    <button class="btn btn-new"  id="btn-new">New Game</button>
+    <button class="btn btn-undo" id="btn-undo">Undo</button>
+    <button class="btn btn-deal" id="btn-deal">Deal Row</button>
+    <button class="btn btn-hint" id="btn-hint">Hint</button>
+</div>
+
+<div class="game-area">
+    <div class="top-zone">
+        <div class="foundations-row" id="foundations-row"></div>
+        <div class="stock-pile" id="stock-pile">
+            <div class="stock-icon">&#127183;</div>
+            <div class="stock-count-label" id="stock-label">5 left</div>
+        </div>
+    </div>
+    <div class="tableau" id="tableau"></div>
+</div>
+
+<div class="msg-bar" id="msg-bar"></div>
+
+<div class="how-to">
+    <strong>Spider:</strong> Tap cards to select, tap a column to move them.
+    Stack cards in <strong>descending rank</strong> (any suit can go on any higher rank).
+    Only <strong>same-suit runs</strong> can be moved as a group.
+    Complete a <strong>King-to-Ace run in one suit</strong> to remove it from play (8 runs to win).
+    <strong>Deal Row</strong> adds one card to every column — no empty columns allowed first.
+</div>
+
+<div class="win-overlay" id="win-overlay">
+    <div class="win-box">
+        <h2>You Won! &#127881;</h2>
+        <p id="win-msg">All 8 runs complete!</p>
+        <button class="win-btn" id="win-new-btn">Play Again</button>
+    </div>
+</div>
+
+<script>
+/* Claude: 2026-04-06 — Spider Solitaire. ES5, tap controls, mobile-first. */
+
+/* ── Constants ── */
+var SUIT_SYM   = { S: '\u2660', H: '\u2665', D: '\u2666', C: '\u2663' };
+var SUIT_COLOR = { S: 'black',  H: 'red',    D: 'red',    C: 'black'  };
+var RANKS      = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+
+var currentSuits = 1;
+
+function rankVal(r) { return RANKS.indexOf(r) + 1; }
+
+function makeCard(suit, rank) {
+    return { suit: suit, rank: rank, val: rankVal(rank), color: SUIT_COLOR[suit], faceUp: false };
+}
+
+/* Build 104-card Spider deck for the given suit count.
+   1-suit: 8 sets of spades (A-K)
+   2-suit: 4 sets spades + 4 sets hearts
+   4-suit: 2 sets each of all four suits */
+function makeDeck(suitCount) {
+    var suitSets;
+    if (suitCount === 1) {
+        suitSets = ['S','S','S','S','S','S','S','S'];
+    } else if (suitCount === 2) {
+        suitSets = ['S','H','S','H','S','H','S','H'];
+    } else {
+        suitSets = ['S','H','D','C','S','H','D','C'];
+    }
+    var deck = [];
+    for (var s = 0; s < 8; s++) {
+        var suit = suitSets[s];
+        for (var r = 0; r < RANKS.length; r++) {
+            deck.push(makeCard(suit, RANKS[r]));
+        }
+    }
+    return deck;
+}
+
+function shuffle(deck) {
+    var a = deck.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+}
+
+/* ── State ── */
+var state = {
+    tableau:    [],   /* 10 columns */
+    stock:      [],   /* remaining cards — dealt 10 at a time */
+    completed:  0,    /* number of K-A runs removed */
+    selected:   null, /* { colIdx, cardIdx, cards } or null */
+    moves:      0,
+    history:    []
+};
+
+/* ── New game ── */
+function newGame() {
+    var deck = shuffle(makeDeck(currentSuits));
+    state.tableau   = [];
+    state.stock     = [];
+    state.completed = 0;
+    state.selected  = null;
+    state.moves     = 0;
+    state.history   = [];
+
+    for (var c = 0; c < 10; c++) { state.tableau.push([]); }
+
+    /* Deal 54 cards: cols 0-3 get 6 cards, cols 4-9 get 5 cards */
+    var idx = 0;
+    for (var col = 0; col < 10; col++) {
+        var count = col < 4 ? 6 : 5;
+        for (var i = 0; i < count; i++) {
+            var card = deck[idx++];
+            card.faceUp = (i === count - 1); /* only top card face-up at start */
+            state.tableau[col].push(card);
+        }
+    }
+
+    /* Remaining 50 cards go to stock (5 deals of 10) */
+    while (idx < deck.length) {
+        deck[idx].faceUp = false;
+        state.stock.push(deck[idx++]);
+    }
+
+    clearSelection();
+    render();
+    showMsg('');
+    document.getElementById('win-overlay').classList.remove('show');
+}
+
+/* ── Move legality ── */
+
+/* A group of cards is movable only if they form a same-suit descending run */
+function isMovableGroup(cards) {
+    if (!cards || cards.length === 0) { return false; }
+    if (cards.length === 1) { return true; }
+    var suit = cards[0].suit;
+    for (var i = 1; i < cards.length; i++) {
+        if (cards[i].suit !== suit) { return false; }
+        if (cards[i].val !== cards[i-1].val - 1) { return false; }
+    }
+    return true;
+}
+
+/* Any descending rank can be placed on a higher rank (suit doesn't matter for placement) */
+function canPlaceOn(card, topCard) {
+    if (!topCard) { return true; } /* empty column accepts anything */
+    return topCard.val === card.val + 1;
+}
+
+/* Get the longest movable same-suit descending run from top of column */
+function getMovableSeq(col) {
+    if (col.length === 0) { return []; }
+    var end = col.length - 1;
+    if (!col[end].faceUp) { return []; }
+    var start = end;
+    while (start > 0 &&
+           col[start-1].faceUp &&
+           col[start].suit === col[start-1].suit &&
+           col[start].val === col[start-1].val - 1) {
+        start--;
+    }
+    return col.slice(start);
+}
+
+/* Get a movable run starting at cardIdx (same-suit descending to top) */
+function getSeqFromIdx(col, cardIdx) {
+    if (cardIdx < 0 || cardIdx >= col.length) { return []; }
+    if (!col[cardIdx].faceUp) { return []; }
+    /* Validate: from cardIdx to end must be same-suit descending */
+    var suit = col[cardIdx].suit;
+    for (var i = cardIdx + 1; i < col.length; i++) {
+        if (!col[i].faceUp || col[i].suit !== suit || col[i].val !== col[i-1].val - 1) {
+            /* Partial valid sequence up to i-1 is not useful (can't leave cards on top) */
+            /* Fall back: select longest run from top instead */
+            return getMovableSeq(col);
+        }
+    }
+    return col.slice(cardIdx);
+}
+
+/* ── Snapshot / Undo ── */
+function cloneCard(c) {
+    return { suit: c.suit, rank: c.rank, val: c.val, color: c.color, faceUp: c.faceUp };
+}
+
+function takeSnapshot() {
+    return {
+        tableau:   state.tableau.map(function(col) { return col.map(cloneCard); }),
+        stock:     state.stock.map(cloneCard),
+        completed: state.completed,
+        moves:     state.moves
+    };
+}
+
+function undo() {
+    if (state.history.length === 0) { showMsg('Nothing to undo'); return; }
+    var snap = state.history.pop();
+    state.tableau   = snap.tableau;
+    state.stock     = snap.stock;
+    state.completed = snap.completed;
+    state.moves     = snap.moves;
+    state.selected  = null;
+    render();
+    showMsg('');
+}
+
+/* ── Deal row ── */
+function dealRow() {
+    if (state.stock.length === 0) { showMsg('No cards left to deal'); return; }
+    /* Standard Spider rule: no dealing if any column is empty */
+    for (var c = 0; c < 10; c++) {
+        if (state.tableau[c].length === 0) {
+            showMsg('Fill empty columns before dealing');
+            return;
+        }
+    }
+    state.history.push(takeSnapshot());
+    for (var col = 0; col < 10; col++) {
+        var card = state.stock.pop();
+        card.faceUp = true;
+        state.tableau[col].push(card);
+    }
+    state.moves++;
+    state.selected = null;
+    checkAllCompletions();
+    if (state.completed === 8) { showWin(); return; }
+    render();
+}
+
+/* ── Completion check: look for K-to-A same-suit run at top of any column ── */
+function checkAllCompletions() {
+    var found = true;
+    while (found) {
+        found = false;
+        for (var c = 0; c < 10; c++) {
+            if (tryRemoveRun(c)) { found = true; }
+        }
+    }
+}
+
+function tryRemoveRun(colIdx) {
+    var col = state.tableau[colIdx];
+    if (col.length < 13) { return false; }
+    var end   = col.length - 1;
+    var start = end - 12;
+    if (start < 0) { return false; }
+    /* Must be K at position start, A at end, same suit, all face-up */
+    var suit = col[start].suit;
+    if (col[start].val !== 13) { return false; }
+    for (var i = 0; i < 13; i++) {
+        var c = col[start + i];
+        if (!c.faceUp || c.suit !== suit || c.val !== 13 - i) { return false; }
+    }
+    /* Valid run — remove it */
+    state.tableau[colIdx].splice(start, 13);
+    state.completed++;
+    /* Flip new top card if face-down */
+    if (state.tableau[colIdx].length > 0) {
+        state.tableau[colIdx][state.tableau[colIdx].length - 1].faceUp = true;
+    }
+    return true;
+}
+
+/* ── Tap handling ── */
+function clearSelection() {
+    state.selected = null;
+    render();
+}
+
+function tapColumn(colIdx, cardIdx) {
+    var col = state.tableau[colIdx];
+
+    if (!state.selected) {
+        /* ── Select ── */
+        if (col.length === 0) { return; }
+        var cards;
+        if (typeof cardIdx === 'number') {
+            cards = getSeqFromIdx(col, cardIdx);
+        } else {
+            cards = getMovableSeq(col);
+        }
+        if (cards.length === 0) { showMsg('That card is face-down'); return; }
+        state.selected = { colIdx: colIdx, cardIdx: col.length - cards.length, cards: cards };
+        render();
+
+    } else {
+        /* ── Try to move ── */
+        if (state.selected.colIdx === colIdx) {
+            /* Tapped same column — deselect */
+            clearSelection();
+            return;
+        }
+
+        var movCards = state.selected.cards;
+        var topCard  = col.length > 0 ? col[col.length - 1] : null;
+
+        if (!canPlaceOn(movCards[0], topCard)) {
+            showMsg('Needs a ' + RANKS[movCards[0].val] + ' or empty column');
+            /* Switch selection to new column if it has a movable sequence */
+            if (col.length > 0) {
+                var newCards = getMovableSeq(col);
+                if (newCards.length > 0) {
+                    state.selected = { colIdx: colIdx, cardIdx: col.length - newCards.length, cards: newCards };
+                    render();
+                    return;
+                }
+            }
+            clearSelection();
+            return;
+        }
+
+        /* ── Execute move ── */
+        state.history.push(takeSnapshot());
+
+        var srcCol = state.tableau[state.selected.colIdx];
+        var srcCardIdx = state.selected.cardIdx;
+        /* Splice out the cards being moved */
+        srcCol.splice(srcCardIdx, movCards.length);
+        /* Flip new top of source if face-down */
+        if (srcCol.length > 0 && !srcCol[srcCol.length - 1].faceUp) {
+            srcCol[srcCol.length - 1].faceUp = true;
+        }
+        /* Place on target */
+        for (var i = 0; i < movCards.length; i++) {
+            state.tableau[colIdx].push(movCards[i]);
+        }
+
+        state.moves++;
+        state.selected = null;
+        checkAllCompletions();
+        if (state.completed === 8) { showWin(); return; }
+        render();
+    }
+}
+
+/* ── Hint ── */
+function hint() {
+    clearSelection();
+    var bestSrc = -1, bestTgt = -1, bestScore = -1;
+
+    for (var src = 0; src < 10; src++) {
+        var seq = getMovableSeq(state.tableau[src]);
+        if (seq.length === 0) { continue; }
+        var bottomCard = seq[0];
+
+        for (var tgt = 0; tgt < 10; tgt++) {
+            if (tgt === src) { continue; }
+            var tgtCol = state.tableau[tgt];
+            var tgtTop = tgtCol.length > 0 ? tgtCol[tgtCol.length - 1] : null;
+            if (!canPlaceOn(bottomCard, tgtTop)) { continue; }
+            if (tgtCol.length === 0) { continue; } /* avoid suggesting empty columns first */
+
+            /* Score: same-suit move scores highest */
+            var score = 1;
+            if (tgtTop && tgtTop.suit === bottomCard.suit) { score = 3; }
+            if (seq.length > 1) { score += 1; } /* prefer moving groups */
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestSrc = src;
+                bestTgt = tgt;
+            }
+        }
+    }
+
+    if (bestSrc >= 0) {
+        flashHint(bestSrc, bestTgt);
+    } else if (state.stock.length > 0) {
+        showMsg('Hint: try dealing a new row');
+        document.getElementById('stock-pile').style.border = '2px solid #fbbf24';
+        setTimeout(function() { document.getElementById('stock-pile').style.border = ''; }, 2000);
+    } else {
+        showMsg('No moves found — game may be stuck');
+    }
+}
+
+function flashHint(srcCol, tgtCol) {
+    var srcEl = document.getElementById('col-' + srcCol);
+    var tgtEl = document.getElementById('col-' + tgtCol);
+    if (!srcEl || !tgtEl) { return; }
+    srcEl.style.outline = '3px solid #fbbf24';
+    tgtEl.style.outline = '3px solid #4ade80';
+    showMsg('Move highlighted cards to green column');
+    setTimeout(function() {
+        srcEl.style.outline = '';
+        tgtEl.style.outline = '';
+    }, 2000);
+}
+
+/* ── Win ── */
+function showWin() {
+    document.getElementById('win-msg').textContent =
+        'All 8 runs complete in ' + state.moves + ' move' + (state.moves === 1 ? '' : 's') + '!';
+    document.getElementById('win-overlay').classList.add('show');
+}
+
+/* ── Render ── */
+function render() {
+    renderFoundations();
+    renderTableau();
+    document.getElementById('move-count').textContent  = state.moves;
+    document.getElementById('comp-count').textContent  = state.completed;
+    var dealsLeft = Math.floor(state.stock.length / 10);
+    document.getElementById('deals-left').textContent  = dealsLeft;
+    document.getElementById('stock-label').textContent = dealsLeft + ' left';
+}
+
+function renderFoundations() {
+    var row = document.getElementById('foundations-row');
+    row.innerHTML = '';
+    for (var i = 0; i < 8; i++) {
+        var slot = document.createElement('div');
+        slot.className = i < state.completed ? 'slot done' : 'slot';
+        slot.innerHTML = i < state.completed
+            ? '<span class="slot-label">\u2713 Run</span>'
+            : '<span class="slot-label">Run</span>';
+        row.appendChild(slot);
+    }
+}
+
+function renderTableau() {
+    var tabEl = document.getElementById('tableau');
+    tabEl.innerHTML = '';
+
+    var totalW   = tabEl.offsetWidth || 360;
+    var colWidth = Math.floor((totalW - 27) / 10); /* 27 = 9 gaps × 3px */
+    var cardH    = Math.round(colWidth / 0.69);
+    var overlap  = Math.max(12, Math.min(20, Math.round(cardH * 0.28)));
+    var fdOverlap = Math.max(8, Math.round(overlap * 0.5)); /* face-down cards overlap less */
+
+    for (var col = 0; col < 10; col++) {
+        var colEl = document.createElement('div');
+        colEl.className = 'column';
+        colEl.id = 'col-' + col;
+
+        var cards    = state.tableau[col];
+        var isSrcCol = state.selected && state.selected.colIdx === col;
+        var selStart = isSrcCol ? state.selected.cardIdx : -1;
+
+        /* Calculate column height */
+        var h = cardH;
+        for (var ci = 1; ci < cards.length; ci++) {
+            h += cards[ci].faceUp ? overlap : fdOverlap;
+        }
+        colEl.style.height = h + 'px';
+
+        var topOffset = 0;
+        for (var i = 0; i < cards.length; i++) {
+            var card   = cards[i];
+            var cardEl = makeCardEl(card);
+            cardEl.style.top    = topOffset + 'px';
+            cardEl.style.height = cardH + 'px';
+
+            if (isSrcCol && i >= selStart) {
+                cardEl.classList.add('selected');
+            }
+
+            if (card.faceUp) {
+                (function(colIdx, cardIdx) {
+                    cardEl.addEventListener('click',    function(e) { e.stopPropagation(); tapColumn(colIdx, cardIdx); });
+                    cardEl.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); tapColumn(colIdx, cardIdx); });
+                })(col, i);
+            }
+
+            colEl.appendChild(cardEl);
+            topOffset += card.faceUp ? overlap : fdOverlap;
+        }
+
+        (function(colIdx) {
+            colEl.addEventListener('click',    function() { tapColumn(colIdx); });
+            colEl.addEventListener('touchend', function(e) { e.preventDefault(); tapColumn(colIdx); });
+        })(col);
+
+        tabEl.appendChild(colEl);
+    }
+}
+
+function makeCardEl(card) {
+    var el = document.createElement('div');
+    if (!card.faceUp) {
+        el.className = 'card face-down';
+        return el;
+    }
+    el.className = 'card ' + card.color;
+    var r = card.rank;
+    var s = SUIT_SYM[card.suit];
+    el.innerHTML =
+        '<div class="card-top">' + r + '<br>' + s + '</div>' +
+        '<div class="card-suit-center">' + s + '</div>' +
+        '<div class="card-bot">'  + r + '<br>' + s + '</div>';
+    return el;
+}
+
+/* ── Message bar ── */
+function showMsg(msg) {
+    document.getElementById('msg-bar').textContent = msg;
+    if (msg) {
+        setTimeout(function() {
+            if (document.getElementById('msg-bar').textContent === msg) {
+                document.getElementById('msg-bar').textContent = '';
+            }
+        }, 3000);
+    }
+}
+
+/* ── Wire up controls ── */
+(function() {
+    /* Difficulty buttons */
+    var btns = document.querySelectorAll('.diff-btn');
+    for (var b = 0; b < btns.length; b++) {
+        (function(btn) {
+            function pick() {
+                for (var x = 0; x < btns.length; x++) { btns[x].classList.remove('active'); }
+                btn.classList.add('active');
+                currentSuits = parseInt(btn.getAttribute('data-suits'), 10);
+                newGame();
+            }
+            btn.addEventListener('click', pick);
+            btn.addEventListener('touchend', function(e) { e.preventDefault(); pick(); });
+        })(btns[b]);
+    }
+
+    /* Stock pile — tap = deal row */
+    var stockEl = document.getElementById('stock-pile');
+    stockEl.addEventListener('click',    function() { dealRow(); });
+    stockEl.addEventListener('touchend', function(e) { e.preventDefault(); dealRow(); });
+})();
+
+document.getElementById('btn-new').addEventListener('click',  function() { newGame(); });
+document.getElementById('btn-undo').addEventListener('click', function() { undo(); });
+document.getElementById('btn-deal').addEventListener('click', function() { dealRow(); });
+document.getElementById('btn-hint').addEventListener('click', function() { hint(); });
+document.getElementById('win-new-btn').addEventListener('click', function() { newGame(); });
+
+/* Respect dark mode */
+try {
+    if (localStorage.getItem('aa-dark-mode') === 'true') {
+        document.body.style.background = '#0f2547';
+    }
+} catch(e) {}
+
+newGame();
+</script>
+</body>
+</html>

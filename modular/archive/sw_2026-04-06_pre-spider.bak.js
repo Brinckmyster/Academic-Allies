@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260406c'; /* Claude: 2026-04-06 — Spider Solitaire added */
+var CACHE   = 'aa-shell-20260406b'; /* Claude: 2026-04-06 — game files pre-cached for offline play */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -52,7 +52,6 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/comfort-games/color-fill.html', /* Claude: 2026-04-03 — new comfort games */
   '/Academic-Allies/modular/components/comfort-games/pixel-paint.html', /* Claude: 2026-04-03 — new comfort games */
   '/Academic-Allies/modular/components/comfort-games/freecell.html', /* Claude: 2026-04-06 — FreeCell card game */
-  '/Academic-Allies/modular/components/comfort-games/spider.html',   /* Claude: 2026-04-06 — Spider Solitaire */
   '/Academic-Allies/modular/components/brain-check/simon-says.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/reaction-time.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/pattern-spotter.html', /* Claude: 2026-04-01 — brain check game */
@@ -122,7 +121,6 @@ var SHELL = [
   '/Academic-Allies/modular/components/comfort-games/color-fill.html',
   '/Academic-Allies/modular/components/comfort-games/pixel-paint.html',
   '/Academic-Allies/modular/components/comfort-games/freecell.html',
-  '/Academic-Allies/modular/components/comfort-games/spider.html',
   '/Academic-Allies/modular/components/brain-bloom/brain-bloom.html',
   '/Academic-Allies/modular/components/brain-check/simon-says.html',
   '/Academic-Allies/modular/components/brain-check/reaction-time.html',
