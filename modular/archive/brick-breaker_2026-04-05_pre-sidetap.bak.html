@@ -193,44 +193,45 @@
       text-align: center;
     }
 
-    /* Claude: 2026-04-05 — landscape side touch zones */
-    .bb-side-zones {
-      display: none; /* revealed on first touch */
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      pointer-events: none;
-      z-index: 10;
+    /* Claude: 2026-04-05 — touch control strip below canvas */
+    .bb-touchpad {
+      width: 100%;
+      max-width: 520px;
+      padding: 0 8px;
+      margin-bottom: 8px;
+      display: none; /* shown only on touch devices via JS */
     }
-    .bb-side-zone {
-      position: absolute;
-      top: 0; bottom: 0;
-      width: 18vw;
-      pointer-events: all;
+    .bb-touchpad-inner {
+      height: 56px;
+      background: rgba(243, 156, 18, 0.1);
+      border: 2px solid rgba(243, 156, 18, 0.3);
+      border-radius: 28px;
+      position: relative;
+      overflow: hidden;
       touch-action: none;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      background: rgba(243, 156, 18, 0.08);
-      border: 2px solid rgba(243, 156, 18, 0.2);
-      transition: background 0.1s;
-      -webkit-user-select: none;
-      user-select: none;
     }
-    .bb-side-zone.left  { left: 0;  border-radius: 0 16px 16px 0; border-left: none; }
-    .bb-side-zone.right { right: 0; border-radius: 16px 0 0 16px; border-right: none; }
-    .bb-side-zone.active { background: rgba(243, 156, 18, 0.22); }
-    .bb-side-arrow {
-      font-size: 28pt;
-      color: rgba(243, 156, 18, 0.6);
-      line-height: 1;
+    .bb-touchpad-label {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 11pt;
+      color: rgba(243, 156, 18, 0.5);
+      pointer-events: none;
+      white-space: nowrap;
     }
-    .bb-side-hint {
-      font-size: 9pt;
-      color: rgba(243, 156, 18, 0.4);
-      text-align: center;
-      writing-mode: vertical-rl;
+    .bb-touchpad-knob {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 44px;
+      height: 44px;
+      background: #f39c12;
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(243, 156, 18, 0.6);
+      pointer-events: none;
+      display: none;
     }
 
     @media (max-width: 600px) {
@@ -275,15 +276,11 @@
     <canvas id="game" width="500" height="600"></canvas>
   </div>
 
-  <!-- Side touch zones — landscape controls, revealed on first touch -->
-  <div class="bb-side-zones" id="side-zones">
-    <div class="bb-side-zone left"  id="zone-left">
-      <div class="bb-side-arrow">&#8592;</div>
-      <div class="bb-side-hint">hold to move</div>
-    </div>
-    <div class="bb-side-zone right" id="zone-right">
-      <div class="bb-side-arrow">&#8594;</div>
-      <div class="bb-side-hint">hold to move</div>
+  <!-- Touch strip — shown only on touch devices -->
+  <div class="bb-touchpad" id="touchpad-wrap">
+    <div class="bb-touchpad-inner" id="touchpad">
+      <div class="bb-touchpad-label" id="touchpad-label">&#8592; drag here to move paddle &#8594;</div>
+      <div class="bb-touchpad-knob" id="touchpad-knob"></div>
     </div>
   </div>
 
@@ -1029,7 +1026,7 @@
         if (running && launched && paddle.sticky) launchBall();
       });
 
-      /* Claude: 2026-04-05 — landscape side zones replace canvas touch for movement */
+      /* Claude: 2026-04-05 — touch controls moved to strip below canvas */
       canvas.addEventListener('touchstart', function (e) {
         e.preventDefault();
         _ensureAudio();
@@ -1037,41 +1034,39 @@
         if (running && launched && paddle.sticky) launchBall();
       }, { passive: false });
 
-      var sideZones   = document.getElementById('side-zones');
-      var zoneLeft    = document.getElementById('zone-left');
-      var zoneRight   = document.getElementById('zone-right');
-      var moveInterval = null;
-      var moveDir      = 0;  /* -1 left, 0 stop, 1 right */
-      var PADDLE_STEP  = 18;
+      /* Show touchpad on touch devices */
+      var touchpadWrap = document.getElementById('touchpad-wrap');
+      var touchpadEl   = document.getElementById('touchpad');
+      var touchpadKnob = document.getElementById('touchpad-knob');
+      var touchpadLabel= document.getElementById('touchpad-label');
 
       window.addEventListener('touchstart', function () {
-        sideZones.style.display = 'block';
+        touchpadWrap.style.display = 'block';
       }, { once: true });
 
-      function _startMove(dir, zoneEl) {
-        moveDir = dir;
-        zoneEl.classList.add('active');
-        if (moveInterval) { clearInterval(moveInterval); }
-        moveInterval = setInterval(function () {
-          paddle.x += PADDLE_STEP * moveDir;
-          if (paddle.x < 0) { paddle.x = 0; }
-          if (paddle.x + paddle.w > W) { paddle.x = W - paddle.w; }
-        }, 30);
+      function _movePaddleFromTouch(clientX) {
+        var rect = touchpadEl.getBoundingClientRect();
+        var relX = clientX - rect.left;
+        var ratio = Math.max(0, Math.min(1, relX / rect.width));
+        paddle.x = ratio * (W - paddle.w);
+        /* move knob */
+        touchpadKnob.style.display = 'block';
+        touchpadLabel.style.display = 'none';
+        touchpadKnob.style.left = (ratio * 100) + '%';
       }
 
-      function _stopMove(zoneEl) {
-        moveDir = 0;
-        if (zoneEl) { zoneEl.classList.remove('active'); }
-        if (moveInterval) { clearInterval(moveInterval); moveInterval = null; }
-      }
+      touchpadEl.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        _ensureAudio();
+        _movePaddleFromTouch(e.touches[0].clientX);
+        if (running && !launched) launchBall();
+        if (running && launched && paddle.sticky) launchBall();
+      }, { passive: false });
 
-      zoneLeft.addEventListener('touchstart',  function (e) { e.preventDefault(); _ensureAudio(); _startMove(-1, zoneLeft); }, { passive: false });
-      zoneLeft.addEventListener('touchend',    function ()  { _stopMove(zoneLeft); });
-      zoneLeft.addEventListener('touchcancel', function ()  { _stopMove(zoneLeft); });
-
-      zoneRight.addEventListener('touchstart',  function (e) { e.preventDefault(); _ensureAudio(); _startMove(1, zoneRight); }, { passive: false });
-      zoneRight.addEventListener('touchend',    function ()  { _stopMove(zoneRight); });
-      zoneRight.addEventListener('touchcancel', function ()  { _stopMove(zoneRight); });
+      touchpadEl.addEventListener('touchmove', function (e) {
+        e.preventDefault();
+        _movePaddleFromTouch(e.touches[0].clientX);
+      }, { passive: false });
 
       document.addEventListener('keydown', function (e) {
         if (e.key === 'ArrowLeft' || e.key === 'a') {

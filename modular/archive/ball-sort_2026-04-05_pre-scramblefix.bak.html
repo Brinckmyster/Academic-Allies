@@ -307,11 +307,13 @@ function buildAdvancedTubes() {
             for (var gi = tubes[src].length - 1; gi >= 0 && tubes[src][gi] === srcColor; gi--) {
                 grpSize++;
             }
-            /* Claude: 2026-04-05 — allow all valid moves including complete→empty so scrambler can break up solved state */
+            /* skip moving a complete single-color tube to an empty slot — useless move */
+            var srcIsComplete = (tubes[src].length === grpSize);
             for (var tgt = 0; tgt < tubeCount; tgt++) {
                 if (tgt === src) { continue; }
                 if (tubes[tgt].length + grpSize > 4) { continue; }
                 if (tubes[tgt].length === 0) {
+                    if (srcIsComplete) { continue; } /* useless */
                     validMoves.push([src, tgt, grpSize]);
                 } else {
                     if (tubes[tgt][tubes[tgt].length - 1] === srcColor) {
