@@ -159,7 +159,15 @@ Two prunable local worktrees (`claude/affectionate-panini`, `claude/quizzical-st
 ## RECOMMENDED GIT COMMANDS
 **⚠️ DO NOT RUN — for Bruise to review and execute manually**
 
+> **⚠️ INDEX LOCK:** A `.git/index.lock` file is blocking all git operations. This must be removed before any git commands will work. Run this first:
+> ```bash
+> rm -f .git/index.lock
+> ```
+
 ```bash
+# Step 0: Remove stale lock file (required before anything else works)
+rm -f .git/index.lock
+
 # Priority 1: Stage and commit this audit report
 git add docs/NIGHTLY-SUMMARY-2026-04-05.md
 git commit -m "Claude: Nightly audit 2026-04-05"
