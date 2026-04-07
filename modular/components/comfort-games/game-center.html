@@ -1,6 +1,7 @@
 <!-- Claude: 2026-04-01 — Game Center hub page.
      Organizes comfort games + brain check games in one place.
      Linked from recovery mode as a single card. -->
+<!-- Claude: 2026-04-07 — Added Study Games section with Battle Mode. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,9 +13,7 @@
         /* Dark mode early detection */
         html.aa-dark { color-scheme: dark; }
         html.aa-dark body { background: #121212 !important; color: #e0e0e0 !important; }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
             font-family: 'Atkinson Hyperlegible', 'OpenDyslexic', Arial, sans-serif;
             background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
@@ -27,12 +26,10 @@
             background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%) !important;
             color: #a5d6a7 !important;
         }
-
         .container {
             max-width: 700px;
             margin: 0 auto;
         }
-
         .back-link {
             display: inline-block;
             margin-bottom: 20px;
@@ -43,7 +40,6 @@
         }
         html.aa-dark .back-link { color: #a5d6a7; }
         .back-link:hover { opacity: 0.7; }
-
         .header {
             text-align: center;
             margin-bottom: 32px;
@@ -57,8 +53,6 @@
             font-size: 1em;
             opacity: 0.85;
         }
-
-        /* Section headers */
         .section-title {
             font-size: 1.3em;
             font-weight: 700;
@@ -67,24 +61,19 @@
             border-bottom: 2px solid rgba(0,0,0,0.1);
         }
         html.aa-dark .section-title { border-bottom-color: rgba(255,255,255,0.15); }
-
         .section {
             margin-bottom: 36px;
         }
-
         .section-desc {
             font-size: 0.9em;
             opacity: 0.75;
             margin-bottom: 16px;
         }
-
-        /* Game cards grid */
         .game-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 16px;
         }
-
         .game-card {
             display: flex;
             flex-direction: column;
@@ -111,7 +100,6 @@
         html.aa-dark .game-card:hover {
             box-shadow: 0 8px 20px rgba(0,0,0,0.4);
         }
-
         .game-icon {
             font-size: 2.4em;
             margin-bottom: 10px;
@@ -126,8 +114,6 @@
             opacity: 0.75;
             line-height: 1.4;
         }
-
-        /* Brain check locked state */
         .game-card.locked {
             opacity: 0.5;
             pointer-events: none;
@@ -136,8 +122,6 @@
         .game-card.locked .game-name::after {
             content: ' 🔒';
         }
-
-        /* Brain check notice */
         .brain-notice {
             font-size: 0.85em;
             opacity: 0.7;
@@ -145,7 +129,6 @@
             margin-top: 12px;
             font-style: italic;
         }
-
         @media (max-width: 480px) {
             .header h1 { font-size: 1.6em; }
             .game-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -156,12 +139,9 @@
     </style>
 </head>
 <body>
-    <!-- Shared header -->
     <div id="shared-header-root"></div>
-
     <div class="container">
         <a href="/Academic-Allies/modular/components/recovery-mode.html" class="back-link">← Back to Recovery</a>
-
         <div class="header">
             <h1>🎮 Game Center</h1>
             <p>Take a break. Play something. You deserve it.</p>
@@ -235,6 +215,20 @@
             </div>
         </div>
 
+        <!-- ── Study Games ───────────────────────────────────── -->
+        <!-- Claude: 2026-04-07 — Study Games section: quiz-powered games using real class material -->
+        <div class="section" id="studySection">
+            <div class="section-title">⚔️ Study Games</div>
+            <div class="section-desc">Games that use your actual class material — studying that feels like playing.</div>
+            <div class="game-grid" id="studyGrid">
+                <a href="/Academic-Allies/modular/components/comfort-games/battle-mode.html" class="game-card" data-game="battle-mode">
+                    <div class="game-icon">👾</div>
+                    <div class="game-name">Battle Mode</div>
+                    <div class="game-desc">Answer quiz questions to defeat class monsters</div>
+                </a>
+            </div>
+        </div>
+
         <!-- ── Brain Check Games ─────────────────────────────── -->
         <div class="section" id="brainSection">
             <div class="section-title">🧠 Brain Check Games</div>
@@ -279,24 +273,15 @@
         } catch (e) {}
 
         /* Claude: 2026-04-01 — Card visibility from student-config.
-           Comfort games are always visible (enabled by default).
-           Brain check games are hidden (locked) unless enabled in studentConfig.
-           Uses the same card ID system as recovery-mode.html. */
-
+           Claude: 2026-04-07 — Study Games section added (battle-mode). */
         function _applyCardVisibility() {
             if (!window.AA_CONFIG) return;
-
-            /* Get recovery card config */
             var cards = window.AA_CONFIG.get('modes.cards.recovery', []);
             if (!cards || !cards.length) return;
-
-            /* Build lookup: id → enabled */
             var lookup = {};
             for (var i = 0; i < cards.length; i++) {
                 lookup[cards[i].id] = cards[i].enabled;
             }
-
-            /* Apply to all game cards */
             var allCards = document.querySelectorAll('.game-card[data-game]');
             for (var j = 0; j < allCards.length; j++) {
                 var gameId = allCards[j].getAttribute('data-game');
@@ -306,7 +291,6 @@
             }
         }
 
-        /* ── Load shared header + student config ─────────────────── */
         function _init() {
             if (window.AA && AA.auth) {
                 AA.auth.onAuthStateChanged(function(user) {
@@ -326,7 +310,6 @@
                 .then(function(html) {
                     var container = document.getElementById('shared-header-root');
                     container.innerHTML = html;
-                    /* Claude: 2026-04-02 — re-execute scripts after innerHTML injection */
                     var scripts = container.querySelectorAll('script');
                     scripts.forEach(function(oldScript) {
                         var newScript = document.createElement('script');
@@ -334,7 +317,6 @@
                         newScript.textContent = oldScript.textContent;
                         oldScript.parentNode.replaceChild(newScript, oldScript);
                     });
-                    /* shared-header loads aa-firebase.js which loads student-config.js */
                     _init();
                 })
                 .catch(function(err) {

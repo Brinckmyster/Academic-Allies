@@ -7,14 +7,13 @@
   <title>Communication Templates</title>
   <link rel="stylesheet" href="/Academic-Allies/modular/styles.css">
   <style>
-    /* Claude: 2026-04-07 — Quick Send email template UI with teacher picker and Gmail/mailto launch */
+    /* Claude: 2026-04-07 — Quick Send email template UI. Firebase scripts removed (caused dropdown conflict). */
 
     body { max-width: 680px; margin: 0 auto; padding: 12px; font-family: sans-serif; }
 
     h1 { font-size: 1.4rem; margin-bottom: 4px; }
     .page-subtitle { color: #666; font-size: 0.9rem; margin-bottom: 20px; }
 
-    /* ── Quick Send Section ── */
     .quick-send-section {
       background: #f0f7ff;
       border: 2px solid #b8d4f0;
@@ -43,6 +42,7 @@
       background: #fff;
       margin-bottom: 14px;
       box-sizing: border-box;
+      -webkit-appearance: auto;
     }
     .teacher-picker select:focus { outline: 2px solid #4a90d9; }
 
@@ -91,7 +91,7 @@
       display: block;
       margin-bottom: 3px;
     }
-    .preview-field .preview-value {
+    .preview-value {
       font-size: 0.95rem;
       color: #222;
       background: #f7f9fc;
@@ -123,7 +123,6 @@
       text-align: center;
       text-decoration: none;
       display: inline-block;
-      transition: background 0.2s;
     }
     .btn-send:hover { background: #219a52; }
 
@@ -166,22 +165,13 @@
     }
     .missing-email-notice.visible { display: block; }
 
-    /* ── Legacy Templates ── */
     .legacy-section {
       border-top: 2px dashed #ddd;
       padding-top: 20px;
       margin-top: 10px;
     }
-    .legacy-section h2 {
-      font-size: 1rem;
-      color: #777;
-      margin-bottom: 4px;
-    }
-    .legacy-section h3 {
-      font-size: 0.95rem;
-      margin: 16px 0 6px;
-      color: #444;
-    }
+    .legacy-section h2 { font-size: 1rem; color: #777; margin-bottom: 4px; }
+    .legacy-section h3 { font-size: 0.95rem; margin: 16px 0 6px; color: #444; }
     .legacy-section textarea {
       width: 100%;
       box-sizing: border-box;
@@ -195,24 +185,21 @@
       color: #555;
       resize: vertical;
     }
-    .legacy-note {
-      font-size: 0.8rem;
-      color: #999;
-      font-style: italic;
-      margin-bottom: 8px;
-    }
+    .legacy-note { font-size: 0.8rem; color: #999; font-style: italic; margin-bottom: 8px; }
   </style>
 </head>
 <body>
+
   <div id="site-header"></div>
   <script>
+    /* Claude: 2026-04-07 — shared header load. No Firebase scripts on this page (not needed). */
     fetch("/Academic-Allies/modular/shared-header.html")
       .then(function(r){ return r.text(); })
       .then(function(html){
         var c = document.getElementById("site-header");
         c.innerHTML = html;
-        var scripts = c.querySelectorAll("script");
-        scripts.forEach(function(o){
+        var s = c.querySelectorAll("script");
+        s.forEach(function(o){
           var n = document.createElement("script");
           Array.from(o.attributes).forEach(function(a){ n.setAttribute(a.name, a.value); });
           n.textContent = o.textContent;
@@ -224,7 +211,6 @@
   <h1>Communication Templates</h1>
   <p class="page-subtitle">Quick emails for your teachers — pick a teacher, pick a template, tap Send.</p>
 
-  <!-- QUICK SEND -->
   <div class="quick-send-section">
     <h2>Quick Send</h2>
 
@@ -232,10 +218,10 @@
       <label for="teacher-select">Who are you emailing?</label>
       <select id="teacher-select">
         <option value="">-- Pick a teacher --</option>
-        <option value="barlow"  data-name="Professor Barlow"  data-class="Apparel Construction (FCS 207)"             data-email="PLACEHOLDER_barlow@school.edu">Trinity B. Barlow -- Apparel Construction (FCS 207)</option>
-        <option value="robison" data-name="Professor Robison" data-class="Wedding &amp; Event Planning (HORT 328)"    data-email="PLACEHOLDER_robison@school.edu">Katherine M. Robison -- Wedding &amp; Event Planning (HORT 328)</option>
-        <option value="wilson"  data-name="Professor Wilson"  data-class="Intro to Interdisciplinary Studies (IDS 101)" data-email="PLACEHOLDER_wilson@school.edu">Chris M. Wilson -- Intro to IDS (IDS 101)</option>
-        <option value="kirby"   data-name="Professor Kirby"   data-class="Practicum in Floral Design (HORT 287R)"     data-email="PLACEHOLDER_kirby@school.edu">Ellie Kirby -- Floral Design Practicum (HORT 287R)</option>
+        <option value="barlow"  data-name="Professor Barlow"  data-class="Apparel Construction (FCS 207)"                  data-email="PLACEHOLDER_barlow@school.edu">Trinity B. Barlow -- Apparel Construction (FCS 207)</option>
+        <option value="robison" data-name="Professor Robison" data-class="Wedding &amp; Event Planning (HORT 328)"          data-email="PLACEHOLDER_robison@school.edu">Katherine M. Robison -- Wedding &amp; Event Planning (HORT 328)</option>
+        <option value="wilson"  data-name="Professor Wilson"  data-class="Intro to Interdisciplinary Studies (IDS 101)"     data-email="PLACEHOLDER_wilson@school.edu">Chris M. Wilson -- Intro to IDS (IDS 101)</option>
+        <option value="kirby"   data-name="Professor Kirby"   data-class="Practicum in Floral Design (HORT 287R)"           data-email="PLACEHOLDER_kirby@school.edu">Ellie Kirby -- Floral Design Practicum (HORT 287R)</option>
         <option value="denison" data-name="Professor Denison" data-class="Intro to Family &amp; Consumer Sciences (FCS 101)" data-email="PLACEHOLDER_denison@school.edu">Teresa J. Denison -- Intro to FCS 101 (Online)</option>
       </select>
 
@@ -258,11 +244,9 @@
         <label>Message</label>
         <div class="preview-value" id="prev-body"></div>
       </div>
-
       <div class="missing-email-notice" id="missing-email-notice">
         Teacher email not set yet. Ask Bruise to add it, or type it into "To" yourself after opening Gmail.
       </div>
-
       <div class="send-row">
         <a class="btn-send"        id="gmail-link"  href="#" target="_blank" rel="noopener">Open in Gmail</a>
         <a class="btn-other-email" id="mailto-link" href="#">Other Email App</a>
@@ -271,7 +255,6 @@
     </div>
   </div>
 
-  <!-- LEGACY TEMPLATES (archived originals — kept per SOP) -->
   <div class="legacy-section">
     <h2>Other Templates</h2>
     <p class="legacy-note">Fill-in-yourself templates. Select the text, copy, and edit before sending.</p>
@@ -297,22 +280,18 @@ Mary</textarea>
   </div>
 
   <script>
-    /* Claude: 2026-04-07 — Quick Send email builder with teacher picker and Gmail/mailto launch */
+    /* Claude: 2026-04-07 — Quick Send email builder. No Firebase dependency. */
 
     var TEMPLATES = {
       absent: {
-        subject: function(cls) {
-          return "Absent Today -- " + cls;
-        },
+        subject: function(cls) { return "Absent Today -- " + cls; },
         body: function(name, cls) {
           var today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
           return "Hi " + name + ",\n\nI'm not able to make it to class today (" + today + "). I apologize for any inconvenience.\n\nI'll follow up if I have questions about what I missed.\n\nThank you,\nMary";
         }
       },
       extension: {
-        subject: function(cls) {
-          return "Extension Request -- " + cls;
-        },
+        subject: function(cls) { return "Extension Request -- " + cls; },
         body: function(name, cls) {
           return "Hi " + name + ",\n\nI'm reaching out because my stress levels are significantly elevated right now, and I'd like to request a short extension on my upcoming assignment(s) for " + cls + ".\n\nI have documented accommodations that include occasional assignment extensions. Getting a little extra time would really help me get through this week and do my best work.\n\nPlease let me know if this is possible -- even a couple of extra days would make a big difference.\n\nThank you so much for your understanding,\nMary";
         }
@@ -322,11 +301,7 @@ Mary</textarea>
     function buildEmail(type) {
       var select = document.getElementById("teacher-select");
       var chosen = select.options[select.selectedIndex];
-
-      if (!chosen.value) {
-        alert("Please pick a teacher first!");
-        return;
-      }
+      if (!chosen.value) { alert("Please pick a teacher first!"); return; }
 
       var profName  = chosen.getAttribute("data-name");
       var className = chosen.getAttribute("data-class");
@@ -337,44 +312,35 @@ Mary</textarea>
       var body    = TEMPLATES[type].body(profName, className);
       var toAddr  = isMissing ? "" : email;
 
-      document.getElementById("prev-to").textContent      = isMissing ? "[Email not set -- see notice below]" : email;
-      document.getElementById("prev-subject").textContent  = subject;
-      document.getElementById("prev-body").textContent     = body;
+      document.getElementById("prev-to").textContent     = isMissing ? "[Email not set -- see notice below]" : email;
+      document.getElementById("prev-subject").textContent = subject;
+      document.getElementById("prev-body").textContent   = body;
 
-      var gmailLink = "https://mail.google.com/mail/?view=cm"
-        + "&to="   + encodeURIComponent(toAddr)
-        + "&su="   + encodeURIComponent(subject)
-        + "&body=" + encodeURIComponent(body);
-      document.getElementById("gmail-link").href = gmailLink;
+      document.getElementById("gmail-link").href =
+        "https://mail.google.com/mail/?view=cm" +
+        "&to="   + encodeURIComponent(toAddr) +
+        "&su="   + encodeURIComponent(subject) +
+        "&body=" + encodeURIComponent(body);
 
-      var mailto = "mailto:" + encodeURIComponent(toAddr)
-        + "?subject=" + encodeURIComponent(subject)
-        + "&body="    + encodeURIComponent(body);
-      document.getElementById("mailto-link").href = mailto;
+      document.getElementById("mailto-link").href =
+        "mailto:" + encodeURIComponent(toAddr) +
+        "?subject=" + encodeURIComponent(subject) +
+        "&body="    + encodeURIComponent(body);
 
       var notice = document.getElementById("missing-email-notice");
-      if (isMissing) {
-        notice.classList.add("visible");
-      } else {
-        notice.classList.remove("visible");
-      }
-
+      isMissing ? notice.classList.add("visible") : notice.classList.remove("visible");
       document.getElementById("email-preview").classList.add("visible");
     }
 
     function copyEmail() {
-      var subject = document.getElementById("prev-subject").textContent;
-      var body    = document.getElementById("prev-body").textContent;
-      var text    = "Subject: " + subject + "\n\n" + body;
+      var text = "Subject: " + document.getElementById("prev-subject").textContent +
+                 "\n\n"     + document.getElementById("prev-body").textContent;
       if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(function() { alert("Copied!"); });
       } else {
         var ta = document.createElement("textarea");
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        document.execCommand("copy"); document.body.removeChild(ta);
         alert("Copied!");
       }
     }
