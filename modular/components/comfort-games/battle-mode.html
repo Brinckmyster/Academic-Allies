@@ -524,13 +524,23 @@
       loadQuizzes(window.AA_uid ? window.AA_uid(user.uid) : user.uid);
     });
 
-    function loadQuizzes(uid) {
-      window.AA.db.collection("studentConfig").doc(uid).get()
-        .then(function(snap) {
-          if (!snap.exists) {
-            showError("No quiz data found. Ask your Network Lead to load your quizzes.");
-            return;
-          }
+function loadQuizzes(uid) {
+  fetch("/Academic-Allies/modular/icons/flowers/flowers.json")
+    .then(r => r.json())
+    .then(data => {
+      allQuestions = data.flowers.map(f => ({
+        question: "What flower is this?",
+        answer: f.name,
+        options: [f.name, ...data.flowers.filter(o => o.name !== f.name).sort(() => Math.random() - 0.5).slice(0,3).map(o => o.name)],
+        quizTitle: "Flower Study Notes",
+        classKey: "HORT 101"
+      }));
+      classMeta = { "HORT 101": { label: "Flower Study Notes", count: allQuestions.length, monster: MONSTERS["HORT 101"] || MONSTERS.default } };
+      populateClassGrid();
+      document.getElementById("btn-start").disabled = false;
+    })
+    .catch(err => showError("No study notes found in flowers.json"));
+}
           var data   = snap.data();
           var quizzes = data.quizzes || [];
 
