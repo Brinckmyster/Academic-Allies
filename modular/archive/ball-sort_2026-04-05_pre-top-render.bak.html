@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ball Sort - Academic Allies Comfort Game</title>
+    <style>
+        /* Claude: 2026-04-05 — Ball Sort comfort game */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        html.aa-dark {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0f3460;
+            --text-primary: #eaeaea;
+            --text-secondary: #b0b0b0;
+            --accent-purple: #9d4edd;
+            --accent-pink: #ff006e;
+            --border-color: #444;
+        }
+
+        html:not(.aa-dark) {
+            --bg-primary: #f5f0ff;
+            --bg-secondary: #e8dff5;
+            --bg-tertiary: #d8ccf0;
+            --text-primary: #2c2c2c;
+            --text-secondary: #666;
+            --accent-purple: #9d4edd;
+            --accent-pink: #ff006e;
+            --border-color: #ddd;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-pink) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .header {
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .back-link {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            min-width: 44px;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            flex: 1;
+            text-align: center;
+            color: white;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .difficulty-btn {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transition: all 0.3s ease;
+            min-height: 44px;
+            min-width: 100px;
+            touch-action: manipulation;
+        }
+
+        .difficulty-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .difficulty-btn.active {
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--accent-purple);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .game-container {
+            background: var(--bg-secondary);
+            padding: 30px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .tubes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--bg-primary);
+            border-radius: 15px;
+        }
+
+        .tube {
+            width: 80px;
+            height: 280px;
+            background: var(--bg-tertiary);
+            border: 3px solid var(--border-color);
+            border-radius: 15px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 280px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 8px;
+            gap: 4px;
+            touch-action: manipulation;
+        }
+
+        .tube:hover:not(.locked):not(.empty-tube) {
+            border-color: var(--accent-pink);
+            box-shadow: 0 0 10px rgba(255, 0, 110, 0.3);
+        }
+
+        .tube.selected {
+            border-color: #ff9500;
+            box-shadow: 0 0 20px rgba(255, 149, 0, 0.6);
+        }
+
+        .tube.locked {
+            border-color: #00d084;
+            box-shadow: 0 0 20px rgba(0, 208, 132, 0.6);
+            cursor: default;
+            animation: sparkle 0.6s ease-out;
+        }
+
+        .tube.empty-tube {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        @keyframes sparkle {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 20px rgba(0, 208, 132, 0.8);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 20px rgba(0, 208, 132, 0.6);
+            }
+        }
+
+        .ball {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+            margin: 2px auto;
+            transition: all 0.1s ease;
+        }
+
+        .ball:active {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset -1px -1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-red { background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%); color: white; }
+        .color-blue { background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%); color: white; }
+        .color-yellow { background: linear-gradient(135deg, #ffd93d 0%, #ffb627 100%); color: #333; }
+        .color-green { background: linear-gradient(135deg, #6bcf7f 0%, #52b788 100%); color: white; }
+        .color-purple { background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%); color: white; }
+        .color-orange { background: linear-gradient(135deg, #ff9a56 0%, #ff7043 100%); color: white; }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 48px;
+            min-width: 140px;
+            touch-action: manipulation;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-pink) 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .status-message {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+            margin-top: 20px;
+            min-height: 30px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            font-size: 16px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            color: white;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .title {
+                font-size: 22px;
+            }
+
+            .tubes-grid {
+                grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+                gap: 12px;
+                padding: 15px;
+            }
+
+            .tube {
+                width: 70px;
+                height: 240px;
+            }
+
+            .ball {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                font-size: 14px;
+                min-width: 120px;
+            }
+
+            .game-container {
+                padding: 20px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a class="back-link" href="/Academic-Allies/modular/components/comfort-games/game-center.html">← Back</a>
+        <h1 class="title">Ball Sort</h1>
+        <div style="min-width: 80px;"></div>
+    </div>
+
+    <div class="difficulty-selector">
+        <button class="difficulty-btn active" data-difficulty="easy">Easy (5)</button>
+        <button class="difficulty-btn" data-difficulty="medium">Medium (6)</button>
+        <button class="difficulty-btn" data-difficulty="hard">Hard (7)</button>
+    </div>
+
+    <div class="stats">
+        <div class="stat-item">Tubes Sorted: <span id="sorted-count">0</span></div>
+        <div class="stat-item">Moves: <span id="moves-count">0</span></div>
+    </div>
+
+    <div class="game-container">
+        <div style="text-align:center; color: var(--text-secondary); font-size:15px; margin-bottom:16px; line-height:1.6;">
+            Tap a tube to pick up balls &bull; Tap another tube to drop them &bull; Sort each color into its own tube
+        </div>
+
+        <div class="tubes-grid" id="tubes-grid">
+            <!-- Tubes generated by JavaScript -->
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="new-game-btn">New Game</button>
+        </div>
+
+        <div class="status-message" id="status-message"></div>
+    </div>
+
+    <script>
+        /* Claude: 2026-04-05 — Ball Sort comfort game */
+
+        var COLORS = ['red', 'blue', 'yellow', 'green', 'purple', 'orange'];
+
+        var gameState = {
+            tubes: [],
+            selectedTubeIndex: -1,
+            difficulty: 'easy',
+            moves: 0,
+            soundEnabled: true
+        };
+
+        var audioContext = null;
+
+        function initAudioContext() {
+            if (!audioContext) {
+                try {
+                    var AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        audioContext = new AudioContext();
+                    }
+                } catch (e) {
+                    gameState.soundEnabled = false;
+                }
+            }
+        }
+
+        function playSound(frequency, duration, type) {
+            if (!gameState.soundEnabled || !audioContext) {
+                return;
+            }
+
+            try {
+                var now = audioContext.currentTime;
+                var osc = audioContext.createOscillator();
+                var gain = audioContext.createGain();
+
+                osc.type = type || 'sine';
+                osc.frequency.setValueAtTime(frequency, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+
+                osc.start(now);
+                osc.stop(now + duration);
+            } catch (e) {
+                // Silently fail if audio doesn't work
+            }
+        }
+
+        function playPickupSound() {
+            playSound(800, 0.1, 'sine');
+        }
+
+        function playDropSound() {
+            playSound(600, 0.15, 'sine');
+        }
+
+        function playCompleteSound() {
+            playSound(1200, 0.2, 'sine');
+            setTimeout(function() {
+                playSound(1400, 0.2, 'sine');
+            }, 100);
+        }
+
+        function getDifficultyConfig(difficulty) {
+            var configs = {
+                easy: { tubeCount: 5, colorCount: 4 },
+                medium: { tubeCount: 6, colorCount: 5 },
+                hard: { tubeCount: 7, colorCount: 6 }
+            };
+            return configs[difficulty] || configs.easy;
+        }
+
+        function createTubes(tubeCount, colorCount) {
+            var tubes = [];
+            var ballsPerTube = 4;
+
+            for (var i = 0; i < tubeCount; i++) {
+                tubes.push([]);
+            }
+
+            var ballPool = [];
+            for (var c = 0; c < colorCount; c++) {
+                for (var b = 0; b < ballsPerTube; b++) {
+                    ballPool.push(COLORS[c]);
+                }
+            }
+
+            ballPool = shuffleArray(ballPool);
+
+            for (var j = 0; j < ballPool.length; j++) {
+                tubes[j % tubeCount].push(ballPool[j]);
+            }
+
+            return tubes;
+        }
+
+        function shuffleArray(arr) {
+            var shuffled = arr.slice();
+            for (var i = shuffled.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = shuffled[i];
+                shuffled[i] = shuffled[j];
+                shuffled[j] = temp;
+            }
+            return shuffled;
+        }
+
+        function initGame(difficulty) {
+            gameState.difficulty = difficulty || 'easy';
+            var config = getDifficultyConfig(gameState.difficulty);
+            gameState.tubes = createTubes(config.tubeCount, config.colorCount);
+            gameState.selectedTubeIndex = -1;
+            gameState.moves = 0;
+            updateDisplay();
+            updateStatus('');
+        }
+
+        function getTopBalls(tubeIndex) {
+            var tube = gameState.tubes[tubeIndex];
+            if (tube.length === 0) {
+                return [];
+            }
+
+            var topColor = tube[tube.length - 1];
+            var count = 0;
+            for (var i = tube.length - 1; i >= 0 && tube[i] === topColor; i--) {
+                count++;
+            }
+
+            return tube.slice(tube.length - count);
+        }
+
+        function canDropBalls(sourceIndex, targetIndex, ballsToMove) {
+            /* Claude: 2026-04-05 — simplified: drop anywhere with enough space, no color restriction */
+            if (sourceIndex === targetIndex) {
+                return false;
+            }
+
+            var targetTube = gameState.tubes[targetIndex];
+            return targetTube.length + ballsToMove.length <= 4;
+        }
+
+        function isTubeLocked(tubeIndex) {
+            var tube = gameState.tubes[tubeIndex];
+            if (tube.length !== 4) {
+                return false;
+            }
+
+            var firstColor = tube[0];
+            for (var i = 1; i < tube.length; i++) {
+                if (tube[i] !== firstColor) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function getLockedTubeCount() {
+            var count = 0;
+            for (var i = 0; i < gameState.tubes.length; i++) {
+                if (isTubeLocked(i)) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        function isGameWon() {
+            /* Claude: 2026-04-05 — win when all color tubes sorted, not all tubes (empty tubes can never lock) */
+            var config = getDifficultyConfig(gameState.difficulty);
+            return getLockedTubeCount() === config.colorCount;
+        }
+
+        function selectTube(index) {
+            /* Claude: 2026-04-05 — fixed empty-tube drop and win condition */
+            if (isTubeLocked(index)) {
+                playDropSound();
+                return;
+            }
+
+            if (gameState.selectedTubeIndex === -1) {
+                // Picking up — tube must have balls
+                var topBalls = getTopBalls(index);
+                if (topBalls.length === 0) {
+                    playDropSound();
+                    return;
+                }
+                gameState.selectedTubeIndex = index;
+                playPickupSound();
+                updateDisplay();
+            } else if (gameState.selectedTubeIndex === index) {
+                // Deselect
+                gameState.selectedTubeIndex = -1;
+                updateDisplay();
+            } else {
+                // Dropping onto another tube (including empty tubes)
+                var sourceTube = gameState.selectedTubeIndex;
+                var ballsToMove = getTopBalls(sourceTube);
+
+                if (canDropBalls(sourceTube, index, ballsToMove)) {
+                    for (var i = 0; i < ballsToMove.length; i++) {
+                        gameState.tubes[sourceTube].pop();
+                        gameState.tubes[index].push(ballsToMove[i]);
+                    }
+
+                    gameState.moves++;
+                    playDropSound();
+
+                    if (isTubeLocked(index)) {
+                        setTimeout(function() {
+                            playCompleteSound();
+                        }, 100);
+                    }
+
+                    if (isGameWon()) {
+                        setTimeout(function() {
+                            updateStatus('Perfect! You sorted all the balls! 🎉');
+                        }, 300);
+                    }
+                } else {
+                    playSound(400, 0.2, 'sine');
+                }
+
+                gameState.selectedTubeIndex = -1;
+                updateDisplay();
+            }
+        }
+
+        function updateDisplay() {
+            var grid = document.getElementById('tubes-grid');
+            grid.innerHTML = '';
+
+            for (var i = 0; i < gameState.tubes.length; i++) {
+                var tube = gameState.tubes[i];
+                var tubeEl = document.createElement('div');
+                tubeEl.className = 'tube';
+
+                if (isTubeLocked(i)) {
+                    tubeEl.classList.add('locked');
+                } else if (tube.length === 0) {
+                    tubeEl.classList.add('empty-tube');
+                }
+
+                if (gameState.selectedTubeIndex === i) {
+                    tubeEl.classList.add('selected');
+                }
+
+                tubeEl.dataset.index = i;
+                tubeEl.addEventListener('click', function(e) {
+                    selectTube(parseInt(e.currentTarget.dataset.index));
+                });
+                tubeEl.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    selectTube(parseInt(e.currentTarget.dataset.index));
+                });
+
+                for (var j = 0; j < tube.length; j++) {
+                    var ballEl = document.createElement('div');
+                    ballEl.className = 'ball color-' + tube[j];
+                    tubeEl.appendChild(ballEl);
+                }
+
+                grid.appendChild(tubeEl);
+            }
+
+            document.getElementById('sorted-count').textContent = getLockedTubeCount();
+            document.getElementById('moves-count').textContent = gameState.moves;
+        }
+
+        function updateStatus(message) {
+            var statusEl = document.getElementById('status-message');
+            statusEl.textContent = message;
+        }
+
+        document.getElementById('new-game-btn').addEventListener('click', function() {
+            initGame(gameState.difficulty);
+        });
+
+        var difficultyBtns = document.querySelectorAll('.difficulty-btn');
+        for (var i = 0; i < difficultyBtns.length; i++) {
+            difficultyBtns[i].addEventListener('click', function(e) {
+                var difficulty = e.target.dataset.difficulty;
+
+                for (var j = 0; j < difficultyBtns.length; j++) {
+                    difficultyBtns[j].classList.remove('active');
+                }
+                e.target.classList.add('active');
+
+                initGame(difficulty);
+            });
+        }
+
+        // Dark mode support
+        function applyDarkMode() {
+            try {
+                var isDarkMode = localStorage.getItem('aa-dark-mode') === 'true';
+                if (isDarkMode) {
+                    document.documentElement.classList.add('aa-dark');
+                } else {
+                    document.documentElement.classList.remove('aa-dark');
+                }
+            } catch (e) {
+                // Silently fail if localStorage not available
+            }
+        }
+
+        // Initialize
+        applyDarkMode();
+        initAudioContext();
+        initGame('easy');
+    </script>
+</body>
+</html>

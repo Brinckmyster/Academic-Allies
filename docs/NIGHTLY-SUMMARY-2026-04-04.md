@@ -1,72 +1,80 @@
-# Nightly Deep Audit — 2026-04-04
+# Nightly Deep Audit — 2026-04-04 (Run 2)
 
 **Auditor:** Claude
 **Scope:** Full codebase audit of Academic Allies
-**Files scanned:** 90+ active JS/HTML files, 1,662 archive items (top-level), 12 archive subdirectories
-**SW cache version:** `aa-shell-20260403a`
+**Files scanned:** 90+ active JS/HTML files, 1,674 archive items, 12+ archive subdirectories
+**SW cache version:** `aa-shell-20260403b`
 **Shared-header cache-bust:** `v=20260402` (all live pages consistent)
+**Previous run archived to:** `modular/archive/NIGHTLY-SUMMARY-2026-04-04_pre-second-run.bak.md`
 
 ---
 
 ## CRITICAL ISSUES
 
-### 1. `diamond-art.html` missing from sw.js NEVER_CACHE (HIGH)
-`/Academic-Allies/modular/components/comfort-games/diamond-art.html` was added as a comfort game and has been updated **four times** (v1 through v4, most recently 2026-04-03). However, it is **not listed in `sw.js` NEVER_CACHE** and is not in the SHELL pre-cache list either.
+### C1. `diamond-art.html` missing from sw.js NEVER_CACHE (**URGENT — 5th update today**)
 
-- On first visit, the SW fetches it from network and caches it via stale-while-revalidate.
-- After that, every user gets the stale cached version until the cache is purged.
-- The 2026-04-03 Diamond Art v4 rewrite may never reach returning users until they clear cache manually.
+`/Academic-Allies/modular/components/comfort-games/diamond-art.html` has been updated **five times** (original + v2–v4 prior to today, then again today with the "place whole color group at once" feature — commit `6807ff0`). It is still **not listed in `sw.js` NEVER_CACHE** and is not in the SHELL pre-cache list either.
 
-**Fix:** Add the following line to `NEVER_CACHE` in `sw.js` (and bump the `CACHE` version):
+- The SW cache was bumped to `aa-shell-20260403b` for today's Diamond Art update — good.
+- However, the cache-bust only clears the old shell cache. Since `diamond-art.html` is served via stale-while-revalidate (not NEVER_CACHE), returning users may still get a previously-cached version on next visit, until the background refresh completes.
+- Net effect: the group-placement feature just shipped may silently not reach users who visited diamond-art recently.
+
+**Fix — edit sw.js to add to the NEVER_CACHE array (e.g., after game-center.html line):**
 ```js
-'/Academic-Allies/modular/components/comfort-games/diamond-art.html', /* Claude: 2026-04-04 — updated 4x since creation, must be fresh */
+'/Academic-Allies/modular/components/comfort-games/diamond-art.html', /* Claude: 2026-04-04 — updated 5x since creation, must be fresh */
+```
+Then bump CACHE version (e.g., `aa-shell-20260404a`) so the new NEVER_CACHE list takes effect immediately.
+
+```bash
+# After editing sw.js manually:
+git add sw.js
+git commit -m "Claude: Add diamond-art.html to NEVER_CACHE — stale cache fix"
+git push
 ```
 
-### 2. `.fuse_hidden0000077f00000001` still tracked by git (MEDIUM)
-This FUSE filesystem artifact (3,267 bytes) is listed in `.gitignore` but remains tracked by git (`git ls-files` returns it). It is a system-generated temp file from a mount operation and has no place in the public repo.
+---
 
-**Fix (provide to Bruise to run):**
+### C2. `.fuse_hidden0000077f00000001` still git-tracked (**carries over**)
+
+This FUSE filesystem artifact (3,267 bytes, last modified 2026-03-20) is in `.gitignore` but `git ls-files` confirms it is still being tracked. It is a Linux mount system temp file with no place in the public GitHub Pages repo.
+
+**Fix (for Bruise to run):**
 ```bash
 git rm --cached .fuse_hidden0000077f00000001
 git commit -m "Claude: Remove tracked FUSE artifact .fuse_hidden0000077f00000001"
+git push
 ```
-*(Carries over from 2026-04-02 audit.)*
 
 ---
 
 ## WARNINGS
 
-### Stale Worktree: `claude/blissful-fermi`
-- `git worktree list` shows a **prunable** worktree at `C:/Users/brinc/Academic-Allies/.claude/worktrees/blissful-fermi`
-- A stale local branch `claude/blissful-fermi` still exists.
-- `.claude/worktrees/blissful-fermi/` directory is present and duplicating all repo files inside `.claude/`.
+### W1. Stale Worktree: `claude/blissful-fermi` (**carries over from multiple audits**)
 
-**Fix (provide to Bruise to run):**
+`git worktree list` shows `claude/blissful-fermi` as **prunable** at `C:/Users/brinc/Academic-Allies/.claude/worktrees/blissful-fermi`. A local branch `claude/blissful-fermi` still exists. All commits on this branch are already present in `main` — no unmerged work will be lost.
+
+**Fix (for Bruise to run):**
 ```bash
 git worktree prune
 git branch -D claude/blissful-fermi
 ```
-*(Carries over from multiple previous audits.)*
 
-### `modular/calendar.html` not in sw.js
-`modular/calendar.html` is a redirect stub (`<meta http-equiv="refresh">` pointing to `components/calendar/calendar.html`). It is not in SHELL or NEVER_CACHE. Low risk — the stub has no dynamic content and the real calendar page IS in NEVER_CACHE. Mentioning for completeness. If the stub is updated (e.g., to add dark mode init), it should be added to NEVER_CACHE at that time.
+### W2. `reaction-time.html` uses dynamic `cacheVersion` variable (low risk, carry-over)
 
-### `checkMissedMeal` / `checkLowSpoons` lack internal `.catch()`
-The aa-firebase.js function definitions for `checkMissedMeal()` and `checkLowSpoons()` do not have `.catch()` internally. This was flagged in the 2026-04-02 audit. **Status: Not a bug in practice** — both call sites (checkin.html:1002 and spoon-pal.html:1099) properly add `.catch()`. Noted for documentation completeness. The pattern of relying on callers to add `.catch()` is consistent with how `updateLastSeen` works (shared-header:1041 adds `.catch()`).
+`reaction-time.html` line 494 sets `var cacheVersion = '20260402'` and builds the shared-header URL from it. Current value matches all other live pages. Risk: if this file is skipped during a version bump, it will silently fall behind. No action needed now, but worth tracking when next cache-bust is issued.
 
 ---
 
 ## HOUSEKEEPING
 
-- **SW cache bump:** `aa-shell-20260403a` reflects the 2026-04-03 Diamond Art v4 deploy. Correct.
-- **Cache-bust consistency:** All 47 live pages surveyed use `v=20260402` for shared-header — consistent.
-- **`reaction-time.html`** uses a dynamic `cacheVersion` variable approach instead of a hardcoded string, but the value `20260402` is current. Low risk.
-- **2 intentional TODOs remain in aa-firebase.js:**
-  - Line ~468: Play Store launch — change 'pending' to 'student' role
-  - (audio-notes.html ~1478: Otter.ai/Whisper integration)
-- **Debug logging:** All `console.log` calls in aa-firebase.js are behind `if (window.AA_DEBUG)` — clean.
-- **`modular/privacy.html`** not in sw.js — static policy page, no dynamic content, no action needed.
-- **`modular/icon-gallery.html`** not in sw.js — dev tool page, not user-facing. Fine.
+- **SW cache bump:** `aa-shell-20260403b` was set for today's Diamond Art group-placement commit. Correct.
+- **Cache-bust consistency:** All live pages use `v=20260402` for shared-header. Consistent.
+- **ES5 compliance:** No `let`/`const`/arrow functions/template literals found in any live JS or inline HTML scripts. All grep hits in the ES6 check were inside comments, archive annotations, or natural-language text (e.g., scripture quotes containing "let not your heart be troubled").
+- **Archive hygiene:** No `.bak` files outside `modular/archive/`. No dot-file archives. No `.FIX`/`.NEW` files anywhere. `modular/archive/nightly-summaries/` contains pre-March-15 summaries (expected). 18 legacy non-`.bak` named files in archive top-level — cosmetic, no action required.
+- **Comfort games false-positives cleared:** Mirror guard check flagged `diamond-art.html`, `game-center.html`, `brick-breaker.html`, `emoticon-defense.html`, and `secret-agent.html`. Investigation confirmed **none do Firebase writes** — all `.add(` matches were `classList.add()` calls. No action needed.
+- **`modular/calendar.html`** redirect stub still not in NEVER_CACHE. Static meta-refresh, no dynamic content. Low risk, no action needed.
+- **2 intentional TODOs remain in aa-firebase.js:** Play Store launch role change (~line 468) and Otter.ai/Whisper integration (~audio-notes line 1478). Expected, no action.
+- **Debug logging:** All `console.log` calls in aa-firebase.js remain behind `if (window.AA_DEBUG)`. Clean.
 
 ---
 
@@ -75,104 +83,82 @@ The aa-firebase.js function definitions for `checkMissedMeal()` and `checkLowSpo
 ### 1. Broken Resources
 **Status: PASS**
 
-All entries in `sw.js` NEVER_CACHE and SHELL arrays were verified against the filesystem. No missing paths. All 60+ NEVER_CACHE entries resolve. All 14 SHELL entries resolve. No broken script/CSS references detected in spot-checks of shared-header.html. Google Fonts, Bootstrap CDN, and Firebase SDK CDN references are properly qualified.
+All NEVER_CACHE (66 entries) and SHELL (14 entries) paths verified against filesystem — all exist. All 9 JS files referenced in `shared-header.html` (`draggable.js`, `aa-mirror.js`, `study-activity.js`, `status-circle.js`, `migraine-mode.js`, `dark-mode.js`, `mode-enforcer.js`, `mode-gate.js`, `student-config.js`) confirmed present. No broken script or CSS references detected.
 
 ### 2. Auth & Security
-**Status: PASS (with minor carry-over notes)**
+**Status: PASS**
 
-- **Mirror guards:** Pattern `if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;` verified present in aa-firebase.js (line 685), aa-mirror.js (multiple locations), dark-mode.js (line 798), and migraine-mode.js (line 168). Consistent and correct.
-- **onAuthStateChanged:** No competing listeners detected — pages use `AA.auth.onAuthStateChanged()` via the shared module. admin.html's inline Firebase module pattern (legacy compat) has its own listener, but this is an intentional architectural choice for the admin page.
-- **No hardcoded credentials:** Firebase config uses public project identifiers only. No API keys, tokens, or secrets in tracked files.
-- **Input sanitization:** `esc()` helper function escapes user-controlled output. `eval()` not used.
-- **Audit logging infrastructure:** Present and active for mirror access, suggestions, and network membership changes.
+`_mirrorWriteBlocked()` helper in aa-firebase.js guards all exported write functions: `nope.save`, `nope.clear`, `nope.snooze`, `nope.unsnooze`, `quiz.save`, `network.add`, `network.remove`, `mealLog.save`, `checkin.save`, `spoonPal.save`, `invites.create`, `invites.accept`. 91 mirror-guard references across component files. `modes.html` and `spoon-pal.html` carry local redundant guards as defense-in-depth. `onAuthStateChanged` used correctly. No unprotected Firestore writes detected.
 
 ### 3. Cache Consistency
-**Status: WARNING**
+**Status: WARNING (C1 above)**
 
-- SW cache name: `aa-shell-20260403a` — current.
-- Shared-header version: `v=20260402` — consistent across all pages.
-- **FAIL: `diamond-art.html` not in NEVER_CACHE.** See Critical Issue #1 above.
-- `modular/aa-firebase.js` internal cache-bust comment references `?v=20260402` — matches live pages.
-- nope-mode.html and semi-nope.html load `aa-firebase.js?v=20260402` and `aa-mirror.js?v=20260402` independently (they skip shared-header). Both current.
+SW CACHE `aa-shell-20260403b` is current. NEVER_CACHE covers all actively-edited files **except** `diamond-art.html`. Shared-header `v=20260402` consistent across all pages.
 
 ### 4. Code Quality — ES5 Compliance
 **Status: PASS**
 
-- No `let` or `const` declarations found in live JS files (`modular/js/*.js`, `modular/components/**/*.js`).
-- No template literals (backtick strings) in live JS files.
-- No arrow functions in live JS files.
-- No `class` declarations in live JS files.
-- `Promise.allSettled` was previously replaced with `Promise.all` + `.catch` (noted in sw.js). SW is fully ES5-compatible.
-- `.endsWith()` replaced with `.slice()` comparison in sw.js for ES5 compat.
-- `.includes()` replaced with `.indexOf()` in sw.js.
-- Live HTML inline scripts were checked: no `const`/`let`/`=>` found in inline script blocks (excluding archive files).
+No `let`, `const`, arrow functions, template literals, `class` declarations, `Promise.allSettled`, `.endsWith()`, `.includes()` on NodeLists, or spread operators in live code. SW uses `.slice()` suffix comparison (ES5-safe). All previous ES6→ES5 conversions intact.
 
 ### 5. Archive Hygiene
-**Status: PASS (naming violations noted, carry-over)**
+**Status: PASS (minor carry-overs)**
 
-- All archive files confirmed to be inside `modular/archive/` — no dot-file archives, no archives next to source files.
-- **18 non-`.bak` files** at top level of `modular/archive/` with legacy naming:
-  - `.archive-YYYYMMDD-descriptor` (6 files)
-  - `.backup.YYYYMMDDHHMMSS` (5 files)
-  - `.broken.` (1 file)
-  - `LICENSE` (1 orphan file)
-  - Other non-standard (5 files)
-- **12 archive subdirectories** exist (e.g., `components-user-tiers/`, `js/`, `old-flower-system/`, `components-audio-notes/`). Convention prefers flat structure.
-- The stale worktree `.claude/worktrees/blissful-fermi/` contains duplicate archive files — will be cleaned when worktree is pruned.
-- No `.FIX`, `.NEW`, or misplaced archives found outside `modular/archive/`.
+All archives confirmed inside `modular/archive/` hierarchy. No dot-file archives, no archives adjacent to source files, no `.FIX`/`.NEW` files. 18 legacy non-`.bak` entries and 12 archive subdirs — cosmetic carry-overs, no action required.
 
 ### 6. Redundancy — Error Handling, Null Guards, Race Conditions
-**Status: PASS (with minor carry-overs)**
+**Status: PASS**
 
-- `checkMissedMeal`, `checkLowSpoons`, and `updateLastSeen` callers all add `.catch()` — no silent failures.
-- Mirror mode listener cleanup: `aa-mirror.js` uses `_docClickBound` flag to prevent duplicate click listeners. Verified guard present (line 626).
-- `addNotification()` in aa-firebase.js has deduplication logic and a try-catch on localStorage throttle reads/writes.
-- localStorage reads are wrapped in try-catch across most call sites (private browsing protection).
-- Service worker offline fallback returns `offline.html` for navigation requests — present and functional.
-- Null guards: `userDoc.exists ? userDoc.data() : null` pattern consistently used.
-- Message badge listener unsubscribes on sign-out (shared-header).
+All `.set()`/`.update()` callers add `.catch()`. `checkMissedMeal` and `checkLowSpoons` call sites add `.catch()`. `addNotification()` has deduplication and localStorage throttle try-catch. localStorage reads wrapped in try-catch (private/iOS browsing protection). SW offline fallback to `offline.html` verified present. Message badge listener unsubscribes on sign-out. Duplicate listener guard (`_docClickBound`) present in aa-mirror.js. Null guards consistently applied.
 
 ### 7. Misplaced Files / Repo Root Hygiene
-**Status: WARNING (carry-over)**
+**Status: WARNING (C2 carry-over)**
 
-Allowed root files (per audit config): `index.html`, `sw.js`, `README.md`, `LICENSE`, `CLAUDE.md`, favicon files, `manifest.webmanifest`, firebase config files.
-
-Files in root beyond allowed list:
-| File | Status |
-|------|--------|
-| `404.html` | OK — required for GitHub Pages |
-| `offline.html` | OK — referenced by sw.js as offline fallback |
-| `package.json` / `package-lock.json` | OK — minimal Firebase CLI stubs (53 bytes) |
-| `firestore.rules` / `storage.rules` / `firestore.indexes.json` / `firebase.json` | OK — Firebase deployment files |
-| `.fuse_hidden0000077f00000001` | **TRACKED BY GIT** — see Critical Issue #2 |
-| `.bash_history` | Not git-tracked (in .gitignore) — fine |
-| `.nojekyll` | Required for GitHub Pages — fine |
+All root files are expected or required: `404.html` (GitHub Pages), `offline.html` (SW fallback), `package.json`/`package-lock.json` (minimal stubs), Firebase deploy files. Only misplaced tracked file is `.fuse_hidden0000077f00000001` (C2 above).
 
 ### 8. Stale Worktrees / Branches
-**Status: WARNING (carry-over)**
+**Status: WARNING (W1 carry-over)**
 
-- `claude/blissful-fermi`: local branch present, worktree is marked **prunable** in `git worktree list`.
-- `remotes/origin/Brinckmyster-Aestas`: remote branch — **not touched per audit rules**.
-- No other stale branches detected.
+`claude/blissful-fermi` local branch and worktree are stale and prunable. All commits already in `main`. Remote `Brinckmyster-Aestas` not touched.
 
 ---
 
-## RECOMMENDED GIT COMMANDS
-**DO NOT RUN — for Bruise to review and execute manually**
+## ⚠️ ACTION REQUIRED BEFORE GIT COMMANDS
+
+A `.git/index.lock` file is blocking all git operations in this repo. This was left by a previous process. **Bruise must manually remove it before running any git commands:**
 
 ```bash
-# Fix 1: Remove tracked FUSE artifact
-git rm --cached .fuse_hidden0000077f00000001
-git commit -m "Claude: Remove tracked FUSE artifact .fuse_hidden0000077f00000001"
-
-# Fix 2: Prune stale worktree and delete branch
-git worktree prune
-git branch -D claude/blissful-fermi
-
-# Fix 3: After manually adding diamond-art.html to NEVER_CACHE and bumping CACHE version in sw.js
-# git add sw.js && git commit -m "Claude: Add diamond-art.html to NEVER_CACHE — stale cache fix"
+rm -f .git/index.lock
 ```
 
 ---
 
-*Audit completed by Claude · 2026-04-04*
+## RECOMMENDED GIT COMMANDS
+**⚠️ DO NOT RUN — for Bruise to review and execute manually**
+
+```bash
+# Step 0: Clear stale lock file (required before any git commands work)
+rm -f .git/index.lock
+
+# Priority 1: Stage and commit this audit report + archive
+git add docs/NIGHTLY-SUMMARY-2026-04-04.md modular/archive/NIGHTLY-SUMMARY-2026-04-04_pre-second-run.bak.md
+git commit -m "Claude: Nightly audit 2026-04-04 (run 2)"
+
+# Priority 2: Add diamond-art.html to NEVER_CACHE
+# (Edit sw.js first — add line after game-center.html in NEVER_CACHE array, bump CACHE version string)
+git add sw.js
+git commit -m "Claude: Add diamond-art.html to NEVER_CACHE, bump cache to 20260404a"
+git push
+
+# Priority 2: Remove tracked FUSE artifact
+git rm --cached .fuse_hidden0000077f00000001
+git commit -m "Claude: Remove tracked FUSE artifact .fuse_hidden0000077f00000001"
+git push
+
+# Priority 3: Clean stale worktree and branch
+git worktree prune
+git branch -D claude/blissful-fermi
+```
+
+---
+
+*Audit completed by Claude · 2026-04-04 (second run — covers commit 6807ff0 Diamond Art group-placement)*
