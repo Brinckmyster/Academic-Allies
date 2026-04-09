@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bad Brain Day — Academic Allies</title>
+    <link rel="icon" href="../../icons/mode-bad-brain-day.jpg">
+    <!-- Updated: 2026-02-25 by Claude — Bad Brain Day Mode (5 critical functions, stripped-down crisis UI) -->
+    <style>
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--bbd-font, 'Atkinson Hyperlegible', Arial, sans-serif);
+            font-size: var(--bbd-size, 18pt);
+            line-height: 1.5;
+            letter-spacing: 0.035em;
+            background: #FAFAF9;
+            color: #333333;
+            min-height: 100vh;
+            padding: 20px 16px 80px;
+        }
+
+        /* ── Layout ────────────────────────────────────── */
+        .container { max-width: 560px; margin: 0 auto; }
+
+        .page-header {
+            text-align: center;
+            padding: 20px 0 24px;
+        }
+        .page-header img {
+            width: 72px; height: 72px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            display: block;
+            margin-left: auto; margin-right: auto;
+            object-fit: cover;
+        }
+        .page-header h1 {
+            font-size: 24pt;
+            color: #6CA0A3;
+            margin-bottom: 6px;
+        }
+        .page-header p {
+            font-size: 16pt;
+            color: #777;
+        }
+
+        /* ── Cards ─────────────────────────────────────── */
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+        .card-title {
+            font-size: 20pt;
+            color: #6CA0A3;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ── Big Buttons (Emergency / Messages) ────────── */
+        .big-btn {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            border-radius: 16px;
+            border: none;
+            font-size: 18pt;
+            font-family: inherit;
+            letter-spacing: 0.035em;
+            cursor: pointer;
+            min-height: 19mm;
+            text-align: left;
+            text-decoration: none;
+            color: inherit;
+        }
+        .big-btn:last-child { margin-bottom: 0; }
+        .big-btn:hover   { filter: brightness(0.95); }
+        .big-btn:focus   { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+
+        .btn-emergency   { background: #fde8ea; color: #a0282e; font-weight: 700; }
+        .btn-messages    { background: #e8f4f5; color: #3a7a7d; }
+        .btn-secondary   { background: #f0f0f0; color: #444; }
+
+        .btn-icon { font-size: 26pt; min-width: 38px; text-align: center; }
+
+        .unread-badge {
+            background: #f5576c;
+            color: white;
+            border-radius: 50%;
+            font-size: 12pt;
+            min-width: 26px; min-height: 26px;
+            display: inline-flex;
+            align-items: center; justify-content: center;
+            padding: 2px 6px;
+            margin-left: auto;
+        }
+
+        /* ── Check-In (optional) ────────────────────────── */
+        .skip-notice {
+            background: #f5f5f0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 14pt;
+            color: #888;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+
+        .energy-list { list-style: none; }
+        .energy-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            min-height: 19mm;
+            border: 2px solid transparent;
+            transition: background 0.12s, border-color 0.12s;
+            margin-bottom: 4px;
+        }
+        .energy-item:hover, .energy-item:focus {
+            background: #f0f7f8;
+            border-color: #6CA0A3;
+            outline: none;
+        }
+        .energy-item.selected {
+            background: #6CA0A3;
+            color: white;
+            border-color: #6CA0A3;
+        }
+        .energy-item.selected .energy-def { color: rgba(255,255,255,0.8); }
+        .energy-emoji   { font-size: 26pt; min-width: 40px; text-align: center; }
+        .energy-label   { font-size: 16pt; font-weight: 600; }
+        .energy-def     { font-size: 12pt; color: #777; display: block; }
+
+        .threshold-line {
+            text-align: center;
+            font-size: 11pt;
+            color: #bbb;
+            letter-spacing: 0.08em;
+            padding: 6px 0 8px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .threshold-line::before, .threshold-line::after {
+            content: ''; flex: 1; height: 1px; background: #e5e5e5;
+        }
+
+        .checkin-logged {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            background: #f0f7f8;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 16pt;
+            color: #6CA0A3;
+        }
+
+        .skip-btn {
+            display: block;
+            width: 100%;
+            margin-top: 14px;
+            padding: 12px;
+            background: none;
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            font-size: 15pt;
+            font-family: inherit;
+            color: #aaa;
+            cursor: pointer;
+            letter-spacing: 0.035em;
+            min-height: 19mm;
+        }
+        .skip-btn:hover { border-color: #bbb; color: #888; }
+        .skip-btn:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+
+        /* ── Logs (read-only) ───────────────────────────── */
+        .log-entry {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 15pt;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-date { font-size: 12pt; color: #aaa; min-width: 72px; }
+        .log-note { flex: 1; }
+        .log-empty { font-size: 15pt; color: #bbb; text-align: center; padding: 16px 0; }
+
+        /* ── Settings ───────────────────────────────────── */
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            min-height: 19mm;
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-label { font-size: 16pt; }
+        .setting-desc  { font-size: 13pt; color: #999; }
+
+        .toggle-row { gap: 10px; }
+        .toggle-switch {
+            position: relative;
+            width: 52px; height: 30px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute; inset: 0;
+            background: #ccc; border-radius: 30px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 24px; height: 24px;
+            left: 3px; top: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-switch input:checked + .toggle-slider { background: #6CA0A3; }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+        .toggle-switch input:focus + .toggle-slider { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+
+        .font-size-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .font-size-controls button {
+            background: #e8f4f5;
+            border: none;
+            color: #3a7a7d;
+            font-size: 18pt;
+            font-weight: 700;
+            width: 44px; height: 44px;
+            min-width: 19mm; min-height: 19mm;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .font-size-controls button:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+        #font-size-label { font-size: 14pt; color: #666; min-width: 36px; text-align: center; }
+
+        /* ── Back / Exit ────────────────────────────────── */
+        .back-section { margin-top: 8px; }
+        .back-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: #f0f0f0;
+            color: #666;
+            border: none;
+            border-radius: 14px;
+            font-size: 16pt;
+            font-family: inherit;
+            letter-spacing: 0.035em;
+            cursor: pointer;
+            text-align: center;
+            min-height: 19mm;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .back-btn:hover { background: #e5e5e5; }
+        .back-btn:focus { outline: 3px solid #6CA0A3; outline-offset: 2px; }
+        .back-note {
+            text-align: center;
+            font-size: 13pt;
+            color: #bbb;
+            margin-top: 8px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="site-header"></div>
+<script>
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260225b')
+      .then(function(r){ return r.text(); })
+      .then(function(html){
+        var c = document.getElementById('site-header');
+        c.innerHTML = html;
+        c.querySelectorAll('script').forEach(function(s){
+            var n = document.createElement('script');
+            Array.from(s.attributes).forEach(function(a){ n.setAttribute(a.name, a.value); });
+            n.textContent = s.textContent;
+            s.replaceWith(n);
+        });
+      });
+</script>
+
+<div class="container">
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <img src="../../icons/mode-bad-brain-day.jpg" alt="Bad Brain Day mode icon">
+        <h1>Bad Brain Day</h1>
+        <p>Just the essentials. No pressure.</p>
+    </div>
+
+    <!-- ① Messages / Support Chat ─────────────────────────── -->
+    <div class="card">
+        <div class="card-title">💬 Messages</div>
+
+        <a href="/Academic-Allies/modular/components/message-system/message-system.html"
+           class="big-btn btn-messages"
+           aria-label="Open support messages">
+            <span class="btn-icon">💬</span>
+            <span>Support Messages</span>
+            <span class="unread-badge" id="msg-badge" style="display:none;" aria-label="unread messages">0</span>
+        </a>
+    </div>
+
+    <!-- ② Emergency Contacts ──────────────────────────────── -->
+    <div class="card">
+        <div class="card-title">🆘 Emergency Contacts</div>
+
+        <a href="/Academic-Allies/modular/emergency.html"
+           class="big-btn btn-emergency"
+           aria-label="One-tap emergency contacts">
+            <span class="btn-icon">🆘</span>
+            <span>One-Tap Emergency Help</span>
+        </a>
+
+        <a href="tel:988" class="big-btn btn-secondary" aria-label="Call 988 crisis line">
+            <span class="btn-icon">📞</span>
+            <span>Crisis Line — 988</span>
+        </a>
+    </div>
+
+    <!-- ③ Basic Check-In (optional / skippable) ───────────── -->
+    <div class="card" id="checkin-card">
+        <div class="card-title">💡 Check-In <span style="font-size:13pt;color:#bbb;font-weight:400;">(optional)</span></div>
+
+        <div class="skip-notice" aria-hidden="true">No pressure — skip if it's too much.</div>
+
+        <ul class="energy-list" role="listbox" aria-label="How is your energy right now?">
+            <li class="energy-item" role="option" tabindex="0" data-v="1"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😁</span>
+                <span><span class="energy-label">Fully Charged</span><span class="energy-def">Peak energy</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="2"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😊</span>
+                <span><span class="energy-label">Energized</span><span class="energy-def">Feeling good</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="3"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">🙂</span>
+                <span><span class="energy-label">Pretty Good</span><span class="energy-def">Able to engage</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="4"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">🙂</span>
+                <span><span class="energy-label">Doing Okay</span><span class="energy-def">Getting through</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="5"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😐</span>
+                <span><span class="energy-label">Neutral</span><span class="energy-def">Baseline</span></span>
+            </li>
+
+            <li class="threshold-line" aria-hidden="true">Exhaustion Threshold</li>
+
+            <li class="energy-item" role="option" tabindex="0" data-v="6"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😕</span>
+                <span><span class="energy-label">Starting to Tire</span><span class="energy-def">Running low</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="7"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😟</span>
+                <span><span class="energy-label">Pretty Tired</span><span class="energy-def">Wanting a break</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="8"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😫</span>
+                <span><span class="energy-label">Very Exhausted</span><span class="energy-def">Hard to continue</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="9"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">😩</span>
+                <span><span class="energy-label">Almost Empty</span><span class="energy-def">Nearly shutdown</span></span>
+            </li>
+            <li class="energy-item" role="option" tabindex="0" data-v="10"
+                onclick="pickEnergy(this)" onkeydown="if(event.key==='Enter'||event.key===' ')pickEnergy(this)">
+                <span class="energy-emoji">☠️</span>
+                <span><span class="energy-label">Completely Depleted</span><span class="energy-def">Feeling shutdown</span></span>
+            </li>
+        </ul>
+
+        <div class="checkin-logged" id="checkin-logged" role="status" aria-live="polite"></div>
+
+        <button class="skip-btn" onclick="skipCheckin()" aria-label="Skip check-in for today">
+            Skip for now →
+        </button>
+    </div>
+
+    <!-- Skipped confirmation (hidden by default) -->
+    <div class="card" id="checkin-skipped-card" style="display:none; text-align:center;">
+        <div class="card-title" style="justify-content:center;">✓ Check-In Skipped</div>
+        <p style="color:#aaa;font-size:15pt;">That's okay. You don't owe anyone a report.</p>
+        <button class="skip-btn" style="margin-top:14px;" onclick="undoSkip()" aria-label="Undo skip, show check-in again">
+            Undo — show check-in
+        </button>
+    </div>
+
+    <!-- ④ Logs / History (read-only) ─────────────────────── -->
+    <div class="card">
+        <div class="card-title">📋 Recent History <span style="font-size:13pt;color:#bbb;font-weight:400;">(read only)</span></div>
+
+        <div id="log-list">
+            <!-- Populated by JS from sessionStorage / future Firestore integration -->
+            <div class="log-empty" id="log-empty">No entries yet this session.</div>
+        </div>
+    </div>
+
+    <!-- ⑤ Settings ────────────────────────────────────────── -->
+    <div class="card">
+        <div class="card-title">⚙️ Accessibility</div>
+
+        <!-- Font size -->
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Text Size</div>
+                <div class="setting-desc">Adjust how large text appears</div>
+            </div>
+            <div class="font-size-controls">
+                <button onclick="changeFontSize(-1)" aria-label="Decrease text size">−</button>
+                <span id="font-size-label">18</span>
+                <button onclick="changeFontSize(1)" aria-label="Increase text size">+</button>
+            </div>
+        </div>
+
+        <!-- High contrast -->
+        <div class="setting-row toggle-row">
+            <div>
+                <div class="setting-label">High Contrast</div>
+                <div class="setting-desc">Darker borders and text</div>
+            </div>
+            <label class="toggle-switch" aria-label="Toggle high contrast">
+                <input type="checkbox" id="high-contrast-toggle" onchange="applyHighContrast(this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <!-- Reduced motion note -->
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Reduced Motion</div>
+                <div class="setting-desc" id="motion-status">Checking system setting…</div>
+            </div>
+        </div>
+
+        <!-- OpenDyslexic font -->
+        <div class="setting-row toggle-row">
+            <div>
+                <div class="setting-label">Dyslexia-Friendly Font</div>
+                <div class="setting-desc">Switch to OpenDyslexic</div>
+            </div>
+            <label class="toggle-switch" aria-label="Toggle OpenDyslexic font">
+                <input type="checkbox" id="dyslexic-toggle" onchange="applyDyslexicFont(this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Back to Recovery -->
+    <!-- Updated: 2026-02-25 by Claude — corrected label: Bad Brain Day exits to Recovery, not Brain Fog -->
+    <div class="back-section">
+        <a href="/Academic-Allies/modular/components/recovery-mode.html"
+           class="back-btn"
+           role="button"
+           aria-label="Exit Bad Brain Day mode and return to Recovery Mode">
+            ← Back to Recovery
+        </a>
+        <p class="back-note">Not back to normal — just back to recovery mode. That's enough.</p>
+    </div>
+
+</div><!-- /container -->
+
+<script>
+/* ── Check-In ──────────────────────────────────────────────── */
+/* Updated 2026-02-25 by Claude — Mary's confirmed 10-point energy scale */
+var LABELS = ['','Fully Charged','Energized','Pretty Good','Doing Okay','Neutral',
+    'Starting to Tire','Pretty Tired','Very Exhausted','Almost Empty','Completely Depleted'];
+
+function pickEnergy(el) {
+    document.querySelectorAll('.energy-item').forEach(function(i){
+        i.classList.remove('selected');
+        i.setAttribute('aria-selected','false');
+    });
+    el.classList.add('selected');
+    el.setAttribute('aria-selected','true');
+
+    var v   = parseInt(el.dataset.v);
+    var lbl = LABELS[v];
+    var em  = el.querySelector('.energy-emoji').textContent;
+
+    var logged = document.getElementById('checkin-logged');
+    logged.style.display = 'block';
+    logged.textContent   = 'Logged: ' + em + ' ' + lbl;
+
+    /* Add entry to session log */
+    addLogEntry(em + ' ' + lbl);
+}
+
+function skipCheckin() {
+    document.getElementById('checkin-card').style.display   = 'none';
+    document.getElementById('checkin-skipped-card').style.display = 'block';
+}
+
+function undoSkip() {
+    document.getElementById('checkin-skipped-card').style.display = 'none';
+    document.getElementById('checkin-card').style.display   = 'block';
+}
+
+/* ── Session Log ───────────────────────────────────────────── */
+var sessionLog = [];
+
+function addLogEntry(note) {
+    var now    = new Date();
+    var time   = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    sessionLog.unshift({ time: time, note: note });
+    renderLog();
+}
+
+function renderLog() {
+    var list = document.getElementById('log-list');
+    var empty = document.getElementById('log-empty');
+    if (sessionLog.length === 0) {
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+    var html = '';
+    sessionLog.forEach(function(e){
+        html += '<div class="log-entry">'
+              + '<span class="log-date">' + e.time + '</span>'
+              + '<span class="log-note">' + e.note + '</span>'
+              + '</div>';
+    });
+    list.innerHTML = html;
+}
+
+/* ── Settings ──────────────────────────────────────────────── */
+var fontSize = 18;
+var MIN_FONT = 14, MAX_FONT = 28;
+
+function changeFontSize(delta) {
+    fontSize = Math.max(MIN_FONT, Math.min(MAX_FONT, fontSize + delta));
+    document.body.style.setProperty('--bbd-size', fontSize + 'pt');
+    document.getElementById('font-size-label').textContent = fontSize;
+    addLogEntry('Text size changed to ' + fontSize + 'pt');
+}
+
+function applyHighContrast(on) {
+    if (on) {
+        document.body.style.setProperty('--bbd-border', '#333');
+        document.querySelectorAll('.card').forEach(function(c){
+            c.style.border = '2px solid #333';
+        });
+    } else {
+        document.querySelectorAll('.card').forEach(function(c){
+            c.style.border = '';
+        });
+    }
+    addLogEntry('High contrast ' + (on ? 'on' : 'off'));
+}
+
+function applyDyslexicFont(on) {
+    document.body.style.setProperty('--bbd-font',
+        on ? 'OpenDyslexic, Arial, sans-serif'
+           : '\'Atkinson Hyperlegible\', Arial, sans-serif');
+    addLogEntry('Dyslexia-friendly font ' + (on ? 'on' : 'off'));
+}
+
+/* ── Reduced Motion detection ──────────────────────────────── */
+(function(){
+    var mq  = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var el  = document.getElementById('motion-status');
+    if (!el) return;
+    function update(m) {
+        el.textContent = m.matches
+            ? 'System: reduced motion ON (animations off)'
+            : 'System: standard motion (animations on)';
+    }
+    update(mq);
+    if (mq.addEventListener) mq.addEventListener('change', update);
+})();
+</script>
+</body>
+</html>
