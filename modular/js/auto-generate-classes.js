@@ -1,3 +1,4 @@
+if (!location.pathname.includes("battle-mode") && !location.pathname.includes("study")) { console.log("AA class system blocked on:", location.pathname); }
 /* Claude: 2026-04-09 — Auto-generate upcoming class slots from detected academic term.
    Replaces the old static SPRING_CLASSES list with:
    1. BYU-I term detection
