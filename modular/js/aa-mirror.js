@@ -1,3 +1,4 @@
+if (location.pathname.includes("recovery") || location.pathname.includes("dashboard")) { console.log("[aa-mirror] blocked on page:", location.pathname); return; }
 /* ============================================================
    aa-mirror.js — Academic Allies Support Mirror
    Created: 2026-02-21 by Claude
@@ -203,6 +204,7 @@
     }
   }
 
+if (!location.pathname.includes("game-center") && !location.pathname.includes("battle") && !location.pathname.includes("study")) return;
   function renderSwitcherWhenReady() {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', renderSwitcher);
