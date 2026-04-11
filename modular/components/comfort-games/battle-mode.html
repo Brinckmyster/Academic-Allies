@@ -88,6 +88,9 @@
     .class-btn .class-icon { font-size: 1.4rem; display: block; margin-bottom: 4px; }
     .class-btn .class-name { display: block; font-weight: 600; }
     .class-btn .class-count { display: block; font-size: 0.75rem; color: #888; margin-top: 2px; }
+    /* Claude: 2026-04-11 — Locked spring class cards (no quiz data loaded yet) */
+    .class-btn-locked { opacity: 0.45; cursor: not-allowed !important; }
+    .class-btn-locked:hover { background: #0f3460 !important; box-shadow: none !important; }
 
     .mode-grid {
       display: grid;
@@ -513,6 +516,7 @@
     var selectedMode   = "mc";
     var answerLocked   = false;
     var classMeta      = {};  // classKey -> { label, count, monster }
+    var springClassList = []; // classes queued from auto-generate-classes.js
 
     // ── Boot ──
     firebase.auth().onAuthStateChanged(function(user) {
@@ -624,6 +628,57 @@
         btn.onclick = function() { selectClass("ALL"); };
         grid.appendChild(btn);
       }
+      // Merge any spring classes already queued by auto-generate-classes.js
+      if (springClassList.length) {
+        addSpringClassesToGrid(springClassList);
+      }
+    }
+
+    /* Claude: 2026-04-11 — Spring class integration: accept classes from auto-generate,
+       show them in the class picker grid. Classes with no quiz data yet show as locked
+       (Lingo Legend pattern — see all courses, unlock by loading quiz data). */
+    function addSpringClassesToGrid(classes) {
+      var grid = document.getElementById("class-grid");
+      if (!grid || !classes || !classes.length) return;
+      classes.forEach(function(cls) {
+        var key = (cls.code || cls.name || "").trim();
+        if (!key) return;
+        // Skip if Firestore already covers this class (exact or prefix match)
+        var metaKeys = Object.keys(classMeta);
+        for (var i = 0; i < metaKeys.length; i++) {
+          if (metaKeys[i] === key ||
+              metaKeys[i].indexOf(key) === 0 ||
+              key.indexOf(metaKeys[i]) === 0) return;
+        }
+        var monster = getMonster(key);
+        var label   = (cls.name && cls.name !== cls.code)
+          ? cls.code + " \u2014 " + cls.name
+          : key;
+        var btn = document.createElement("button");
+        btn.className = "class-btn class-btn-locked";
+        btn.setAttribute("data-class", key);
+        btn.setAttribute("title", "Add quiz data in Study Tools to unlock");
+        btn.innerHTML =
+          '<span class="class-icon">' + monster.emoji + '</span>' +
+          '<span class="class-name">' + label + '</span>' +
+          '<span class="class-count">Load quizzes to unlock</span>';
+        btn.disabled = true;
+        grid.appendChild(btn);
+      });
+    }
+
+    window.AA_addSpringClasses = function(classes) {
+      if (!classes || !classes.length) return;
+      springClassList = classes;
+      // If grid is already built (Firestore loaded first), inject now
+      if (allQuestions.length > 0) {
+        addSpringClassesToGrid(springClassList);
+      }
+    };
+    // Pick up anything auto-generate already queued before this script ran
+    if (window.AA_pendingSpringClasses && window.AA_pendingSpringClasses.length) {
+      window.AA_addSpringClasses(window.AA_pendingSpringClasses);
+      window.AA_pendingSpringClasses = [];
     }
 
     function selectClass(key) {

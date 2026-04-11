@@ -413,20 +413,24 @@ if (!location.pathname.includes("battle-mode") && !location.pathname.includes("s
     var battleContainer = document.getElementById('battle-mode-auto');
     var i;
 
-    if (!studyContainer && !battleContainer) return;
-    if (studyContainer) studyContainer.innerHTML = '';
-    if (battleContainer) battleContainer.innerHTML = '';
-
-    for (i = 0; i < studyClasses.length; i++) {
-      if (studyContainer) {
+    // Study tools: render cards as before
+    if (studyContainer) {
+      studyContainer.innerHTML = '';
+      for (i = 0; i < studyClasses.length; i++) {
         studyContainer.appendChild(buildStudyCard(studyClasses[i], getClassTermLabel(studyClasses[i], windowInfo)));
       }
     }
 
-    for (i = 0; i < battleClasses.length; i++) {
-      if (battleContainer) {
-        battleContainer.appendChild(buildBattleCard(battleClasses[i], getClassTermLabel(battleClasses[i], windowInfo)));
-      }
+    /* Claude: 2026-04-11 — Battle classes feed into the Battle Mode class picker grid
+       (Lingo Legend pattern) instead of rendering a separate raw list below the game.
+       #battle-mode-auto is cleared and left empty; the grid handles display. */
+    if (battleContainer) battleContainer.innerHTML = '';
+
+    if (typeof window.AA_addSpringClasses === 'function') {
+      window.AA_addSpringClasses(battleClasses);
+    } else {
+      // Battle Mode hasn't registered its handler yet — queue for pickup
+      window.AA_pendingSpringClasses = battleClasses;
     }
   }
 
