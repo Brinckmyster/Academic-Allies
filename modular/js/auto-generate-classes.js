@@ -458,7 +458,7 @@
         var battleClasses = allClasses.slice();
         var groupedBattleTerms = groupClassesByTerm(battleClasses);
 
-        window.AA_CLASS_TERM_GROUPS = groupedBattleTerms;
+        if (location.pathname.includes("battle-mode") || location.pathname.includes("study")) { window.AA_CLASS_TERM_GROUPS = groupedBattleTerms; }
 
         studyClasses.sort(compareClasses);
         battleClasses.sort(compareClasses);
