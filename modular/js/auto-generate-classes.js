@@ -1,5 +1,5 @@
 (function () {
-if (!location.pathname.includes("battle-mode") /* Claude: 2026-04-11 — Guard: only run on battle-mode and study pages. Removed duplicate dead-code line. *//* Claude: 2026-04-11 — Guard: only run on battle-mode and study pages. Removed duplicate dead-code line. */ !location.pathname.includes("study")) { console.log("AA class system blocked on:", location.pathname); return; }
+if (!location.pathname.includes("battle-mode") && !location.pathname.includes("study") && !location.protocol.includes("file")) { console.log("AA class system blocked on:", location.pathname); return; }
 if (!location.pathname.includes("battle-mode") && !location.pathname.includes("study")) { return; }
 /* Claude: 2026-04-09 — Auto-generate upcoming class slots from detected academic term.
    Replaces the old static SPRING_CLASSES list with:
@@ -460,7 +460,7 @@ if (!location.pathname.includes("battle-mode") && !location.pathname.includes("s
           if (windowInfo.nextTerm.shouldPrep && belongsToPrepTerm(cls, windowInfo.nextTerm)) {
             return true;
           }
-          return isCurrentOrFutureClass(cls, windowInfo);
+          return true;
         });
         var battleClasses = allClasses.slice();
         var groupedBattleTerms = groupClassesByTerm(battleClasses);
