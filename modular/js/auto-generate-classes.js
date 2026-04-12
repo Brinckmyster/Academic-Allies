@@ -493,7 +493,14 @@ if (!location.pathname.includes("battle-mode") && !location.pathname.includes("s
   }
 
   function startGeneratorBoot() {
-    bootWhenReady(80);
+    /* Claude: 2026-04-11 — battle-mode pages will never have [data-class] nodes,
+       so skip the wait and generate immediately. study-tools pages do have them,
+       so keep the polling wait for that context. */
+    if (location.pathname.includes('battle-mode')) {
+      generateClassSlots();
+    } else {
+      bootWhenReady(80);
+    }
   }
 
   if (document.readyState === 'loading') {
