@@ -118,14 +118,10 @@
     status.className = 'wait';
     status.textContent = '⏳ Signed in as ' + (user.email || user.uid) + '. Importing…';
 
-    db.collection('studentConfig').doc(user.uid).get().then(function (doc) {
-      var existing = (doc.exists && doc.data().quizzes) ? doc.data().quizzes : [];
-      var kept = existing.filter(function (q) { return !q.title || !q.title.startsWith('RBT:'); });
-      var merged = kept.concat(newQuizzes);
-      return db.collection('studentConfig').doc(user.uid).set({ quizzes: merged }, { merge: true });
-    }).then(function () {
+    /* Claude: 2026-04-12 — replace ALL quizzes with just RBT (admin account should only have RBT) */
+    db.collection('studentConfig').doc(user.uid).set({ quizzes: newQuizzes }, { merge: true }).then(function () {
       status.className = 'ok';
-      status.textContent = '✅ Done! 9 RBT quizzes loaded. Go to Study Tools to use them.';
+      status.textContent = '✅ Done! Your quizzes replaced with 9 RBT quizzes only. Go to Study Tools to use them.';
     }).catch(function (err) {
       status.className = 'err';
       status.textContent = '❌ Error: ' + err.message;
