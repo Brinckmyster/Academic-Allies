@@ -1,15 +1,14 @@
-(function () {
-if (!location.pathname.includes("battle-mode") && !location.pathname.includes("study") && !location.protocol.includes("file")) { console.log("AA class system blocked on:", location.pathname); return; }
-if (!location.pathname.includes("battle-mode") && !location.pathname.includes("study")) { return; }
 /* Claude: 2026-04-09 — Auto-generate upcoming class slots from detected academic term.
    Replaces the old static SPRING_CLASSES list with:
    1. BYU-I term detection
    2. 30-day prep window check
    3. Calendar + template class merge
    4. Study/Battle card generation */
+/* Claude: 2026-04-11 — Guard moved inside IIFE (top-level return is a SyntaxError in strict mode) */
 
 (function () {
   'use strict';
+  if (!location.pathname.includes('battle-mode') && !location.pathname.includes('study')) { return; }
 
   var MS_PER_DAY = 24 * 60 * 60 * 1000;
   var PREP_WINDOW_DAYS = 30;
