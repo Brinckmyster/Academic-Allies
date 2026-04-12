@@ -1,4 +1,4 @@
-if (location.pathname.includes("recovery") || location.pathname.includes("dashboard")) { console.log("[aa-mirror] blocked on page:", location.pathname); return; }
+/* Claude: 2026-04-11 — removed GPT scope guard that blocked switcher on recovery + dashboard pages */
 /* ============================================================
    aa-mirror.js — Academic Allies Support Mirror
    Created: 2026-02-21 by Claude
@@ -204,7 +204,7 @@ if (location.pathname.includes("recovery") || location.pathname.includes("dashbo
     }
   }
 
-if (!location.pathname.includes("game-center") && !location.pathname.includes("battle") && !location.pathname.includes("study")) return;
+  /* Claude: 2026-04-11 — removed GPT scope guard that limited switcher to game-center/battle/study only */
   function renderSwitcherWhenReady() {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', renderSwitcher);
