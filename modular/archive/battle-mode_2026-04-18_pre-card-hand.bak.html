@@ -418,87 +418,10 @@
       100% { opacity: 0; transform: translateX(-50%) translateY(-54px); }
     }
 
-    /* Claude: 2026-04-18 — Lingo Legend card hand system */
-
-    /* Hand phase — 3 ability cards to choose from */
-    #hand-section {
-      display: none;
-      margin-bottom: 14px;
-    }
-    .hand-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #888;
-      text-align: center;
-      margin-bottom: 8px;
-    }
-    .hand-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-    }
-    .hand-card {
-      background: #16213e;
-      border: 2px solid #0f3460;
-      border-radius: 12px;
-      padding: 12px 8px;
-      cursor: pointer;
-      text-align: center;
-      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
-      min-height: 90px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      position: relative;
-    }
-    .hand-card:hover { transform: translateY(-3px); border-color: #4a90d9; }
-    .hand-card.selected {
-      border-color: #e94560;
-      box-shadow: 0 0 14px rgba(233,69,96,0.5);
-      transform: translateY(-4px);
-    }
-    .hand-card.tricky-card { border-color: #e67e22; }
-    .hand-card.tricky-card.selected { border-color: #e67e22; box-shadow: 0 0 14px rgba(230,126,34,0.5); }
-    .hand-card .card-icon { font-size: 1.4rem; }
-    .hand-card .card-preview {
-      font-size: 0.72rem;
-      color: #aaa;
-      line-height: 1.3;
-      /* Clamp to 2 lines */
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    .hand-card .card-tricky-pip {
-      position: absolute;
-      top: 5px;
-      right: 6px;
-      font-size: 0.62rem;
-      background: #e67e22;
-      color: #fff;
-      border-radius: 8px;
-      padding: 1px 5px;
-      font-weight: 700;
-    }
-    /* Deck counter */
-    .deck-count {
-      text-align: center;
-      font-size: 0.75rem;
-      color: #555;
-      margin-bottom: 6px;
-    }
-
     /* Mobile tweaks */
     @media (max-width: 380px) {
       .class-grid, .mc-grid { grid-template-columns: 1fr; }
       .mode-grid { grid-template-columns: 1fr 1fr; }
-      .hand-grid { grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
-      .hand-card { padding: 8px 4px; min-height: 78px; }
-      .hand-card .card-preview { font-size: 0.67rem; }
     }
   </style>
 </head>
@@ -593,25 +516,16 @@
       <div class="monster-name" id="monster-name-display"></div>
     </div>
 
-    <!-- Claude: 2026-04-18 — Lingo Legend card hand: pick a card to play, then answer it -->
-    <div id="hand-section">
-      <div class="deck-count" id="deck-count"></div>
-      <div class="hand-label">⚔️ Choose a card to play</div>
-      <div class="hand-grid" id="hand-grid">
-        <!-- filled by JS -->
-      </div>
-    </div>
-
     <!-- Question -->
     <!-- Claude: 2026-04-13 — Lingo Legend polish: dynamic category label + streak/tricky badges -->
-    <div class="question-card" id="question-card" style="display:none">
+    <div class="question-card">
       <div class="q-label">❓ <span id="q-cat">What is this?</span><span class="streak-badge" id="streak-badge"></span><span class="tricky-badge" id="tricky-badge" style="display:none">🔥 Tricky</span></div>
       <div class="q-text" id="q-text"></div>
       <div class="q-from" id="q-from"></div>
     </div>
 
     <!-- Multiple choice (shown/hidden by mode) -->
-    <div id="mc-section" style="display:none">
+    <div id="mc-section">
       <div class="mc-grid" id="mc-grid"></div>
     </div>
 
@@ -672,10 +586,6 @@
     /* Claude: 2026-04-13 — Lingo Legend polish: streak tracking */
     var streak         = 0;
     var maxStreak      = 0;
-    /* Claude: 2026-04-18 — Lingo Legend card hand system */
-    var deck           = [];   // remaining questions not yet drawn
-    var currentHand    = [];   // 3 cards currently in hand
-    var selectedCardIdx = -1;  // which hand card the player tapped
 
     // ── Boot ──
     firebase.auth().onAuthStateChanged(function(user) {
@@ -888,10 +798,6 @@
       /* Claude: 2026-04-13 — Lingo Legend polish: reset streak on new battle */
       streak       = 0;
       maxStreak    = 0;
-      /* Claude: 2026-04-18 — card hand: deck = full shuffled pool */
-      deck            = pool.slice();   // already shuffled above
-      currentHand     = [];
-      selectedCardIdx = -1;
 
       // Set monster
       var monster = (selectedClass === "ALL") ? MONSTERS["default"] : getMonster(selectedClass);
@@ -902,84 +808,28 @@
 
       updateHPBars();
       showScreen("battle");
-      dealHand();
+      renderQuestion();
     }
 
-    /* Claude: 2026-04-18 — Lingo Legend card hand: deal 3 cards from deck, player picks one */
-    function dealHand() {
-      // Check win/loss conditions first
-      if (monsterHP <= 0) { endBattle(true);  return; }
-      if (playerHP  <= 0) { endBattle(false); return; }
-      if (deck.length === 0 && currentHand.length === 0) { endBattle(true); return; }
-
-      // Refill hand up to 3 from deck
-      while (currentHand.length < 3 && deck.length > 0) {
-        currentHand.push(deck.shift());
+    function renderQuestion() {
+      if (currentQ >= battleQuestions.length) {
+        endBattle(true);
+        return;
       }
 
-      selectedCardIdx = -1;
-      answerLocked    = false;
-
-      // Show hand, hide answer UI
-      document.getElementById("hand-section").style.display    = "";
-      document.getElementById("question-card").style.display   = "none";
-      document.getElementById("mc-section").style.display      = "none";
-      document.getElementById("type-section").style.display    = "none";
-      document.getElementById("feedback-msg").textContent      = "";
-      document.getElementById("feedback-msg").className        = "feedback-msg";
-
-      var total = correctCount + wrongCount + currentHand.length + deck.length;
-      document.getElementById("deck-count").textContent = deck.length + " cards left in deck";
-      document.getElementById("battle-progress").textContent   =
-        (correctCount + wrongCount) + " played · " + monsterHP + " HP left";
-
-      updateHPBars();
-      renderHearts();
-      renderHand();
-    }
-
-    function renderHand() {
-      var grid = document.getElementById("hand-grid");
-      grid.innerHTML = "";
-      currentHand.forEach(function(q, i) {
-        var card = document.createElement("div");
-        card.className = "hand-card" + (q.tricky ? " tricky-card" : "");
-        card.innerHTML =
-          (q.tricky ? '<span class="card-tricky-pip">🔥 Tricky</span>' : "") +
-          '<span class="card-icon">' + (getMonster(q.classKey).emoji) + '</span>' +
-          '<span class="card-preview">' + escHtml(q.question) + '</span>';
-        card.onclick = (function(idx) {
-          return function() { selectHandCard(idx); };
-        })(i);
-        grid.appendChild(card);
-      });
-    }
-
-    function selectHandCard(idx) {
-      if (answerLocked) return;
-      selectedCardIdx = idx;
-      // Highlight selected card
-      var cards = document.querySelectorAll(".hand-card");
-      cards.forEach(function(c, i) {
-        c.classList.toggle("selected", i === idx);
-      });
-      // Reveal the question + answer UI
-      renderQuestion(currentHand[idx]);
-    }
-
-    function renderQuestion(q) {
+      var q = battleQuestions[currentQ];
       answerLocked = false;
 
-      document.getElementById("question-card").style.display = "";
-      document.getElementById("q-text").textContent = q.question;
-      document.getElementById("q-from").textContent = q.quizTitle;
+      document.getElementById("q-text").textContent  = q.question;
+      document.getElementById("q-from").textContent  = q.quizTitle;
       document.getElementById("feedback-msg").textContent = "";
       document.getElementById("feedback-msg").className   = "feedback-msg";
+      document.getElementById("battle-progress").textContent = (currentQ + 1) + " / " + battleQuestions.length;
 
       /* Claude: 2026-04-13 — Lingo Legend polish: update q-cat, tricky badge, streak badge */
       document.getElementById("q-cat").textContent = q.classKey || "Question";
-      var trickyBadge = document.getElementById("tricky-badge");
-      var streakBadge = document.getElementById("streak-badge");
+      var trickyBadge  = document.getElementById("tricky-badge");
+      var streakBadge  = document.getElementById("streak-badge");
       trickyBadge.style.display = q.tricky ? "" : "none";
       if (streak >= 3) {
         streakBadge.textContent = "🔥 " + streak + " Streak!";
@@ -988,6 +838,9 @@
         streakBadge.textContent = "";
         streakBadge.classList.remove("visible");
       }
+
+      updateHPBars();
+      renderHearts();
 
       if (selectedMode === "mc") {
         renderMC(q);
@@ -1005,14 +858,9 @@
       }
     }
 
-    function escHtml(s) {
-      return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-    }
-
     function renderMC(q) {
-      /* Claude: 2026-04-18 — pull distractors from deck + rest of hand + allQuestions fallback */
-      var pool = deck.concat(currentHand);
-      var others = pool
+      // Generate 3 wrong answers from other questions in the pool
+      var others = battleQuestions
         .filter(function(item) { return item.answer !== q.answer; })
         .map(function(item) { return item.answer; });
       others = shuffle(others).slice(0, 3);
@@ -1068,8 +916,8 @@
       var typed = input.value.trim();
       if (!typed || answerLocked) return;
 
-      var q       = currentHand[selectedCardIdx];
-      var correct = q ? q.answer : "";
+      var q       = battleQuestions[currentQ];
+      var correct = q.answer;
 
       answerLocked = true;
       input.disabled = true;
@@ -1085,24 +933,19 @@
     }
 
     function onCorrect() {
-      /* Claude: 2026-04-18 — tricky cards deal 2 damage */
-      var playedCard = currentHand[selectedCardIdx] || {};
-      var dmg = playedCard.tricky ? 2 : 1;
-      monsterHP -= dmg;
+      monsterHP--;
       correctCount++;
       /* Claude: 2026-04-13 — Lingo Legend polish: streak tracking */
       streak++;
       if (streak > maxStreak) maxStreak = streak;
       var streakMsg = streak >= 3 ? " 🔥 " + streak + " in a row!" : "";
-      var dmgMsg = dmg > 1 ? " CRITICAL HIT! (" + dmg + " dmg)" : " The monster takes a hit!";
-      setFeedback("Correct!" + dmgMsg + streakMsg, "good");
+      setFeedback("Correct! The monster takes a hit!" + streakMsg, "good");
       hitMonster();
-      showDamagePopup(dmg);
-      /* Remove played card from hand */
-      if (selectedCardIdx >= 0) currentHand.splice(selectedCardIdx, 1);
-      selectedCardIdx = -1;
+      showDamagePopup();
       setTimeout(function() {
-        dealHand();
+        currentQ++;
+        if (monsterHP <= 0) { endBattle(true); return; }
+        renderQuestion();
       }, 1200);
     }
 
@@ -1113,11 +956,11 @@
       streak = 0;
       setFeedback("Wrong! The answer was: " + correct, "bad");
       monsterAttacks();
-      /* Remove played card from hand */
-      if (selectedCardIdx >= 0) currentHand.splice(selectedCardIdx, 1);
-      selectedCardIdx = -1;
       setTimeout(function() {
-        dealHand();
+        if (playerHP <= 0) { endBattle(false); return; }
+        currentQ++;
+        if (currentQ >= battleQuestions.length) { endBattle(true); return; }
+        renderQuestion();
       }, 1600);
     }
 
@@ -1128,15 +971,15 @@
       el.classList.add("hit");
     }
 
-    /* Claude: 2026-04-13/2026-04-18 — Lingo Legend polish: floating damage number on hit */
-    function showDamagePopup(dmg) {
+    /* Claude: 2026-04-13 — Lingo Legend polish: floating damage number on hit */
+    function showDamagePopup() {
       var arena = document.querySelector(".monster-arena");
       if (!arena) return;
       var popup = document.createElement("div");
       popup.className = "damage-popup";
-      var label = dmg > 1 ? "⚡ -" + dmg + " CRIT!" : (streak >= 3 ? "⚡ -1 COMBO!" : "-1");
-      popup.textContent = label;
+      popup.textContent = streak >= 3 ? "⚡ -1 COMBO!" : "-1";
       arena.appendChild(popup);
+      // Remove after animation completes
       setTimeout(function() {
         if (popup.parentNode) popup.parentNode.removeChild(popup);
       }, 950);
@@ -1183,9 +1026,8 @@
         ? "You defeated " + document.getElementById("monster-name-display").textContent + "!"
         : "The monster won this round. Try again!";
 
-      var totalAnswered = correctCount + wrongCount;
-      var acc = totalAnswered > 0
-        ? Math.round((correctCount / totalAnswered) * 100)
+      var acc = battleQuestions.length > 0
+        ? Math.round((correctCount / (correctCount + wrongCount)) * 100)
         : 0;
 
       /* Claude: 2026-04-13 — Lingo Legend polish: best streak in result stats */
