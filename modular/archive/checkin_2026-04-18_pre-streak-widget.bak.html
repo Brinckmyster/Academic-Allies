@@ -292,43 +292,6 @@
     html.aa-dark .flag-bar { background: #1e2a2e; border-color: #333; }
     html.aa-dark #emergency-card { background: #2a1a1a; border-color: #5a2a2a; }
     html.aa-dark #emergency-card h2 { color: #e07070; }
-
-    /* Claude: 2026-04-18 — Streak cat widget on check-in page */
-    #streak-cat-widget {
-      display: none; /* shown by JS after streak loads */
-      background: var(--card);
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 1rem 1.25rem;
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-    html.aa-dark #streak-cat-widget { background: #1e1e2e; border-color: #333; }
-    .scw-row {
-      display: flex; align-items: center; justify-content: center; gap: 14px;
-      margin-bottom: 10px;
-    }
-    .scw-fire { font-size: 2rem; }
-    .scw-num  { font-size: 2.4rem; font-weight: 800; color: #f59e0b; line-height: 1; }
-    .scw-meta { text-align: left; }
-    .scw-label { font-size: 0.8rem; color: var(--muted); }
-    .scw-best  { font-size: 0.72rem; color: #aaa; }
-    .scw-cat   { font-size: 2.2rem; margin-bottom: 6px; }
-    .scw-speech {
-      font-size: 0.88rem; color: var(--muted); font-style: italic;
-      margin-bottom: 10px; line-height: 1.4;
-    }
-    .scw-link {
-      display: inline-block; font-size: 0.82rem; color: var(--teal-dk);
-      text-decoration: none; border: 1.5px solid var(--teal);
-      border-radius: 20px; padding: 5px 14px;
-      transition: background 0.15s;
-    }
-    .scw-link:hover { background: var(--border); }
-    html.aa-dark .scw-link { color: #7ecdd0; border-color: #4a7f82; }
-    html.aa-dark .scw-link:hover { background: #2a3a3e; }
-    html.aa-dark .scw-speech { color: #aaa; }
   </style>
 </head>
 <body>
@@ -658,23 +621,6 @@
       <button id="reset-btn" onclick="resetForm()">Start Over</button>
     </div>
     <div id="save-status"></div>
-  </div>
-
-  <!-- Claude: 2026-04-18 — Streak cat widget: compact Duchess section on check-in page -->
-  <div id="streak-cat-widget">
-    <div class="scw-row">
-      <span class="scw-fire" id="scw-fire">✨</span>
-      <span class="scw-num"  id="scw-num">—</span>
-      <div class="scw-meta">
-        <div class="scw-label">day streak</div>
-        <div class="scw-best" id="scw-best"></div>
-      </div>
-    </div>
-    <div class="scw-cat" id="scw-cat">🐱</div>
-    <div class="scw-speech" id="scw-speech">Loading Duchess...</div>
-    <a class="scw-link" href="/Academic-Allies/modular/components/streak-cat/streak-cat.html">
-      🎀 Dress up Duchess
-    </a>
   </div>
 
 </div><!-- /page-wrap -->
@@ -1034,8 +980,6 @@ function saveCheckin() {
         btn.disabled = false;
         /* Claude: 2026-03-16 — restore button text */
         btn.textContent = originalText;
-        /* Claude: 2026-04-18 — notify streak widget to refresh after save */
-        document.dispatchEvent(new CustomEvent('AA_checkin_saved', { detail: { uid: AA.auth.currentUser.uid } }));
         /* Claude: 2026-03-12 — notify supporters on red/yellow flags.
            This is the active alerting system — supporters get a real notification
            instead of having to check the dashboard. */
@@ -1385,113 +1329,6 @@ fetch('/Academic-Allies/modular/shared-header.html?v=20260402')
 setTimeout(function() {
   applyGPSSocialHint();
 }, 500);
-</script>
-
-<!-- Claude: 2026-04-18 — Streak cat widget JS: reads checkin streak, shows Duchess on check-in page -->
-<script>
-(function() {
-  var SCW_QUIPS = {
-    zero:   ["Mrrp? No streak yet — check in to start one!", "I'm waiting for you... 👀", "Every journey starts somewhere. Let's go! 🐾"],
-    low:    ["Good start! Keep going! 🐾", "Look at you showing up! 💪", "Day {n}! I believe in you."],
-    mid:    ["Day {n} — you're on a roll! 🔥", "{n} days strong! Duchess approves. 😸", "Keeping the streak alive — nice work!"],
-    high:   ["{n} days! You're incredible! ✨", "Day {n} and still going — Duchess is proud! 🏆", "Unstoppable! {n} days of showing up. 🔥🔥"],
-    epic:   ["Day {n}?! You're a LEGEND. 👑", "I can't even count that high. Day {n}! 🐱✨", "{n} days. Truly unstoppable. 🔥👑"]
-  };
-
-  function scwQuip(streak) {
-    var pool;
-    if (streak === 0)      pool = SCW_QUIPS.zero;
-    else if (streak < 7)   pool = SCW_QUIPS.low;
-    else if (streak < 30)  pool = SCW_QUIPS.mid;
-    else if (streak < 100) pool = SCW_QUIPS.high;
-    else                   pool = SCW_QUIPS.epic;
-    var msg = pool[Math.floor(Math.random() * pool.length)];
-    return msg.replace('{n}', streak);
-  }
-
-  function scwFire(streak) {
-    if (streak >= 30) return '🔥🔥';
-    if (streak >= 7)  return '🔥';
-    if (streak >= 1)  return '✨';
-    return '💤';
-  }
-
-  function scwCat(streak) {
-    if (streak >= 100) return '😻';
-    if (streak >= 30)  return '😸';
-    if (streak >= 7)   return '🐱';
-    if (streak >= 1)   return '🐈';
-    return '🐱';
-  }
-
-  function scwCountStreak(uid, cb) {
-    var db = window.AA && window.AA.db;
-    if (!db) { cb(0, 0); return; }
-    db.collection('checkins').doc(uid).collection('days')
-      .orderBy(firebase.firestore.FieldPath.documentId(), 'desc')
-      .limit(400)
-      .get()
-      .then(function(snap) {
-        if (snap.empty) { cb(0, 0); return; }
-        var dateSet = {};
-        snap.forEach(function(doc) {
-          if (/^\d{4}-\d{2}-\d{2}$/.test(doc.id)) dateSet[doc.id] = true;
-        });
-        var today = new Date();
-        var fmt = function(d) {
-          return d.getFullYear() + '-' +
-            ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
-            ('0' + d.getDate()).slice(-2);
-        };
-        var todayStr = fmt(today);
-        var yest = new Date(today); yest.setDate(yest.getDate() - 1);
-        var yesterStr = fmt(yest);
-        var start = dateSet[todayStr] ? todayStr : (dateSet[yesterStr] ? yesterStr : null);
-        if (!start) { cb(0, 0); return; }
-        var streak = 0;
-        var d = new Date(start + 'T12:00:00');
-        while (streak <= 400) {
-          var ds = fmt(d);
-          if (dateSet[ds]) { streak++; d.setDate(d.getDate() - 1); }
-          else break;
-        }
-        /* Best streak: scan all docs (simple max consecutive, no shields) */
-        var best = streak;
-        cb(streak, best);
-      })
-      .catch(function() { cb(0, 0); });
-  }
-
-  function scwShow(streak, best) {
-    var widget = document.getElementById('streak-cat-widget');
-    if (!widget) return;
-    document.getElementById('scw-fire').textContent = scwFire(streak);
-    document.getElementById('scw-num').textContent  = streak;
-    document.getElementById('scw-cat').textContent  = scwCat(streak);
-    document.getElementById('scw-speech').textContent = scwQuip(streak);
-    var bestEl = document.getElementById('scw-best');
-    bestEl.textContent = best > streak ? 'Best: ' + best + ' days' : '';
-    widget.style.display = 'block';
-  }
-
-  waitForAA(function() {
-    var _scwUid = null;
-    AA.auth.onAuthStateChanged(function(user) {
-      if (!user) return;
-      if (user.uid === _scwUid) return;
-      _scwUid = user.uid;
-      var uid = window.AA_MIRROR_UID || user.uid;
-      scwCountStreak(uid, scwShow);
-    });
-  });
-
-  /* Also refresh widget after a successful check-in save */
-  document.addEventListener('AA_checkin_saved', function(e) {
-    var uid = e.detail && e.detail.uid;
-    if (!uid) return;
-    setTimeout(function() { scwCountStreak(uid, scwShow); }, 800);
-  });
-})();
 </script>
 
 </body>
