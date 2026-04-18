@@ -736,16 +736,6 @@
     var selectedCardIdx = -1;  // which hand card the player tapped
 
     // ── Boot ──
-    /* Claude: 2026-04-18 — wait for window.AA (aa-firebase.js + shared-header) before
-       loading quizzes so AA_MIRROR_UID is set first; fixes race condition where RBT
-       (admin quizzes) randomly appeared on student's battle screen on hard refresh */
-    function waitForAA(cb, tries) {
-      tries = tries || 0;
-      if (window.AA && window.AA.db) { cb(); return; }
-      if (tries > 20) { cb(); return; } // give up after 2s, proceed anyway
-      setTimeout(function() { waitForAA(cb, tries + 1); }, 100);
-    }
-
     firebase.auth().onAuthStateChanged(function(user) {
       if (!user) {
         showScreen("loading");
@@ -753,9 +743,7 @@
           '<p style="text-align:center;padding-top:60px;color:#aaa;">Please sign in to play Battle Mode.</p>';
         return;
       }
-      waitForAA(function() {
-        loadQuizzes(window.AA_uid ? window.AA_uid(user.uid) : user.uid);
-      });
+      loadQuizzes(window.AA_uid ? window.AA_uid(user.uid) : user.uid);
     });
 
     function loadQuizzes(uid) {
