@@ -1,0 +1,976 @@
+<!-- Claude: 2026-04-19 — Farm Mode: Lingo Legend-inspired farming study game.
+     Grow crops by answering questions correctly. Wrong answers wilt plants back.
+     Harvest fully-grown crops for coins. No HP, no losing — chill study mode. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Farm Mode — Academic Allies</title>
+  <link rel="icon" type="image/png" href="../../icons/mode-recovery.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Dark mode early detection */
+    html.aa-dark { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Nunito', Arial, sans-serif;
+      background: linear-gradient(160deg, #1a3a0a 0%, #2d5a1b 50%, #1a4a0a 100%);
+      color: #e8f5e0;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; max-width: 520px; margin: 0 auto; }
+    .screen.active { display: block; }
+
+    /* ── Shared header space ── */
+    #shared-header-root { margin-bottom: 8px; }
+
+    /* ── Setup screen ── */
+    .farm-title {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2rem;
+      text-align: center;
+      color: #a8e063;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      margin-bottom: 4px;
+    }
+    .farm-subtitle {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #7cb85c;
+      margin-bottom: 6px;
+    }
+    .farm-credit {
+      text-align: center;
+      font-size: 0.72rem;
+      color: #5a8a40;
+      margin-bottom: 24px;
+    }
+    .farm-credit a { color: #6aaa50; }
+
+    .setup-card {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(168,224,99,0.2);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .setup-card h3 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.1rem;
+      color: #a8e063;
+      margin-bottom: 12px;
+    }
+
+    .class-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .class-btn {
+      background: rgba(0,0,0,0.3);
+      border: 2px solid rgba(168,224,99,0.25);
+      border-radius: 12px;
+      padding: 12px 8px;
+      color: #c8e8a0;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.18s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .class-btn:hover { border-color: #a8e063; background: rgba(168,224,99,0.1); }
+    .class-btn.selected { border-color: #a8e063; background: rgba(168,224,99,0.2); color: #fff; }
+    .class-btn .class-icon { font-size: 1.6rem; }
+    .class-btn .class-name { font-size: 0.8rem; font-weight: 700; }
+    .class-btn .class-count { font-size: 0.7rem; opacity: 0.6; }
+
+    .btn-start {
+      width: 100%;
+      padding: 16px;
+      background: #5a9e2a;
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+    .btn-start:hover:not(:disabled) { background: #4a8e1a; }
+    .btn-start:active { transform: scale(0.98); }
+    .btn-start:disabled { background: #2a4a1a; color: #5a7a4a; cursor: default; }
+
+    /* ── Farm screen ── */
+    .farm-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 0.82rem;
+      color: #7cb85c;
+    }
+    .farm-coins {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1rem;
+      color: #f0d060;
+    }
+
+    /* Crop display */
+    .crop-stage-area {
+      text-align: center;
+      padding: 20px 0 12px;
+      position: relative;
+    }
+    .crop-emoji {
+      font-size: 5rem;
+      line-height: 1;
+      display: inline-block;
+      transition: transform 0.3s;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+    }
+    .crop-emoji.growing {
+      animation: crop-grow 0.5s ease;
+    }
+    .crop-emoji.wilting {
+      animation: crop-wilt 0.5s ease;
+    }
+    .crop-emoji.harvesting {
+      animation: crop-harvest 0.6s ease;
+    }
+    @keyframes crop-grow {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.3) translateY(-8px); }
+      100% { transform: scale(1); }
+    }
+    @keyframes crop-wilt {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(0.8) rotate(-10deg); }
+      100% { transform: scale(1) rotate(0); }
+    }
+    @keyframes crop-harvest {
+      0%   { transform: scale(1); filter: drop-shadow(0 0 0 gold); }
+      50%  { transform: scale(1.4) translateY(-12px); filter: drop-shadow(0 0 20px gold) brightness(1.5); }
+      100% { transform: scale(1); filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4)); }
+    }
+
+    .crop-name {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1rem;
+      color: #a8e063;
+      margin-top: 6px;
+    }
+
+    /* Growth progress bar */
+    .growth-track {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .growth-pip {
+      width: 36px;
+      height: 10px;
+      border-radius: 5px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(168,224,99,0.2);
+      transition: background 0.4s;
+    }
+    .growth-pip.filled { background: #a8e063; border-color: #a8e063; }
+    .growth-pip.harvest { background: #f0d060; border-color: #f0d060; }
+
+    .growth-label {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #7cb85c;
+      margin-bottom: 14px;
+    }
+
+    /* Harvest button */
+    .btn-harvest {
+      display: none;
+      width: 100%;
+      padding: 14px;
+      background: #d4a020;
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.1rem;
+      cursor: pointer;
+      margin-bottom: 14px;
+      animation: harvest-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes harvest-pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(240,208,96,0.4); }
+      50%      { box-shadow: 0 0 0 10px rgba(240,208,96,0); }
+    }
+    .btn-harvest:hover { background: #b08010; }
+
+    /* Question area */
+    .question-card {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(168,224,99,0.2);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .q-label {
+      font-size: 0.75rem;
+      color: #7cb85c;
+      margin-bottom: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .q-text {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #e8f5e0;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+    .q-from {
+      font-size: 0.72rem;
+      color: #5a8a40;
+      font-style: italic;
+    }
+
+    /* MC buttons */
+    .mc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .mc-btn {
+      background: rgba(0,0,0,0.3);
+      border: 2px solid rgba(168,224,99,0.2);
+      border-radius: 10px;
+      padding: 12px 8px;
+      color: #c8e8a0;
+      font-size: 0.88rem;
+      font-family: 'Nunito', sans-serif;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      min-height: 56px;
+    }
+    .mc-btn:hover:not(:disabled) { border-color: #a8e063; background: rgba(168,224,99,0.1); }
+    .mc-btn.correct {
+      background: #27ae60;
+      border-color: #5ddb8a;
+      border-width: 3px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 0 16px rgba(93,219,138,0.6);
+      transform: scale(1.04);
+    }
+    .mc-btn.wrong {
+      background: #3a0a0a;
+      border-color: #8a3a3a;
+      color: #8a5a5a;
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+    .mc-btn:disabled { cursor: default; }
+
+    /* Type-in */
+    .type-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .type-input {
+      flex: 1;
+      padding: 12px;
+      background: rgba(0,0,0,0.3);
+      border: 2px solid rgba(168,224,99,0.2);
+      border-radius: 10px;
+      color: #e8f5e0;
+      font-size: 1rem;
+      font-family: 'Nunito', sans-serif;
+    }
+    .type-input:focus { outline: none; border-color: #a8e063; }
+    .type-input.correct { border-color: #27ae60; background: rgba(39,174,96,0.15); }
+    .type-input.wrong   { border-color: #8a3a3a; background: rgba(138,58,58,0.15); }
+
+    .btn-submit {
+      padding: 12px 18px;
+      background: #5a9e2a;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-submit:hover { background: #4a8e1a; }
+    .btn-submit:disabled { background: #2a4a1a; cursor: default; }
+
+    /* Feedback */
+    .feedback-msg {
+      text-align: center;
+      font-size: 0.9rem;
+      min-height: 44px;
+      margin-bottom: 8px;
+      font-weight: 700;
+      line-height: 1.5;
+      color: #a8e063;
+    }
+    .feedback-msg.good { color: #5ddb8a; }
+    .feedback-msg.bad  { color: #e94560; }
+
+    /* Next button */
+    .btn-next {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: #3a7a1a;
+      border: 2px solid #5a9e2a;
+      border-radius: 12px;
+      color: #a8e063;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: background 0.2s;
+    }
+    .btn-next:hover { background: #2a6a0a; }
+
+    /* Streak badge */
+    .streak-badge {
+      display: inline-block;
+      margin-left: 8px;
+      font-size: 0.75rem;
+      background: #d4a020;
+      color: #fff;
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .streak-badge.visible { opacity: 1; }
+
+    /* Result screen */
+    .result-wrap { text-align: center; padding: 40px 20px; }
+    .result-icon { font-size: 4rem; margin-bottom: 12px; }
+    .result-title {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.8rem;
+      color: #a8e063;
+      margin-bottom: 8px;
+    }
+    .result-sub  { color: #7cb85c; margin-bottom: 20px; }
+    .result-stats {
+      background: rgba(0,0,0,0.25);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      color: #c8e8a0;
+      font-size: 0.9rem;
+      line-height: 1.8;
+    }
+    .btn-again, .btn-setup {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1rem;
+      cursor: pointer;
+      margin: 6px;
+    }
+    .btn-again { background: #5a9e2a; color: #fff; }
+    .btn-again:hover { background: #4a8e1a; }
+    .btn-setup { background: rgba(0,0,0,0.3); color: #a8e063; border: 2px solid #5a9e2a; }
+
+    @media (max-width: 420px) {
+      .crop-emoji { font-size: 4rem; }
+      .class-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .mc-grid    { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="shared-header-root"></div>
+
+  <!-- ── LOADING ── -->
+  <div class="screen active" id="screen-loading">
+    <p style="text-align:center;padding-top:60px;color:#7cb85c;">Loading your farm...</p>
+  </div>
+
+  <!-- ── SETUP ── -->
+  <div class="screen" id="screen-setup">
+    <h1 class="farm-title">🌾 Farm Mode</h1>
+    <p class="farm-subtitle">Grow crops by answering questions. Harvest when ready.</p>
+    <p class="farm-credit">Inspired by <a href="https://play.google.com/store/apps/details?id=com.hyperthought.lingolegend" target="_blank" rel="noopener">Lingo Legend</a></p>
+
+    <div class="setup-card">
+      <h3>🌱 What are you growing today?</h3>
+      <div class="class-grid" id="class-grid" role="group" aria-label="Pick a class to grow crops from">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <div class="setup-card">
+      <h3>✏️ Answer Style</h3>
+      <div class="class-grid">
+        <button class="class-btn selected" id="mode-mc" onclick="selectMode('mc')" aria-pressed="true">
+          <span class="class-icon">👆</span>
+          <span class="class-name">Multiple Choice</span>
+          <span class="class-count">Easier on rough days</span>
+        </button>
+        <button class="class-btn" id="mode-type" onclick="selectMode('type')" aria-pressed="false">
+          <span class="class-icon">✏️</span>
+          <span class="class-name">Type It In</span>
+          <span class="class-count">Write the answer yourself</span>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-start" id="btn-start" onclick="startFarm()" disabled aria-disabled="true">
+      Pick a class to start farming!
+    </button>
+  </div>
+
+  <!-- ── FARM ── -->
+  <div class="screen" id="screen-farm">
+    <div class="farm-header">
+      <span id="farm-class-label"></span>
+      <span class="farm-coins" aria-live="polite" aria-label="Coins earned">🪙 <span id="coin-count">0</span></span>
+    </div>
+
+    <!-- Crop display -->
+    <div class="crop-stage-area">
+      <div class="crop-emoji" id="crop-emoji" role="img" aria-label="Your crop">🌱</div>
+      <div class="crop-name" id="crop-name"></div>
+    </div>
+
+    <!-- Growth progress track -->
+    <div class="growth-track" role="progressbar" aria-label="Crop growth" aria-valuenow="0" aria-valuemin="0" aria-valuemax="4" id="growth-track">
+      <div class="growth-pip" id="pip-0"></div>
+      <div class="growth-pip" id="pip-1"></div>
+      <div class="growth-pip" id="pip-2"></div>
+      <div class="growth-pip" id="pip-3"></div>
+    </div>
+    <div class="growth-label" id="growth-label">Plant a seed — answer a question!</div>
+
+    <!-- Harvest button (appears when crop is ready) -->
+    <button class="btn-harvest" id="btn-harvest" onclick="harvestCrop()" aria-label="Harvest your crop for coins">
+      ✨ Harvest! Collect your coins ✨
+    </button>
+
+    <!-- Question -->
+    <div class="question-card" id="question-card" style="display:none" aria-live="polite" aria-atomic="true">
+      <div class="q-label">❓ <span id="q-cat">Question</span> <span class="streak-badge" id="streak-badge" aria-live="polite"></span></div>
+      <div class="q-text" id="q-text"></div>
+      <div class="q-from" id="q-from"></div>
+    </div>
+
+    <!-- MC -->
+    <div id="mc-section" style="display:none">
+      <div class="mc-grid" id="mc-grid" role="group" aria-label="Answer choices"></div>
+    </div>
+
+    <!-- Type-in -->
+    <div id="type-section" style="display:none">
+      <div class="type-row">
+        <input class="type-input" id="type-input" type="text" placeholder="Type your answer..."
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               aria-label="Type your answer here">
+        <button class="btn-submit" id="btn-submit" onclick="submitTyped()" aria-label="Submit answer">Go</button>
+      </div>
+    </div>
+
+    <!-- Feedback -->
+    <div class="feedback-msg" id="feedback-msg" role="alert" aria-live="assertive"></div>
+
+    <!-- Next button -->
+    <button class="btn-next" id="btn-next" style="display:none" onclick="nextQuestion()" aria-label="Continue to next question">
+      Next ▶
+    </button>
+
+    <button onclick="showSetup()" style="width:100%;padding:10px;background:none;border:1px solid rgba(168,224,99,0.2);border-radius:10px;color:#5a8a40;font-size:0.8rem;cursor:pointer;margin-top:4px" aria-label="Return to class selection">
+      ← Change Class
+    </button>
+  </div>
+
+  <!-- ── RESULT ── -->
+  <div class="screen" id="screen-result">
+    <div class="result-wrap">
+      <div class="result-icon" id="result-icon">🌾</div>
+      <div class="result-title" id="result-title">Session Complete!</div>
+      <div class="result-sub"  id="result-sub"></div>
+      <div class="result-stats" id="result-stats"></div>
+      <div>
+        <button class="btn-again" onclick="startFarm()" aria-label="Farm again with the same class">Farm Again</button>
+        <button class="btn-setup" onclick="showSetup()" aria-label="Choose a different class">Change Class</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js"></script>
+
+  <script>
+    /* Claude: 2026-04-19 — Farm Mode game logic */
+
+    /* Dark mode */
+    try { if (localStorage.getItem('AA_DARK_MODE') === 'true') document.documentElement.classList.add('aa-dark'); } catch(e){}
+
+    /* ── Crop definitions per class ── */
+    var CROPS = {
+      "HORT 328":  { emoji: ["🌱","🌿","🌸","🌺"], name: "Petal Rose"   },
+      "HORT 287R": { emoji: ["🌱","🌿","💐","🌸"], name: "Bouquet Bloom" },
+      "HORT":      { emoji: ["🌱","🌿","🌼","🌻"], name: "Wildflower"    },
+      "FCS 207":   { emoji: ["🌱","🌿","🪴","🌾"], name: "Cotton Plant"  },
+      "FCS 101":   { emoji: ["🌱","🥕","🥦","🍅"], name: "Garden Patch"  },
+      "FCS":       { emoji: ["🌱","🥕","🥦","🏡"], name: "Home Garden"   },
+      "IDS 101":   { emoji: ["🌱","🌿","📗","🌳"], name: "Knowledge Tree" },
+      "IDS":       { emoji: ["🌱","🌿","📗","🌳"], name: "Knowledge Tree" },
+      "Cooking":   { emoji: ["🌱","🍅","🫑","🌽"], name: "Veggie Patch"  },
+      "RBT":       { emoji: ["🌱","🌿","🧠","✨"], name: "Mind Fern"      },
+      "General":   { emoji: ["🌱","🌿","🌼","🌻"], name: "Sunflower"      }
+    };
+
+    /* ── Class key helpers (mirrors battle-mode) ── */
+    function getClassKey(title) {
+      var t = title.toUpperCase();
+      if (t.indexOf("HORT 287") !== -1 || t.indexOf("HORT287") !== -1) return "HORT 287R";
+      if (t.indexOf("HORT 328") !== -1 || t.indexOf("HORT328") !== -1) return "HORT 328";
+      if (t.indexOf("HORT")     !== -1)                                  return "HORT";
+      if (t.indexOf("FCS 207")  !== -1 || t.indexOf("FCS207")  !== -1) return "FCS 207";
+      if (t.indexOf("FCS 101")  !== -1 || t.indexOf("FCS101")  !== -1) return "FCS 101";
+      if (t.indexOf("FCS")      !== -1)                                  return "FCS";
+      if (t.indexOf("IDS 101")  !== -1 || t.indexOf("IDS101")  !== -1) return "IDS 101";
+      if (t.indexOf("IDS")      !== -1)                                  return "IDS";
+      if (t.indexOf("COOK")     !== -1 || t.indexOf("CULIN")   !== -1) return "Cooking";
+      if (t.indexOf("RBT")      !== -1)                                  return "RBT";
+      return "General";
+    }
+    function getCrop(classKey) { return CROPS[classKey] || CROPS["General"]; }
+    function escHtml(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+    /* ── State ── */
+    var allQuestions   = [];
+    var questionDeck   = [];
+    var classMeta      = {};
+    var selectedClass  = null;
+    var selectedMode   = "mc";
+    var growthStage    = 0;    // 0–4 (4 = harvestable)
+    var MAX_STAGE      = 4;
+    var coins          = 0;
+    var correctCount   = 0;
+    var wrongCount     = 0;
+    var harvestCount   = 0;
+    var streak         = 0;
+    var maxStreak      = 0;
+    var answerLocked   = false;
+    var currentQ       = null;
+
+    /* ── Boot ── */
+    function waitForAA(cb, tries) {
+      tries = tries || 0;
+      if (window.AA && window.AA.db) { cb(); return; }
+      if (tries > 20) { cb(); return; }
+      setTimeout(function() { waitForAA(cb, tries + 1); }, 100);
+    }
+
+    firebase.auth().onAuthStateChanged(function(user) {
+      if (!user) {
+        showScreen("loading");
+        document.getElementById("screen-loading").innerHTML =
+          '<p style="text-align:center;padding-top:60px;color:#7cb85c;">Please sign in to play Farm Mode.</p>';
+        return;
+      }
+      waitForAA(function() {
+        loadQuizzes(window.AA_uid ? window.AA_uid(user.uid) : user.uid);
+      });
+    });
+
+    function loadQuizzes(uid) {
+      firebase.firestore().doc("studentConfig/" + uid).get()
+        .then(function(snap) {
+          if (!snap.exists) { showError("No quiz data found."); return; }
+          var data    = snap.data();
+          var quizzes = data.quizzes || [];
+          allQuestions = [];
+          classMeta    = {};
+          quizzes.forEach(function(quiz) {
+            if (quiz.type !== "flashcards") return;
+            if (!quiz.data || !quiz.data.length) return;
+            var classKey = getClassKey(quiz.title || "");
+            if (!classMeta[classKey]) {
+              classMeta[classKey] = { label: classKey, count: 0 };
+            }
+            quiz.data.forEach(function(item) {
+              var def = item.definition || item.answer;
+              if (!item.term || !def) return;
+              allQuestions.push({ question: def, answer: item.term, quizTitle: quiz.title || classKey, classKey: classKey });
+              classMeta[classKey].count++;
+            });
+          });
+          if (allQuestions.length === 0) { showError("No flashcard quizzes found."); return; }
+          buildClassGrid();
+          showScreen("setup");
+        })
+        .catch(function(err) { showError("Couldn't load quizzes: " + err.message); });
+    }
+
+    function buildClassGrid() {
+      var grid = document.getElementById("class-grid");
+      grid.innerHTML = "";
+      Object.keys(classMeta).forEach(function(key) {
+        var crop = getCrop(key);
+        var btn  = document.createElement("button");
+        btn.className = "class-btn";
+        btn.setAttribute("aria-pressed", "false");
+        btn.innerHTML =
+          '<span class="class-icon">' + crop.emoji[0] + '</span>' +
+          '<span class="class-name">' + escHtml(key) + '</span>' +
+          '<span class="class-count">' + classMeta[key].count + ' questions</span>';
+        btn.onclick = (function(k) { return function() { selectClass(k); }; })(key);
+        grid.appendChild(btn);
+      });
+      if (Object.keys(classMeta).length > 1) {
+        var btn = document.createElement("button");
+        btn.className = "class-btn";
+        btn.setAttribute("aria-pressed", "false");
+        btn.innerHTML =
+          '<span class="class-icon">🌾</span>' +
+          '<span class="class-name">All Classes</span>' +
+          '<span class="class-count">' + allQuestions.length + ' questions</span>';
+        btn.onclick = function() { selectClass("ALL"); };
+        grid.appendChild(btn);
+      }
+    }
+
+    function selectClass(key) {
+      selectedClass = key;
+      document.querySelectorAll(".class-grid .class-btn").forEach(function(b) {
+        var pressed = b.querySelector(".class-name") && b.querySelector(".class-name").textContent === (key === "ALL" ? "All Classes" : key);
+        b.classList.toggle("selected", pressed);
+        b.setAttribute("aria-pressed", pressed ? "true" : "false");
+      });
+      var start = document.getElementById("btn-start");
+      start.disabled = false;
+      start.setAttribute("aria-disabled", "false");
+      start.textContent = "Start Farming!";
+    }
+
+    function selectMode(mode) {
+      selectedMode = mode;
+      document.getElementById("mode-mc").classList.toggle("selected",   mode === "mc");
+      document.getElementById("mode-type").classList.toggle("selected", mode === "type");
+      document.getElementById("mode-mc").setAttribute("aria-pressed",   mode === "mc"   ? "true" : "false");
+      document.getElementById("mode-type").setAttribute("aria-pressed", mode === "type" ? "true" : "false");
+    }
+
+    /* ── Start / reset ── */
+    function startFarm() {
+      if (!selectedClass) return;
+      var pool = selectedClass === "ALL"
+        ? allQuestions.slice()
+        : allQuestions.filter(function(q) { return q.classKey === selectedClass; });
+      questionDeck  = shuffle(pool);
+      growthStage   = 0;
+      coins         = 0;
+      correctCount  = 0;
+      wrongCount    = 0;
+      harvestCount  = 0;
+      streak        = 0;
+      maxStreak     = 0;
+      answerLocked  = false;
+      document.getElementById("coin-count").textContent = "0";
+      document.getElementById("farm-class-label").textContent =
+        selectedClass === "ALL" ? "🌾 All Classes" : "🌾 " + selectedClass;
+
+      var classKey = selectedClass === "ALL" ? "General" : selectedClass;
+      var crop = getCrop(classKey);
+      document.getElementById("crop-name").textContent = crop.name;
+
+      renderCrop();
+      renderGrowthTrack();
+      showScreen("farm");
+      drawNextQuestion();
+    }
+
+    function showSetup() { showScreen("setup"); }
+
+    function showScreen(name) {
+      document.querySelectorAll(".screen").forEach(function(s) { s.classList.remove("active"); });
+      document.getElementById("screen-" + name).classList.add("active");
+    }
+
+    function showError(msg) {
+      showScreen("loading");
+      document.getElementById("screen-loading").innerHTML =
+        '<p style="text-align:center;padding-top:60px;color:#e94560;">' + escHtml(msg) + '</p>';
+    }
+
+    /* ── Crop rendering ── */
+    function renderCrop() {
+      var classKey = (selectedClass === "ALL" || !selectedClass) ? "General" : selectedClass;
+      var crop     = getCrop(classKey);
+      var stage    = Math.min(growthStage, MAX_STAGE - 1);
+      var emojiEl  = document.getElementById("crop-emoji");
+      emojiEl.textContent = growthStage >= MAX_STAGE ? "✨" : crop.emoji[stage];
+      emojiEl.setAttribute("aria-label", "Crop stage: " + growthStage + " of " + MAX_STAGE);
+    }
+
+    function renderGrowthTrack() {
+      for (var i = 0; i < MAX_STAGE; i++) {
+        var pip = document.getElementById("pip-" + i);
+        pip.classList.toggle("filled",  i < growthStage && growthStage < MAX_STAGE);
+        pip.classList.toggle("harvest", growthStage >= MAX_STAGE);
+      }
+      var track = document.getElementById("growth-track");
+      track.setAttribute("aria-valuenow", growthStage);
+      var labelEl = document.getElementById("growth-label");
+      if (growthStage >= MAX_STAGE) {
+        labelEl.textContent = "✨ Ready to harvest!";
+        document.getElementById("btn-harvest").style.display = "";
+        document.getElementById("question-card").style.display = "none";
+        document.getElementById("mc-section").style.display = "none";
+        document.getElementById("type-section").style.display = "none";
+        document.getElementById("btn-next").style.display = "none";
+        document.getElementById("feedback-msg").textContent = "";
+      } else {
+        labelEl.textContent = "Growth: " + growthStage + " / " + MAX_STAGE;
+        document.getElementById("btn-harvest").style.display = "none";
+      }
+    }
+
+    /* ── Harvest ── */
+    function harvestCrop() {
+      var emojiEl = document.getElementById("crop-emoji");
+      emojiEl.classList.remove("harvesting");
+      void emojiEl.offsetWidth;
+      emojiEl.classList.add("harvesting");
+
+      var earned = 10 + (maxStreak >= 6 ? 5 : maxStreak >= 3 ? 2 : 0);
+      coins += earned;
+      harvestCount++;
+      document.getElementById("coin-count").textContent = coins;
+      setFeedback("✨ Harvested! +" + earned + " coins!", "good");
+
+      setTimeout(function() {
+        growthStage = 0;
+        streak      = 0;
+        renderCrop();
+        renderGrowthTrack();
+        setFeedback("", "");
+        drawNextQuestion();
+      }, 1800);
+    }
+
+    /* ── Questions ── */
+    function drawNextQuestion() {
+      if (growthStage >= MAX_STAGE) return; // harvest first
+      if (questionDeck.length === 0) {
+        var pool = selectedClass === "ALL"
+          ? allQuestions.slice()
+          : allQuestions.filter(function(q) { return q.classKey === selectedClass; });
+        questionDeck = shuffle(pool);
+      }
+      currentQ    = questionDeck.shift();
+      answerLocked = false;
+
+      document.getElementById("btn-next").style.display = "none";
+      document.getElementById("question-card").style.display = "";
+      document.getElementById("feedback-msg").textContent = "";
+      document.getElementById("feedback-msg").className = "feedback-msg";
+      document.getElementById("q-text").textContent = currentQ.question;
+      document.getElementById("q-from").textContent = currentQ.quizTitle;
+      document.getElementById("q-cat").textContent  = currentQ.classKey || "Question";
+
+      var streakBadge = document.getElementById("streak-badge");
+      if (streak >= 3) {
+        streakBadge.textContent = "🔥 " + streak + " streak!";
+        streakBadge.classList.add("visible");
+      } else {
+        streakBadge.textContent = "";
+        streakBadge.classList.remove("visible");
+      }
+
+      if (selectedMode === "mc") {
+        renderMC(currentQ);
+        document.getElementById("mc-section").style.display   = "";
+        document.getElementById("type-section").style.display = "none";
+      } else {
+        var inp = document.getElementById("type-input");
+        inp.value = ""; inp.className = "type-input"; inp.disabled = false;
+        document.getElementById("btn-submit").disabled = false;
+        document.getElementById("mc-section").style.display   = "none";
+        document.getElementById("type-section").style.display = "";
+        setTimeout(function() { inp.focus(); }, 80);
+      }
+    }
+
+    function renderMC(q) {
+      var others = questionDeck.slice()
+        .filter(function(item) { return item.answer !== q.answer; })
+        .map(function(item) { return item.answer; });
+      others = shuffle(others).slice(0, 3);
+      if (others.length < 3) {
+        var extra = shuffle(allQuestions.filter(function(i) { return i.answer !== q.answer; }));
+        while (others.length < 3 && extra.length) {
+          var c = extra.shift().answer;
+          if (others.indexOf(c) === -1) others.push(c);
+        }
+      }
+      var choices = shuffle([q.answer].concat(others.slice(0,3)));
+      var grid = document.getElementById("mc-grid");
+      grid.innerHTML = "";
+      choices.forEach(function(choice) {
+        var btn = document.createElement("button");
+        btn.className   = "mc-btn";
+        btn.textContent = choice;
+        btn.setAttribute("aria-label", "Answer: " + choice);
+        btn.onclick = function() { handleMC(choice, q.answer, btn); };
+        grid.appendChild(btn);
+      });
+    }
+
+    function handleMC(chosen, correct, btn) {
+      if (answerLocked) return;
+      answerLocked = true;
+      document.querySelectorAll(".mc-btn").forEach(function(b) { b.disabled = true; });
+      if (chosen === correct) {
+        btn.classList.add("correct");
+        onCorrect();
+      } else {
+        btn.classList.add("wrong");
+        document.querySelectorAll(".mc-btn").forEach(function(b) {
+          if (b.textContent === correct) {
+            b.classList.add("correct");
+            b.textContent = "✅ " + correct;
+          }
+        });
+        onWrong(correct);
+      }
+    }
+
+    function submitTyped() {
+      var inp   = document.getElementById("type-input");
+      var typed = inp.value.trim();
+      if (!typed || answerLocked || !currentQ) return;
+      answerLocked = true;
+      inp.disabled = true;
+      document.getElementById("btn-submit").disabled = true;
+      if (fuzzyMatch(typed, currentQ.answer)) {
+        inp.classList.add("correct");
+        onCorrect();
+      } else {
+        inp.classList.add("wrong");
+        onWrong(currentQ.answer);
+      }
+    }
+
+    function onCorrect() {
+      streak++;
+      if (streak > maxStreak) maxStreak = streak;
+      var bonus = streak >= 6 ? 2 : streak >= 3 ? 1 : 0;
+      growthStage = Math.min(growthStage + 1 + bonus, MAX_STAGE);
+      correctCount++;
+      var bonusMsg = bonus > 0 ? " 🔥 +" + bonus + " streak bonus!" : "";
+      setFeedback("✅ Correct! Your crop grew!" + bonusMsg, "good");
+      growCropAnim();
+      renderCrop();
+      renderGrowthTrack();
+      setTimeout(function() {
+        document.getElementById("btn-next").style.display = "";
+      }, 600);
+    }
+
+    function onWrong(correct) {
+      streak = 0;
+      growthStage = Math.max(0, growthStage - 1);
+      wrongCount++;
+      var el = document.getElementById("feedback-msg");
+      el.className = "feedback-msg bad";
+      el.innerHTML = '❌ Wrong! &nbsp; ✅ <strong style="color:#5ddb8a;font-size:1.05em">' + escHtml(correct) + '</strong><br><span style="font-size:0.85em;color:#e94560">🥀 Crop wilted back a stage</span>';
+      wiltCropAnim();
+      renderCrop();
+      renderGrowthTrack();
+      setTimeout(function() {
+        document.getElementById("btn-next").style.display = "";
+      }, 700);
+    }
+
+    function nextQuestion() {
+      document.getElementById("btn-next").style.display = "none";
+      if (growthStage >= MAX_STAGE) {
+        renderGrowthTrack(); // shows harvest button
+      } else {
+        drawNextQuestion();
+      }
+    }
+
+    function growCropAnim() {
+      var el = document.getElementById("crop-emoji");
+      el.classList.remove("growing","wilting");
+      void el.offsetWidth;
+      el.classList.add("growing");
+    }
+    function wiltCropAnim() {
+      var el = document.getElementById("crop-emoji");
+      el.classList.remove("growing","wilting");
+      void el.offsetWidth;
+      el.classList.add("wilting");
+    }
+
+    function setFeedback(msg, type) {
+      var el = document.getElementById("feedback-msg");
+      el.textContent = msg;
+      el.className   = "feedback-msg " + type;
+    }
+
+    /* ── Utilities ── */
+    function shuffle(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+
+    function fuzzyMatch(typed, correct) {
+      var a = typed.toLowerCase().replace(/[^a-z0-9]/g,"");
+      var b = correct.toLowerCase().replace(/[^a-z0-9]/g,"");
+      return a === b || b.indexOf(a) === 0;
+    }
+
+    /* ── Shared header ── */
+    if (document.getElementById("shared-header-root")) {
+      fetch("/Academic-Allies/modular/shared-header.html?v=20260402")
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          var c = document.getElementById("shared-header-root");
+          c.innerHTML = html;
+          c.querySelectorAll("script").forEach(function(old) {
+            var n = document.createElement("script");
+            Array.from(old.attributes).forEach(function(a) { n.setAttribute(a.name, a.value); });
+            n.textContent = old.textContent;
+            old.parentNode.replaceChild(n, old);
+          });
+        })
+        .catch(function() {});
+    }
+  </script>
+</body>
+</html>
