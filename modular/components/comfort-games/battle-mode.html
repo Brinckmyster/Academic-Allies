@@ -201,16 +201,27 @@
     .monster-display.attack {
       animation: monster-attack 0.4s ease;
     }
+    /* Claude: 2026-04-19 — much more dramatic hit reaction */
     @keyframes monster-hit {
-      0%   { transform: scale(1); filter: drop-shadow(0 0 20px red) brightness(2); }
-      50%  { transform: scale(0.85) rotate(-5deg); }
-      100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(233,69,96,0.4)); }
+      0%   { transform: scale(1.4) rotate(0deg); }
+      15%  { transform: scale(0.7) rotate(-12deg); }
+      35%  { transform: scale(1.15) rotate(8deg); }
+      55%  { transform: scale(0.9) rotate(-5deg); }
+      75%  { transform: scale(1.05) rotate(2deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    @keyframes arena-flash {
+      0%   { background: rgba(233,69,96,0.35); }
+      100% { background: transparent; }
     }
     @keyframes monster-attack {
       0%   { transform: translateX(0); }
       25%  { transform: translateX(20px) scale(1.1); }
       75%  { transform: translateX(-10px); }
       100% { transform: translateX(0); }
+    }
+    .monster-arena.flashing {
+      animation: arena-flash 0.35s ease-out;
     }
     .monster-name {
       font-size: 0.9rem;
@@ -716,8 +727,8 @@
   <script>
     /* Claude: 2026-04-07 — Battle Mode game logic: loads Firestore quizzes, runs card battles */
 
-    var MONSTER_PLAYER_HP = 5;
-    var MONSTER_HP        = 15;
+    var MONSTER_PLAYER_HP = 10;
+    var MONSTER_HP        = 10;
 
     var MONSTERS = {
       "HORT 328": { emoji: "🌸", name: "The Petal Beast"  },
@@ -771,7 +782,7 @@
       { id: "quick-strike", name: "Quick Strike", emoji: "⚡", dmg: 1, heal: 0, count: 4 },
       { id: "power-blow",   name: "Power Blow",   emoji: "💥", dmg: 2, heal: 0, count: 3 },
       { id: "fireball",     name: "Fireball",     emoji: "🔥", dmg: 3, heal: 0, count: 2 },
-      { id: "mind-blast",   name: "Mind Blast",   emoji: "🧠", dmg: 2, heal: 1, count: 1 }
+      { id: "mind-blast",   name: "Mind Blast",   emoji: "🧠", dmg: 2, heal: 2, count: 1 }
     ];
 
     function buildAbilityDeck() {
@@ -1254,35 +1265,51 @@
     }
 
     function onCorrect() {
-      /* Claude: 2026-04-19 — ability card system: damage comes from selectedAbilityCard */
+      /* Claude: 2026-04-19 — ability card + streak bonus damage; monster always counter-attacks */
       var ability = selectedAbilityCard || { name: "Attack", emoji: "⚔️", dmg: 1, heal: 0 };
-      var dmg = ability.dmg;
+
+      /* Streak: increment first, then apply bonus */
+      streak++;
+      if (streak > maxStreak) maxStreak = streak;
+      var streakBonus = streak >= 6 ? 2 : streak >= 3 ? 1 : 0;
+      var dmg = ability.dmg + streakBonus;
+
       monsterHP -= dmg;
-      /* Mind Blast heals 1 player HP (up to max) */
+      correctCount++;
+
+      /* Heal (Mind Blast) — applied before monster hits so net gain is meaningful */
       if (ability.heal > 0) {
         playerHP = Math.min(MONSTER_PLAYER_HP, playerHP + ability.heal);
       }
-      correctCount++;
-      /* Claude: 2026-04-13 — Lingo Legend polish: streak tracking */
-      streak++;
-      if (streak > maxStreak) maxStreak = streak;
-      var streakMsg = streak >= 3 ? " 🔥 " + streak + " in a row!" : "";
-      var healMsg   = ability.heal > 0 ? " ✨ +1 HP!" : "";
-      var dmgMsg    = dmg >= 3 ? " MASSIVE HIT! (" + dmg + " dmg)" :
-                      dmg >= 2 ? " Critical hit! (" + dmg + " dmg)" : " The monster takes a hit!";
-      setFeedback("Correct! " + ability.emoji + " " + ability.name + dmgMsg + healMsg + streakMsg, "good");
+
+      /* Monster always counter-attacks — correct answers aren't free */
+      playerHP = Math.max(0, playerHP - 1);
+
+      /* Build feedback message */
+      var bonusMsg  = streakBonus > 0 ? " 🔥 +" + streakBonus + " streak!" : "";
+      var healMsg   = ability.heal > 0 ? " ✨ +" + ability.heal + " HP!" : "";
+      var dmgMsg    = dmg >= 5 ? " DEVASTATING! (" + dmg + " dmg)" :
+                      dmg >= 4 ? " MASSIVE HIT! (" + dmg + " dmg)" :
+                      dmg >= 3 ? " Critical hit! (" + dmg + " dmg)" :
+                      dmg >= 2 ? " Strong hit! (" + dmg + " dmg)" : " Hit! (" + dmg + " dmg)";
+      setFeedback("Correct! " + ability.emoji + " " + ability.name + dmgMsg + bonusMsg + healMsg, "good");
+
+      updateHPBars();
+      renderHearts();
       hitMonster();
       showDamagePopup(ability);
+      /* Monster counter-attacks visually after a short delay */
+      setTimeout(function() { monsterAttacks(); }, 300);
+
       /* Hide ability banner */
       var banner = document.getElementById("ability-banner");
       if (banner) banner.style.display = "none";
+
       /* Remove played card from hand */
       if (selectedCardIdx >= 0) currentHand.splice(selectedCardIdx, 1);
       selectedCardIdx     = -1;
       selectedAbilityCard = null;
-      setTimeout(function() {
-        dealHand();
-      }, 1400);
+      setTimeout(function() { dealHand(); }, 1500);
     }
 
     function onWrong(correct) {
@@ -1291,6 +1318,8 @@
       /* Claude: 2026-04-13 — Lingo Legend polish: reset streak on wrong answer */
       streak = 0;
       setFeedback("Wrong! The answer was: " + correct + " — card lost!", "bad");
+      updateHPBars();   /* Claude: 2026-04-19 — update bar immediately on wrong too */
+      renderHearts();
       monsterAttacks();
       /* Hide ability banner */
       var banner = document.getElementById("ability-banner");
@@ -1304,11 +1333,27 @@
       }, 1600);
     }
 
+    /* Claude: 2026-04-19 — dramatic hit: emoji swaps to 💥, arena flashes red, monster shakes */
     function hitMonster() {
-      var el = document.getElementById("monster-emoji");
+      var el    = document.getElementById("monster-emoji");
+      var arena = document.querySelector(".monster-arena");
+      var orig  = el.textContent;
+
+      // Swap emoji to 💥 for 280ms
+      el.textContent = "💥";
+      setTimeout(function() { el.textContent = orig; }, 280);
+
+      // Big shake animation
       el.classList.remove("hit");
-      void el.offsetWidth; // reflow
+      void el.offsetWidth;
       el.classList.add("hit");
+
+      // Red arena flash
+      if (arena) {
+        arena.classList.remove("flashing");
+        void arena.offsetWidth;
+        arena.classList.add("flashing");
+      }
     }
 
     /* Claude: 2026-04-19 — ability card system: popup shows ability name + damage */
@@ -1319,7 +1364,7 @@
       popup.className = "damage-popup";
       var dmg   = (typeof ability === "object") ? ability.dmg  : ability;
       var emoji = (typeof ability === "object") ? ability.emoji : "⚡";
-      var label = emoji + " -" + dmg + (dmg >= 3 ? " MASSIVE!" : dmg >= 2 ? " CRIT!" : (streak >= 3 ? " COMBO!" : ""));
+      var label = emoji + " -" + dmg + (dmg >= 5 ? " DEVASTATING!" : dmg >= 4 ? " MASSIVE!" : dmg >= 3 ? " CRIT!" : (streak >= 3 ? " COMBO!" : ""));
       popup.textContent = label;
       arena.appendChild(popup);
       setTimeout(function() {
@@ -1327,11 +1372,17 @@
       }, 950);
     }
 
+    /* Claude: 2026-04-19 — monster lunges and screen shakes when player gets it wrong */
     function monsterAttacks() {
-      var el = document.getElementById("monster-emoji");
+      var el    = document.getElementById("monster-emoji");
+      var arena = document.querySelector(".monster-arena");
       el.classList.remove("attack");
       void el.offsetWidth;
       el.classList.add("attack");
+      // Briefly swap to 😤 so it feels like it's lunging
+      var orig = el.textContent;
+      el.textContent = "😤";
+      setTimeout(function() { el.textContent = orig; }, 350);
     }
 
     function updateHPBars() {
