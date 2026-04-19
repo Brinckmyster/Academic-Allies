@@ -181,6 +181,15 @@
     .hp-bar-fill.monster { background: #e94560; }
     .hp-bar-fill.player  { background: #27ae60; }
     .hp-value { font-size: 0.8rem; min-width: 36px; text-align: right; color: #ccc; }
+    /* Claude: 2026-04-19 — flash player bar red when monster hits */
+    @keyframes player-hit-flash {
+      0%   { background: #e94560; }
+      60%  { background: #e94560; }
+      100% { background: #27ae60; }
+    }
+    .hp-bar-fill.player.taking-hit {
+      animation: player-hit-flash 0.7s ease-out forwards;
+    }
 
     /* Monster */
     .monster-arena {
@@ -1313,14 +1322,24 @@
                       dmg >= 4 ? " MASSIVE HIT! (" + dmg + " dmg)" :
                       dmg >= 3 ? " Critical hit! (" + dmg + " dmg)" :
                       dmg >= 2 ? " Strong hit! (" + dmg + " dmg)" : " Hit! (" + dmg + " dmg)";
-      setFeedback("Correct! " + ability.emoji + " " + ability.name + dmgMsg + bonusMsg + healMsg, "good");
+      setFeedback("✅ " + ability.emoji + " " + ability.name + dmgMsg + bonusMsg + healMsg, "good");
 
       updateHPBars();
       renderHearts();
       hitMonster();
       showDamagePopup(ability);
-      /* Monster counter-attacks visually after a short delay */
-      setTimeout(function() { monsterAttacks(); }, 300);
+
+      /* Monster counter-attacks visually + second feedback phase after a beat */
+      setTimeout(function() {
+        monsterAttacks();
+        playerHitFlash();
+        setFeedback("💔 Monster strikes back! −1 HP" + (healMsg ? "  (healed " + ability.heal + ")" : ""), "bad");
+      }, 900);
+
+      /* Back to neutral before next hand */
+      setTimeout(function() {
+        setFeedback("", "");
+      }, 2000);
 
       /* Hide ability banner */
       var banner = document.getElementById("ability-banner");
@@ -1330,7 +1349,7 @@
       if (selectedCardIdx >= 0) currentHand.splice(selectedCardIdx, 1);
       selectedCardIdx     = -1;
       selectedAbilityCard = null;
-      setTimeout(function() { dealHand(); }, 1500);
+      setTimeout(function() { dealHand(); }, 2600);
     }
 
     function onWrong(correct) {
@@ -1338,10 +1357,19 @@
       wrongCount++;
       /* Claude: 2026-04-13 — Lingo Legend polish: reset streak on wrong answer */
       streak = 0;
-      setFeedback("Wrong! The answer was: " + correct + " — card lost!", "bad");
-      updateHPBars();   /* Claude: 2026-04-19 — update bar immediately on wrong too */
+      setFeedback("❌ Wrong! The answer was: " + correct, "bad");
+      updateHPBars();
       renderHearts();
-      monsterAttacks();
+
+      /* Monster punishes the miss after a beat */
+      setTimeout(function() {
+        monsterAttacks();
+        playerHitFlash();
+        setFeedback("💔 Monster hits! −1 HP  |  Card lost!", "bad");
+      }, 900);
+
+      setTimeout(function() { setFeedback("", ""); }, 2000);
+
       /* Hide ability banner */
       var banner = document.getElementById("ability-banner");
       if (banner) banner.style.display = "none";
@@ -1349,9 +1377,7 @@
       if (selectedCardIdx >= 0) currentHand.splice(selectedCardIdx, 1);
       selectedCardIdx     = -1;
       selectedAbilityCard = null;
-      setTimeout(function() {
-        dealHand();
-      }, 1600);
+      setTimeout(function() { dealHand(); }, 2600);
     }
 
     /* Claude: 2026-04-19 — dramatic hit: emoji swaps to 💥, arena flashes red, monster shakes */
@@ -1391,6 +1417,16 @@
       setTimeout(function() {
         if (popup.parentNode) popup.parentNode.removeChild(popup);
       }, 950);
+    }
+
+    /* Claude: 2026-04-19 — flash player HP bar red so the hit is unmissable */
+    function playerHitFlash() {
+      var bar = document.getElementById("player-hp-bar");
+      if (!bar) return;
+      bar.classList.remove("taking-hit");
+      void bar.offsetWidth;
+      bar.classList.add("taking-hit");
+      setTimeout(function() { bar.classList.remove("taking-hit"); }, 750);
     }
 
     /* Claude: 2026-04-19 — monster lunges and screen shakes when player gets it wrong */
