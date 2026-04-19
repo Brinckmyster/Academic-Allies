@@ -718,13 +718,17 @@
     <div class="hp-section">
       <div class="hp-row">
         <span class="hp-label" id="monster-name-label">Monster</span>
-        <div class="hp-bar-bg"><div class="hp-bar-fill monster" id="monster-hp-bar" style="width:100%"></div></div>
-        <span class="hp-value" id="monster-hp-val"></span>
+        <div class="hp-bar-bg" role="progressbar" aria-labelledby="monster-name-label" aria-valuenow="10" aria-valuemin="0" aria-valuemax="10" id="monster-hp-progress">
+          <div class="hp-bar-fill monster" id="monster-hp-bar" style="width:100%"></div>
+        </div>
+        <span class="hp-value" id="monster-hp-val" aria-live="polite"></span>
       </div>
       <div class="hp-row">
-        <span class="hp-label">You</span>
-        <div class="hp-bar-bg"><div class="hp-bar-fill player" id="player-hp-bar" style="width:100%"></div></div>
-        <span class="hp-value" id="player-hp-val"></span>
+        <span class="hp-label" id="player-hp-label">You</span>
+        <div class="hp-bar-bg" role="progressbar" aria-labelledby="player-hp-label" aria-valuenow="10" aria-valuemin="0" aria-valuemax="10" id="player-hp-progress">
+          <div class="hp-bar-fill player" id="player-hp-bar" style="width:100%"></div>
+        </div>
+        <span class="hp-value" id="player-hp-val" aria-live="polite"></span>
       </div>
     </div>
 
@@ -748,7 +752,8 @@
 
     <!-- Question -->
     <!-- Claude: 2026-04-13 — Lingo Legend polish: dynamic category label + streak/tricky badges -->
-    <div class="question-card" id="question-card" style="display:none">
+    <!-- Claude: 2026-04-19 — aria-live so screen readers announce the question when it appears -->
+    <div class="question-card" id="question-card" style="display:none" aria-live="polite" aria-atomic="true">
       <div class="q-label">❓ <span id="q-cat">What is this?</span><span class="streak-badge" id="streak-badge"></span><span class="tricky-badge" id="tricky-badge" style="display:none">🔥 Tricky</span></div>
       <div class="q-text" id="q-text"></div>
       <div class="q-from" id="q-from"></div>
@@ -767,9 +772,10 @@
       </div>
     </div>
 
-    <div class="feedback-msg" id="feedback-msg"></div>
+    <!-- Claude: 2026-04-19 — role=alert so screen readers announce feedback immediately on change -->
+    <div class="feedback-msg" id="feedback-msg" role="alert" aria-live="assertive"></div>
     <!-- Claude: 2026-04-19 — student-paced Next button; replaces auto-advance -->
-    <button class="btn-next" id="btn-next" style="display:none" onclick="nextTurn()">Next ▶</button>
+    <button class="btn-next" id="btn-next" style="display:none" onclick="nextTurn()" aria-label="Continue to next card">Next ▶</button>
     <div class="hearts" id="hearts-display"></div>
   </div>
 
@@ -1498,6 +1504,11 @@
       document.getElementById("player-hp-bar").style.width  = pPct + "%";
       document.getElementById("monster-hp-val").textContent = monsterHP + "/" + MONSTER_HP;
       document.getElementById("player-hp-val").textContent  = playerHP  + "/" + MONSTER_PLAYER_HP;
+      /* Claude: 2026-04-19 — keep ARIA progressbar values in sync for screen readers */
+      var mp = document.getElementById("monster-hp-progress");
+      var pp = document.getElementById("player-hp-progress");
+      if (mp) { mp.setAttribute("aria-valuenow", monsterHP); mp.setAttribute("aria-valuemax", MONSTER_HP); }
+      if (pp) { pp.setAttribute("aria-valuenow", playerHP);  pp.setAttribute("aria-valuemax", MONSTER_PLAYER_HP); }
     }
 
     function renderHearts() {
