@@ -303,21 +303,23 @@
       min-height: 56px;
     }
     .mc-btn:hover:not(:disabled) { background: #1a4a7a; border-color: #4a90d9; }
-    /* Claude: 2026-04-19 — high-contrast correct/wrong so it's unmissable */
+    /* Claude: 2026-04-19 — correct answer must be unmissable, especially for screen readers + visual processing differences */
     .mc-btn.correct {
-      background: #1a6b2a;
+      background: #27ae60;
       border-color: #5ddb8a;
+      border-width: 3px;
       color: #fff;
       font-weight: 700;
-      font-size: 1rem;
-      box-shadow: 0 0 12px rgba(93,219,138,0.5);
+      font-size: 1.05rem;
+      box-shadow: 0 0 20px rgba(93,219,138,0.7), 0 0 40px rgba(93,219,138,0.3);
+      transform: scale(1.04);
     }
     .mc-btn.wrong {
-      background: #6b1a1a;
+      background: #3a0a0a;
       border-color: #e94560;
-      color: #fff;
+      color: #e94560;
       text-decoration: line-through;
-      opacity: 0.7;
+      opacity: 0.5;
     }
     .mc-btn:disabled { cursor: default; }
 
@@ -1310,7 +1312,10 @@
         btn.classList.add("wrong");
         // Show correct answer
         btns.forEach(function(b) {
-          if (b.textContent === correct) b.classList.add("correct");
+          if (b.textContent === correct) {
+            b.classList.add("correct");
+            b.textContent = "✅ " + correct; /* Claude: 2026-04-19 — prepend checkmark so correct answer is clear without color vision */
+          }
         });
         onWrong(correct);
       }
@@ -1403,7 +1408,7 @@
       /* Claude: 2026-04-19 — show correct answer big and keep it visible the whole time */
       var el = document.getElementById("feedback-msg");
       el.className = "feedback-msg bad";
-      el.innerHTML = '❌ Wrong!&nbsp; ✅ Correct answer: <strong style="color:#5ddb8a;font-size:1.05em">' + escHtml(correct) + '</strong>';
+      el.innerHTML = '❌ Wrong!<br><span style="color:#5ddb8a;font-size:1.2em;font-weight:700">✅ ' + escHtml(correct) + '</span>';
       updateHPBars();
       renderHearts();
 
