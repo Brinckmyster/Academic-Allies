@@ -520,6 +520,37 @@
       font-weight: 700;
     }
 
+    /* Claude: 2026-04-19 — ability card badges */
+    .hand-card .card-dmg-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      background: rgba(233,69,96,0.3);
+      border: 1px solid rgba(233,69,96,0.4);
+      border-radius: 8px;
+      padding: 2px 7px;
+      letter-spacing: 0.03em;
+    }
+    .hand-card .card-heal-pip {
+      font-size: 0.62rem;
+      color: #5dde7a;
+      font-weight: 700;
+    }
+
+    /* Ability activation banner */
+    #ability-banner {
+      text-align: center;
+      font-family: 'Fredoka One', cursive;
+      font-size: 0.9rem;
+      color: #e9c46a;
+      background: rgba(233,196,106,0.12);
+      border: 1px solid rgba(233,196,106,0.3);
+      border-radius: 10px;
+      padding: 8px 14px;
+      margin-bottom: 10px;
+      letter-spacing: 0.02em;
+    }
+
     /* Deck counter */
     .deck-count {
       text-align: center;
@@ -633,14 +664,17 @@
       <div class="monster-name" id="monster-name-display"></div>
     </div>
 
-    <!-- Claude: 2026-04-18 — Lingo Legend card hand: pick a card to play, then answer it -->
+    <!-- Claude: 2026-04-19 — ability card system: pick an attack card, then answer a question to fire it -->
     <div id="hand-section">
       <div class="deck-count" id="deck-count"></div>
-      <div class="hand-label">⚔️ Choose a card to play</div>
+      <div class="hand-label">⚔️ Choose an attack card</div>
       <div class="hand-grid" id="hand-grid">
         <!-- filled by JS -->
       </div>
     </div>
+
+    <!-- Ability activation banner: shown when player picks a card -->
+    <div id="ability-banner" style="display:none"></div>
 
     <!-- Question -->
     <!-- Claude: 2026-04-13 — Lingo Legend polish: dynamic category label + streak/tricky badges -->
@@ -683,7 +717,7 @@
     /* Claude: 2026-04-07 — Battle Mode game logic: loads Firestore quizzes, runs card battles */
 
     var MONSTER_PLAYER_HP = 5;
-    var MONSTER_HP        = 10;
+    var MONSTER_HP        = 15;
 
     var MONSTERS = {
       "HORT 328": { emoji: "🌸", name: "The Petal Beast"  },
@@ -730,10 +764,31 @@
       return CARD_EMOJI[classKey] || "⚔️";
     }
 
-    /* Claude: 2026-04-18 — Lingo Legend card hand system */
-    var deck           = [];   // remaining questions not yet drawn
-    var currentHand    = [];   // 3 cards currently in hand
-    var selectedCardIdx = -1;  // which hand card the player tapped
+    /* Claude: 2026-04-18 — Lingo Legend ability card system:
+       abilityDeck holds attack cards; questionDeck holds the study questions.
+       Player picks an ability card, then must answer a question to activate it. */
+    var ABILITY_CARDS = [
+      { id: "quick-strike", name: "Quick Strike", emoji: "⚡", dmg: 1, heal: 0, count: 4 },
+      { id: "power-blow",   name: "Power Blow",   emoji: "💥", dmg: 2, heal: 0, count: 3 },
+      { id: "fireball",     name: "Fireball",     emoji: "🔥", dmg: 3, heal: 0, count: 2 },
+      { id: "mind-blast",   name: "Mind Blast",   emoji: "🧠", dmg: 2, heal: 1, count: 1 }
+    ];
+
+    function buildAbilityDeck() {
+      var d = [];
+      ABILITY_CARDS.forEach(function(card) {
+        for (var i = 0; i < card.count; i++) {
+          d.push({ id: card.id, name: card.name, emoji: card.emoji, dmg: card.dmg, heal: card.heal });
+        }
+      });
+      return shuffle(d);
+    }
+
+    var abilityDeck        = [];   // shuffled attack cards
+    var questionDeck       = [];   // remaining study questions
+    var currentHand        = [];   // 3 ability cards in hand
+    var selectedCardIdx    = -1;   // which hand card the player tapped
+    var selectedAbilityCard = null; // the ability card being played
 
     // ── Boot ──
     /* Claude: 2026-04-18 — wait for window.AA (aa-firebase.js + shared-header) before
@@ -945,9 +1000,6 @@
       // Shuffle
       pool = shuffle(pool);
 
-      // Cap at MONSTER_HP questions (one per HP)
-      battleQuestions = pool.slice(0, MONSTER_HP);
-
       // Reset state
       currentQ     = 0;
       playerHP     = MONSTER_PLAYER_HP;
@@ -958,10 +1010,12 @@
       /* Claude: 2026-04-13 — Lingo Legend polish: reset streak on new battle */
       streak       = 0;
       maxStreak    = 0;
-      /* Claude: 2026-04-18 — card hand: deck = full shuffled pool */
-      deck            = pool.slice();   // already shuffled above
-      currentHand     = [];
-      selectedCardIdx = -1;
+      /* Claude: 2026-04-18 — ability card system: separate ability deck from question deck */
+      abilityDeck        = buildAbilityDeck();
+      questionDeck       = pool.slice();   // already shuffled above
+      currentHand        = [];
+      selectedCardIdx    = -1;
+      selectedAbilityCard = null;
 
       // Set monster
       var monster = (selectedClass === "ALL") ? MONSTERS["default"] : getMonster(selectedClass);
@@ -975,20 +1029,32 @@
       dealHand();
     }
 
-    /* Claude: 2026-04-18 — Lingo Legend card hand: deal 3 cards from deck, player picks one */
+    /* Claude: 2026-04-18 — Lingo Legend ability card hand: deal 3 ability cards, player picks one to activate */
     function dealHand() {
       // Check win/loss conditions first
       if (monsterHP <= 0) { endBattle(true);  return; }
       if (playerHP  <= 0) { endBattle(false); return; }
-      if (deck.length === 0 && currentHand.length === 0) { endBattle(true); return; }
-
-      // Refill hand up to 3 from deck
-      while (currentHand.length < 3 && deck.length > 0) {
-        currentHand.push(deck.shift());
+      // Out of ability cards AND hand empty = reshuffle ability deck (endless play)
+      if (abilityDeck.length === 0 && currentHand.length === 0) {
+        abilityDeck = buildAbilityDeck();
+      }
+      // Out of questions = reshuffle question deck
+      if (questionDeck.length === 0) {
+        questionDeck = shuffle(
+          (selectedClass === "ALL"
+            ? allQuestions.slice()
+            : allQuestions.filter(function(q) { return q.classKey === selectedClass; }))
+        );
       }
 
-      selectedCardIdx = -1;
-      answerLocked    = false;
+      // Refill hand up to 3 from ability deck
+      while (currentHand.length < 3 && abilityDeck.length > 0) {
+        currentHand.push(abilityDeck.shift());
+      }
+
+      selectedCardIdx     = -1;
+      selectedAbilityCard = null;
+      answerLocked        = false;
 
       // Show hand, hide answer UI
       document.getElementById("hand-section").style.display    = "block";
@@ -998,8 +1064,8 @@
       document.getElementById("feedback-msg").textContent      = "";
       document.getElementById("feedback-msg").className        = "feedback-msg";
 
-      var total = correctCount + wrongCount + currentHand.length + deck.length;
-      document.getElementById("deck-count").textContent = deck.length + " cards left in deck";
+      document.getElementById("deck-count").textContent =
+        abilityDeck.length + " ability cards · " + questionDeck.length + " questions left";
       document.getElementById("battle-progress").textContent   =
         (correctCount + wrongCount) + " played · " + monsterHP + " HP left";
 
@@ -1008,20 +1074,23 @@
       renderHand();
     }
 
-    /* Claude: 2026-04-18 — card back design: face-down cards, no question preview */
+    /* Claude: 2026-04-18 — ability card hand: shows attack name + emoji + damage value */
     function renderHand() {
       var grid = document.getElementById("hand-grid");
       grid.innerHTML = "";
-      currentHand.forEach(function(q, i) {
-        var monster = getMonster(q.classKey);
+      currentHand.forEach(function(ability, i) {
         var card = document.createElement("div");
-        card.className = "hand-card" + (q.tricky ? " tricky-card" : "");
-        card.setAttribute("data-class", q.classKey || "");
+        card.className = "hand-card ability-card";
+        card.setAttribute("data-ability", ability.id);
+        var healLine = ability.heal > 0
+          ? '<span class="card-heal-pip">+' + ability.heal + ' HP heal</span>'
+          : "";
         card.innerHTML =
-          (q.tricky ? '<span class="card-tricky-pip">🔥 Tricky</span>' : "") +
-          '<span class="card-emoji">' + getCardEmoji(q.classKey) + '</span>' +
-          '<span class="card-monster-name">' + escHtml(q.classKey || "?") + '</span>' +
-          '<span class="card-tap-hint">⚔️ Tap to play</span>';
+          '<span class="card-emoji">' + ability.emoji + '</span>' +
+          '<span class="card-monster-name">' + escHtml(ability.name) + '</span>' +
+          '<span class="card-dmg-badge">⚔️ ' + ability.dmg + ' dmg</span>' +
+          healLine +
+          '<span class="card-tap-hint">Tap to play</span>';
         card.onclick = (function(idx) {
           return function() { selectHandCard(idx); };
         })(i);
@@ -1029,10 +1098,12 @@
       });
     }
 
-    /* Claude: 2026-04-18 — card back: selected card glows, others dim, question reveals below */
+    /* Claude: 2026-04-18 — ability card selected: locks card, draws a question to activate it */
     function selectHandCard(idx) {
       if (answerLocked) return;
-      selectedCardIdx = idx;
+      selectedCardIdx     = idx;
+      selectedAbilityCard = currentHand[idx];
+
       // Highlight selected, dim others
       var cards = document.querySelectorAll(".hand-card");
       cards.forEach(function(c, i) {
@@ -1040,8 +1111,28 @@
         c.classList.toggle("dimmed",   i !== idx);
         if (i !== idx) c.onclick = null; // prevent re-selecting while answering
       });
-      // Reveal the question + answer UI below the hand
-      renderQuestion(currentHand[idx]);
+
+      // Draw a question from the question deck to activate this card
+      if (questionDeck.length === 0) {
+        questionDeck = shuffle(
+          (selectedClass === "ALL"
+            ? allQuestions.slice()
+            : allQuestions.filter(function(q) { return q.classKey === selectedClass; }))
+        );
+      }
+      var activationQ = questionDeck.shift();
+      // Temporarily store on the ability card so renderQuestion can read it
+      selectedAbilityCard._question = activationQ;
+
+      // Show activation context above the question
+      var abilityBanner = document.getElementById("ability-banner");
+      if (abilityBanner) {
+        abilityBanner.textContent = selectedAbilityCard.emoji + " " + selectedAbilityCard.name +
+          " — answer correctly to deal " + selectedAbilityCard.dmg + " dmg!";
+        abilityBanner.style.display = "";
+      }
+
+      renderQuestion(activationQ);
     }
 
     function renderQuestion(q) {
@@ -1087,8 +1178,8 @@
     }
 
     function renderMC(q) {
-      /* Claude: 2026-04-18 — pull distractors from deck + rest of hand + allQuestions fallback */
-      var pool = deck.concat(currentHand);
+      /* Claude: 2026-04-19 — pull distractors from questionDeck + allQuestions fallback */
+      var pool = questionDeck.slice();
       var others = pool
         .filter(function(item) { return item.answer !== q.answer; })
         .map(function(item) { return item.answer; });
@@ -1145,7 +1236,8 @@
       var typed = input.value.trim();
       if (!typed || answerLocked) return;
 
-      var q       = currentHand[selectedCardIdx];
+      /* Claude: 2026-04-19 — ability card system: question lives on selectedAbilityCard._question */
+      var q       = selectedAbilityCard ? selectedAbilityCard._question : null;
       var correct = q ? q.answer : "";
 
       answerLocked = true;
@@ -1162,25 +1254,35 @@
     }
 
     function onCorrect() {
-      /* Claude: 2026-04-18 — tricky cards deal 2 damage */
-      var playedCard = currentHand[selectedCardIdx] || {};
-      var dmg = playedCard.tricky ? 2 : 1;
+      /* Claude: 2026-04-19 — ability card system: damage comes from selectedAbilityCard */
+      var ability = selectedAbilityCard || { name: "Attack", emoji: "⚔️", dmg: 1, heal: 0 };
+      var dmg = ability.dmg;
       monsterHP -= dmg;
+      /* Mind Blast heals 1 player HP (up to max) */
+      if (ability.heal > 0) {
+        playerHP = Math.min(MONSTER_PLAYER_HP, playerHP + ability.heal);
+      }
       correctCount++;
       /* Claude: 2026-04-13 — Lingo Legend polish: streak tracking */
       streak++;
       if (streak > maxStreak) maxStreak = streak;
       var streakMsg = streak >= 3 ? " 🔥 " + streak + " in a row!" : "";
-      var dmgMsg = dmg > 1 ? " CRITICAL HIT! (" + dmg + " dmg)" : " The monster takes a hit!";
-      setFeedback("Correct!" + dmgMsg + streakMsg, "good");
+      var healMsg   = ability.heal > 0 ? " ✨ +1 HP!" : "";
+      var dmgMsg    = dmg >= 3 ? " MASSIVE HIT! (" + dmg + " dmg)" :
+                      dmg >= 2 ? " Critical hit! (" + dmg + " dmg)" : " The monster takes a hit!";
+      setFeedback("Correct! " + ability.emoji + " " + ability.name + dmgMsg + healMsg + streakMsg, "good");
       hitMonster();
-      showDamagePopup(dmg);
+      showDamagePopup(ability);
+      /* Hide ability banner */
+      var banner = document.getElementById("ability-banner");
+      if (banner) banner.style.display = "none";
       /* Remove played card from hand */
       if (selectedCardIdx >= 0) currentHand.splice(selectedCardIdx, 1);
-      selectedCardIdx = -1;
+      selectedCardIdx     = -1;
+      selectedAbilityCard = null;
       setTimeout(function() {
         dealHand();
-      }, 1200);
+      }, 1400);
     }
 
     function onWrong(correct) {
@@ -1188,11 +1290,15 @@
       wrongCount++;
       /* Claude: 2026-04-13 — Lingo Legend polish: reset streak on wrong answer */
       streak = 0;
-      setFeedback("Wrong! The answer was: " + correct, "bad");
+      setFeedback("Wrong! The answer was: " + correct + " — card lost!", "bad");
       monsterAttacks();
-      /* Remove played card from hand */
+      /* Hide ability banner */
+      var banner = document.getElementById("ability-banner");
+      if (banner) banner.style.display = "none";
+      /* Discard played ability card from hand */
       if (selectedCardIdx >= 0) currentHand.splice(selectedCardIdx, 1);
-      selectedCardIdx = -1;
+      selectedCardIdx     = -1;
+      selectedAbilityCard = null;
       setTimeout(function() {
         dealHand();
       }, 1600);
@@ -1205,13 +1311,15 @@
       el.classList.add("hit");
     }
 
-    /* Claude: 2026-04-13/2026-04-18 — Lingo Legend polish: floating damage number on hit */
-    function showDamagePopup(dmg) {
+    /* Claude: 2026-04-19 — ability card system: popup shows ability name + damage */
+    function showDamagePopup(ability) {
       var arena = document.querySelector(".monster-arena");
       if (!arena) return;
       var popup = document.createElement("div");
       popup.className = "damage-popup";
-      var label = dmg > 1 ? "⚡ -" + dmg + " CRIT!" : (streak >= 3 ? "⚡ -1 COMBO!" : "-1");
+      var dmg   = (typeof ability === "object") ? ability.dmg  : ability;
+      var emoji = (typeof ability === "object") ? ability.emoji : "⚡";
+      var label = emoji + " -" + dmg + (dmg >= 3 ? " MASSIVE!" : dmg >= 2 ? " CRIT!" : (streak >= 3 ? " COMBO!" : ""));
       popup.textContent = label;
       arena.appendChild(popup);
       setTimeout(function() {
