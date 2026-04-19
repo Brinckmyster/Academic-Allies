@@ -490,11 +490,12 @@
       100% { opacity: 0; transform: translateX(-50%) translateY(-54px); }
     }
 
-    /* Claude: 2026-04-19 — Lingo Legend card visual redesign:
-       stone frame, circular art ring, gold parchment name banner, energy cost badge */
+    /* Claude: 2026-04-18 — Lingo Legend card hand system (card backs redesign) */
 
-    /* Hand section */
-    #hand-section { margin-bottom: 14px; }
+    /* Hand phase — 3 face-down ability cards to choose from */
+    #hand-section {
+      margin-bottom: 14px;
+    }
     .hand-label {
       font-family: 'Fredoka One', cursive;
       font-size: 0.95rem;
@@ -506,199 +507,106 @@
     .hand-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
+      gap: 10px;
     }
 
-    /* ── Card outer shell: stone texture ── */
+    /* Card back design — face-down until tapped */
     .hand-card {
-      border-radius: 12px;
+      border-radius: 14px;
+      padding: 14px 8px 12px;
       cursor: pointer;
       text-align: center;
       transition: transform 0.18s, box-shadow 0.18s, opacity 0.2s;
-      min-height: 148px;
+      min-height: 110px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
+      gap: 5px;
       position: relative;
-      overflow: hidden;
-      /* Stone grey gradient */
-      background: linear-gradient(160deg, #6a6a7e 0%, #42424e 50%, #2e2e38 100%);
-      border: 2px solid rgba(255,255,255,0.18);
-      box-shadow: 0 4px 14px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+      border: 2px solid rgba(255,255,255,0.08);
+      /* Default card back — deep navy gradient */
+      background: linear-gradient(160deg, #1e3a5f 0%, #0d1f3c 100%);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07);
     }
-    /* Subtle stone grain overlay */
-    .hand-card::before {
-      content: '';
+    /* Claude: 2026-04-18 — class-specific card back colours, each visually distinct */
+    .hand-card[data-class="RBT"]      { background: linear-gradient(160deg, #3a1a6e 0%, #1e0a4e 100%); }
+    .hand-card[data-class="FCS 101"]  { background: linear-gradient(160deg, #4a3008 0%, #261804 100%); } /* amber/gold */
+    .hand-card[data-class="FCS 207"]  { background: linear-gradient(160deg, #083a3a 0%, #041e1e 100%); } /* teal */
+    .hand-card[data-class="FCS"]      { background: linear-gradient(160deg, #083a3a 0%, #041e1e 100%); }
+    .hand-card[data-class="HORT 328"] { background: linear-gradient(160deg, #3a1a2a 0%, #1e0a16 100%); } /* rose pink */
+    .hand-card[data-class="HORT 287R"]{ background: linear-gradient(160deg, #2a0a3a 0%, #16041e 100%); } /* deep violet */
+    .hand-card[data-class="HORT"]     { background: linear-gradient(160deg, #1a3a1a 0%, #0a1e0a 100%); } /* green fallback */
+    .hand-card[data-class="IDS 101"]  { background: linear-gradient(160deg, #04043a 0%, #02021e 100%); } /* deep navy/indigo */
+    .hand-card[data-class="IDS"]      { background: linear-gradient(160deg, #04043a 0%, #02021e 100%); }
+    .hand-card[data-class="Cooking"]  { background: linear-gradient(160deg, #3a1204 0%, #1e0802 100%); } /* hot red-orange */
+
+    /* Card back decorative corner diamonds */
+    .hand-card::before, .hand-card::after {
+      content: "✦";
       position: absolute;
-      inset: 0;
-      background: repeating-linear-gradient(
-        135deg,
-        transparent, transparent 4px,
-        rgba(255,255,255,0.015) 4px, rgba(255,255,255,0.015) 5px
-      );
-      pointer-events: none;
-      z-index: 0;
+      font-size: 0.55rem;
+      color: rgba(255,255,255,0.15);
     }
+    .hand-card::before { top: 6px; left: 8px; }
+    .hand-card::after  { bottom: 6px; right: 8px; }
 
     .hand-card:hover:not(.dimmed) {
-      transform: translateY(-6px);
-      box-shadow: 0 12px 24px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.15);
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
     }
     .hand-card.selected {
-      border-color: #f0d060;
-      box-shadow: 0 0 20px rgba(240,208,96,0.7), 0 6px 18px rgba(0,0,0,0.5);
-      transform: translateY(-6px);
+      border-color: #e94560;
+      box-shadow: 0 0 18px rgba(233,69,96,0.6);
+      transform: translateY(-5px);
     }
-    .hand-card.tricky-card { border-color: rgba(230,126,34,0.6); }
+    .hand-card.tricky-card { border-color: rgba(230,126,34,0.5); }
     .hand-card.tricky-card.selected {
       border-color: #e67e22;
-      box-shadow: 0 0 18px rgba(230,126,34,0.7);
+      box-shadow: 0 0 18px rgba(230,126,34,0.6);
     }
     .hand-card.dimmed { opacity: 0.35; cursor: default; transform: none; }
 
-    /* ── Energy cost badge (blue crystal, top-left) ── */
-    .card-cost {
-      position: absolute;
-      top: 5px;
-      left: 5px;
-      width: 24px;
-      height: 24px;
-      background: radial-gradient(circle at 35% 35%, #7ad4ff, #1a6fbf);
-      border: 2px solid #9ae4ff;
-      border-radius: 50%;
-      font-family: 'Fredoka One', cursive;
-      font-size: 0.82rem;
-      font-weight: 900;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 3;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-    }
-
-    /* ── Tier badge (lightning, top-left beside cost) ── */
-    .card-tier {
-      position: absolute;
-      top: 4px;
-      left: 31px;
-      background: linear-gradient(to bottom, #f0c030, #c07010);
-      border: 1px solid #f8d060;
-      border-radius: 5px;
-      font-size: 0.58rem;
-      font-weight: 900;
-      color: #fff;
-      padding: 1px 4px;
-      z-index: 3;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-      line-height: 1.4;
-    }
-
-    /* ── Rarity gem (top-right) ── */
-    .card-gem {
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      font-size: 0.75rem;
-      z-index: 3;
-      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
-    }
-
-    /* ── Circular art ring ── */
-    .card-art-ring {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      margin-top: 14px;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 4px solid #ccc; /* overridden per card */
-      z-index: 1;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
-      flex-shrink: 0;
-    }
-    /* Art ring background: colored radial, like Lingo Legend */
-    .card-art-bg {
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      z-index: 0;
-    }
-    .card-art-emoji {
-      font-size: 2rem;
-      line-height: 1;
-      position: relative;
-      z-index: 1;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
-    }
-
-    /* ── Gold parchment name banner ── */
-    .card-name-banner {
-      width: calc(100% + 4px);
-      margin: 5px -2px 0;
-      background: linear-gradient(to bottom, #e8c850 0%, #c09020 50%, #a07010 100%);
-      border-top: 1px solid #f8e070;
-      border-bottom: 1px solid #705010;
-      padding: 4px 6px;
-      font-family: 'Fredoka One', cursive;
-      font-size: 0.72rem;
-      color: #2a1000;
-      text-align: center;
-      letter-spacing: 0.01em;
-      text-shadow: 0 1px 0 rgba(255,255,255,0.3);
-      position: relative;
-      z-index: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* ── Description / effect area ── */
-    .card-desc {
-      width: 100%;
-      flex: 1;
-      padding: 5px 6px 6px;
-      background: rgba(200,200,220,0.12);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 2px;
-      z-index: 1;
-      position: relative;
-    }
-    .card-effect-line {
+    .hand-card .card-emoji { font-size: 2rem; line-height: 1; }
+    .hand-card .card-monster-name {
       font-size: 0.68rem;
+      color: rgba(255,255,255,0.5);
       font-weight: 700;
-      color: rgba(255,255,255,0.9);
-      line-height: 1.3;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
-    .card-heal-line {
+    .hand-card .card-tap-hint {
       font-size: 0.65rem;
-      color: #5dde7a;
-      font-weight: 700;
-    }
-    .card-tap-hint {
-      font-size: 0.58rem;
       color: rgba(255,255,255,0.3);
-      margin-top: 1px;
+      margin-top: 2px;
     }
-
-    /* Tricky pip stays top-right corner */
-    .card-tricky-pip {
+    .hand-card .card-tricky-pip {
       position: absolute;
       top: 5px;
       right: 6px;
-      font-size: 0.58rem;
+      font-size: 0.6rem;
       background: #e67e22;
       color: #fff;
-      border-radius: 6px;
-      padding: 1px 4px;
+      border-radius: 8px;
+      padding: 1px 5px;
       font-weight: 700;
-      z-index: 4;
+    }
+
+    /* Claude: 2026-04-19 — ability card badges */
+    .hand-card .card-dmg-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      background: rgba(233,69,96,0.3);
+      border: 1px solid rgba(233,69,96,0.4);
+      border-radius: 8px;
+      padding: 2px 7px;
+      letter-spacing: 0.03em;
+    }
+    .hand-card .card-heal-pip {
+      font-size: 0.62rem;
+      color: #5dde7a;
+      font-weight: 700;
     }
 
     /* Ability activation banner */
@@ -728,11 +636,8 @@
       .class-grid, .mc-grid { grid-template-columns: 1fr; }
       .mode-grid { grid-template-columns: 1fr 1fr; }
       .hand-grid { grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
-      .hand-card { min-height: 128px; }
-      .card-art-ring { width: 54px; height: 54px; margin-top: 12px; }
-      .card-art-emoji { font-size: 1.7rem; }
-      .card-name-banner { font-size: 0.64rem; }
-      .card-effect-line { font-size: 0.62rem; }
+      .hand-card { padding: 8px 4px; min-height: 78px; }
+      .hand-card .card-preview { font-size: 0.67rem; }
     }
   </style>
 </head>
@@ -946,12 +851,11 @@
     /* Claude: 2026-04-18 — Lingo Legend ability card system:
        abilityDeck holds attack cards; questionDeck holds the study questions.
        Player picks an ability card, then must answer a question to activate it. */
-    /* Claude: 2026-04-19 — Added cost, tier, ringColor, gem for Lingo Legend card visuals */
     var ABILITY_CARDS = [
-      { id: "quick-strike", name: "Quick Strike", emoji: "⚡", dmg: 1, heal: 0, count: 4, cost: 1, tier: 1, ringColor: "#1a6fbf", ringBg: "radial-gradient(circle at 40% 35%, #a0d8ff, #1a5fa0)", gem: "💎" },
-      { id: "power-blow",   name: "Power Blow",   emoji: "💥", dmg: 2, heal: 0, count: 3, cost: 2, tier: 2, ringColor: "#bf6a1a", ringBg: "radial-gradient(circle at 40% 35%, #ffd0a0, #bf5010)", gem: "🟠" },
-      { id: "fireball",     name: "Fireball",     emoji: "🔥", dmg: 3, heal: 0, count: 2, cost: 2, tier: 3, ringColor: "#bf2a1a", ringBg: "radial-gradient(circle at 40% 35%, #ffa080, #bf2010)", gem: "🔴" },
-      { id: "mind-blast",   name: "Mind Blast",   emoji: "🧠", dmg: 2, heal: 2, count: 1, cost: 3, tier: 4, ringColor: "#7a1abf", ringBg: "radial-gradient(circle at 40% 35%, #d0a0ff, #6010a0)", gem: "💜" }
+      { id: "quick-strike", name: "Quick Strike", emoji: "⚡", dmg: 1, heal: 0, count: 4 },
+      { id: "power-blow",   name: "Power Blow",   emoji: "💥", dmg: 2, heal: 0, count: 3 },
+      { id: "fireball",     name: "Fireball",     emoji: "🔥", dmg: 3, heal: 0, count: 2 },
+      { id: "mind-blast",   name: "Mind Blast",   emoji: "🧠", dmg: 2, heal: 2, count: 1 }
     ];
 
     function buildAbilityDeck() {
@@ -1260,7 +1164,7 @@
       renderHand();
     }
 
-    /* Claude: 2026-04-19 — Lingo Legend card anatomy: stone frame, circular art ring, gold banner, energy cost */
+    /* Claude: 2026-04-18 — ability card hand: shows attack name + emoji + damage value */
     function renderHand() {
       var grid = document.getElementById("hand-grid");
       grid.innerHTML = "";
@@ -1268,36 +1172,15 @@
         var card = document.createElement("div");
         card.className = "hand-card ability-card";
         card.setAttribute("data-ability", ability.id);
-        card.setAttribute("aria-label", ability.name + ": deals " + ability.dmg + " damage" + (ability.heal > 0 ? ", heals " + ability.heal + " HP" : "") + ". Tap to play.");
-
         var healLine = ability.heal > 0
-          ? '<div class="card-heal-line">+' + ability.heal + ' HP heal</div>'
+          ? '<span class="card-heal-pip">+' + ability.heal + ' HP heal</span>'
           : "";
-        var tierBadge = ability.tier >= 2
-          ? '<div class="card-tier">⚡' + ability.tier + '</div>'
-          : "";
-
         card.innerHTML =
-          /* energy cost badge */
-          '<div class="card-cost" aria-hidden="true">' + ability.cost + '</div>' +
-          /* tier badge */
-          tierBadge +
-          /* rarity gem top-right */
-          '<div class="card-gem" aria-hidden="true">' + ability.gem + '</div>' +
-          /* circular art */
-          '<div class="card-art-ring" style="border-color:' + ability.ringColor + '">' +
-            '<div class="card-art-bg" style="background:' + ability.ringBg + '"></div>' +
-            '<span class="card-art-emoji">' + ability.emoji + '</span>' +
-          '</div>' +
-          /* gold name banner */
-          '<div class="card-name-banner">' + escHtml(ability.name) + '</div>' +
-          /* description */
-          '<div class="card-desc">' +
-            '<div class="card-effect-line">⚔️ ' + ability.dmg + ' damage</div>' +
-            healLine +
-            '<div class="card-tap-hint">tap to play</div>' +
-          '</div>';
-
+          '<span class="card-emoji">' + ability.emoji + '</span>' +
+          '<span class="card-monster-name">' + escHtml(ability.name) + '</span>' +
+          '<span class="card-dmg-badge">⚔️ ' + ability.dmg + ' dmg</span>' +
+          healLine +
+          '<span class="card-tap-hint">Tap to play</span>';
         card.onclick = (function(idx) {
           return function() { selectHandCard(idx); };
         })(i);
