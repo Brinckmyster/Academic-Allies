@@ -580,8 +580,6 @@
     if (btn.closest && btn.closest('#aa-student-switcher')) return true;
     /* Skip mirror banner */
     if (btn.closest && btn.closest('#aa-mirror-banner')) return true;
-    /* Claude: 2026-04-20 — Skip elements inside data-aa-mirror-keep containers (read-only UI that makes no writes) */
-    if (btn.closest && btn.closest('[data-aa-mirror-keep]')) return true;
     return false;
   }
 
@@ -607,8 +605,7 @@
       var el = inputs[i];
       /* Skip mirror UI elements */
       /* Claude: 2026-03-21 — also skip dashboard student picker so supporters can switch students */
-      /* Claude: 2026-04-20 — also skip data-aa-mirror-keep containers (UI that makes no writes, e.g. email template picker) */
-      if (el.closest && (el.closest('#aa-student-switcher') || el.closest('#aa-mirror-banner') || el.closest('#student-picker-wrap') || el.closest('[data-aa-mirror-keep]'))) continue;
+      if (el.closest && (el.closest('#aa-student-switcher') || el.closest('#aa-mirror-banner') || el.closest('#student-picker-wrap'))) continue;
       /* Skip if already locked */
       if (el._aaLocked) continue;
       el._aaLocked = true;
