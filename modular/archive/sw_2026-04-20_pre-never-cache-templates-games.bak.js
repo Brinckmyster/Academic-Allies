@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260420a'; /* Claude: 2026-04-20 — templates + battle-mode + farm-mode added to NEVER_CACHE */
+var CACHE   = 'aa-shell-20260406d'; /* Claude: 2026-04-06 — Klondike Solitaire added */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -54,9 +54,6 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/comfort-games/freecell.html', /* Claude: 2026-04-06 — FreeCell card game */
   '/Academic-Allies/modular/components/comfort-games/spider.html',   /* Claude: 2026-04-06 — Spider Solitaire */
   '/Academic-Allies/modular/components/comfort-games/klondike.html', /* Claude: 2026-04-06 — Klondike Solitaire */
-  '/Academic-Allies/modular/components/templates/templates.html', /* Claude: 2026-04-20 — teacher list changes, must be fresh */
-  '/Academic-Allies/modular/components/comfort-games/battle-mode.html', /* Claude: 2026-04-20 — class roster changes, must be fresh */
-  '/Academic-Allies/modular/components/comfort-games/farm-mode.html', /* Claude: 2026-04-20 — village builder rebuild, must be fresh */
   '/Academic-Allies/modular/components/brain-check/simon-says.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/reaction-time.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/pattern-spotter.html', /* Claude: 2026-04-01 — brain check game */
