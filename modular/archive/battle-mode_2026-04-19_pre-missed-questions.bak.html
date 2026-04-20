@@ -723,85 +723,6 @@
       margin-bottom: 6px;
     }
 
-    /* ── Missed questions (result screen) ── */
-    /* Claude: 2026-04-19 — missed questions: session summary, rematch, Firestore persistence */
-    .missed-section {
-      margin-top: 18px;
-      text-align: left;
-    }
-    .missed-heading {
-      font-family: 'Fredoka One', cursive;
-      font-size: 1rem;
-      color: #e94560;
-      margin-bottom: 10px;
-      text-align: center;
-    }
-    .missed-list {
-      list-style: none;
-      max-height: 220px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-      margin-bottom: 14px;
-      padding-right: 4px;
-    }
-    .missed-item {
-      background: rgba(233,69,96,0.08);
-      border: 1px solid rgba(233,69,96,0.2);
-      border-radius: 10px;
-      padding: 9px 12px;
-    }
-    .missed-q {
-      font-size: 0.8rem;
-      color: #aaa;
-      margin-bottom: 3px;
-      line-height: 1.3;
-    }
-    .missed-a {
-      font-size: 0.88rem;
-      font-weight: 700;
-      color: #5ddb8a;
-    }
-    .missed-from {
-      font-size: 0.68rem;
-      color: #555;
-      margin-top: 2px;
-      font-style: italic;
-    }
-    .btn-rematch {
-      width: 100%;
-      padding: 13px;
-      background: linear-gradient(to bottom, #e94560, #b02040);
-      border: none;
-      border-radius: 12px;
-      color: #fff;
-      font-family: 'Fredoka One', cursive;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-bottom: 8px;
-      box-shadow: 0 4px 12px rgba(233,69,96,0.4);
-      letter-spacing: 0.02em;
-    }
-    .btn-rematch:hover { opacity: 0.9; }
-
-    /* Fight Missed button on setup screen */
-    .btn-fight-missed {
-      width: 100%;
-      padding: 13px;
-      background: linear-gradient(to bottom, #c04040, #8a2020);
-      border: 2px solid rgba(233,69,96,0.4);
-      border-radius: 12px;
-      color: #fff;
-      font-family: 'Fredoka One', cursive;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-top: 10px;
-      letter-spacing: 0.02em;
-      display: none; /* shown by JS when persistent missed items exist */
-    }
-    .btn-fight-missed:hover { opacity: 0.9; }
-
     /* Mobile tweaks */
     @media (max-width: 380px) {
       .class-grid, .mc-grid { grid-template-columns: 1fr; }
@@ -881,11 +802,6 @@
     <button class="btn-start" id="btn-start" onclick="startBattle()" disabled>
       Pick a class to start battling!
     </button>
-    <!-- Claude: 2026-04-19 — Fight Missed: shown when persistent missed questions exist in Firestore -->
-    <button class="btn-fight-missed" id="btn-fight-missed" onclick="startRematch()"
-            aria-label="Fight again using your saved missed questions">
-      ⚔️ Fight Missed Questions (<span id="missed-count">0</span>)
-    </button>
   </div>
 
   <!-- ── BATTLE ── -->
@@ -961,21 +877,11 @@
   </div>
 
   <!-- ── RESULT ── -->
-  <!-- Claude: 2026-04-19 — added missed questions summary + rematch button -->
   <div class="screen" id="screen-result">
     <div class="result-icon" id="result-icon"></div>
     <div class="result-title" id="result-title"></div>
     <div class="result-sub"  id="result-sub"></div>
     <div class="result-stats" id="result-stats"></div>
-    <!-- Missed questions section — shown only if any were wrong -->
-    <div class="missed-section" id="missed-section" style="display:none">
-      <div class="missed-heading" id="missed-heading">❌ Questions to Review</div>
-      <ul class="missed-list" id="missed-list" aria-label="Questions you got wrong this battle"></ul>
-      <button class="btn-rematch" id="btn-rematch" onclick="startRematch()"
-              aria-label="Fight again using only the questions you got wrong">
-        ⚔️ Rematch — Fight Missed Questions
-      </button>
-    </div>
     <div>
       <button class="btn-again" onclick="playAgain()">Play Again</button>
       <button class="btn-setup" onclick="showSetup()">Change Class</button>
@@ -1017,11 +923,6 @@
     /* Claude: 2026-04-13 — Lingo Legend polish: streak tracking */
     var streak         = 0;
     var maxStreak      = 0;
-    /* Claude: 2026-04-19 — missed questions: session tracking + rematch + Firestore persistence */
-    var missedQuestions   = []; // wrong answers this session [{question,answer,classKey,quizTitle}]
-    var persistedMissed   = []; // loaded from Firestore on auth
-    var isMissedRematch   = false; // true when battling only missed questions
-    var currentUserUid    = null; // set on auth for Firestore saves
     /* Claude: 2026-04-18 — subject emoji for card backs (distinct from monster emoji) */
     /* Claude: 2026-04-19 — Added HORT 235 card emoji */
     var CARD_EMOJI = {
@@ -1089,10 +990,8 @@
           '<p style="text-align:center;padding-top:60px;color:#aaa;">Please sign in to play Battle Mode.</p>';
         return;
       }
-      currentUserUid = window.AA_uid ? window.AA_uid(user.uid) : user.uid;
       waitForAA(function() {
-        loadMissedFromFirestore(currentUserUid);
-        loadQuizzes(currentUserUid);
+        loadQuizzes(window.AA_uid ? window.AA_uid(user.uid) : user.uid);
       });
     });
 
@@ -1149,38 +1048,6 @@
         .catch(function(err) {
           showError("Couldn't load quizzes: " + err.message);
         });
-    }
-
-    /* Claude: 2026-04-19 — Missed questions: load from / save to battleProgress/{uid} in Firestore */
-    function loadMissedFromFirestore(uid) {
-      firebase.firestore().doc("battleProgress/" + uid).get()
-        .then(function(snap) {
-          if (!snap.exists) return;
-          var data = snap.data();
-          persistedMissed = data.missedItems || [];
-          updateFightMissedBtn();
-        })
-        .catch(function() {}); // silently fail — not critical
-    }
-
-    function saveMissedToFirestore(uid, items) {
-      if (!uid) return;
-      firebase.firestore().doc("battleProgress/" + uid).set({
-        missedItems: items,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true }).catch(function() {});
-    }
-
-    function updateFightMissedBtn() {
-      var btn = document.getElementById("btn-fight-missed");
-      var countEl = document.getElementById("missed-count");
-      if (!btn) return;
-      if (persistedMissed.length > 0) {
-        btn.style.display = "";
-        if (countEl) countEl.textContent = persistedMissed.length;
-      } else {
-        btn.style.display = "none";
-      }
     }
 
     /* Claude: 2026-04-19 — Added HORT 235 lookup before generic HORT catch-all */
@@ -1318,18 +1185,15 @@
       pool = shuffle(pool);
 
       // Reset state
-      currentQ       = 0;
-      playerHP       = MONSTER_PLAYER_HP;
-      monsterHP      = MONSTER_HP;
-      correctCount   = 0;
-      wrongCount     = 0;
-      answerLocked   = false;
+      currentQ     = 0;
+      playerHP     = MONSTER_PLAYER_HP;
+      monsterHP    = MONSTER_HP;
+      correctCount = 0;
+      wrongCount   = 0;
+      answerLocked = false;
       /* Claude: 2026-04-13 — Lingo Legend polish: reset streak on new battle */
-      streak         = 0;
-      maxStreak      = 0;
-      /* Claude: 2026-04-19 — reset session missed questions each new battle */
-      missedQuestions  = [];
-      isMissedRematch  = false;
+      streak       = 0;
+      maxStreak    = 0;
       /* Claude: 2026-04-18 — ability card system: separate ability deck from question deck */
       abilityDeck        = buildAbilityDeck();
       questionDeck       = pool.slice();   // already shuffled above
@@ -1411,10 +1275,15 @@
         var healLine = ability.heal > 0
           ? '<div class="card-heal-line">+' + ability.heal + ' HP heal</div>'
           : "";
-        /* tier badge reserved for when energy system is built */
+        var tierBadge = ability.tier >= 2
+          ? '<div class="card-tier">⚡' + ability.tier + '</div>'
+          : "";
 
         card.innerHTML =
-          /* Claude: 2026-04-19 — energy cost + tier badges removed (mechanic not yet built) */
+          /* energy cost badge */
+          '<div class="card-cost" aria-hidden="true">' + ability.cost + '</div>' +
+          /* tier badge */
+          tierBadge +
           /* rarity gem top-right */
           '<div class="card-gem" aria-hidden="true">' + ability.gem + '</div>' +
           /* circular art */
@@ -1661,15 +1530,6 @@
       wrongCount++;
       /* Claude: 2026-04-13 — Lingo Legend polish: reset streak on wrong answer */
       streak = 0;
-      /* Claude: 2026-04-19 — track missed question for session summary + rematch + Firestore */
-      var q = selectedAbilityCard ? selectedAbilityCard._question : null;
-      if (q) {
-        var alreadyLogged = missedQuestions.some(function(m) { return m.question === q.question && m.answer === q.answer; });
-        if (!alreadyLogged) {
-          missedQuestions.push({ question: q.question, answer: q.answer,
-                                  classKey: q.classKey || "", quizTitle: q.quizTitle || "" });
-        }
-      }
       /* Claude: 2026-04-19 — show correct answer big and keep it visible the whole time */
       var el = document.getElementById("feedback-msg");
       el.className = "feedback-msg bad";
@@ -1819,81 +1679,11 @@
         '<div class="stat-row"><span>HP Remaining</span><span class="val">' + (won ? playerHP : 0) + '/' + MONSTER_PLAYER_HP + '</span></div>' +
         '<div class="stat-row"><span>Best Streak 🔥</span><span class="val">' + maxStreak + '</span></div>';
 
-      /* Claude: 2026-04-19 — missed questions: show summary, enable rematch, save to Firestore */
-      var missedSection = document.getElementById("missed-section");
-      var missedList    = document.getElementById("missed-list");
-      var missedHeading = document.getElementById("missed-heading");
-      if (missedQuestions.length > 0) {
-        missedSection.style.display = "";
-        missedHeading.textContent = "❌ " + missedQuestions.length + " Question" + (missedQuestions.length === 1 ? "" : "s") + " to Review";
-        missedList.innerHTML = "";
-        missedQuestions.forEach(function(m) {
-          var li = document.createElement("li");
-          li.className = "missed-item";
-          li.innerHTML =
-            '<div class="missed-q">' + escHtml(m.question) + '</div>' +
-            '<div class="missed-a">✅ ' + escHtml(m.answer) + '</div>' +
-            '<div class="missed-from">' + escHtml(m.quizTitle) + '</div>';
-          missedList.appendChild(li);
-        });
-        // Merge into persistedMissed (deduplicate), save to Firestore
-        missedQuestions.forEach(function(m) {
-          var exists = persistedMissed.some(function(p) { return p.question === m.question && p.answer === m.answer; });
-          if (!exists) persistedMissed.push(m);
-        });
-        saveMissedToFirestore(currentUserUid, persistedMissed);
-        updateFightMissedBtn();
-      } else {
-        missedSection.style.display = "none";
-      }
-
       showScreen("result");
     }
 
     function playAgain() {
-      isMissedRematch = false;
       startBattle();
-    }
-
-    /* Claude: 2026-04-19 — rematch: fight only the questions you got wrong (session or persisted) */
-    function startRematch() {
-      var pool = isMissedRematch || missedQuestions.length === 0
-        ? persistedMissed.slice()
-        : missedQuestions.slice();
-      if (pool.length === 0) { showSetup(); return; }
-      isMissedRematch = true;
-
-      // Reset battle state
-      playerHP       = MONSTER_PLAYER_HP;
-      monsterHP      = MONSTER_HP;
-      correctCount   = 0;
-      wrongCount     = 0;
-      answerLocked   = false;
-      streak         = 0;
-      maxStreak      = 0;
-      missedQuestions = [];
-
-      questionDeck   = shuffle(pool);
-      abilityDeck    = buildAbilityDeck();
-      currentHand    = [];
-      selectedCardIdx    = -1;
-      selectedAbilityCard = null;
-
-      // Use the class of the first question, or "ALL" if mixed
-      var classKeys = pool.map(function(q) { return q.classKey; });
-      var uniqueClasses = classKeys.filter(function(k, i) { return classKeys.indexOf(k) === i; });
-      var classKey = uniqueClasses.length === 1 ? uniqueClasses[0] : "ALL";
-      if (!selectedClass) selectedClass = classKey;
-
-      var monster = getMonster(classKey === "ALL" ? "default" : classKey);
-      document.getElementById("monster-emoji").textContent         = monster.emoji;
-      document.getElementById("monster-name-display").textContent  = monster.name;
-      document.getElementById("monster-name-label").textContent    = monster.name;
-      document.getElementById("battle-class-label").textContent    = "⚔️ Rematch: Missed Questions";
-
-      updateHPBars();
-      showScreen("battle");
-      dealHand();
     }
 
     function showSetup() {
