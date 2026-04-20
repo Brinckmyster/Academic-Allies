@@ -1,7 +1,6 @@
-<!-- Claude: 2026-04-19 — Farm Mode: Lingo Legend-inspired farming study game.
-     Grow crops by answering questions correctly. Wrong answers wilt plants back.
-     Harvest fully-grown crops for coins. No HP, no losing — chill study mode. -->
-<!-- Claude: 2026-04-19 — Visual redesign: sky + soil layout, crop plot grid, barn + fence + clouds, earthy palette -->
+<!-- Claude: 2026-04-20 — Farm Mode rebuilt as Lingo Legend-style village builder.
+     Top-down emoji grid map. Answer questions → earn coins → place buildings.
+     Persistent Firestore state: farmVillage/{uid}. COMM 130 + all existing classes. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,753 +11,395 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    /* Dark mode early detection */
     html.aa-dark { color-scheme: dark; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    /* ── Page background: sky → grass → soil ── */
     body {
       font-family: 'Nunito', Arial, sans-serif;
-      background:
-        linear-gradient(to bottom,
-          #87ceeb 0%,
-          #9dd4ee 18%,
-          #6db85a 28%,
-          #4a8a2a 36%,
-          #8b5a2b 44%,
-          #6b3a1b 100%
-        );
+      background: linear-gradient(to bottom, #87ceeb 0%, #9dd4ee 30%, #6db85a 60%, #4a8a2a 100%);
       background-attachment: fixed;
       color: #2d1508;
       min-height: 100vh;
-      padding: 16px;
     }
     html.aa-dark body {
-      background:
-        linear-gradient(to bottom,
-          #0b1a2e 0%,
-          #0d2040 20%,
-          #1a3a0a 32%,
-          #2a5a1a 40%,
-          #4a2810 48%,
-          #2a1808 100%
-        ) !important;
+      background: linear-gradient(to bottom, #0b1a2e 0%, #0e2040 30%, #1a3a0a 60%, #2a5a1a 100%) !important;
       background-attachment: fixed !important;
       color: #e8d8c0 !important;
     }
 
     /* ── Screens ── */
-    .screen { display: none; max-width: 520px; margin: 0 auto; }
+    .screen { display: none; }
     .screen.active { display: block; }
+    #screen-village { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+    #screen-village.active { display: flex; }
+    #shared-header-root { margin-bottom: 0; }
 
-    /* ── Shared header space ── */
-    #shared-header-root { margin-bottom: 8px; }
-
-    /* ═══════════════════════════════════════════
+    /* ══════════════════════════════
        SETUP SCREEN
-    ═══════════════════════════════════════════ */
+    ══════════════════════════════ */
+    .setup-wrap { max-width: 480px; margin: 0 auto; padding: 16px; }
+
     .farm-title {
       font-family: 'Fredoka One', cursive;
-      font-size: 2rem;
-      text-align: center;
-      color: #fff;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      font-size: 2.2rem; text-align: center;
+      color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5);
       margin-bottom: 4px;
     }
-    .farm-subtitle {
-      text-align: center;
-      font-size: 0.85rem;
-      color: #ffe4b5;
-      margin-bottom: 6px;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.4);
-    }
-    .farm-credit {
-      text-align: center;
-      font-size: 0.72rem;
-      color: #d4b070;
-      margin-bottom: 20px;
-    }
+    .farm-subtitle { text-align: center; font-size: 0.85rem; color: #ffe4b5; margin-bottom: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+    .farm-credit   { text-align: center; font-size: 0.72rem; color: #d4b070; margin-bottom: 20px; }
     .farm-credit a { color: #f0c84a; }
 
     .setup-card {
       background: rgba(255,248,220,0.92);
-      border: 2px solid rgba(139,90,40,0.25);
-      border-radius: 16px;
-      padding: 18px;
-      margin-bottom: 14px;
+      border: 2px solid rgba(139,90,40,0.2);
+      border-radius: 16px; padding: 16px; margin-bottom: 14px;
       box-shadow: 0 3px 12px rgba(0,0,0,0.2);
     }
-    html.aa-dark .setup-card {
-      background: rgba(40,25,10,0.85) !important;
-      border-color: rgba(160,100,40,0.3) !important;
-    }
-    .setup-card h3 {
-      font-family: 'Fredoka One', cursive;
-      font-size: 1.1rem;
-      color: #7b3d0a;
-      margin-bottom: 12px;
-    }
+    html.aa-dark .setup-card { background: rgba(40,25,10,0.88) !important; border-color: rgba(160,100,40,0.25) !important; }
+    .setup-card h3 { font-family: 'Fredoka One', cursive; font-size: 1.05rem; color: #7b3d0a; margin-bottom: 12px; }
     html.aa-dark .setup-card h3 { color: #d4a060 !important; }
 
-    .class-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+    .class-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .class-btn {
       background: rgba(255,255,255,0.7);
-      border: 2px solid rgba(139,90,40,0.2);
-      border-radius: 12px;
-      padding: 12px 8px;
-      color: #5a2e08;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.18s;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
+      border: 2px solid rgba(139,90,40,0.15);
+      border-radius: 12px; padding: 12px 8px;
+      color: #5a2e08; cursor: pointer; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      transition: all 0.15s;
     }
-    html.aa-dark .class-btn { background: rgba(60,35,10,0.7) !important; color: #d4b080 !important; border-color: rgba(160,100,40,0.25) !important; }
-    .class-btn:hover { border-color: #a05a1a; background: rgba(255,220,160,0.5); }
-    .class-btn.selected { border-color: #d4900a; background: rgba(255,200,80,0.3); color: #5a2e08; font-weight: 700; }
+    html.aa-dark .class-btn { background: rgba(60,35,10,0.7) !important; color: #d4b080 !important; border-color: rgba(160,100,40,0.2) !important; }
+    .class-btn:hover { border-color: #a05a1a; background: rgba(255,225,170,0.5); }
+    .class-btn.selected { border-color: #d4900a; background: rgba(255,205,80,0.3); font-weight: 700; }
     html.aa-dark .class-btn.selected { background: rgba(180,120,20,0.3) !important; border-color: #d4900a !important; }
-    .class-btn .class-icon { font-size: 1.6rem; }
-    .class-btn .class-name { font-size: 0.8rem; font-weight: 700; }
-    .class-btn .class-count { font-size: 0.7rem; opacity: 0.6; }
+    .class-icon  { font-size: 1.6rem; }
+    .class-name  { font-size: 0.8rem; font-weight: 700; }
+    .class-count { font-size: 0.7rem; opacity: 0.6; }
 
     .btn-start {
-      width: 100%;
-      padding: 16px;
+      width: 100%; padding: 16px;
       background: linear-gradient(to bottom, #6ab82a, #4a8a1a);
-      border: none;
-      border-radius: 14px;
-      color: #fff;
-      font-family: 'Fredoka One', cursive;
-      font-size: 1.2rem;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-      margin-top: 4px;
+      border: none; border-radius: 14px; color: #fff;
+      font-family: 'Fredoka One', cursive; font-size: 1.2rem; cursor: pointer;
       box-shadow: 0 4px 0 #2a6010, 0 6px 12px rgba(0,0,0,0.3);
       text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      transition: opacity 0.15s, transform 0.1s;
     }
     .btn-start:hover:not(:disabled) { opacity: 0.9; }
     .btn-start:active { transform: translateY(2px); box-shadow: 0 2px 0 #2a6010; }
-    .btn-start:disabled { background: linear-gradient(to bottom, #8a8a6a, #6a6a4a); box-shadow: none; color: #ccc; cursor: default; }
+    .btn-start:disabled { background: linear-gradient(to bottom, #8a8a6a, #6a6a4a); box-shadow: none; cursor: default; }
 
-    /* ═══════════════════════════════════════════
-       FARM SCREEN — HUD
-    ═══════════════════════════════════════════ */
-    .farm-header {
-      background: rgba(100,60,20,0.85);
-      border-radius: 12px;
-      padding: 8px 14px;
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.82rem;
-      color: #ffe4b5;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    /* ══════════════════════════════
+       VILLAGE SCREEN — HUD
+    ══════════════════════════════ */
+    .village-hud {
+      background: rgba(30,15,3,0.90);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 12px; gap: 8px; flex-shrink: 0; z-index: 10;
     }
-    html.aa-dark .farm-header { background: rgba(50,28,8,0.9) !important; }
-    .farm-class-label { font-weight: 700; }
-    .farm-coins {
-      font-family: 'Fredoka One', cursive;
-      font-size: 1rem;
-      color: #f0d060;
+    html.aa-dark .village-hud { background: rgba(8,3,0,0.95) !important; }
+    .hud-class {
+      font-size: 0.78rem; color: #ffe4b5; font-weight: 700;
+      flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-
-    /* ═══════════════════════════════════════════
-       FARM SCENE — sky, clouds, barn, sun, bird
-    ═══════════════════════════════════════════ */
-    .farm-scene {
-      background: linear-gradient(to bottom, #87ceeb 0%, #a8daf5 65%, #7bc67e 100%);
-      border-radius: 14px 14px 0 0;
-      height: 88px;
-      position: relative;
-      overflow: hidden;
-    }
-    html.aa-dark .farm-scene {
-      background: linear-gradient(to bottom, #0b1830 0%, #0e2040 65%, #1a3a0a 100%) !important;
-    }
-    .farm-sun {
-      position: absolute;
-      top: 10px;
-      right: 22px;
-      font-size: 2.1rem;
-      filter: drop-shadow(0 0 8px rgba(255,220,0,0.6));
-    }
-    html.aa-dark .farm-sun { display: none; }
-    .farm-moon {
-      display: none;
-      position: absolute;
-      top: 10px;
-      right: 22px;
-      font-size: 1.8rem;
-    }
-    html.aa-dark .farm-moon { display: block; }
-    .farm-cloud {
-      position: absolute;
-      font-size: 1.6rem;
-      opacity: 0.85;
-      animation: cloud-drift 28s linear infinite;
-    }
-    .farm-cloud-1 { top: 10px; left: -50px; animation-delay: 0s; font-size: 1.8rem; }
-    .farm-cloud-2 { top: 26px; left: -90px; animation-delay: -14s; font-size: 1.1rem; opacity: 0.65; }
-    @keyframes cloud-drift {
-      from { transform: translateX(0); }
-      to   { transform: translateX(600px); }
-    }
-    .farm-bird {
-      position: absolute;
-      font-size: 0.85rem;
-      top: 22px;
-      left: 30%;
-      animation: bird-fly 18s ease-in-out infinite;
-      opacity: 0.7;
-    }
-    @keyframes bird-fly {
-      0%,100% { transform: translateX(0) translateY(0); }
-      25%      { transform: translateX(30px) translateY(-6px); }
-      50%      { transform: translateX(55px) translateY(2px); }
-      75%      { transform: translateX(30px) translateY(-4px); }
-    }
-    .farm-barn {
-      position: absolute;
-      bottom: 6px;
-      right: 14px;
-      font-size: 2.4rem;
-      filter: drop-shadow(1px 2px 4px rgba(0,0,0,0.3));
-    }
-    .farm-tree {
-      position: absolute;
-      bottom: 4px;
-      left: 12px;
-      font-size: 2rem;
-      filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.2));
-    }
-
-    /* ── Fence strip ── */
-    .farm-fence {
-      height: 22px;
-      background:
-        repeating-linear-gradient(to right,
-          #9b6a3a 0px, #9b6a3a 5px,
-          transparent 5px, transparent 26px
-        );
-      border-top: 3px solid #7b4a1a;
-      border-bottom: 3px solid #5a3010;
-      background-color: transparent;
-    }
-
-    /* ── Soil strip + crop plots ── */
-    .crop-field {
-      background: linear-gradient(to bottom, #7b3a18 0%, #5a2810 60%, #3a1808 100%);
-      border-radius: 0 0 14px 14px;
-      padding: 10px 8px 12px;
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-    .soil-plot {
-      background: radial-gradient(ellipse at 50% 75%, #4a2010 0%, #6b3a1a 55%, #5a2810 100%);
-      border: 2px solid rgba(120,70,30,0.5);
-      border-radius: 10px;
-      width: 50px;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      transition: all 0.3s ease;
-      box-shadow: inset 0 2px 6px rgba(0,0,0,0.4);
-    }
-    .soil-plot.active {
-      width: 68px;
-      height: 74px;
-      font-size: 2.4rem;
-      border-color: #f0d060;
-      border-width: 3px;
-      box-shadow:
-        inset 0 2px 6px rgba(0,0,0,0.4),
-        0 0 18px rgba(240,208,96,0.45),
-        0 0 6px rgba(240,208,96,0.3);
-      background: radial-gradient(ellipse at 50% 75%, #5a2a14 0%, #8b4a20 55%, #6b3818 100%);
-    }
-    .soil-plot.harvest-ready {
-      border-color: #f0d060;
-      animation: plot-pulse 1.2s ease-in-out infinite;
-    }
-    @keyframes plot-pulse {
-      0%,100% { box-shadow: inset 0 2px 6px rgba(0,0,0,0.4), 0 0 8px rgba(240,208,96,0.3); }
-      50%      { box-shadow: inset 0 2px 6px rgba(0,0,0,0.4), 0 0 24px rgba(240,208,96,0.7); }
-    }
-
-    /* ── Crop animations ── */
-    .active-crop {
-      display: inline-block;
-      transition: transform 0.3s;
-    }
-    .active-crop.growing {
-      animation: crop-grow 0.5s ease;
-    }
-    .active-crop.wilting {
-      animation: crop-wilt 0.5s ease;
-    }
-    .active-crop.harvesting {
-      animation: crop-harvest 0.6s ease;
-    }
-    @keyframes crop-grow {
-      0%   { transform: scale(1); }
-      40%  { transform: scale(1.3) translateY(-6px); }
-      100% { transform: scale(1); }
-    }
-    @keyframes crop-wilt {
-      0%   { transform: scale(1); }
-      30%  { transform: scale(0.8) rotate(-12deg); }
-      100% { transform: scale(1) rotate(0); }
-    }
-    @keyframes crop-harvest {
-      0%   { transform: scale(1); filter: none; }
-      50%  { transform: scale(1.35) translateY(-10px); filter: drop-shadow(0 0 12px gold) brightness(1.5); }
-      100% { transform: scale(1); filter: none; }
-    }
-
-    /* ── Below-field: growth track + label ── */
-    .crop-name {
-      font-family: 'Fredoka One', cursive;
-      font-size: 0.95rem;
-      color: #ffe4b5;
-      text-align: center;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
-      margin-bottom: 6px;
-    }
-    .growth-track {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin: 8px 0 4px;
-    }
-    .growth-pip {
-      width: 36px;
-      height: 10px;
-      border-radius: 5px;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid rgba(200,150,80,0.25);
-      transition: background 0.4s;
-    }
-    .growth-pip.filled { background: #6ab82a; border-color: #8ad84a; }
-    .growth-pip.harvest { background: #f0d060; border-color: #f0d060; }
-
-    .growth-label {
-      text-align: center;
-      font-size: 0.78rem;
-      color: #ffe4b5;
-      margin-bottom: 12px;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-    }
-
-    /* ── Harvest button ── */
-    .btn-harvest {
-      display: none;
-      width: 100%;
-      padding: 14px;
+    .hud-coins { font-family: 'Fredoka One', cursive; font-size: 1rem; color: #f0d060; white-space: nowrap; }
+    .btn-build {
       background: linear-gradient(to bottom, #e8a820, #c07810);
-      border: none;
-      border-radius: 14px;
-      color: #fff;
-      font-family: 'Fredoka One', cursive;
-      font-size: 1.1rem;
-      cursor: pointer;
-      margin-bottom: 14px;
-      box-shadow: 0 4px 0 #8a5008, 0 6px 16px rgba(0,0,0,0.3);
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-      animation: harvest-pulse 1.2s ease-in-out infinite;
+      border: none; border-radius: 8px; padding: 5px 10px;
+      color: #fff; font-family: 'Fredoka One', cursive; font-size: 0.82rem;
+      cursor: pointer; box-shadow: 0 2px 0 #8a5008; white-space: nowrap;
     }
-    @keyframes harvest-pulse {
-      0%,100% { box-shadow: 0 4px 0 #8a5008, 0 0 0 0 rgba(240,208,96,0.4); }
-      50%      { box-shadow: 0 4px 0 #8a5008, 0 0 0 10px rgba(240,208,96,0); }
+    .btn-build:active { transform: translateY(1px); box-shadow: none; }
+    .btn-build.build-on { background: linear-gradient(to bottom, #e84040, #c02020); box-shadow: 0 2px 0 #801010; }
+    .btn-exit-village {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 6px; padding: 4px 8px; color: #ffe4b5; font-size: 0.72rem; cursor: pointer;
     }
-    .btn-harvest:hover { opacity: 0.9; }
 
-    /* ── Question / answer cards ── */
-    .question-card {
-      background: rgba(255,248,220,0.93);
-      border: 2px solid rgba(139,90,40,0.2);
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 12px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    /* ══════════════════════════════
+       VILLAGE MAP
+    ══════════════════════════════ */
+    .village-map-wrap {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      overflow: hidden; padding: 6px;
     }
-    html.aa-dark .question-card {
-      background: rgba(40,25,10,0.88) !important;
-      border-color: rgba(160,100,40,0.3) !important;
+    .village-map {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 2px; background: #1a4a08;
+      border-radius: 10px; overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      width: 100%; max-width: 370px;
     }
-    .q-label {
-      font-size: 0.75rem;
-      color: #7b4a1a;
-      margin-bottom: 6px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    .map-tile {
+      aspect-ratio: 1;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.35rem; line-height: 1;
+      user-select: none; position: relative;
+      transition: filter 0.12s;
     }
+    .tile-tree    { background: #2d6a12; }
+    .tile-path    { background: #c09852; }
+    .tile-water   { background: #3a8fd4; }
+    .tile-flower  { background: #6db84a; }
+    .tile-buildable { background: #559040; }
+    .tile-buildable.empty.bmode { cursor: pointer; background: #65a050; }
+    .tile-buildable.empty.bmode:hover { filter: brightness(1.2); }
+    .tile-buildable.has-building.bmode { cursor: default; }
+    .tile-buildable.glow { animation: tile-glow 1.1s ease-in-out infinite; }
+    @keyframes tile-glow {
+      0%,100% { filter: brightness(1); }
+      50%      { filter: brightness(1.35) drop-shadow(0 0 6px rgba(240,208,96,0.9)); }
+    }
+
+    /* ══════════════════════════════
+       QUIZ PANEL
+    ══════════════════════════════ */
+    .quiz-panel {
+      background: rgba(255,248,210,0.97);
+      border-top: 3px solid rgba(139,90,40,0.22);
+      padding: 10px 12px 8px; flex-shrink: 0;
+      overflow-y: auto; max-height: 52vh;
+    }
+    html.aa-dark .quiz-panel { background: rgba(22,12,3,0.97) !important; border-top-color: rgba(160,100,40,0.28) !important; }
+
+    .q-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+    .q-label { font-size: 0.72rem; font-weight: 700; color: #7b4a1a; text-transform: uppercase; letter-spacing: 0.04em; }
     html.aa-dark .q-label { color: #c09060 !important; }
-    .q-text {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #2d1508;
-      line-height: 1.4;
-      margin-bottom: 6px;
+    .streak-badge { font-size: 0.72rem; background: #d4a020; color: #fff; border-radius: 8px; padding: 2px 7px; font-weight: 700; display: none; }
+    .streak-badge.visible { display: inline-block; }
+    .mode-pills { display: flex; gap: 4px; }
+    .mode-pill {
+      padding: 3px 9px; border-radius: 9px;
+      border: 1px solid rgba(139,90,40,0.22);
+      background: rgba(255,248,220,0.6);
+      font-size: 0.72rem; cursor: pointer; color: #5a3010;
     }
-    html.aa-dark .q-text { color: #e8d0b0 !important; }
-    .q-from {
-      font-size: 0.72rem;
-      color: #9a6a3a;
-      font-style: italic;
-    }
+    html.aa-dark .mode-pill { background: rgba(50,28,8,0.6) !important; color: #c09060 !important; }
+    .mode-pill.active { background: #d4900a; border-color: #d4900a; color: #fff; }
 
-    /* ── MC buttons ── */
-    .mc-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
+    .q-text { font-size: 0.95rem; font-weight: 700; color: #2d1508; line-height: 1.4; margin-bottom: 3px; }
+    html.aa-dark .q-text { color: #e8d0b0 !important; }
+    .q-from { font-size: 0.7rem; color: #9a6a3a; font-style: italic; margin-bottom: 10px; }
+
+    .mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 8px; }
     .mc-btn {
-      background: rgba(255,248,220,0.9);
-      border: 2px solid rgba(139,90,40,0.2);
-      border-radius: 10px;
-      padding: 12px 8px;
-      color: #3a2008;
-      font-size: 0.88rem;
-      font-family: 'Nunito', sans-serif;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s;
-      min-height: 56px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      background: rgba(255,248,220,0.9); border: 2px solid rgba(139,90,40,0.18);
+      border-radius: 9px; padding: 9px 7px; color: #3a2008;
+      font-size: 0.84rem; font-family: 'Nunito', sans-serif;
+      cursor: pointer; text-align: center; min-height: 48px;
+      transition: all 0.12s;
     }
-    html.aa-dark .mc-btn { background: rgba(50,30,10,0.85) !important; color: #d4b080 !important; border-color: rgba(160,100,40,0.25) !important; }
+    html.aa-dark .mc-btn { background: rgba(50,28,8,0.88) !important; color: #d4b080 !important; border-color: rgba(160,100,40,0.2) !important; }
     .mc-btn:hover:not(:disabled) { border-color: #a05a1a; background: rgba(255,235,180,0.95); }
-    .mc-btn.correct {
-      background: #27ae60;
-      border-color: #5ddb8a;
-      border-width: 3px;
-      color: #fff;
-      font-weight: 700;
-      font-size: 1rem;
-      box-shadow: 0 0 16px rgba(93,219,138,0.6);
-      transform: scale(1.04);
-    }
-    .mc-btn.wrong {
-      background: #f0d0d0;
-      border-color: #c08080;
-      color: #906060;
-      text-decoration: line-through;
-      opacity: 0.5;
-    }
+    .mc-btn.correct { background: #27ae60; border-color: #5ddb8a; border-width: 3px; color: #fff; font-weight: 700; box-shadow: 0 0 14px rgba(93,219,138,0.5); transform: scale(1.03); }
+    .mc-btn.wrong   { background: #f0d0d0; border-color: #c08080; color: #906060; text-decoration: line-through; opacity: 0.5; }
     html.aa-dark .mc-btn.wrong { background: rgba(80,20,20,0.7) !important; }
     .mc-btn:disabled { cursor: default; }
 
-    /* ── Type-in ── */
-    .type-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
+    .type-row { display: flex; gap: 8px; margin-bottom: 8px; }
     .type-input {
-      flex: 1;
-      padding: 12px;
-      background: rgba(255,248,220,0.9);
-      border: 2px solid rgba(139,90,40,0.2);
-      border-radius: 10px;
-      color: #2d1508;
-      font-size: 1rem;
-      font-family: 'Nunito', sans-serif;
+      flex: 1; padding: 10px;
+      background: rgba(255,248,220,0.9); border: 2px solid rgba(139,90,40,0.18);
+      border-radius: 9px; color: #2d1508; font-size: 0.95rem; font-family: 'Nunito', sans-serif;
     }
-    html.aa-dark .type-input { background: rgba(40,25,10,0.85) !important; color: #d4b080 !important; border-color: rgba(160,100,40,0.3) !important; }
+    html.aa-dark .type-input { background: rgba(40,25,10,0.88) !important; color: #d4b080 !important; border-color: rgba(160,100,40,0.22) !important; }
     .type-input:focus { outline: none; border-color: #a05a1a; }
-    .type-input.correct { border-color: #27ae60; background: rgba(39,174,96,0.15); }
-    .type-input.wrong   { border-color: #c05050; background: rgba(192,80,80,0.12); }
-
+    .type-input.correct { border-color: #27ae60; background: rgba(39,174,96,0.12); }
+    .type-input.wrong   { border-color: #c05050; background: rgba(192,80,80,0.1); }
     .btn-submit {
-      padding: 12px 18px;
-      background: linear-gradient(to bottom, #5a9e2a, #3a7e0a);
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 3px 0 #1a5005;
+      padding: 10px 16px; background: linear-gradient(to bottom, #5a9e2a, #3a7e0a);
+      border: none; border-radius: 9px; color: #fff; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; box-shadow: 0 2px 0 #1a5005;
     }
     .btn-submit:hover { opacity: 0.9; }
-    .btn-submit:disabled { background: linear-gradient(to bottom, #8a8a6a, #6a6a4a); box-shadow: none; cursor: default; }
+    .btn-submit:disabled { background: #8a8a6a; box-shadow: none; cursor: default; }
 
-    /* ── Feedback ── */
     .feedback-msg {
-      text-align: center;
-      font-size: 0.9rem;
-      min-height: 44px;
-      margin-bottom: 8px;
-      font-weight: 700;
-      line-height: 1.5;
+      font-size: 0.85rem; font-weight: 700; line-height: 1.5;
+      min-height: 36px; padding: 6px 10px; border-radius: 8px; margin-bottom: 7px;
       color: #2d1508;
-      background: rgba(255,248,220,0.88);
-      border-radius: 10px;
-      padding: 8px 12px;
     }
-    .feedback-msg:empty { background: none; padding: 0; }
-    html.aa-dark .feedback-msg { background: rgba(40,25,10,0.7) !important; color: #e8d0b0 !important; }
-    .feedback-msg.good { color: #1a7a3a; background: rgba(200,255,220,0.9); }
-    html.aa-dark .feedback-msg.good { color: #5ddb8a !important; background: rgba(20,60,30,0.7) !important; }
-    .feedback-msg.bad  { color: #8a1a1a; background: rgba(255,220,220,0.9); }
-    html.aa-dark .feedback-msg.bad  { color: #e94560 !important; background: rgba(60,10,10,0.7) !important; }
+    .feedback-msg:empty { padding: 0; min-height: 0; }
+    html.aa-dark .feedback-msg { color: #e8d0b0 !important; }
+    .feedback-msg.good { color: #1a7a3a; background: rgba(39,174,96,0.13); }
+    html.aa-dark .feedback-msg.good { color: #5ddb8a !important; background: rgba(20,60,30,0.6) !important; }
+    .feedback-msg.bad  { color: #8a1a1a; background: rgba(192,80,80,0.1); }
+    html.aa-dark .feedback-msg.bad  { color: #e94560 !important; background: rgba(60,10,10,0.6) !important; }
 
-    /* ── Next button ── */
     .btn-next {
-      display: block;
-      width: 100%;
-      padding: 14px;
+      display: block; width: 100%; padding: 12px;
       background: linear-gradient(to bottom, #6ab82a, #4a9a0a);
-      border: none;
-      border-radius: 12px;
-      color: #fff;
-      font-family: 'Fredoka One', cursive;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-bottom: 10px;
-      box-shadow: 0 4px 0 #2a6010, 0 6px 12px rgba(0,0,0,0.25);
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-      transition: opacity 0.15s;
+      border: none; border-radius: 10px; color: #fff;
+      font-family: 'Fredoka One', cursive; font-size: 1rem; cursor: pointer;
+      box-shadow: 0 3px 0 #2a6010; margin-bottom: 6px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.25);
     }
     .btn-next:hover { opacity: 0.9; }
 
-    /* ── Streak badge ── */
-    .streak-badge {
-      display: inline-block;
-      margin-left: 8px;
-      font-size: 0.75rem;
-      background: #d4a020;
-      color: #fff;
-      border-radius: 10px;
-      padding: 2px 8px;
-      font-weight: 700;
-      opacity: 0;
-      transition: opacity 0.3s;
+    /* ══════════════════════════════
+       BUILD OVERLAY
+    ══════════════════════════════ */
+    .build-overlay {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(255,248,210,0.98); border-top: 3px solid #d4900a;
+      padding: 12px; z-index: 100;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+      max-height: 55vh; overflow-y: auto;
     }
-    .streak-badge.visible { opacity: 1; }
+    html.aa-dark .build-overlay { background: rgba(22,12,3,0.98) !important; }
+    .build-overlay.visible { display: block; }
+    .build-overlay-title { font-family: 'Fredoka One', cursive; font-size: 1rem; color: #7b3d0a; margin-bottom: 10px; }
+    html.aa-dark .build-overlay-title { color: #d4a060 !important; }
+    .build-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .build-option {
+      background: rgba(255,255,255,0.72); border: 2px solid rgba(139,90,40,0.18);
+      border-radius: 10px; padding: 10px 6px; text-align: center; cursor: pointer;
+      transition: all 0.14s;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    html.aa-dark .build-option { background: rgba(60,35,10,0.72) !important; border-color: rgba(160,100,40,0.2) !important; }
+    .build-option:hover:not([disabled]) { border-color: #d4900a; background: rgba(255,220,150,0.4); }
+    .build-option.selected { border-color: #d4900a; border-width: 3px; background: rgba(255,210,100,0.28); }
+    .build-option[disabled] { opacity: 0.38; cursor: default; }
+    .build-emoji { font-size: 1.8rem; }
+    .build-name  { font-size: 0.78rem; font-weight: 700; color: #5a2e08; }
+    html.aa-dark .build-name { color: #d4b080 !important; }
+    .build-cost  { font-size: 0.72rem; color: #9a6a3a; }
+    html.aa-dark .build-cost { color: #b08050 !important; }
+    .build-tip {
+      font-size: 0.78rem; color: #7b4a1a; text-align: center;
+      margin-bottom: 8px; font-style: italic;
+    }
+    html.aa-dark .build-tip { color: #b08050 !important; }
+    .btn-done-building {
+      width: 100%; padding: 10px;
+      background: rgba(200,60,60,0.12); border: 1px solid rgba(200,60,60,0.28);
+      border-radius: 10px; color: #8a2020;
+      font-family: 'Fredoka One', cursive; font-size: 0.9rem; cursor: pointer;
+    }
+    html.aa-dark .btn-done-building { color: #e06060 !important; background: rgba(80,20,20,0.22) !important; }
 
-    /* ── Result screen ── */
-    .result-wrap {
-      text-align: center;
-      padding: 40px 20px;
-      background: rgba(255,248,220,0.9);
-      border-radius: 20px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    /* ── Coin float animation ── */
+    .coin-float {
+      position: fixed; pointer-events: none;
+      font-size: 1.1rem; font-weight: 700; color: #f0c820;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+      animation: coin-rise 1.2s ease-out forwards; z-index: 200;
     }
-    html.aa-dark .result-wrap { background: rgba(40,25,10,0.88) !important; }
-    .result-icon { font-size: 4rem; margin-bottom: 12px; }
-    .result-title {
-      font-family: 'Fredoka One', cursive;
-      font-size: 1.8rem;
-      color: #7b3d0a;
-      margin-bottom: 8px;
+    @keyframes coin-rise {
+      0%   { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-55px); }
     }
-    html.aa-dark .result-title { color: #d4a060 !important; }
-    .result-sub  { color: #9a6a3a; margin-bottom: 20px; }
-    html.aa-dark .result-sub  { color: #b08050 !important; }
-    .result-stats {
-      background: rgba(255,240,190,0.7);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 24px;
-      color: #5a2e08;
-      font-size: 0.9rem;
-      line-height: 1.8;
-    }
-    html.aa-dark .result-stats { background: rgba(60,35,10,0.7) !important; color: #d4b080 !important; }
-    .btn-again, .btn-setup {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 12px;
-      font-family: 'Fredoka One', cursive;
-      font-size: 1rem;
-      cursor: pointer;
-      margin: 6px;
-    }
-    .btn-again { background: linear-gradient(to bottom, #6ab82a, #4a9a0a); color: #fff; box-shadow: 0 3px 0 #2a6010; }
-    .btn-again:hover { opacity: 0.9; }
-    .btn-setup { background: rgba(255,248,220,0.8); color: #7b3d0a; border: 2px solid #c07030; }
-    html.aa-dark .btn-setup { background: rgba(50,28,8,0.8) !important; color: #d4a060 !important; border-color: #8a5020 !important; }
 
-    /* ── Change class link ── */
-    .btn-change-class {
-      width: 100%;
-      padding: 10px;
-      background: rgba(255,248,220,0.5);
-      border: 1px solid rgba(139,90,40,0.2);
-      border-radius: 10px;
-      color: #7b4a1a;
-      font-size: 0.8rem;
-      cursor: pointer;
-      margin-top: 4px;
+    @media (max-width: 380px) {
+      .map-tile { font-size: 1.05rem; }
+      .mc-grid  { grid-template-columns: 1fr; }
+      .build-grid { grid-template-columns: 1fr 1fr 1fr; }
     }
-    html.aa-dark .btn-change-class { background: rgba(40,25,10,0.5) !important; color: #b08050 !important; border-color: rgba(160,100,40,0.2) !important; }
-    .btn-change-class:hover { background: rgba(255,240,190,0.7); }
-
-    @media (max-width: 420px) {
-      .soil-plot       { width: 42px; height: 48px; font-size: 1.3rem; }
-      .soil-plot.active { width: 58px; height: 64px; font-size: 2rem; }
-      .class-grid      { grid-template-columns: 1fr 1fr; gap: 8px; }
-      .mc-grid         { grid-template-columns: 1fr; }
-      .farm-scene      { height: 72px; }
-      .farm-barn       { font-size: 1.8rem; }
-      .farm-tree       { font-size: 1.6rem; }
+    @media (min-height: 720px) {
+      .village-map-wrap { padding: 10px; }
     }
   </style>
 </head>
 <body>
   <div id="shared-header-root"></div>
 
-  <!-- ── LOADING ── -->
+  <!-- Loading -->
   <div class="screen active" id="screen-loading">
-    <p style="text-align:center;padding-top:60px;color:#ffe4b5;text-shadow:0 1px 4px rgba(0,0,0,0.5);">Loading your farm...</p>
+    <p style="text-align:center;padding-top:60px;color:#ffe4b5;text-shadow:0 1px 4px rgba(0,0,0,0.5);">Loading your village...</p>
   </div>
 
-  <!-- ── SETUP ── -->
+  <!-- Setup -->
   <div class="screen" id="screen-setup">
-    <h1 class="farm-title">🌾 Farm Mode</h1>
-    <p class="farm-subtitle">Grow crops by answering questions. Harvest when ready.</p>
-    <p class="farm-credit">Inspired by <a href="https://play.google.com/store/apps/details?id=com.hyperthought.lingolegend" target="_blank" rel="noopener">Lingo Legend</a></p>
+    <div class="setup-wrap">
+      <h1 class="farm-title">🏡 Farm Mode</h1>
+      <p class="farm-subtitle">Answer questions — earn coins — build your village.</p>
+      <p class="farm-credit">Inspired by <a href="https://play.google.com/store/apps/details?id=com.hyperthought.lingolegend" target="_blank" rel="noopener">Lingo Legend</a></p>
 
-    <div class="setup-card">
-      <h3>🌱 What are you growing today?</h3>
-      <div class="class-grid" id="class-grid" role="group" aria-label="Pick a class to grow crops from">
-        <!-- filled by JS -->
+      <div class="setup-card">
+        <h3>📚 What class are you studying?</h3>
+        <div class="class-grid" id="class-grid" role="group" aria-label="Pick a class"></div>
       </div>
-    </div>
 
-    <div class="setup-card">
-      <h3>✏️ Answer Style</h3>
-      <div class="class-grid">
-        <button class="class-btn selected" id="mode-mc" onclick="selectMode('mc')" aria-pressed="true">
-          <span class="class-icon">👆</span>
-          <span class="class-name">Multiple Choice</span>
-          <span class="class-count">Easier on rough days</span>
-        </button>
-        <button class="class-btn" id="mode-type" onclick="selectMode('type')" aria-pressed="false">
-          <span class="class-icon">✏️</span>
-          <span class="class-name">Type It In</span>
-          <span class="class-count">Write the answer yourself</span>
-        </button>
+      <div class="setup-card">
+        <h3>✏️ Answer Style</h3>
+        <div class="class-grid">
+          <button class="class-btn selected" id="mode-mc" onclick="selectMode('mc')" aria-pressed="true">
+            <span class="class-icon">👆</span>
+            <span class="class-name">Multiple Choice</span>
+            <span class="class-count">Easier on rough days</span>
+          </button>
+          <button class="class-btn" id="mode-type" onclick="selectMode('type')" aria-pressed="false">
+            <span class="class-icon">✏️</span>
+            <span class="class-name">Type It In</span>
+            <span class="class-count">Write the answer yourself</span>
+          </button>
+        </div>
       </div>
-    </div>
 
-    <button class="btn-start" id="btn-start" onclick="startFarm()" disabled aria-disabled="true">
-      Pick a class to start farming!
-    </button>
+      <div id="saved-coins-note" style="display:none;text-align:center;font-size:0.8rem;color:#ffe4b5;margin-bottom:10px;text-shadow:0 1px 3px rgba(0,0,0,0.4);"></div>
+
+      <button class="btn-start" id="btn-start" onclick="enterVillage()" disabled aria-disabled="true">
+        Pick a class to start!
+      </button>
+    </div>
   </div>
 
-  <!-- ── FARM ── -->
-  <div class="screen" id="screen-farm">
-
+  <!-- Village -->
+  <div class="screen" id="screen-village">
     <!-- HUD -->
-    <div class="farm-header">
-      <span class="farm-class-label" id="farm-class-label"></span>
-      <span class="farm-coins" aria-live="polite" aria-label="Coins earned">🪙 <span id="coin-count">0</span></span>
+    <div class="village-hud">
+      <span class="hud-class" id="hud-class"></span>
+      <span class="hud-coins" aria-live="polite" aria-label="Coins">🪙 <span id="coin-count">0</span></span>
+      <button class="btn-build" id="btn-build" onclick="toggleBuildMode()" aria-pressed="false">🏗️ Build</button>
+      <button class="btn-exit-village" onclick="exitVillage()" aria-label="Save and exit">💾 Exit</button>
     </div>
 
-    <!-- Farm scene: sky + decorations (aria-hidden — purely decorative) -->
-    <div class="farm-scene" aria-hidden="true">
-      <div class="farm-sun">☀️</div>
-      <div class="farm-moon">🌙</div>
-      <div class="farm-cloud farm-cloud-1">☁️</div>
-      <div class="farm-cloud farm-cloud-2">⛅</div>
-      <div class="farm-bird">🐦</div>
-      <div class="farm-tree">🌲</div>
-      <div class="farm-barn">🏡</div>
+    <!-- Map -->
+    <div class="village-map-wrap" role="region" aria-label="Village map">
+      <div class="village-map" id="village-map" aria-hidden="true"></div>
     </div>
 
-    <!-- Fence -->
-    <div class="farm-fence" aria-hidden="true"></div>
-
-    <!-- Crop field: 4 decorative plots + 1 active center plot in soil -->
-    <div class="crop-field" aria-hidden="true">
-      <div class="soil-plot" id="deco-0">🌱</div>
-      <div class="soil-plot" id="deco-1">🌱</div>
-      <div class="soil-plot active" id="active-plot">
-        <span class="active-crop" id="crop-emoji" role="img" aria-label="Your crop">🌱</span>
+    <!-- Quiz panel -->
+    <div class="quiz-panel" id="quiz-panel">
+      <div class="q-header">
+        <span class="q-label">❓ <span id="q-cat">Question</span></span>
+        <span class="streak-badge" id="streak-badge" aria-live="polite"></span>
+        <div class="mode-pills">
+          <button class="mode-pill active" id="pill-mc"   onclick="setMode('mc')"   aria-pressed="true">👆 MC</button>
+          <button class="mode-pill"        id="pill-type" onclick="setMode('type')" aria-pressed="false">✏️ Type</button>
+        </div>
       </div>
-      <div class="soil-plot" id="deco-2">🌱</div>
-      <div class="soil-plot" id="deco-3">🌱</div>
-    </div>
 
-    <!-- Crop name + growth track -->
-    <div class="crop-name" id="crop-name"></div>
-    <div class="growth-track" role="progressbar" aria-label="Crop growth" aria-valuenow="0" aria-valuemin="0" aria-valuemax="4" id="growth-track">
-      <div class="growth-pip" id="pip-0"></div>
-      <div class="growth-pip" id="pip-1"></div>
-      <div class="growth-pip" id="pip-2"></div>
-      <div class="growth-pip" id="pip-3"></div>
-    </div>
-    <div class="growth-label" id="growth-label">Plant a seed — answer a question!</div>
-
-    <!-- Harvest button (appears when crop is ready) -->
-    <button class="btn-harvest" id="btn-harvest" onclick="harvestCrop()" aria-label="Harvest your crop for coins">
-      ✨ Harvest! Collect your coins ✨
-    </button>
-
-    <!-- Question -->
-    <div class="question-card" id="question-card" style="display:none" aria-live="polite" aria-atomic="true">
-      <div class="q-label">❓ <span id="q-cat">Question</span> <span class="streak-badge" id="streak-badge" aria-live="polite"></span></div>
-      <div class="q-text" id="q-text"></div>
+      <div class="q-text" id="q-text" aria-live="polite" aria-atomic="true"></div>
       <div class="q-from" id="q-from"></div>
-    </div>
 
-    <!-- MC -->
-    <div id="mc-section" style="display:none">
-      <div class="mc-grid" id="mc-grid" role="group" aria-label="Answer choices"></div>
-    </div>
-
-    <!-- Type-in -->
-    <div id="type-section" style="display:none">
-      <div class="type-row">
-        <input class="type-input" id="type-input" type="text" placeholder="Type your answer..."
-               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-               aria-label="Type your answer here">
-        <button class="btn-submit" id="btn-submit" onclick="submitTyped()" aria-label="Submit answer">Go</button>
+      <!-- MC -->
+      <div id="mc-section">
+        <div class="mc-grid" id="mc-grid" role="group" aria-label="Answer choices"></div>
       </div>
+
+      <!-- Type-in -->
+      <div id="type-section" style="display:none">
+        <div class="type-row">
+          <input class="type-input" id="type-input" type="text" placeholder="Type your answer..."
+                 autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                 aria-label="Your answer">
+          <button class="btn-submit" id="btn-submit" onclick="submitTyped()">Go</button>
+        </div>
+      </div>
+
+      <div class="feedback-msg" id="feedback-msg" role="alert" aria-live="assertive"></div>
+      <button class="btn-next" id="btn-next" style="display:none" onclick="nextQuestion()">Next ▶</button>
     </div>
-
-    <!-- Feedback -->
-    <div class="feedback-msg" id="feedback-msg" role="alert" aria-live="assertive"></div>
-
-    <!-- Next button -->
-    <button class="btn-next" id="btn-next" style="display:none" onclick="nextQuestion()" aria-label="Continue to next question">
-      Next ▶
-    </button>
-
-    <button class="btn-change-class" onclick="showSetup()" aria-label="Return to class selection">
-      ← Change Class
-    </button>
   </div>
 
-  <!-- ── RESULT ── -->
-  <div class="screen" id="screen-result">
-    <div class="result-wrap">
-      <div class="result-icon" id="result-icon">🌾</div>
-      <div class="result-title" id="result-title">Session Complete!</div>
-      <div class="result-sub"  id="result-sub"></div>
-      <div class="result-stats" id="result-stats"></div>
-      <div>
-        <button class="btn-again" onclick="startFarm()" aria-label="Farm again with the same class">Farm Again</button>
-        <button class="btn-setup" onclick="showSetup()" aria-label="Choose a different class">Change Class</button>
-      </div>
-    </div>
+  <!-- Build overlay -->
+  <div class="build-overlay" id="build-overlay" role="dialog" aria-label="Build menu" aria-modal="true">
+    <div class="build-overlay-title">🏗️ What do you want to build?</div>
+    <div class="build-grid" id="build-grid"></div>
+    <div class="build-tip" id="build-tip">Pick a building, then tap an empty plot on the map.</div>
+    <button class="btn-done-building" onclick="cancelBuildMode()">✕ Done Building</button>
   </div>
 
   <!-- Firebase -->
@@ -768,30 +409,58 @@
   <script src="/Academic-Allies/modular/aa-firebase.js"></script>
 
   <script>
-    /* Claude: 2026-04-19 — Farm Mode game logic */
+    /* Claude: 2026-04-20 — Farm Mode village builder.
+       Top-down emoji grid map. Answer questions → earn coins → place buildings.
+       Persistent Firestore state: farmVillage/{uid}
+       COMM 130 + HORT 235 + all existing classes. */
 
     /* Dark mode */
-    try { if (localStorage.getItem('AA_DARK_MODE') === 'true') document.documentElement.classList.add('aa-dark'); } catch(e){}
+    try { if (localStorage.getItem('AA_DARK_MODE') === 'true') document.documentElement.classList.add('aa-dark'); } catch(e) {}
 
-    /* ── Crop definitions per class ── */
-    /* Claude: 2026-04-19 — Added HORT 235 (Plant Science/Crossword class) */
-    var CROPS = {
-      "HORT 235":  { emoji: ["🌱","🌿","🫘","🌾"], name: "Plant Science" },
-      "HORT 328":  { emoji: ["🌱","🌿","🌸","🌺"], name: "Petal Rose"   },
-      "HORT 287R": { emoji: ["🌱","🌿","💐","🌸"], name: "Bouquet Bloom" },
-      "HORT":      { emoji: ["🌱","🌿","🌼","🌻"], name: "Wildflower"    },
-      "FCS 207":   { emoji: ["🌱","🌿","🪴","🌾"], name: "Cotton Plant"  },
-      "FCS 101":   { emoji: ["🌱","🥕","🥦","🍅"], name: "Garden Patch"  },
-      "FCS":       { emoji: ["🌱","🥕","🥦","🏡"], name: "Home Garden"   },
-      "IDS 101":   { emoji: ["🌱","🌿","📗","🌳"], name: "Knowledge Tree" },
-      "IDS":       { emoji: ["🌱","🌿","📗","🌳"], name: "Knowledge Tree" },
-      "Cooking":   { emoji: ["🌱","🍅","🫑","🌽"], name: "Veggie Patch"  },
-      "RBT":       { emoji: ["🌱","🌿","🧠","✨"], name: "Mind Fern"      },
-      "General":   { emoji: ["🌱","🌿","🌼","🌻"], name: "Sunflower"      }
+    /* ── Map layout (7 cols × 9 rows = 63 tiles) ──────────────── */
+    /* Claude: 2026-04-20 — T=tree border, P=path, W=water, F=flower, B=buildable plot */
+    var MAP_TILES = [
+      'T','T','T','T','T','T','T',
+      'T','B','B','P','B','B','T',
+      'T','B','B','P','B','B','T',
+      'T','T','P','P','P','T','T',
+      'T','B','P','P','P','B','T',
+      'T','B','B','P','B','B','T',
+      'T','W','W','P','F','F','T',
+      'T','W','W','P','F','F','T',
+      'T','T','T','T','T','T','T'
+    ];
+    var TILE_INFO = {
+      'T': { cls: 'tile-tree',      emoji: '🌲', label: 'Tree'       },
+      'P': { cls: 'tile-path',      emoji: '',   label: 'Path'       },
+      'W': { cls: 'tile-water',     emoji: '💧', label: 'Pond'       },
+      'F': { cls: 'tile-flower',    emoji: '🌸', label: 'Flower bed' },
+      'B': { cls: 'tile-buildable', emoji: '',   label: 'Empty plot' }
     };
 
-    /* ── Class key helpers (mirrors battle-mode) ── */
-    /* Claude: 2026-04-19 — Added HORT 235 lookup before generic HORT catch-all */
+    /* ── Buildings ────────────────────────────────────────────── */
+    var BUILDINGS = [
+      { id: 'campfire',  emoji: '🔥', name: 'Campfire',       cost: 10  },
+      { id: 'tent',      emoji: '⛺', name: 'Tent',            cost: 20  },
+      { id: 'house',     emoji: '🏡', name: 'House',           cost: 35  },
+      { id: 'sunflower', emoji: '🌻', name: 'Sunflower Field', cost: 50  },
+      { id: 'workshop',  emoji: '⚙️', name: 'Workshop',        cost: 75  },
+      { id: 'market',    emoji: '🏪', name: 'Market',          cost: 100 },
+      { id: 'tower',     emoji: '🗼', name: 'Tower',           cost: 150 },
+      { id: 'castle',    emoji: '🏰', name: 'Castle',          cost: 250 }
+    ];
+
+    /* ── Class emoji map ──────────────────────────────────────── */
+    /* Claude: 2026-04-19 — HORT 235; Claude: 2026-04-20 — COMM 130 */
+    var CLASS_EMOJI = {
+      "HORT 235":  "🌾", "HORT 328":  "🌸", "HORT 287R": "💐",
+      "HORT":      "🌼", "FCS 207":   "🧵", "FCS 101":   "🏠",
+      "FCS":       "🏡", "IDS 101":   "📚", "IDS":       "📖",
+      "Cooking":   "🍳", "COMM 130":  "🎤", "RBT":       "🧠",
+      "General":   "🌻"
+    };
+
+    /* Claude: 2026-04-19 — HORT 235 before generic HORT; Claude: 2026-04-20 — COMM 130 */
     function getClassKey(title) {
       var t = title.toUpperCase();
       if (t.indexOf("HORT 287") !== -1 || t.indexOf("HORT287") !== -1) return "HORT 287R";
@@ -804,34 +473,58 @@
       if (t.indexOf("IDS 101")  !== -1 || t.indexOf("IDS101")  !== -1) return "IDS 101";
       if (t.indexOf("IDS")      !== -1)                                  return "IDS";
       if (t.indexOf("COOK")     !== -1 || t.indexOf("CULIN")   !== -1) return "Cooking";
+      if (t.indexOf("COMM 130") !== -1 || t.indexOf("COMM130") !== -1) return "COMM 130";
       if (t.indexOf("RBT")      !== -1)                                  return "RBT";
       return "General";
     }
-    function getCrop(classKey) { return CROPS[classKey] || CROPS["General"]; }
-    function escHtml(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
-    /* ── State ── */
-    var allQuestions   = [];
-    var questionDeck   = [];
-    var classMeta      = {};
-    var selectedClass  = null;
-    var selectedMode   = "mc";
-    var growthStage    = 0;    // 0–4 (4 = harvestable)
-    var MAX_STAGE      = 4;
-    var coins          = 0;
-    var correctCount   = 0;
-    var wrongCount     = 0;
-    var harvestCount   = 0;
-    var streak         = 0;
-    var maxStreak      = 0;
-    var answerLocked   = false;
-    var currentQ       = null;
+    /* ── State ────────────────────────────────────────────────── */
+    var allQuestions     = [];
+    var questionDeck     = [];
+    var classMeta        = {};
+    var selectedClass    = null;
+    var selectedMode     = "mc";
+    var coins            = 0;
+    var villageBuildings = {};   // { "tileIndex": buildingId }
+    var currentQ         = null;
+    var answerLocked     = false;
+    var streak           = 0;
+    var maxStreak        = 0;
+    var correctCount     = 0;
+    var wrongCount       = 0;
+    var buildModeOn      = false;
+    var selectedBuilding = null;
+    var currentUserUid   = null;
 
-    /* ── Boot ── */
+    /* ── Utilities ────────────────────────────────────────────── */
+    function shuffle(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+    function fuzzyMatch(typed, correct) {
+      var a = typed.toLowerCase().replace(/[^a-z0-9]/g,"");
+      var b = correct.toLowerCase().replace(/[^a-z0-9]/g,"");
+      return a === b || b.indexOf(a) === 0;
+    }
+    function escHtml(s) {
+      return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    }
+    function getBuildingById(id) {
+      for (var i = 0; i < BUILDINGS.length; i++) {
+        if (BUILDINGS[i].id === id) return BUILDINGS[i];
+      }
+      return null;
+    }
+
+    /* ── Boot ─────────────────────────────────────────────────── */
     function waitForAA(cb, tries) {
       tries = tries || 0;
       if (window.AA && window.AA.db) { cb(); return; }
-      if (tries > 20) { cb(); return; }
+      if (tries > 30) { cb(); return; }
       setTimeout(function() { waitForAA(cb, tries + 1); }, 100);
     }
 
@@ -842,26 +535,28 @@
           '<p style="text-align:center;padding-top:60px;color:#ffe4b5;">Please sign in to play Farm Mode.</p>';
         return;
       }
-      waitForAA(function() {
-        loadQuizzes(window.AA_uid ? window.AA_uid(user.uid) : user.uid);
-      });
+      currentUserUid = window.AA_uid ? window.AA_uid(user.uid) : user.uid;
+      waitForAA(function() { loadData(currentUserUid); });
     });
 
-    function loadQuizzes(uid) {
-      firebase.firestore().doc("studentConfig/" + uid).get()
-        .then(function(snap) {
-          if (!snap.exists) { showError("No quiz data found."); return; }
-          var data    = snap.data();
-          var quizzes = data.quizzes || [];
+    function loadData(uid) {
+      Promise.all([
+        firebase.firestore().doc("studentConfig/" + uid).get(),
+        firebase.firestore().doc("farmVillage/" + uid).get()
+      ]).then(function(results) {
+        var configSnap  = results[0];
+        var villageSnap = results[1];
+
+        /* Load quizzes */
+        if (configSnap.exists) {
+          var quizzes = configSnap.data().quizzes || [];
           allQuestions = [];
           classMeta    = {};
           quizzes.forEach(function(quiz) {
             if (quiz.type !== "flashcards") return;
             if (!quiz.data || !quiz.data.length) return;
             var classKey = getClassKey(quiz.title || "");
-            if (!classMeta[classKey]) {
-              classMeta[classKey] = { label: classKey, count: 0 };
-            }
+            if (!classMeta[classKey]) classMeta[classKey] = { label: classKey, count: 0 };
             quiz.data.forEach(function(item) {
               var def = item.definition || item.answer;
               if (!item.term || !def) return;
@@ -869,23 +564,42 @@
               classMeta[classKey].count++;
             });
           });
-          if (allQuestions.length === 0) { showError("No flashcard quizzes found."); return; }
-          buildClassGrid();
-          showScreen("setup");
-        })
-        .catch(function(err) { showError("Couldn't load quizzes: " + err.message); });
+        }
+
+        /* Load village state */
+        if (villageSnap.exists) {
+          var vdata    = villageSnap.data();
+          coins            = vdata.coins    || 0;
+          villageBuildings = vdata.buildings || {};
+        }
+
+        if (allQuestions.length === 0) {
+          showError("No flashcard quizzes found. Ask your network lead to add study material.");
+          return;
+        }
+        buildClassGrid();
+        if (coins > 0) {
+          var note = document.getElementById("saved-coins-note");
+          note.textContent = "🪙 You have " + coins + " saved coins — your village is waiting!";
+          note.style.display = "";
+        }
+        showScreen("setup");
+      }).catch(function(err) {
+        showError("Couldn't load data: " + err.message);
+      });
     }
 
+    /* ── Setup UI ─────────────────────────────────────────────── */
     function buildClassGrid() {
       var grid = document.getElementById("class-grid");
       grid.innerHTML = "";
       Object.keys(classMeta).forEach(function(key) {
-        var crop = getCrop(key);
-        var btn  = document.createElement("button");
+        var emoji = CLASS_EMOJI[key] || "📚";
+        var btn   = document.createElement("button");
         btn.className = "class-btn";
         btn.setAttribute("aria-pressed", "false");
         btn.innerHTML =
-          '<span class="class-icon">' + crop.emoji[0] + '</span>' +
+          '<span class="class-icon">' + emoji + '</span>' +
           '<span class="class-name">' + escHtml(key) + '</span>' +
           '<span class="class-count">' + classMeta[key].count + ' questions</span>';
         btn.onclick = (function(k) { return function() { selectClass(k); }; })(key);
@@ -906,15 +620,16 @@
 
     function selectClass(key) {
       selectedClass = key;
-      document.querySelectorAll(".class-grid .class-btn").forEach(function(b) {
-        var pressed = b.querySelector(".class-name") && b.querySelector(".class-name").textContent === (key === "ALL" ? "All Classes" : key);
-        b.classList.toggle("selected", pressed);
-        b.setAttribute("aria-pressed", pressed ? "true" : "false");
+      document.querySelectorAll("#class-grid .class-btn").forEach(function(b) {
+        var nm    = b.querySelector(".class-name").textContent;
+        var match = (key === "ALL") ? (nm === "All Classes") : (nm === key);
+        b.classList.toggle("selected", match);
+        b.setAttribute("aria-pressed", match ? "true" : "false");
       });
-      var start = document.getElementById("btn-start");
-      start.disabled = false;
-      start.setAttribute("aria-disabled", "false");
-      start.textContent = "Start Farming!";
+      var btn = document.getElementById("btn-start");
+      btn.disabled = false;
+      btn.setAttribute("aria-disabled", "false");
+      btn.textContent = "Enter Village!";
     }
 
     function selectMode(mode) {
@@ -925,156 +640,223 @@
       document.getElementById("mode-type").setAttribute("aria-pressed", mode === "type" ? "true" : "false");
     }
 
-    /* ── Start / reset ── */
-    function startFarm() {
+    function setMode(mode) {
+      selectedMode = mode;
+      document.getElementById("pill-mc").classList.toggle("active",   mode === "mc");
+      document.getElementById("pill-type").classList.toggle("active", mode === "type");
+      document.getElementById("pill-mc").setAttribute("aria-pressed",   mode === "mc"   ? "true" : "false");
+      document.getElementById("pill-type").setAttribute("aria-pressed", mode === "type" ? "true" : "false");
+      if (currentQ && !answerLocked) renderQuestion(currentQ);
+    }
+
+    /* ── Village entry / exit ─────────────────────────────────── */
+    function enterVillage() {
       if (!selectedClass) return;
       var pool = selectedClass === "ALL"
         ? allQuestions.slice()
         : allQuestions.filter(function(q) { return q.classKey === selectedClass; });
-      questionDeck  = shuffle(pool);
-      growthStage   = 0;
-      coins         = 0;
-      correctCount  = 0;
-      wrongCount    = 0;
-      harvestCount  = 0;
-      streak        = 0;
-      maxStreak     = 0;
-      answerLocked  = false;
-      document.getElementById("coin-count").textContent = "0";
-      document.getElementById("farm-class-label").textContent =
-        selectedClass === "ALL" ? "🌾 All Classes" : "🌾 " + selectedClass;
+      questionDeck     = shuffle(pool);
+      streak           = 0; maxStreak = 0;
+      correctCount     = 0; wrongCount = 0;
+      answerLocked     = false; buildModeOn = false; selectedBuilding = null;
 
-      var classKey = selectedClass === "ALL" ? "General" : selectedClass;
-      var crop = getCrop(classKey);
-      document.getElementById("crop-name").textContent = crop.name;
+      document.getElementById("hud-class").textContent =
+        (CLASS_EMOJI[selectedClass] || "📚") + " " + (selectedClass === "ALL" ? "All Classes" : selectedClass);
+      document.getElementById("coin-count").textContent = coins;
+      document.getElementById("pill-mc").classList.toggle("active",   selectedMode === "mc");
+      document.getElementById("pill-type").classList.toggle("active", selectedMode === "type");
 
-      updateDecoPots();
-      renderCrop();
-      renderGrowthTrack();
-      showScreen("farm");
+      renderMap();
+      showScreen("village");
       drawNextQuestion();
     }
 
-    /* Claude: 2026-04-19 — Populate decorative neighbor plots with random stages of the same crop */
-    function updateDecoPots() {
-      var classKey = (selectedClass === "ALL" || !selectedClass) ? "General" : selectedClass;
-      var crop = getCrop(classKey);
-      var decoIds = ["deco-0", "deco-1", "deco-2", "deco-3"];
-      decoIds.forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) {
-          var stage = Math.floor(Math.random() * 3); // stages 0–2 (active plot shows the real stage)
-          el.textContent = crop.emoji[stage];
-        }
+    function exitVillage() {
+      saveVillage();
+      cancelBuildMode();
+      showScreen("setup");
+      /* Refresh coins note */
+      var note = document.getElementById("saved-coins-note");
+      note.textContent = "🪙 You have " + coins + " saved coins — your village is waiting!";
+      note.style.display = coins > 0 ? "" : "none";
+    }
+
+    /* ── Firestore save ───────────────────────────────────────── */
+    function saveVillage() {
+      if (!currentUserUid) return;
+      firebase.firestore().doc("farmVillage/" + currentUserUid).set({
+        coins:      coins,
+        buildings:  villageBuildings,
+        lastPlayed: firebase.firestore.Timestamp.now()
+      }, { merge: true }).catch(function(err) {
+        console.warn("[FarmMode] Save failed:", err.message);
       });
     }
 
-    function showSetup() { showScreen("setup"); }
+    /* ── Map rendering ────────────────────────────────────────── */
+    function renderMap() {
+      var mapEl = document.getElementById("village-map");
+      mapEl.innerHTML = "";
+      MAP_TILES.forEach(function(type, idx) {
+        var info = TILE_INFO[type];
+        var tile = document.createElement("div");
+        tile.className = "map-tile " + info.cls;
+        tile.setAttribute("data-tile-index", idx);
+        tile.setAttribute("data-tile-type",  type);
+        tile.setAttribute("aria-label", info.label);
 
+        if (type === "B") {
+          var bldId = String(idx);
+          if (villageBuildings[bldId]) {
+            var bld = getBuildingById(villageBuildings[bldId]);
+            tile.textContent = bld ? bld.emoji : "?";
+            tile.classList.add("has-building");
+          } else {
+            tile.textContent = "";
+            tile.classList.add("empty");
+            tile.setAttribute("role", "button");
+          }
+          tile.onclick = (function(i) { return function() { onTileClick(i); }; })(idx);
+        } else {
+          tile.textContent = info.emoji;
+        }
+        mapEl.appendChild(tile);
+      });
+    }
+
+    function applyBuildModeStyles() {
+      document.querySelectorAll(".tile-buildable").forEach(function(el) { el.classList.add("bmode"); });
+      document.querySelectorAll(".tile-buildable.empty").forEach(function(el) { el.classList.add("glow"); });
+    }
+    function removeBuildModeStyles() {
+      document.querySelectorAll(".tile-buildable").forEach(function(el) { el.classList.remove("bmode","glow"); });
+    }
+
+    /* ── Build mode ───────────────────────────────────────────── */
+    function toggleBuildMode() {
+      if (buildModeOn) { cancelBuildMode(); return; }
+      buildModeOn = true; selectedBuilding = null;
+      document.getElementById("btn-build").classList.add("build-on");
+      document.getElementById("btn-build").setAttribute("aria-pressed", "true");
+      applyBuildModeStyles();
+      renderBuildMenu();
+      document.getElementById("build-overlay").classList.add("visible");
+    }
+
+    function cancelBuildMode() {
+      buildModeOn = false; selectedBuilding = null;
+      document.getElementById("btn-build").classList.remove("build-on");
+      document.getElementById("btn-build").setAttribute("aria-pressed", "false");
+      removeBuildModeStyles();
+      document.getElementById("build-overlay").classList.remove("visible");
+    }
+
+    function renderBuildMenu() {
+      var grid = document.getElementById("build-grid");
+      grid.innerHTML = "";
+      BUILDINGS.forEach(function(bld) {
+        var btn = document.createElement("button");
+        btn.className = "build-option";
+        if (coins < bld.cost) btn.setAttribute("disabled", "true");
+        btn.innerHTML =
+          '<span class="build-emoji">' + bld.emoji + '</span>' +
+          '<span class="build-name">'  + escHtml(bld.name) + '</span>' +
+          '<span class="build-cost">🪙 ' + bld.cost + '</span>';
+        btn.onclick = (function(b) { return function() { selectBuilding(b); }; })(bld);
+        grid.appendChild(btn);
+      });
+    }
+
+    function selectBuilding(bld) {
+      if (coins < bld.cost) return;
+      selectedBuilding = bld;
+      document.querySelectorAll(".build-option").forEach(function(el) { el.classList.remove("selected"); });
+      var btns = document.querySelectorAll(".build-option");
+      for (var i = 0; i < btns.length; i++) {
+        var nm = btns[i].querySelector(".build-name");
+        if (nm && nm.textContent === bld.name) { btns[i].classList.add("selected"); break; }
+      }
+      document.getElementById("build-tip").textContent = "Now tap an empty 🟩 plot on the map to place " + bld.emoji + " " + bld.name + "!";
+    }
+
+    function onTileClick(idx) {
+      if (!buildModeOn) return;
+      if (!selectedBuilding) {
+        document.getElementById("build-tip").textContent = "👆 First pick a building from the list above!";
+        return;
+      }
+      var bldId = String(idx);
+      if (villageBuildings[bldId]) {
+        document.getElementById("build-tip").textContent = "That plot already has a building! Pick an empty 🟩 one.";
+        return;
+      }
+      if (coins < selectedBuilding.cost) {
+        document.getElementById("build-tip").textContent = "Not enough coins! Answer more questions to earn more.";
+        return;
+      }
+
+      /* Place building */
+      coins -= selectedBuilding.cost;
+      villageBuildings[bldId] = selectedBuilding.id;
+      document.getElementById("coin-count").textContent = coins;
+
+      var tile = document.querySelector("[data-tile-index='" + idx + "']");
+      if (tile) {
+        tile.textContent = selectedBuilding.emoji;
+        tile.classList.remove("empty","glow");
+        tile.classList.add("has-building");
+      }
+
+      document.getElementById("build-tip").textContent = selectedBuilding.emoji + " " + selectedBuilding.name + " placed! 🎉";
+      selectedBuilding = null;
+      document.querySelectorAll(".build-option").forEach(function(el) { el.classList.remove("selected"); });
+      renderBuildMenu();
+      saveVillage();
+    }
+
+    /* ── Screen control ───────────────────────────────────────── */
     function showScreen(name) {
       document.querySelectorAll(".screen").forEach(function(s) { s.classList.remove("active"); });
       document.getElementById("screen-" + name).classList.add("active");
     }
-
     function showError(msg) {
       showScreen("loading");
       document.getElementById("screen-loading").innerHTML =
         '<p style="text-align:center;padding-top:60px;color:#e94560;">' + escHtml(msg) + '</p>';
     }
 
-    /* ── Crop rendering ── */
-    function renderCrop() {
-      var classKey = (selectedClass === "ALL" || !selectedClass) ? "General" : selectedClass;
-      var crop     = getCrop(classKey);
-      var stage    = Math.min(growthStage, MAX_STAGE - 1);
-      var emojiEl  = document.getElementById("crop-emoji");
-      emojiEl.textContent = growthStage >= MAX_STAGE ? "✨" : crop.emoji[stage];
-      emojiEl.setAttribute("aria-label", "Crop stage: " + growthStage + " of " + MAX_STAGE);
-      // Glow the active plot when harvest-ready
-      var activePlot = document.getElementById("active-plot");
-      if (activePlot) {
-        activePlot.classList.toggle("harvest-ready", growthStage >= MAX_STAGE);
-      }
-    }
-
-    function renderGrowthTrack() {
-      for (var i = 0; i < MAX_STAGE; i++) {
-        var pip = document.getElementById("pip-" + i);
-        pip.classList.toggle("filled",  i < growthStage && growthStage < MAX_STAGE);
-        pip.classList.toggle("harvest", growthStage >= MAX_STAGE);
-      }
-      var track = document.getElementById("growth-track");
-      track.setAttribute("aria-valuenow", growthStage);
-      var labelEl = document.getElementById("growth-label");
-      if (growthStage >= MAX_STAGE) {
-        labelEl.textContent = "✨ Ready to harvest!";
-        document.getElementById("btn-harvest").style.display = "";
-        document.getElementById("question-card").style.display = "none";
-        document.getElementById("mc-section").style.display = "none";
-        document.getElementById("type-section").style.display = "none";
-        document.getElementById("btn-next").style.display = "none";
-        document.getElementById("feedback-msg").textContent = "";
-      } else {
-        labelEl.textContent = "Growth: " + growthStage + " / " + MAX_STAGE;
-        document.getElementById("btn-harvest").style.display = "none";
-      }
-    }
-
-    /* ── Harvest ── */
-    function harvestCrop() {
-      var emojiEl = document.getElementById("crop-emoji");
-      emojiEl.classList.remove("harvesting");
-      void emojiEl.offsetWidth;
-      emojiEl.classList.add("harvesting");
-
-      var earned = 10 + (maxStreak >= 6 ? 5 : maxStreak >= 3 ? 2 : 0);
-      coins += earned;
-      harvestCount++;
-      document.getElementById("coin-count").textContent = coins;
-      setFeedback("✨ Harvested! +" + earned + " coins!", "good");
-
-      setTimeout(function() {
-        growthStage = 0;
-        streak      = 0;
-        updateDecoPots();
-        renderCrop();
-        renderGrowthTrack();
-        setFeedback("", "");
-        drawNextQuestion();
-      }, 1800);
-    }
-
-    /* ── Questions ── */
+    /* ── Quiz logic ───────────────────────────────────────────── */
     function drawNextQuestion() {
-      if (growthStage >= MAX_STAGE) return; // harvest first
       if (questionDeck.length === 0) {
         var pool = selectedClass === "ALL"
           ? allQuestions.slice()
           : allQuestions.filter(function(q) { return q.classKey === selectedClass; });
         questionDeck = shuffle(pool);
       }
-      currentQ    = questionDeck.shift();
+      currentQ     = questionDeck.shift();
       answerLocked = false;
 
-      document.getElementById("btn-next").style.display = "none";
-      document.getElementById("question-card").style.display = "";
+      document.getElementById("btn-next").style.display   = "none";
       document.getElementById("feedback-msg").textContent = "";
-      document.getElementById("feedback-msg").className = "feedback-msg";
-      document.getElementById("q-text").textContent = currentQ.question;
-      document.getElementById("q-from").textContent = currentQ.quizTitle;
-      document.getElementById("q-cat").textContent  = currentQ.classKey || "Question";
+      document.getElementById("feedback-msg").className   = "feedback-msg";
+      document.getElementById("q-text").textContent       = currentQ.question;
+      document.getElementById("q-from").textContent       = currentQ.quizTitle;
+      document.getElementById("q-cat").textContent        = currentQ.classKey || "Question";
 
-      var streakBadge = document.getElementById("streak-badge");
+      var badge = document.getElementById("streak-badge");
       if (streak >= 3) {
-        streakBadge.textContent = "🔥 " + streak + " streak!";
-        streakBadge.classList.add("visible");
+        badge.textContent = "🔥 " + streak + " streak!";
+        badge.classList.add("visible");
       } else {
-        streakBadge.textContent = "";
-        streakBadge.classList.remove("visible");
+        badge.textContent = "";
+        badge.classList.remove("visible");
       }
+      renderQuestion(currentQ);
+    }
 
+    function renderQuestion(q) {
       if (selectedMode === "mc") {
-        renderMC(currentQ);
+        renderMC(q);
         document.getElementById("mc-section").style.display   = "";
         document.getElementById("type-section").style.display = "none";
       } else {
@@ -1089,8 +871,8 @@
 
     function renderMC(q) {
       var others = questionDeck.slice()
-        .filter(function(item) { return item.answer !== q.answer; })
-        .map(function(item) { return item.answer; });
+        .filter(function(i) { return i.answer !== q.answer; })
+        .map(function(i) { return i.answer; });
       others = shuffle(others).slice(0, 3);
       if (others.length < 3) {
         var extra = shuffle(allQuestions.filter(function(i) { return i.answer !== q.answer; }));
@@ -1122,10 +904,7 @@
       } else {
         btn.classList.add("wrong");
         document.querySelectorAll(".mc-btn").forEach(function(b) {
-          if (b.textContent === correct) {
-            b.classList.add("correct");
-            b.textContent = "✅ " + correct;
-          }
+          if (b.textContent === correct) { b.classList.add("correct"); b.textContent = "✅ " + correct; }
         });
         onWrong(correct);
       }
@@ -1139,104 +918,74 @@
       inp.disabled = true;
       document.getElementById("btn-submit").disabled = true;
       if (fuzzyMatch(typed, currentQ.answer)) {
-        inp.classList.add("correct");
-        onCorrect();
+        inp.classList.add("correct"); onCorrect();
       } else {
-        inp.classList.add("wrong");
-        onWrong(currentQ.answer);
+        inp.classList.add("wrong"); onWrong(currentQ.answer);
       }
     }
 
     function onCorrect() {
       streak++;
       if (streak > maxStreak) maxStreak = streak;
-      var bonus = streak >= 6 ? 2 : streak >= 3 ? 1 : 0;
-      growthStage = Math.min(growthStage + 1 + bonus, MAX_STAGE);
       correctCount++;
-      var bonusMsg = bonus > 0 ? " 🔥 +" + bonus + " streak bonus!" : "";
-      setFeedback("✅ Correct! Your crop grew!" + bonusMsg, "good");
-      growCropAnim();
-      renderCrop();
-      renderGrowthTrack();
-      setTimeout(function() {
-        document.getElementById("btn-next").style.display = "";
-      }, 600);
+      var bonus  = streak >= 6 ? 3 : streak >= 3 ? 1 : 0;
+      var earned = 5 + bonus;
+      coins += earned;
+      document.getElementById("coin-count").textContent = coins;
+      var bonusMsg = bonus > 0 ? " 🔥 +" + bonus + " bonus!" : "";
+      setFeedback("✅ Correct! +🪙" + earned + " coins!" + bonusMsg, "good");
+      floatCoins(earned);
+      setTimeout(function() { document.getElementById("btn-next").style.display = ""; }, 500);
+      if (correctCount % 5 === 0) saveVillage();
     }
 
     function onWrong(correct) {
-      streak = 0;
-      growthStage = Math.max(0, growthStage - 1);
-      wrongCount++;
+      streak = 0; wrongCount++;
       var el = document.getElementById("feedback-msg");
       el.className = "feedback-msg bad";
-      el.innerHTML = '❌ Wrong! &nbsp; ✅ <strong style="color:#1a7a3a;font-size:1.05em">' + escHtml(correct) + '</strong><br><span style="font-size:0.85em">🥀 Crop wilted back a stage</span>';
-      wiltCropAnim();
-      renderCrop();
-      renderGrowthTrack();
-      setTimeout(function() {
-        document.getElementById("btn-next").style.display = "";
-      }, 700);
+      el.innerHTML = '❌ Wrong! &nbsp; ✅ <strong style="color:#1a7a3a;font-size:1.05em">' + escHtml(correct) + '</strong>';
+      setTimeout(function() { document.getElementById("btn-next").style.display = ""; }, 600);
     }
 
     function nextQuestion() {
       document.getElementById("btn-next").style.display = "none";
-      if (growthStage >= MAX_STAGE) {
-        renderGrowthTrack(); // shows harvest button
-      } else {
-        drawNextQuestion();
-      }
-    }
-
-    function growCropAnim() {
-      var el = document.getElementById("crop-emoji");
-      el.classList.remove("growing","wilting");
-      void el.offsetWidth;
-      el.classList.add("growing");
-    }
-    function wiltCropAnim() {
-      var el = document.getElementById("crop-emoji");
-      el.classList.remove("growing","wilting");
-      void el.offsetWidth;
-      el.classList.add("wilting");
+      drawNextQuestion();
     }
 
     function setFeedback(msg, type) {
       var el = document.getElementById("feedback-msg");
-      el.textContent = msg;
-      el.className   = "feedback-msg " + type;
+      el.innerHTML  = msg;
+      el.className  = "feedback-msg " + (type || "");
     }
 
-    /* ── Utilities ── */
-    function shuffle(arr) {
-      var a = arr.slice();
-      for (var i = a.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var t = a[i]; a[i] = a[j]; a[j] = t;
-      }
-      return a;
+    /* ── Coin float animation ─────────────────────────────────── */
+    function floatCoins(amount) {
+      var el    = document.createElement("span");
+      el.className   = "coin-float";
+      el.textContent = "+🪙" + amount;
+      var ref  = document.getElementById("coin-count");
+      var rect = ref.getBoundingClientRect();
+      el.style.left = (rect.left + rect.width / 2 - 20) + "px";
+      el.style.top  = rect.top + "px";
+      document.body.appendChild(el);
+      setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 1300);
     }
 
-    function fuzzyMatch(typed, correct) {
-      var a = typed.toLowerCase().replace(/[^a-z0-9]/g,"");
-      var b = correct.toLowerCase().replace(/[^a-z0-9]/g,"");
-      return a === b || b.indexOf(a) === 0;
-    }
-
-    /* ── Shared header ── */
+    /* ── Shared header ────────────────────────────────────────── */
     if (document.getElementById("shared-header-root")) {
       fetch("/Academic-Allies/modular/shared-header.html?v=20260402")
         .then(function(r) { return r.text(); })
         .then(function(html) {
           var c = document.getElementById("shared-header-root");
           c.innerHTML = html;
-          c.querySelectorAll("script").forEach(function(old) {
+          var scripts = c.querySelectorAll("script");
+          [].slice.call(scripts).forEach(function(old) {
             var n = document.createElement("script");
-            Array.from(old.attributes).forEach(function(a) { n.setAttribute(a.name, a.value); });
+            [].slice.call(old.attributes).forEach(function(a) { n.setAttribute(a.name, a.value); });
             n.textContent = old.textContent;
             old.parentNode.replaceChild(n, old);
           });
-        })
-        .catch(function() {});
+        }).catch(function() {});
     }
   </script>
 </body>

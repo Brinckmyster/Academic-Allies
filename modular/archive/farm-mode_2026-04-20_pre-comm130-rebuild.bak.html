@@ -1,0 +1,1243 @@
+<!-- Claude: 2026-04-19 — Farm Mode: Lingo Legend-inspired farming study game.
+     Grow crops by answering questions correctly. Wrong answers wilt plants back.
+     Harvest fully-grown crops for coins. No HP, no losing — chill study mode. -->
+<!-- Claude: 2026-04-19 — Visual redesign: sky + soil layout, crop plot grid, barn + fence + clouds, earthy palette -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Farm Mode — Academic Allies</title>
+  <link rel="icon" type="image/png" href="../../icons/mode-recovery.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Dark mode early detection */
+    html.aa-dark { color-scheme: dark; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ── Page background: sky → grass → soil ── */
+    body {
+      font-family: 'Nunito', Arial, sans-serif;
+      background:
+        linear-gradient(to bottom,
+          #87ceeb 0%,
+          #9dd4ee 18%,
+          #6db85a 28%,
+          #4a8a2a 36%,
+          #8b5a2b 44%,
+          #6b3a1b 100%
+        );
+      background-attachment: fixed;
+      color: #2d1508;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    html.aa-dark body {
+      background:
+        linear-gradient(to bottom,
+          #0b1a2e 0%,
+          #0d2040 20%,
+          #1a3a0a 32%,
+          #2a5a1a 40%,
+          #4a2810 48%,
+          #2a1808 100%
+        ) !important;
+      background-attachment: fixed !important;
+      color: #e8d8c0 !important;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; max-width: 520px; margin: 0 auto; }
+    .screen.active { display: block; }
+
+    /* ── Shared header space ── */
+    #shared-header-root { margin-bottom: 8px; }
+
+    /* ═══════════════════════════════════════════
+       SETUP SCREEN
+    ═══════════════════════════════════════════ */
+    .farm-title {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2rem;
+      text-align: center;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      margin-bottom: 4px;
+    }
+    .farm-subtitle {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #ffe4b5;
+      margin-bottom: 6px;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+    .farm-credit {
+      text-align: center;
+      font-size: 0.72rem;
+      color: #d4b070;
+      margin-bottom: 20px;
+    }
+    .farm-credit a { color: #f0c84a; }
+
+    .setup-card {
+      background: rgba(255,248,220,0.92);
+      border: 2px solid rgba(139,90,40,0.25);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 14px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+    }
+    html.aa-dark .setup-card {
+      background: rgba(40,25,10,0.85) !important;
+      border-color: rgba(160,100,40,0.3) !important;
+    }
+    .setup-card h3 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.1rem;
+      color: #7b3d0a;
+      margin-bottom: 12px;
+    }
+    html.aa-dark .setup-card h3 { color: #d4a060 !important; }
+
+    .class-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .class-btn {
+      background: rgba(255,255,255,0.7);
+      border: 2px solid rgba(139,90,40,0.2);
+      border-radius: 12px;
+      padding: 12px 8px;
+      color: #5a2e08;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.18s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    html.aa-dark .class-btn { background: rgba(60,35,10,0.7) !important; color: #d4b080 !important; border-color: rgba(160,100,40,0.25) !important; }
+    .class-btn:hover { border-color: #a05a1a; background: rgba(255,220,160,0.5); }
+    .class-btn.selected { border-color: #d4900a; background: rgba(255,200,80,0.3); color: #5a2e08; font-weight: 700; }
+    html.aa-dark .class-btn.selected { background: rgba(180,120,20,0.3) !important; border-color: #d4900a !important; }
+    .class-btn .class-icon { font-size: 1.6rem; }
+    .class-btn .class-name { font-size: 0.8rem; font-weight: 700; }
+    .class-btn .class-count { font-size: 0.7rem; opacity: 0.6; }
+
+    .btn-start {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(to bottom, #6ab82a, #4a8a1a);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 4px;
+      box-shadow: 0 4px 0 #2a6010, 0 6px 12px rgba(0,0,0,0.3);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .btn-start:hover:not(:disabled) { opacity: 0.9; }
+    .btn-start:active { transform: translateY(2px); box-shadow: 0 2px 0 #2a6010; }
+    .btn-start:disabled { background: linear-gradient(to bottom, #8a8a6a, #6a6a4a); box-shadow: none; color: #ccc; cursor: default; }
+
+    /* ═══════════════════════════════════════════
+       FARM SCREEN — HUD
+    ═══════════════════════════════════════════ */
+    .farm-header {
+      background: rgba(100,60,20,0.85);
+      border-radius: 12px;
+      padding: 8px 14px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      color: #ffe4b5;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    html.aa-dark .farm-header { background: rgba(50,28,8,0.9) !important; }
+    .farm-class-label { font-weight: 700; }
+    .farm-coins {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1rem;
+      color: #f0d060;
+    }
+
+    /* ═══════════════════════════════════════════
+       FARM SCENE — sky, clouds, barn, sun, bird
+    ═══════════════════════════════════════════ */
+    .farm-scene {
+      background: linear-gradient(to bottom, #87ceeb 0%, #a8daf5 65%, #7bc67e 100%);
+      border-radius: 14px 14px 0 0;
+      height: 88px;
+      position: relative;
+      overflow: hidden;
+    }
+    html.aa-dark .farm-scene {
+      background: linear-gradient(to bottom, #0b1830 0%, #0e2040 65%, #1a3a0a 100%) !important;
+    }
+    .farm-sun {
+      position: absolute;
+      top: 10px;
+      right: 22px;
+      font-size: 2.1rem;
+      filter: drop-shadow(0 0 8px rgba(255,220,0,0.6));
+    }
+    html.aa-dark .farm-sun { display: none; }
+    .farm-moon {
+      display: none;
+      position: absolute;
+      top: 10px;
+      right: 22px;
+      font-size: 1.8rem;
+    }
+    html.aa-dark .farm-moon { display: block; }
+    .farm-cloud {
+      position: absolute;
+      font-size: 1.6rem;
+      opacity: 0.85;
+      animation: cloud-drift 28s linear infinite;
+    }
+    .farm-cloud-1 { top: 10px; left: -50px; animation-delay: 0s; font-size: 1.8rem; }
+    .farm-cloud-2 { top: 26px; left: -90px; animation-delay: -14s; font-size: 1.1rem; opacity: 0.65; }
+    @keyframes cloud-drift {
+      from { transform: translateX(0); }
+      to   { transform: translateX(600px); }
+    }
+    .farm-bird {
+      position: absolute;
+      font-size: 0.85rem;
+      top: 22px;
+      left: 30%;
+      animation: bird-fly 18s ease-in-out infinite;
+      opacity: 0.7;
+    }
+    @keyframes bird-fly {
+      0%,100% { transform: translateX(0) translateY(0); }
+      25%      { transform: translateX(30px) translateY(-6px); }
+      50%      { transform: translateX(55px) translateY(2px); }
+      75%      { transform: translateX(30px) translateY(-4px); }
+    }
+    .farm-barn {
+      position: absolute;
+      bottom: 6px;
+      right: 14px;
+      font-size: 2.4rem;
+      filter: drop-shadow(1px 2px 4px rgba(0,0,0,0.3));
+    }
+    .farm-tree {
+      position: absolute;
+      bottom: 4px;
+      left: 12px;
+      font-size: 2rem;
+      filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.2));
+    }
+
+    /* ── Fence strip ── */
+    .farm-fence {
+      height: 22px;
+      background:
+        repeating-linear-gradient(to right,
+          #9b6a3a 0px, #9b6a3a 5px,
+          transparent 5px, transparent 26px
+        );
+      border-top: 3px solid #7b4a1a;
+      border-bottom: 3px solid #5a3010;
+      background-color: transparent;
+    }
+
+    /* ── Soil strip + crop plots ── */
+    .crop-field {
+      background: linear-gradient(to bottom, #7b3a18 0%, #5a2810 60%, #3a1808 100%);
+      border-radius: 0 0 14px 14px;
+      padding: 10px 8px 12px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .soil-plot {
+      background: radial-gradient(ellipse at 50% 75%, #4a2010 0%, #6b3a1a 55%, #5a2810 100%);
+      border: 2px solid rgba(120,70,30,0.5);
+      border-radius: 10px;
+      width: 50px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      transition: all 0.3s ease;
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .soil-plot.active {
+      width: 68px;
+      height: 74px;
+      font-size: 2.4rem;
+      border-color: #f0d060;
+      border-width: 3px;
+      box-shadow:
+        inset 0 2px 6px rgba(0,0,0,0.4),
+        0 0 18px rgba(240,208,96,0.45),
+        0 0 6px rgba(240,208,96,0.3);
+      background: radial-gradient(ellipse at 50% 75%, #5a2a14 0%, #8b4a20 55%, #6b3818 100%);
+    }
+    .soil-plot.harvest-ready {
+      border-color: #f0d060;
+      animation: plot-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes plot-pulse {
+      0%,100% { box-shadow: inset 0 2px 6px rgba(0,0,0,0.4), 0 0 8px rgba(240,208,96,0.3); }
+      50%      { box-shadow: inset 0 2px 6px rgba(0,0,0,0.4), 0 0 24px rgba(240,208,96,0.7); }
+    }
+
+    /* ── Crop animations ── */
+    .active-crop {
+      display: inline-block;
+      transition: transform 0.3s;
+    }
+    .active-crop.growing {
+      animation: crop-grow 0.5s ease;
+    }
+    .active-crop.wilting {
+      animation: crop-wilt 0.5s ease;
+    }
+    .active-crop.harvesting {
+      animation: crop-harvest 0.6s ease;
+    }
+    @keyframes crop-grow {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.3) translateY(-6px); }
+      100% { transform: scale(1); }
+    }
+    @keyframes crop-wilt {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(0.8) rotate(-12deg); }
+      100% { transform: scale(1) rotate(0); }
+    }
+    @keyframes crop-harvest {
+      0%   { transform: scale(1); filter: none; }
+      50%  { transform: scale(1.35) translateY(-10px); filter: drop-shadow(0 0 12px gold) brightness(1.5); }
+      100% { transform: scale(1); filter: none; }
+    }
+
+    /* ── Below-field: growth track + label ── */
+    .crop-name {
+      font-family: 'Fredoka One', cursive;
+      font-size: 0.95rem;
+      color: #ffe4b5;
+      text-align: center;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+      margin-bottom: 6px;
+    }
+    .growth-track {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 8px 0 4px;
+    }
+    .growth-pip {
+      width: 36px;
+      height: 10px;
+      border-radius: 5px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(200,150,80,0.25);
+      transition: background 0.4s;
+    }
+    .growth-pip.filled { background: #6ab82a; border-color: #8ad84a; }
+    .growth-pip.harvest { background: #f0d060; border-color: #f0d060; }
+
+    .growth-label {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #ffe4b5;
+      margin-bottom: 12px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+
+    /* ── Harvest button ── */
+    .btn-harvest {
+      display: none;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(to bottom, #e8a820, #c07810);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.1rem;
+      cursor: pointer;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 0 #8a5008, 0 6px 16px rgba(0,0,0,0.3);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      animation: harvest-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes harvest-pulse {
+      0%,100% { box-shadow: 0 4px 0 #8a5008, 0 0 0 0 rgba(240,208,96,0.4); }
+      50%      { box-shadow: 0 4px 0 #8a5008, 0 0 0 10px rgba(240,208,96,0); }
+    }
+    .btn-harvest:hover { opacity: 0.9; }
+
+    /* ── Question / answer cards ── */
+    .question-card {
+      background: rgba(255,248,220,0.93);
+      border: 2px solid rgba(139,90,40,0.2);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    }
+    html.aa-dark .question-card {
+      background: rgba(40,25,10,0.88) !important;
+      border-color: rgba(160,100,40,0.3) !important;
+    }
+    .q-label {
+      font-size: 0.75rem;
+      color: #7b4a1a;
+      margin-bottom: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    html.aa-dark .q-label { color: #c09060 !important; }
+    .q-text {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #2d1508;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+    html.aa-dark .q-text { color: #e8d0b0 !important; }
+    .q-from {
+      font-size: 0.72rem;
+      color: #9a6a3a;
+      font-style: italic;
+    }
+
+    /* ── MC buttons ── */
+    .mc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .mc-btn {
+      background: rgba(255,248,220,0.9);
+      border: 2px solid rgba(139,90,40,0.2);
+      border-radius: 10px;
+      padding: 12px 8px;
+      color: #3a2008;
+      font-size: 0.88rem;
+      font-family: 'Nunito', sans-serif;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      min-height: 56px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+    html.aa-dark .mc-btn { background: rgba(50,30,10,0.85) !important; color: #d4b080 !important; border-color: rgba(160,100,40,0.25) !important; }
+    .mc-btn:hover:not(:disabled) { border-color: #a05a1a; background: rgba(255,235,180,0.95); }
+    .mc-btn.correct {
+      background: #27ae60;
+      border-color: #5ddb8a;
+      border-width: 3px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 0 16px rgba(93,219,138,0.6);
+      transform: scale(1.04);
+    }
+    .mc-btn.wrong {
+      background: #f0d0d0;
+      border-color: #c08080;
+      color: #906060;
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+    html.aa-dark .mc-btn.wrong { background: rgba(80,20,20,0.7) !important; }
+    .mc-btn:disabled { cursor: default; }
+
+    /* ── Type-in ── */
+    .type-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .type-input {
+      flex: 1;
+      padding: 12px;
+      background: rgba(255,248,220,0.9);
+      border: 2px solid rgba(139,90,40,0.2);
+      border-radius: 10px;
+      color: #2d1508;
+      font-size: 1rem;
+      font-family: 'Nunito', sans-serif;
+    }
+    html.aa-dark .type-input { background: rgba(40,25,10,0.85) !important; color: #d4b080 !important; border-color: rgba(160,100,40,0.3) !important; }
+    .type-input:focus { outline: none; border-color: #a05a1a; }
+    .type-input.correct { border-color: #27ae60; background: rgba(39,174,96,0.15); }
+    .type-input.wrong   { border-color: #c05050; background: rgba(192,80,80,0.12); }
+
+    .btn-submit {
+      padding: 12px 18px;
+      background: linear-gradient(to bottom, #5a9e2a, #3a7e0a);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #1a5005;
+    }
+    .btn-submit:hover { opacity: 0.9; }
+    .btn-submit:disabled { background: linear-gradient(to bottom, #8a8a6a, #6a6a4a); box-shadow: none; cursor: default; }
+
+    /* ── Feedback ── */
+    .feedback-msg {
+      text-align: center;
+      font-size: 0.9rem;
+      min-height: 44px;
+      margin-bottom: 8px;
+      font-weight: 700;
+      line-height: 1.5;
+      color: #2d1508;
+      background: rgba(255,248,220,0.88);
+      border-radius: 10px;
+      padding: 8px 12px;
+    }
+    .feedback-msg:empty { background: none; padding: 0; }
+    html.aa-dark .feedback-msg { background: rgba(40,25,10,0.7) !important; color: #e8d0b0 !important; }
+    .feedback-msg.good { color: #1a7a3a; background: rgba(200,255,220,0.9); }
+    html.aa-dark .feedback-msg.good { color: #5ddb8a !important; background: rgba(20,60,30,0.7) !important; }
+    .feedback-msg.bad  { color: #8a1a1a; background: rgba(255,220,220,0.9); }
+    html.aa-dark .feedback-msg.bad  { color: #e94560 !important; background: rgba(60,10,10,0.7) !important; }
+
+    /* ── Next button ── */
+    .btn-next {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(to bottom, #6ab82a, #4a9a0a);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 0 #2a6010, 0 6px 12px rgba(0,0,0,0.25);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      transition: opacity 0.15s;
+    }
+    .btn-next:hover { opacity: 0.9; }
+
+    /* ── Streak badge ── */
+    .streak-badge {
+      display: inline-block;
+      margin-left: 8px;
+      font-size: 0.75rem;
+      background: #d4a020;
+      color: #fff;
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .streak-badge.visible { opacity: 1; }
+
+    /* ── Result screen ── */
+    .result-wrap {
+      text-align: center;
+      padding: 40px 20px;
+      background: rgba(255,248,220,0.9);
+      border-radius: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    }
+    html.aa-dark .result-wrap { background: rgba(40,25,10,0.88) !important; }
+    .result-icon { font-size: 4rem; margin-bottom: 12px; }
+    .result-title {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.8rem;
+      color: #7b3d0a;
+      margin-bottom: 8px;
+    }
+    html.aa-dark .result-title { color: #d4a060 !important; }
+    .result-sub  { color: #9a6a3a; margin-bottom: 20px; }
+    html.aa-dark .result-sub  { color: #b08050 !important; }
+    .result-stats {
+      background: rgba(255,240,190,0.7);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      color: #5a2e08;
+      font-size: 0.9rem;
+      line-height: 1.8;
+    }
+    html.aa-dark .result-stats { background: rgba(60,35,10,0.7) !important; color: #d4b080 !important; }
+    .btn-again, .btn-setup {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1rem;
+      cursor: pointer;
+      margin: 6px;
+    }
+    .btn-again { background: linear-gradient(to bottom, #6ab82a, #4a9a0a); color: #fff; box-shadow: 0 3px 0 #2a6010; }
+    .btn-again:hover { opacity: 0.9; }
+    .btn-setup { background: rgba(255,248,220,0.8); color: #7b3d0a; border: 2px solid #c07030; }
+    html.aa-dark .btn-setup { background: rgba(50,28,8,0.8) !important; color: #d4a060 !important; border-color: #8a5020 !important; }
+
+    /* ── Change class link ── */
+    .btn-change-class {
+      width: 100%;
+      padding: 10px;
+      background: rgba(255,248,220,0.5);
+      border: 1px solid rgba(139,90,40,0.2);
+      border-radius: 10px;
+      color: #7b4a1a;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    html.aa-dark .btn-change-class { background: rgba(40,25,10,0.5) !important; color: #b08050 !important; border-color: rgba(160,100,40,0.2) !important; }
+    .btn-change-class:hover { background: rgba(255,240,190,0.7); }
+
+    @media (max-width: 420px) {
+      .soil-plot       { width: 42px; height: 48px; font-size: 1.3rem; }
+      .soil-plot.active { width: 58px; height: 64px; font-size: 2rem; }
+      .class-grid      { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .mc-grid         { grid-template-columns: 1fr; }
+      .farm-scene      { height: 72px; }
+      .farm-barn       { font-size: 1.8rem; }
+      .farm-tree       { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="shared-header-root"></div>
+
+  <!-- ── LOADING ── -->
+  <div class="screen active" id="screen-loading">
+    <p style="text-align:center;padding-top:60px;color:#ffe4b5;text-shadow:0 1px 4px rgba(0,0,0,0.5);">Loading your farm...</p>
+  </div>
+
+  <!-- ── SETUP ── -->
+  <div class="screen" id="screen-setup">
+    <h1 class="farm-title">🌾 Farm Mode</h1>
+    <p class="farm-subtitle">Grow crops by answering questions. Harvest when ready.</p>
+    <p class="farm-credit">Inspired by <a href="https://play.google.com/store/apps/details?id=com.hyperthought.lingolegend" target="_blank" rel="noopener">Lingo Legend</a></p>
+
+    <div class="setup-card">
+      <h3>🌱 What are you growing today?</h3>
+      <div class="class-grid" id="class-grid" role="group" aria-label="Pick a class to grow crops from">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <div class="setup-card">
+      <h3>✏️ Answer Style</h3>
+      <div class="class-grid">
+        <button class="class-btn selected" id="mode-mc" onclick="selectMode('mc')" aria-pressed="true">
+          <span class="class-icon">👆</span>
+          <span class="class-name">Multiple Choice</span>
+          <span class="class-count">Easier on rough days</span>
+        </button>
+        <button class="class-btn" id="mode-type" onclick="selectMode('type')" aria-pressed="false">
+          <span class="class-icon">✏️</span>
+          <span class="class-name">Type It In</span>
+          <span class="class-count">Write the answer yourself</span>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-start" id="btn-start" onclick="startFarm()" disabled aria-disabled="true">
+      Pick a class to start farming!
+    </button>
+  </div>
+
+  <!-- ── FARM ── -->
+  <div class="screen" id="screen-farm">
+
+    <!-- HUD -->
+    <div class="farm-header">
+      <span class="farm-class-label" id="farm-class-label"></span>
+      <span class="farm-coins" aria-live="polite" aria-label="Coins earned">🪙 <span id="coin-count">0</span></span>
+    </div>
+
+    <!-- Farm scene: sky + decorations (aria-hidden — purely decorative) -->
+    <div class="farm-scene" aria-hidden="true">
+      <div class="farm-sun">☀️</div>
+      <div class="farm-moon">🌙</div>
+      <div class="farm-cloud farm-cloud-1">☁️</div>
+      <div class="farm-cloud farm-cloud-2">⛅</div>
+      <div class="farm-bird">🐦</div>
+      <div class="farm-tree">🌲</div>
+      <div class="farm-barn">🏡</div>
+    </div>
+
+    <!-- Fence -->
+    <div class="farm-fence" aria-hidden="true"></div>
+
+    <!-- Crop field: 4 decorative plots + 1 active center plot in soil -->
+    <div class="crop-field" aria-hidden="true">
+      <div class="soil-plot" id="deco-0">🌱</div>
+      <div class="soil-plot" id="deco-1">🌱</div>
+      <div class="soil-plot active" id="active-plot">
+        <span class="active-crop" id="crop-emoji" role="img" aria-label="Your crop">🌱</span>
+      </div>
+      <div class="soil-plot" id="deco-2">🌱</div>
+      <div class="soil-plot" id="deco-3">🌱</div>
+    </div>
+
+    <!-- Crop name + growth track -->
+    <div class="crop-name" id="crop-name"></div>
+    <div class="growth-track" role="progressbar" aria-label="Crop growth" aria-valuenow="0" aria-valuemin="0" aria-valuemax="4" id="growth-track">
+      <div class="growth-pip" id="pip-0"></div>
+      <div class="growth-pip" id="pip-1"></div>
+      <div class="growth-pip" id="pip-2"></div>
+      <div class="growth-pip" id="pip-3"></div>
+    </div>
+    <div class="growth-label" id="growth-label">Plant a seed — answer a question!</div>
+
+    <!-- Harvest button (appears when crop is ready) -->
+    <button class="btn-harvest" id="btn-harvest" onclick="harvestCrop()" aria-label="Harvest your crop for coins">
+      ✨ Harvest! Collect your coins ✨
+    </button>
+
+    <!-- Question -->
+    <div class="question-card" id="question-card" style="display:none" aria-live="polite" aria-atomic="true">
+      <div class="q-label">❓ <span id="q-cat">Question</span> <span class="streak-badge" id="streak-badge" aria-live="polite"></span></div>
+      <div class="q-text" id="q-text"></div>
+      <div class="q-from" id="q-from"></div>
+    </div>
+
+    <!-- MC -->
+    <div id="mc-section" style="display:none">
+      <div class="mc-grid" id="mc-grid" role="group" aria-label="Answer choices"></div>
+    </div>
+
+    <!-- Type-in -->
+    <div id="type-section" style="display:none">
+      <div class="type-row">
+        <input class="type-input" id="type-input" type="text" placeholder="Type your answer..."
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               aria-label="Type your answer here">
+        <button class="btn-submit" id="btn-submit" onclick="submitTyped()" aria-label="Submit answer">Go</button>
+      </div>
+    </div>
+
+    <!-- Feedback -->
+    <div class="feedback-msg" id="feedback-msg" role="alert" aria-live="assertive"></div>
+
+    <!-- Next button -->
+    <button class="btn-next" id="btn-next" style="display:none" onclick="nextQuestion()" aria-label="Continue to next question">
+      Next ▶
+    </button>
+
+    <button class="btn-change-class" onclick="showSetup()" aria-label="Return to class selection">
+      ← Change Class
+    </button>
+  </div>
+
+  <!-- ── RESULT ── -->
+  <div class="screen" id="screen-result">
+    <div class="result-wrap">
+      <div class="result-icon" id="result-icon">🌾</div>
+      <div class="result-title" id="result-title">Session Complete!</div>
+      <div class="result-sub"  id="result-sub"></div>
+      <div class="result-stats" id="result-stats"></div>
+      <div>
+        <button class="btn-again" onclick="startFarm()" aria-label="Farm again with the same class">Farm Again</button>
+        <button class="btn-setup" onclick="showSetup()" aria-label="Choose a different class">Change Class</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="/Academic-Allies/modular/aa-firebase.js"></script>
+
+  <script>
+    /* Claude: 2026-04-19 — Farm Mode game logic */
+
+    /* Dark mode */
+    try { if (localStorage.getItem('AA_DARK_MODE') === 'true') document.documentElement.classList.add('aa-dark'); } catch(e){}
+
+    /* ── Crop definitions per class ── */
+    /* Claude: 2026-04-19 — Added HORT 235 (Plant Science/Crossword class) */
+    var CROPS = {
+      "HORT 235":  { emoji: ["🌱","🌿","🫘","🌾"], name: "Plant Science" },
+      "HORT 328":  { emoji: ["🌱","🌿","🌸","🌺"], name: "Petal Rose"   },
+      "HORT 287R": { emoji: ["🌱","🌿","💐","🌸"], name: "Bouquet Bloom" },
+      "HORT":      { emoji: ["🌱","🌿","🌼","🌻"], name: "Wildflower"    },
+      "FCS 207":   { emoji: ["🌱","🌿","🪴","🌾"], name: "Cotton Plant"  },
+      "FCS 101":   { emoji: ["🌱","🥕","🥦","🍅"], name: "Garden Patch"  },
+      "FCS":       { emoji: ["🌱","🥕","🥦","🏡"], name: "Home Garden"   },
+      "IDS 101":   { emoji: ["🌱","🌿","📗","🌳"], name: "Knowledge Tree" },
+      "IDS":       { emoji: ["🌱","🌿","📗","🌳"], name: "Knowledge Tree" },
+      "Cooking":   { emoji: ["🌱","🍅","🫑","🌽"], name: "Veggie Patch"  },
+      "RBT":       { emoji: ["🌱","🌿","🧠","✨"], name: "Mind Fern"      },
+      "General":   { emoji: ["🌱","🌿","🌼","🌻"], name: "Sunflower"      }
+    };
+
+    /* ── Class key helpers (mirrors battle-mode) ── */
+    /* Claude: 2026-04-19 — Added HORT 235 lookup before generic HORT catch-all */
+    function getClassKey(title) {
+      var t = title.toUpperCase();
+      if (t.indexOf("HORT 287") !== -1 || t.indexOf("HORT287") !== -1) return "HORT 287R";
+      if (t.indexOf("HORT 328") !== -1 || t.indexOf("HORT328") !== -1) return "HORT 328";
+      if (t.indexOf("HORT 235") !== -1 || t.indexOf("HORT235") !== -1) return "HORT 235";
+      if (t.indexOf("HORT")     !== -1)                                  return "HORT";
+      if (t.indexOf("FCS 207")  !== -1 || t.indexOf("FCS207")  !== -1) return "FCS 207";
+      if (t.indexOf("FCS 101")  !== -1 || t.indexOf("FCS101")  !== -1) return "FCS 101";
+      if (t.indexOf("FCS")      !== -1)                                  return "FCS";
+      if (t.indexOf("IDS 101")  !== -1 || t.indexOf("IDS101")  !== -1) return "IDS 101";
+      if (t.indexOf("IDS")      !== -1)                                  return "IDS";
+      if (t.indexOf("COOK")     !== -1 || t.indexOf("CULIN")   !== -1) return "Cooking";
+      if (t.indexOf("RBT")      !== -1)                                  return "RBT";
+      return "General";
+    }
+    function getCrop(classKey) { return CROPS[classKey] || CROPS["General"]; }
+    function escHtml(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+    /* ── State ── */
+    var allQuestions   = [];
+    var questionDeck   = [];
+    var classMeta      = {};
+    var selectedClass  = null;
+    var selectedMode   = "mc";
+    var growthStage    = 0;    // 0–4 (4 = harvestable)
+    var MAX_STAGE      = 4;
+    var coins          = 0;
+    var correctCount   = 0;
+    var wrongCount     = 0;
+    var harvestCount   = 0;
+    var streak         = 0;
+    var maxStreak      = 0;
+    var answerLocked   = false;
+    var currentQ       = null;
+
+    /* ── Boot ── */
+    function waitForAA(cb, tries) {
+      tries = tries || 0;
+      if (window.AA && window.AA.db) { cb(); return; }
+      if (tries > 20) { cb(); return; }
+      setTimeout(function() { waitForAA(cb, tries + 1); }, 100);
+    }
+
+    firebase.auth().onAuthStateChanged(function(user) {
+      if (!user) {
+        showScreen("loading");
+        document.getElementById("screen-loading").innerHTML =
+          '<p style="text-align:center;padding-top:60px;color:#ffe4b5;">Please sign in to play Farm Mode.</p>';
+        return;
+      }
+      waitForAA(function() {
+        loadQuizzes(window.AA_uid ? window.AA_uid(user.uid) : user.uid);
+      });
+    });
+
+    function loadQuizzes(uid) {
+      firebase.firestore().doc("studentConfig/" + uid).get()
+        .then(function(snap) {
+          if (!snap.exists) { showError("No quiz data found."); return; }
+          var data    = snap.data();
+          var quizzes = data.quizzes || [];
+          allQuestions = [];
+          classMeta    = {};
+          quizzes.forEach(function(quiz) {
+            if (quiz.type !== "flashcards") return;
+            if (!quiz.data || !quiz.data.length) return;
+            var classKey = getClassKey(quiz.title || "");
+            if (!classMeta[classKey]) {
+              classMeta[classKey] = { label: classKey, count: 0 };
+            }
+            quiz.data.forEach(function(item) {
+              var def = item.definition || item.answer;
+              if (!item.term || !def) return;
+              allQuestions.push({ question: def, answer: item.term, quizTitle: quiz.title || classKey, classKey: classKey });
+              classMeta[classKey].count++;
+            });
+          });
+          if (allQuestions.length === 0) { showError("No flashcard quizzes found."); return; }
+          buildClassGrid();
+          showScreen("setup");
+        })
+        .catch(function(err) { showError("Couldn't load quizzes: " + err.message); });
+    }
+
+    function buildClassGrid() {
+      var grid = document.getElementById("class-grid");
+      grid.innerHTML = "";
+      Object.keys(classMeta).forEach(function(key) {
+        var crop = getCrop(key);
+        var btn  = document.createElement("button");
+        btn.className = "class-btn";
+        btn.setAttribute("aria-pressed", "false");
+        btn.innerHTML =
+          '<span class="class-icon">' + crop.emoji[0] + '</span>' +
+          '<span class="class-name">' + escHtml(key) + '</span>' +
+          '<span class="class-count">' + classMeta[key].count + ' questions</span>';
+        btn.onclick = (function(k) { return function() { selectClass(k); }; })(key);
+        grid.appendChild(btn);
+      });
+      if (Object.keys(classMeta).length > 1) {
+        var btn = document.createElement("button");
+        btn.className = "class-btn";
+        btn.setAttribute("aria-pressed", "false");
+        btn.innerHTML =
+          '<span class="class-icon">🌾</span>' +
+          '<span class="class-name">All Classes</span>' +
+          '<span class="class-count">' + allQuestions.length + ' questions</span>';
+        btn.onclick = function() { selectClass("ALL"); };
+        grid.appendChild(btn);
+      }
+    }
+
+    function selectClass(key) {
+      selectedClass = key;
+      document.querySelectorAll(".class-grid .class-btn").forEach(function(b) {
+        var pressed = b.querySelector(".class-name") && b.querySelector(".class-name").textContent === (key === "ALL" ? "All Classes" : key);
+        b.classList.toggle("selected", pressed);
+        b.setAttribute("aria-pressed", pressed ? "true" : "false");
+      });
+      var start = document.getElementById("btn-start");
+      start.disabled = false;
+      start.setAttribute("aria-disabled", "false");
+      start.textContent = "Start Farming!";
+    }
+
+    function selectMode(mode) {
+      selectedMode = mode;
+      document.getElementById("mode-mc").classList.toggle("selected",   mode === "mc");
+      document.getElementById("mode-type").classList.toggle("selected", mode === "type");
+      document.getElementById("mode-mc").setAttribute("aria-pressed",   mode === "mc"   ? "true" : "false");
+      document.getElementById("mode-type").setAttribute("aria-pressed", mode === "type" ? "true" : "false");
+    }
+
+    /* ── Start / reset ── */
+    function startFarm() {
+      if (!selectedClass) return;
+      var pool = selectedClass === "ALL"
+        ? allQuestions.slice()
+        : allQuestions.filter(function(q) { return q.classKey === selectedClass; });
+      questionDeck  = shuffle(pool);
+      growthStage   = 0;
+      coins         = 0;
+      correctCount  = 0;
+      wrongCount    = 0;
+      harvestCount  = 0;
+      streak        = 0;
+      maxStreak     = 0;
+      answerLocked  = false;
+      document.getElementById("coin-count").textContent = "0";
+      document.getElementById("farm-class-label").textContent =
+        selectedClass === "ALL" ? "🌾 All Classes" : "🌾 " + selectedClass;
+
+      var classKey = selectedClass === "ALL" ? "General" : selectedClass;
+      var crop = getCrop(classKey);
+      document.getElementById("crop-name").textContent = crop.name;
+
+      updateDecoPots();
+      renderCrop();
+      renderGrowthTrack();
+      showScreen("farm");
+      drawNextQuestion();
+    }
+
+    /* Claude: 2026-04-19 — Populate decorative neighbor plots with random stages of the same crop */
+    function updateDecoPots() {
+      var classKey = (selectedClass === "ALL" || !selectedClass) ? "General" : selectedClass;
+      var crop = getCrop(classKey);
+      var decoIds = ["deco-0", "deco-1", "deco-2", "deco-3"];
+      decoIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+          var stage = Math.floor(Math.random() * 3); // stages 0–2 (active plot shows the real stage)
+          el.textContent = crop.emoji[stage];
+        }
+      });
+    }
+
+    function showSetup() { showScreen("setup"); }
+
+    function showScreen(name) {
+      document.querySelectorAll(".screen").forEach(function(s) { s.classList.remove("active"); });
+      document.getElementById("screen-" + name).classList.add("active");
+    }
+
+    function showError(msg) {
+      showScreen("loading");
+      document.getElementById("screen-loading").innerHTML =
+        '<p style="text-align:center;padding-top:60px;color:#e94560;">' + escHtml(msg) + '</p>';
+    }
+
+    /* ── Crop rendering ── */
+    function renderCrop() {
+      var classKey = (selectedClass === "ALL" || !selectedClass) ? "General" : selectedClass;
+      var crop     = getCrop(classKey);
+      var stage    = Math.min(growthStage, MAX_STAGE - 1);
+      var emojiEl  = document.getElementById("crop-emoji");
+      emojiEl.textContent = growthStage >= MAX_STAGE ? "✨" : crop.emoji[stage];
+      emojiEl.setAttribute("aria-label", "Crop stage: " + growthStage + " of " + MAX_STAGE);
+      // Glow the active plot when harvest-ready
+      var activePlot = document.getElementById("active-plot");
+      if (activePlot) {
+        activePlot.classList.toggle("harvest-ready", growthStage >= MAX_STAGE);
+      }
+    }
+
+    function renderGrowthTrack() {
+      for (var i = 0; i < MAX_STAGE; i++) {
+        var pip = document.getElementById("pip-" + i);
+        pip.classList.toggle("filled",  i < growthStage && growthStage < MAX_STAGE);
+        pip.classList.toggle("harvest", growthStage >= MAX_STAGE);
+      }
+      var track = document.getElementById("growth-track");
+      track.setAttribute("aria-valuenow", growthStage);
+      var labelEl = document.getElementById("growth-label");
+      if (growthStage >= MAX_STAGE) {
+        labelEl.textContent = "✨ Ready to harvest!";
+        document.getElementById("btn-harvest").style.display = "";
+        document.getElementById("question-card").style.display = "none";
+        document.getElementById("mc-section").style.display = "none";
+        document.getElementById("type-section").style.display = "none";
+        document.getElementById("btn-next").style.display = "none";
+        document.getElementById("feedback-msg").textContent = "";
+      } else {
+        labelEl.textContent = "Growth: " + growthStage + " / " + MAX_STAGE;
+        document.getElementById("btn-harvest").style.display = "none";
+      }
+    }
+
+    /* ── Harvest ── */
+    function harvestCrop() {
+      var emojiEl = document.getElementById("crop-emoji");
+      emojiEl.classList.remove("harvesting");
+      void emojiEl.offsetWidth;
+      emojiEl.classList.add("harvesting");
+
+      var earned = 10 + (maxStreak >= 6 ? 5 : maxStreak >= 3 ? 2 : 0);
+      coins += earned;
+      harvestCount++;
+      document.getElementById("coin-count").textContent = coins;
+      setFeedback("✨ Harvested! +" + earned + " coins!", "good");
+
+      setTimeout(function() {
+        growthStage = 0;
+        streak      = 0;
+        updateDecoPots();
+        renderCrop();
+        renderGrowthTrack();
+        setFeedback("", "");
+        drawNextQuestion();
+      }, 1800);
+    }
+
+    /* ── Questions ── */
+    function drawNextQuestion() {
+      if (growthStage >= MAX_STAGE) return; // harvest first
+      if (questionDeck.length === 0) {
+        var pool = selectedClass === "ALL"
+          ? allQuestions.slice()
+          : allQuestions.filter(function(q) { return q.classKey === selectedClass; });
+        questionDeck = shuffle(pool);
+      }
+      currentQ    = questionDeck.shift();
+      answerLocked = false;
+
+      document.getElementById("btn-next").style.display = "none";
+      document.getElementById("question-card").style.display = "";
+      document.getElementById("feedback-msg").textContent = "";
+      document.getElementById("feedback-msg").className = "feedback-msg";
+      document.getElementById("q-text").textContent = currentQ.question;
+      document.getElementById("q-from").textContent = currentQ.quizTitle;
+      document.getElementById("q-cat").textContent  = currentQ.classKey || "Question";
+
+      var streakBadge = document.getElementById("streak-badge");
+      if (streak >= 3) {
+        streakBadge.textContent = "🔥 " + streak + " streak!";
+        streakBadge.classList.add("visible");
+      } else {
+        streakBadge.textContent = "";
+        streakBadge.classList.remove("visible");
+      }
+
+      if (selectedMode === "mc") {
+        renderMC(currentQ);
+        document.getElementById("mc-section").style.display   = "";
+        document.getElementById("type-section").style.display = "none";
+      } else {
+        var inp = document.getElementById("type-input");
+        inp.value = ""; inp.className = "type-input"; inp.disabled = false;
+        document.getElementById("btn-submit").disabled = false;
+        document.getElementById("mc-section").style.display   = "none";
+        document.getElementById("type-section").style.display = "";
+        setTimeout(function() { inp.focus(); }, 80);
+      }
+    }
+
+    function renderMC(q) {
+      var others = questionDeck.slice()
+        .filter(function(item) { return item.answer !== q.answer; })
+        .map(function(item) { return item.answer; });
+      others = shuffle(others).slice(0, 3);
+      if (others.length < 3) {
+        var extra = shuffle(allQuestions.filter(function(i) { return i.answer !== q.answer; }));
+        while (others.length < 3 && extra.length) {
+          var c = extra.shift().answer;
+          if (others.indexOf(c) === -1) others.push(c);
+        }
+      }
+      var choices = shuffle([q.answer].concat(others.slice(0,3)));
+      var grid = document.getElementById("mc-grid");
+      grid.innerHTML = "";
+      choices.forEach(function(choice) {
+        var btn = document.createElement("button");
+        btn.className   = "mc-btn";
+        btn.textContent = choice;
+        btn.setAttribute("aria-label", "Answer: " + choice);
+        btn.onclick = function() { handleMC(choice, q.answer, btn); };
+        grid.appendChild(btn);
+      });
+    }
+
+    function handleMC(chosen, correct, btn) {
+      if (answerLocked) return;
+      answerLocked = true;
+      document.querySelectorAll(".mc-btn").forEach(function(b) { b.disabled = true; });
+      if (chosen === correct) {
+        btn.classList.add("correct");
+        onCorrect();
+      } else {
+        btn.classList.add("wrong");
+        document.querySelectorAll(".mc-btn").forEach(function(b) {
+          if (b.textContent === correct) {
+            b.classList.add("correct");
+            b.textContent = "✅ " + correct;
+          }
+        });
+        onWrong(correct);
+      }
+    }
+
+    function submitTyped() {
+      var inp   = document.getElementById("type-input");
+      var typed = inp.value.trim();
+      if (!typed || answerLocked || !currentQ) return;
+      answerLocked = true;
+      inp.disabled = true;
+      document.getElementById("btn-submit").disabled = true;
+      if (fuzzyMatch(typed, currentQ.answer)) {
+        inp.classList.add("correct");
+        onCorrect();
+      } else {
+        inp.classList.add("wrong");
+        onWrong(currentQ.answer);
+      }
+    }
+
+    function onCorrect() {
+      streak++;
+      if (streak > maxStreak) maxStreak = streak;
+      var bonus = streak >= 6 ? 2 : streak >= 3 ? 1 : 0;
+      growthStage = Math.min(growthStage + 1 + bonus, MAX_STAGE);
+      correctCount++;
+      var bonusMsg = bonus > 0 ? " 🔥 +" + bonus + " streak bonus!" : "";
+      setFeedback("✅ Correct! Your crop grew!" + bonusMsg, "good");
+      growCropAnim();
+      renderCrop();
+      renderGrowthTrack();
+      setTimeout(function() {
+        document.getElementById("btn-next").style.display = "";
+      }, 600);
+    }
+
+    function onWrong(correct) {
+      streak = 0;
+      growthStage = Math.max(0, growthStage - 1);
+      wrongCount++;
+      var el = document.getElementById("feedback-msg");
+      el.className = "feedback-msg bad";
+      el.innerHTML = '❌ Wrong! &nbsp; ✅ <strong style="color:#1a7a3a;font-size:1.05em">' + escHtml(correct) + '</strong><br><span style="font-size:0.85em">🥀 Crop wilted back a stage</span>';
+      wiltCropAnim();
+      renderCrop();
+      renderGrowthTrack();
+      setTimeout(function() {
+        document.getElementById("btn-next").style.display = "";
+      }, 700);
+    }
+
+    function nextQuestion() {
+      document.getElementById("btn-next").style.display = "none";
+      if (growthStage >= MAX_STAGE) {
+        renderGrowthTrack(); // shows harvest button
+      } else {
+        drawNextQuestion();
+      }
+    }
+
+    function growCropAnim() {
+      var el = document.getElementById("crop-emoji");
+      el.classList.remove("growing","wilting");
+      void el.offsetWidth;
+      el.classList.add("growing");
+    }
+    function wiltCropAnim() {
+      var el = document.getElementById("crop-emoji");
+      el.classList.remove("growing","wilting");
+      void el.offsetWidth;
+      el.classList.add("wilting");
+    }
+
+    function setFeedback(msg, type) {
+      var el = document.getElementById("feedback-msg");
+      el.textContent = msg;
+      el.className   = "feedback-msg " + type;
+    }
+
+    /* ── Utilities ── */
+    function shuffle(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+
+    function fuzzyMatch(typed, correct) {
+      var a = typed.toLowerCase().replace(/[^a-z0-9]/g,"");
+      var b = correct.toLowerCase().replace(/[^a-z0-9]/g,"");
+      return a === b || b.indexOf(a) === 0;
+    }
+
+    /* ── Shared header ── */
+    if (document.getElementById("shared-header-root")) {
+      fetch("/Academic-Allies/modular/shared-header.html?v=20260402")
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          var c = document.getElementById("shared-header-root");
+          c.innerHTML = html;
+          c.querySelectorAll("script").forEach(function(old) {
+            var n = document.createElement("script");
+            Array.from(old.attributes).forEach(function(a) { n.setAttribute(a.name, a.value); });
+            n.textContent = old.textContent;
+            old.parentNode.replaceChild(n, old);
+          });
+        })
+        .catch(function() {});
+    }
+  </script>
+</body>
+</html>
