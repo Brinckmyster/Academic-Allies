@@ -1359,12 +1359,14 @@
         abilityDeck = buildAbilityDeck();
       }
       // Out of questions = reshuffle question deck
+      // Claude: 2026-04-19 — rematch stays in missed pool; normal battle uses full class pool
       if (questionDeck.length === 0) {
-        questionDeck = shuffle(
-          (selectedClass === "ALL"
-            ? allQuestions.slice()
-            : allQuestions.filter(function(q) { return q.classKey === selectedClass; }))
-        );
+        var refill = isMissedRematch
+          ? (missedQuestions.length > 0 ? missedQuestions.slice() : persistedMissed.slice())
+          : (selectedClass === "ALL"
+              ? allQuestions.slice()
+              : allQuestions.filter(function(q) { return q.classKey === selectedClass; }));
+        questionDeck = shuffle(refill);
       }
 
       // Refill hand up to 3 from ability deck
