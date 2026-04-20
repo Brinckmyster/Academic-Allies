@@ -739,7 +739,8 @@
           var entry = document.createElement('div');
           entry.className = 'detail-entry';
 
-          var timeStr = (cls.startTime || '') + (cls.endTime ? ' – ' + cls.endTime : '');
+          /* Claude: 2026-04-20 — Convert 24-hr stored times to 12-hr display */
+          var timeStr = (cls.startTime ? fmt24to12(cls.startTime) : '') + (cls.endTime ? ' – ' + fmt24to12(cls.endTime) : '');
           var locStr = '';
           if (cls.building || cls.room) {
             locStr = (cls.building || '') + (cls.room ? ', Room ' + cls.room : '');
@@ -820,6 +821,20 @@
       var d = (ts && ts.toDate) ? ts.toDate() : new Date(ts);
       if (isNaN(d)) return '';
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    /* Claude: 2026-04-20 — Convert stored 24-hr "HH:MM" strings to 12-hr "H:MM AM/PM".
+       Class schedule times come from Firestore as "14:00" — display as "2:00 PM". */
+    function fmt24to12(t) {
+      if (!t) return '';
+      var parts = t.split(':');
+      if (parts.length < 2) return t;
+      var h = parseInt(parts[0], 10);
+      var m = parts[1];
+      if (isNaN(h)) return t;
+      var ap = h >= 12 ? 'PM' : 'AM';
+      var h12 = h % 12 || 12;
+      return h12 + ':' + m + ' ' + ap;
     }
 
     /* ── Boot ── */
