@@ -745,7 +745,8 @@ var _cfgPoll = setInterval(function() {
           /* Claude: 2026-03-25 — added role, tabindex, aria-expanded, keyboard handler for a11y */
           html += '<div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" role="button" tabindex="0" aria-expanded="true" onclick="var b=document.getElementById(\'' + groupId + '\');var exp=b.style.display===\'none\';b.style.display=exp?\'block\':\'none\';this.setAttribute(\'aria-expanded\',exp?\'true\':\'false\');" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}">';
           html += '<strong style="color: #4a7f82;">' + groupName + '</strong>';
-          html += '<span style="color:#888; font-size:0.85rem;">' + quizCount + ' quiz' + (quizCount !== 1 ? 'zes' : '') + ' ▼</span>';
+          /* Claude: 2026-04-21 — added non-breaking space before count so "A1" doesn't run into "30 quizzes" */
+          html += '<span style="color:#888; font-size:0.85rem;">&nbsp;&nbsp;' + quizCount + ' quiz' + (quizCount !== 1 ? 'zes' : '') + ' ▼</span>';
           html += '</div>';
           html += '<div id="' + groupId + '">';
 
@@ -814,36 +815,8 @@ var _cfgPoll = setInterval(function() {
         if (orphanBody) orphanBody.style.maxHeight = orphanBody.scrollHeight + 'px';
       }
     }
-    /* Claude: 2026-04-21 — Show class rows from AA_CLASSES for every trimester section,
-       even when no quizzes exist yet. Skips any class already rendered by quiz group above. */
-    if (window.AA_CLASSES) {
-      window.AA_CLASSES.trimesters.forEach(function(term) {
-        var semBody = document.getElementById('sem-body-' + term.id);
-        if (!semBody) return;
-        var missingHtml = '';
-        term.classes.forEach(function(cls) {
-          /* Skip if this class code already appears in the section (quiz group was rendered) */
-          if (semBody.innerHTML.indexOf(cls.code) !== -1) return;
-          missingHtml +=
-            '<div style="margin:8px 0;padding:10px 14px;background:rgba(108,160,163,0.07);' +
-            'border-radius:8px;border:1px dashed rgba(108,160,163,0.3);' +
-            'display:flex;justify-content:space-between;align-items:center;">' +
-            '<span style="font-weight:600;color:#4a7f82;">' + cls.emoji + ' ' + cls.section + ' — ' + cls.name + '</span>' +
-            '<span style="color:#888;font-size:0.82rem;font-style:italic;">No quizzes yet</span>' +
-            '</div>';
-        });
-        if (missingHtml) {
-          var wrap =
-            '<div style="margin-top:16px;border-top:2px solid rgba(108,160,163,0.2);padding-top:12px;">' +
-            '<h3 style="color:#6CA0A3;font-size:13pt;margin-bottom:8px;">Classes</h3>' +
-            missingHtml + '</div>';
-          semBody.innerHTML += wrap;
-          if (!semBody.classList.contains('collapsed')) {
-            semBody.style.maxHeight = semBody.scrollHeight + 'px';
-          }
-        }
-      });
-    }
+    /* Claude: 2026-04-21 — AA_CLASSES loaded for future use; no placeholder injection.
+       Quiz groups appear when Bruise creates quizzes for a class — not before. */
 
   }).catch(function(err) {
     console.warn('[Study Tools] Custom quiz load failed:', err);

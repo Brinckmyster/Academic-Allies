@@ -28,7 +28,7 @@
         start: '2026-04-27',
         end:   '2026-07-18',
         classes: [
-          { code: 'IDS 101',  section: 'IDS 101',  name: 'Intro to Interdisc. Studies', emoji: '📚', teacher: '' },
+          { code: 'IDS 101',  section: 'IDS 101-02', name: 'Intro to Interdisc. Studies', emoji: '📚', teacher: 'PLACEHOLDER_wilson@byui.edu' },
           { code: 'COMM 130', section: 'COMM 130', name: 'Visual Media',                emoji: '🎤', teacher: 'kerrc@byui.edu' },
           { code: 'FCS 207',  section: 'FCS 207',  name: 'Apparel Construction I',      emoji: '🧵', teacher: 'barlow@byui.edu' },
           { code: 'HORT 328', section: 'HORT 328', name: 'Wedding & Event Planning',    emoji: '🌸', teacher: '' }
