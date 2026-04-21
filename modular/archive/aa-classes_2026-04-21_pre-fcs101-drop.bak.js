@@ -18,8 +18,9 @@
         classes: [
           { code: 'HORT 235', section: 'HORT 235-01', name: 'Horticulture',              emoji: '🌾', teacher: '' },
           { code: 'FCS 207',  section: 'FCS 207-01',  name: 'Apparel Construction I',    emoji: '🧵', teacher: 'barlow@byui.edu' },
-          { code: 'HORT 328', section: 'HORT 328-01', name: 'Wedding & Event Planning',  emoji: '🌸', teacher: '' }
-          /* Dropped 2026-04-21: IDS 101-02 (Wilson), HORT 287R-01 (Kirby), FCS 101-A1 (Denison) */
+          { code: 'HORT 328', section: 'HORT 328-01', name: 'Wedding & Event Planning',  emoji: '🌸', teacher: '' },
+          { code: 'FCS 101',  section: 'FCS 101-A1',  name: 'Intro to FCS',              emoji: '🏠', teacher: 'denisonte@byui.edu' }
+          /* IDS 101-02 (Wilson) and HORT 287R-01 (Kirby) dropped 2026-04-20 */
         ]
       },
       {
