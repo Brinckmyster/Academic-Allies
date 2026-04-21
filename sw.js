@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260421a'; /* Claude: 2026-04-21 — aa-classes.js added; mirror game-pages skip; Spring 2026 class list */
+var CACHE   = 'aa-shell-20260421b'; /* Claude: 2026-04-21 — study-tools class placeholders from aa-classes.js */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -71,6 +71,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/user-tiers/user-tiers.html', /* Claude: 2026-03-25 — mobile responsive */
   '/Academic-Allies/modular/components/study-notes/study-notes.html', /* Claude: 2026-03-25 — focus trap + dialog a11y */
   '/Academic-Allies/modular/static/custom-quiz.html', /* Claude: 2026-03-25 — XSS escape + keyboard a11y */
+  '/Academic-Allies/modular/static/study-tools.html', /* Claude: 2026-04-21 — class placeholders from aa-classes.js, must be fresh */
   '/Academic-Allies/modular/admin.html', /* Claude: 2026-03-25 — role-based access, must be fresh */
   '/Academic-Allies/modular/components/audit-log/audit-log.html', /* Claude: 2026-03-25 — compliance data, must be fresh */
   '/Academic-Allies/modular/components/audio-notes/audio-converter.html', /* Claude: 2026-03-25 — file I/O tool */
