@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260421a'; /* Claude: 2026-04-21 — aa-classes.js added; mirror game-pages skip; Spring 2026 class list */
+var CACHE   = 'aa-shell-20260420a'; /* Claude: 2026-04-20 — templates + battle-mode + farm-mode added to NEVER_CACHE */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -30,7 +30,6 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/js/mode-gate.js', /* Claude: 2026-03-23 — was missing; SW served stale mode-gate */
   '/Academic-Allies/modular/js/status-circle.js',
   '/Academic-Allies/modular/js/aa-mirror.js',
-  '/Academic-Allies/modular/js/aa-classes.js', /* Claude: 2026-04-21 — centralized class list, changes with every term */
   '/Academic-Allies/modular/js/study-activity.js',
   '/Academic-Allies/modular/js/student-config.js', /* Claude: 2026-03-23 — frequently edited config system */
   '/Academic-Allies/modular/components/spoon-planner/spoon-pal.html',    /* Claude: 2026-03-23 — was being cached, serving stale code */

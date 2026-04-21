@@ -538,10 +538,6 @@
 
   /* Pages that keep their existing suggestion behavior in mirror mode */
   var SUGGESTION_KEEP = ['meal-planner', 'spoon-planner'];
-  /* Claude: 2026-04-21 — Game pages skip lockdown entirely; their own mirror write guards
-     (AA_MIRROR_UID && !AA_MIRROR_CAN_WRITE checks) protect all Firestore writes.
-     Class picker and gameplay must remain functional for mirror users. */
-  var GAME_PAGES = ['battle-mode', 'farm-mode'];
 
   /* Words that identify action buttons to lock down */
   /* Claude: 2026-03-23 — expanded keywords: add, edit, update, upload, send, create
@@ -637,7 +633,6 @@
     if (inPath(NO_MIRROR)) return;
     /* Meal planner & spoon planner keep suggestion mode */
     if (inPath(SUGGESTION_KEEP)) return;
-    if (inPath(GAME_PAGES)) return;
 
     /* --- Replace action buttons --- */
     var buttons = document.querySelectorAll('button, input[type="submit"], input[type="button"]');
@@ -676,7 +671,6 @@
     if (!window.AA_MIRROR_UID || window.AA_MIRROR_CAN_WRITE) return;
     if (inPath(NO_MIRROR)) return;
     if (inPath(SUGGESTION_KEEP)) return;
-    if (inPath(GAME_PAGES)) return;
 
     /* Initial pass */
     lockdownMirror();
