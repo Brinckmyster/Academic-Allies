@@ -1,0 +1,154 @@
+/* Claude: 2026-04-12 — Console script to load RBT Exam Prep quizzes into Bruise's admin account.
+   Run this in the browser console while logged in at brinckmyster.github.io/Academic-Allies
+   Source: rbt-quiz.html uploaded by Bruise.
+   Creates 9 quizzes under the "RBT" class group on Study Tools.
+   DO NOT COMMIT — console scripts are temporary tools. */
+
+(function () {
+  var uid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
+  if (!uid) {
+    console.error('❌ Not logged in! Sign in first, then run this script again.');
+    return;
+  }
+  console.log('👤 Targeting UID:', uid);
+
+  /* ── Question bank ── */
+  var mcData = [
+    /* MOs & CMOs */
+    {term:"A learner has been in a hot room for an hour with nothing to drink. You offer water and they reach for it immediately and work harder than usual. What MO is at play?",definition:"Establishing Operation — deprivation"},
+    {term:"A learner just finished a large snack. They start working slower and pushing away their usual food reinforcer. What is happening?",definition:"Abolishing Operation — satiation"},
+    {term:"A child's locker is stuck. They've learned a key opens it. They frantically search for the key to get their lunch. The stuck locker is a:",definition:"CMO-T"},
+    {term:"Every time a particular staff member walks in, a learner becomes agitated and starts escape behavior. This person has historically given difficult demands. The staff member's presence is a:",definition:"CMO-R"},
+    {term:"A learner was stung by a wasp near a yellow flower. Now ANY yellow flower causes anxiety and avoidance — even without a wasp. The yellow flower is a:",definition:"CMO-S"},
+    {term:"According to Michael (1982), MOs have two properties. What are they?",definition:"Value-altering and behavior-altering effects"},
+    {term:"It's almost lunchtime. A learner is completing tasks faster and with fewer errors than usual. What best explains this?",definition:"An Establishing Operation increasing the value of the upcoming lunch reinforcer"},
+    /* Measurement */
+    {term:"A learner hits staff 3 times in a 30-min session Monday and 3 times in a 60-min session Friday. What should you report to the BCBA?",definition:"Rate — session lengths differ so raw count is misleading"},
+    {term:"You're tracking hand-flapping which occurs dozens of times per minute. You're also running a group session. Which recording method is most practical?",definition:"Momentary time sampling"},
+    {term:"You mark each 1-minute interval if the learner was out of their seat at ANY point during that minute — even for 1 second. This is:",definition:"Partial interval recording"},
+    {term:"You tell the BCBA: 'The learner took 3 minutes to start cleaning after I gave the instruction.' What data type is this?",definition:"Latency"},
+    {term:"A learner's self-injurious behavior occurred at 10:02, 10:09, 10:22, and 10:45. Is this getting better or worse?",definition:"Better — IRT is getting longer"},
+    {term:"You record whether a learner is on-task by checking only at the moment a timer beeps. This is:",definition:"Momentary time sampling"},
+    {term:"Your BCBA wants to know how long a learner's entire shoe-tying sequence takes from start to finish. What measure do you use?",definition:"Duration"},
+    {term:"A learner's tantrum behavior occurred at 1:00, 1:08, 1:12, and 1:14. What do you tell the BCBA?",definition:"IRT is decreasing — behavior is clustering and getting worse"},
+    /* Reinforcement */
+    {term:"A learner's hitting behavior was successfully extinguished 3 months ago. Today, without any change, they hit staff twice. Most likely:",definition:"Spontaneous recovery — normal and expected"},
+    {term:"You implement extinction for attention-maintained screaming. The next day screaming increases dramatically. You should:",definition:"Stay consistent — this is an extinction burst"},
+    {term:"A learner's BCBA thins the reinforcement schedule from FR1 to FR5. What will likely happen first?",definition:"Brief frustration or increase in errors before adjusting"},
+    {term:"Which schedule produces the most predictable 'post-reinforcement pause'?",definition:"Fixed Interval"},
+    {term:"Mid-session a learner starts pushing away their usual goldfish cracker reinforcer. You should:",definition:"Switch to a different reinforcer from the approved list"},
+    {term:"Removing a learner's iPad when they engage in problem behavior is an example of:",definition:"Negative punishment"},
+    {term:"A learner earns a break after 5 problems, then gets iPad during the break. What is the break?",definition:"Conditioned reinforcer"},
+    /* Ethics & Scope */
+    {term:"After a session, a parent asks 'Is the treatment working? What does the data show?' You should:",definition:"Redirect them to the BCBA"},
+    {term:"You believe you've found a more effective way to run a program than what the BCBA wrote. You should:",definition:"Follow as written and share your observation with the BCBA privately"},
+    {term:"A learner suddenly flips a chair and screams. What is your FIRST priority?",definition:"Ensure safety of everyone in the room"},
+    {term:"A coworker says 'that learner acts out because their parents let them get away with everything.' As an RBT you should:",definition:"Redirect to observable behavior and suggest the BCBA's input"},
+    {term:"You believe a procedure may be harming the learner. The BCBA is unavailable. You should:",definition:"Stop the session, ensure safety, document, and escalate"},
+    {term:"A learner stops performing a mastered skill with no apparent cause. You should:",definition:"Document the regression and report it to the BCBA"},
+    {term:"You're assigned a new program with a procedure you don't know how to implement correctly. You should:",definition:"Stop and contact the BCBA before implementing"},
+    /* Teaching */
+    {term:"A therapist holds up a red card, says 'What color?', the learner says 'red' and gets a token. This is immediately repeated. This is:",definition:"Discrete Trial Teaching"},
+    {term:"A learner reaches for the therapist's phone. The therapist says 'What do you want?' and waits for a verbal request before allowing access. This is:",definition:"Incidental teaching / mand training"},
+    {term:"A therapist teaches hand washing by practicing ALL 12 steps every session, prompting only where needed. This is:",definition:"Total task chaining"},
+    {term:"A learner can say 'b' but not 'ball.' The therapist reinforces 'b,' then only 'ba,' then only 'ball.' This is:",definition:"Shaping"},
+    {term:"A therapist gives a thumbs-up before expecting a greeting. Over weeks, the signal gets smaller and disappears. The learner still greets correctly. This is:",definition:"Prompt fading / stimulus fading"},
+    {term:"A therapist teaches sandwich-making by teaching the LAST step first, then last two steps, building backward. This is:",definition:"Backward chaining"},
+    {term:"You present an SD and the learner gives the wrong answer. The correct next step is:",definition:"Immediately prompt the correct response, re-present SD, reinforce correct answer, run a distractor trial"},
+    {term:"A learner's attention-maintained screaming is on extinction. The team also teaches a tap-on-the-shoulder to request attention. The tap program is:",definition:"FCT / DRA"}
+  ];
+
+  /* ── Match sets ── */
+  var matchSets = [
+    {name:"CMO Types",items:[
+      {term:"CMO-T",definition:"Obstacle makes a tool valuable"},
+      {term:"CMO-R",definition:"Signals bad conditions coming"},
+      {term:"CMO-S",definition:"Borrows power through pairing"},
+      {term:"EO",definition:"Increases reinforcer value"},
+      {term:"AO",definition:"Decreases reinforcer value"}
+    ]},
+    {name:"Reinforcement Schedules",items:[
+      {term:"FR",definition:"Fixed count of responses"},
+      {term:"VR",definition:"Unpredictable count — best extinction resistance"},
+      {term:"FI",definition:"Fixed time — post-reinforcement pause"},
+      {term:"VI",definition:"Variable time — steady responding"},
+      {term:"CRF/FR1",definition:"Every response reinforced — best for new skills"}
+    ]},
+    {name:"Measurement Types",items:[
+      {term:"Partial Interval",definition:"Any occurrence — overestimates"},
+      {term:"Whole Interval",definition:"Entire interval — underestimates"},
+      {term:"MTS",definition:"Snapshot at the beep"},
+      {term:"Duration",definition:"How long behavior lasts"},
+      {term:"Latency",definition:"Cue to response start"}
+    ]},
+    {name:"Reinforcement Types",items:[
+      {term:"Positive Reinforcement",definition:"Add something → behavior increases"},
+      {term:"Negative Reinforcement",definition:"Remove aversive → behavior increases"},
+      {term:"Positive Punishment",definition:"Add aversive → behavior decreases"},
+      {term:"Negative Punishment",definition:"Remove preferred → behavior decreases"},
+      {term:"Extinction",definition:"Withhold reinforcement → behavior decreases"}
+    ]},
+    {name:"Teaching Procedures",items:[
+      {term:"DTT",definition:"Structured therapist-initiated repeated trials"},
+      {term:"Incidental Teaching",definition:"Learner-initiated natural moments"},
+      {term:"Forward Chaining",definition:"First step first, build forward"},
+      {term:"Backward Chaining",definition:"Last step first, build backward"},
+      {term:"Total Task",definition:"All steps practiced every session"}
+    ]},
+    {name:"DR Procedures",items:[
+      {term:"DRA",definition:"Reinforce an Alternative behavior"},
+      {term:"DRI",definition:"Reinforce Incompatible behavior"},
+      {term:"DRO",definition:"Reinforce Omission of behavior"},
+      {term:"DRL",definition:"Reinforce Lower rates"},
+      {term:"FCT",definition:"Teach communication replacing problem behavior"}
+    ]},
+    {name:"Four Functions",items:[
+      {term:"Escape",definition:"Avoid or get away from something"},
+      {term:"Attention",definition:"Get social contact or reaction"},
+      {term:"Tangible",definition:"Obtain items or activities"},
+      {term:"Sensory/Automatic",definition:"Reinforced by the sensation itself"},
+      {term:"IRT",definition:"Time between one response and the next"}
+    ]}
+  ];
+
+  /* ── Build quiz objects ── */
+  var newQuizzes = [];
+
+  newQuizzes.push({
+    title: "RBT: Scenarios — Flashcards",
+    description: "38 scenario-based questions. Flip to see the correct answer.",
+    type: "flashcards",
+    data: mcData
+  });
+
+  newQuizzes.push({
+    title: "RBT: Scenarios — Fill-Blank",
+    description: "38 scenario-based questions. Type the correct answer.",
+    type: "fill-blank",
+    data: mcData
+  });
+
+  matchSets.forEach(function (ms) {
+    newQuizzes.push({
+      title: "RBT: Match — " + ms.name,
+      description: "Match all " + ms.items.length + " pairs.",
+      type: "match",
+      data: ms.items
+    });
+  });
+
+  /* ── Merge into Firestore, replacing any existing RBT quizzes ── */
+  window.AA.db.collection('studentConfig').doc(uid).get().then(function (doc) {
+    var existing = (doc.exists && doc.data().quizzes) ? doc.data().quizzes : [];
+    var kept = existing.filter(function (q) {
+      return !q.title || !q.title.startsWith('RBT:');
+    });
+    var merged = kept.concat(newQuizzes);
+    return window.AA.db.collection('studentConfig').doc(uid).set({ quizzes: merged }, { merge: true });
+  }).then(function () {
+    console.log('✅ Done! ' + newQuizzes.length + ' RBT quizzes loaded.');
+    console.log('   Refresh Study Tools to see them under "RBT" class group.');
+  }).catch(function (err) {
+    console.error('❌ Error:', err);
+  });
+})();
