@@ -417,13 +417,11 @@ service cloud.firestore {
     // ── Student Configuration — network-lead customizations ────────
     // Path: /studentConfig/{uid}
     // Students can read their own config (uid matches auth).
-    // Any network member can read (quiz data is not sensitive health info — needed for mirror view).
-    // Claude: 2026-04-24 — changed read from isNetworkLead to isNetworkMember so supporters
-    //   with any role (not just network-lead) can view quizzes in Battle/Farm Mode mirror.
-    // Network leads + backstage managers can write.
+    // Network leads can read AND write configs for students they support.
+    // Backstage managers can read and write any config.
     // Added 2026-03-18 by Claude.
     match /studentConfig/{uid} {
-      allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+      allow read: if isOwner(uid) || isNetworkLead(uid) || isBackstageManager();
       allow write: if isNetworkLead(uid) || isBackstageManager();
     }
 
