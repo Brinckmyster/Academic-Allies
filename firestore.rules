@@ -427,6 +427,15 @@ service cloud.firestore {
       allow write: if isNetworkLead(uid) || isBackstageManager();
     }
 
+    // ── Farm Village — village progress for Farm Mode game ──────────
+    // Path: /farmVillage/{uid}
+    // Claude: 2026-04-24 — added missing rule. No rule = default deny, which blocked
+    //   all mirror-mode supporters from reading farm data in Farm Mode.
+    match /farmVillage/{uid} {
+      allow read: if isOwner(uid) || isNetworkMember(uid) || isBackstageManager();
+      allow write: if isOwner(uid);
+    }
+
     // ── Quiz Progress — per-student quiz scores and missed items ────
     // Path: /quizProgress/{uid}
     // Students read/write their own progress. Network members + admin can read
