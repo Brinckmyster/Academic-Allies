@@ -347,11 +347,6 @@
 
   <!-- Village -->
   <div class="screen" id="screen-village">
-    <!-- Mirror read-only banner — Claude: 2026-04-24 -->
-    <div id="mirror-banner" style="display:none;background:#4a2080;color:#fff;text-align:center;padding:6px 12px;font-size:0.85rem;font-weight:600;">
-      👁️ Viewing <span id="mirror-banner-name">student</span>'s farm — read only
-    </div>
-
     <!-- HUD -->
     <div class="village-hud">
       <span class="hud-class" id="hud-class"></span>
@@ -678,20 +673,6 @@
       renderMap();
       showScreen("village");
       drawNextQuestion();
-
-      /* Claude: 2026-04-24 — show mirror banner + hide build button for supporters */
-      var isMirror = window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE;
-      var banner = document.getElementById("mirror-banner");
-      var buildBtn = document.getElementById("btn-build");
-      if (isMirror) {
-        banner.style.display = "";
-        var studentName = (window.AA_MIRROR_DISPLAY_NAME || "student").split(" ")[0];
-        document.getElementById("mirror-banner-name").textContent = studentName;
-        buildBtn.style.display = "none";
-      } else {
-        banner.style.display = "none";
-        buildBtn.style.display = "";
-      }
     }
 
     function exitVillage() {
@@ -707,8 +688,6 @@
     /* ── Firestore save ───────────────────────────────────────── */
     function saveVillage() {
       if (!currentUserUid) return;
-      /* Claude: 2026-04-24 — mirror guard: supporters view only, never write */
-      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       firebase.firestore().doc("farmVillage/" + currentUserUid).set({
         coins:      coins,
         buildings:  villageBuildings,
@@ -759,8 +738,6 @@
 
     /* ── Build mode ───────────────────────────────────────────── */
     function toggleBuildMode() {
-      /* Claude: 2026-04-24 — mirror guard: no building in read-only view */
-      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       if (buildModeOn) { cancelBuildMode(); return; }
       buildModeOn = true; selectedBuilding = null;
       document.getElementById("btn-build").classList.add("build-on");
