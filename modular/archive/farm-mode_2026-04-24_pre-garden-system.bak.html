@@ -136,30 +136,25 @@
     }
     .village-map {
       display: grid; grid-template-columns: repeat(7, 1fr);
-      gap: 0; background: #0e4006;
+      gap: 2px; background: #0e4006;
       border-radius: 14px; overflow: hidden;
       box-shadow: 0 6px 28px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
       width: 100%; max-width: 390px;
-      border: 3px solid #0a3004;
+      border: 2px solid rgba(0,0,0,0.25);
     }
     .map-tile {
       aspect-ratio: 1;
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.6rem; line-height: 1;
+      font-size: 1.5rem; line-height: 1;
       user-select: none; position: relative;
       transition: filter 0.12s;
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.07);
     }
     .tile-tree    { background: #1e5c0a; }
-    .tile-path    { background: #b89848; }
-    .tile-water   { background: #1880d8; }
-    .tile-garden  { background: #3ab028; }
+    .tile-path    { background: #c4a254; }
+    .tile-water   { background: #2090e0; }
+    .tile-flower  { background: #40c035; }
     .tile-buildable { background: #30b025; }
     .tile-buildable.empty.bmode { cursor: pointer; background: #42c038; }
-    /* garden plot states */
-    .tile-garden.empty.bmode { cursor: pointer; background: #8b5e2a; }
-    .tile-garden.empty.bmode:hover { filter: brightness(1.25); }
-    .tile-garden.has-plant.bmode  { cursor: default; }
     .tile-buildable.empty.bmode:hover { filter: brightness(1.2); }
     .tile-buildable.has-building.bmode { cursor: default; }
     .tile-buildable.glow { animation: tile-glow 1.1s ease-in-out infinite; }
@@ -271,17 +266,6 @@
     .build-overlay.visible { display: block; }
     .build-overlay-title { font-family: 'Fredoka One', cursive; font-size: 1rem; color: #7b3d0a; margin-bottom: 10px; }
     html.aa-dark .build-overlay-title { color: #d4a060 !important; }
-    .build-section-label {
-      font-family: 'Fredoka One', cursive; font-size: 0.82rem;
-      color: #7b3d0a; text-transform: uppercase; letter-spacing: 0.06em;
-      margin: 10px 0 6px; padding-top: 8px;
-      border-top: 1px solid rgba(139,90,40,0.18);
-    }
-    html.aa-dark .build-section-label { color: #c09060 !important; border-top-color: rgba(160,100,40,0.22) !important; }
-    .build-section-label:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
-    .build-option.seed-option { border-color: rgba(40,140,20,0.28); }
-    .build-option.seed-option:hover:not([disabled]) { border-color: #2a9010; background: rgba(80,200,60,0.1); }
-    .build-option.seed-option.selected { border-color: #2a9010; border-width: 3px; background: rgba(80,200,60,0.15); }
     .build-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-bottom: 10px; }
     .build-option {
       background: rgba(255,255,255,0.72); border: 2px solid rgba(139,90,40,0.18);
@@ -632,29 +616,13 @@
       'T','W','W','P','F','F','T',
       'T','T','T','T','T','T','T'
     ];
-    /* Claude: 2026-04-24 — F = interactive garden plot; tree emoji varies by tile index */
-    var TREE_EMOJI  = ['🌲','🌳','🌲','🌳','🌲'];
     var TILE_INFO = {
-      'T': { cls: 'tile-tree',      emoji: null, label: 'Tree'        },
-      'P': { cls: 'tile-path',      emoji: '',   label: 'Path'        },
-      'W': { cls: 'tile-water',     emoji: '🌊', label: 'Pond'        },
-      'F': { cls: 'tile-garden',    emoji: '🌱', label: 'Garden plot' },
-      'B': { cls: 'tile-buildable', emoji: '',   label: 'Empty plot'  }
+      'T': { cls: 'tile-tree',      emoji: '🌲', label: 'Tree'       },
+      'P': { cls: 'tile-path',      emoji: '',   label: 'Path'       },
+      'W': { cls: 'tile-water',     emoji: '💧', label: 'Pond'       },
+      'F': { cls: 'tile-flower',    emoji: '🌸', label: 'Flower bed' },
+      'B': { cls: 'tile-buildable', emoji: '',   label: 'Empty plot' }
     };
-
-    /* Claude: 2026-04-24 — Mary's actual HORT 328 Floral Design flowers
-       Sourced from modular/static/floral-flashcards.html */
-    var SEEDS = [
-      { id: 'carnation',  emoji: '🌸', name: 'Carnation',   cost: 8,  genus: 'Dianthus'      },
-      { id: 'daisy',      emoji: '🌼', name: 'Daisy Pom',   cost: 8,  genus: 'Chrysanthemum' },
-      { id: 'rose',       emoji: '🌹', name: 'Rose',        cost: 15, genus: 'Rosa'          },
-      { id: 'sunflower',  emoji: '🌻', name: 'Sunflower',   cost: 10, genus: 'Helianthus'    },
-      { id: 'snapdragon', emoji: '🌺', name: 'Snapdragon',  cost: 10, genus: 'Antirrhinum'   },
-      { id: 'tulip',      emoji: '🌷', name: 'Tulip',       cost: 12, genus: 'Tulipa'        },
-      { id: 'calla',      emoji: '🪷', name: 'Calla Lily',  cost: 15, genus: 'Zantedeschia'  },
-      { id: 'iris',       emoji: '🪻', name: 'Iris',        cost: 12, genus: 'Iris'          },
-      { id: 'gerber',     emoji: '💮', name: 'Gerber Daisy',cost: 10, genus: 'Gerbera'       }
-    ];
 
     /* ── Buildings ────────────────────────────────────────────── */
     var BUILDINGS = [
@@ -712,8 +680,6 @@
     var wrongCount       = 0;
     var buildModeOn      = false;
     var selectedBuilding = null;
-    var selectedSeed     = null;   /* Claude: 2026-04-24 — separate selection for garden plots */
-    var villagePlants    = {};     /* { "tileIndex": seedId } */
     var currentUserUid   = null;
 
     /* ── Utilities ────────────────────────────────────────────── */
@@ -793,9 +759,8 @@
         /* Load village state */
         if (villageSnap.exists) {
           var vdata    = villageSnap.data();
-          coins            = vdata.coins     || 0;
+          coins            = vdata.coins    || 0;
           villageBuildings = vdata.buildings || {};
-          villagePlants    = vdata.plants    || {};   /* Claude: 2026-04-24 */
         }
 
         if (allQuestions.length === 0) {
@@ -928,7 +893,6 @@
       firebase.firestore().doc("farmVillage/" + currentUserUid).set({
         coins:      coins,
         buildings:  villageBuildings,
-        plants:     villagePlants,      /* Claude: 2026-04-24 */
         lastPlayed: firebase.firestore.Timestamp.now()
       }, { merge: true }).catch(function(err) {
         console.warn("[FarmMode] Save failed:", err.message);
@@ -936,12 +900,6 @@
     }
 
     /* ── Map rendering ────────────────────────────────────────── */
-    /* Claude: 2026-04-24 — renderMap updated: tree variation by index, F tiles interactive */
-    function getSeedById(id) {
-      for (var i = 0; i < SEEDS.length; i++) { if (SEEDS[i].id === id) return SEEDS[i]; }
-      return null;
-    }
-
     function renderMap() {
       var mapEl = document.getElementById("village-map");
       mapEl.innerHTML = "";
@@ -953,11 +911,7 @@
         tile.setAttribute("data-tile-type",  type);
         tile.setAttribute("aria-label", info.label);
 
-        if (type === "T") {
-          /* Vary tree emoji by tile position for organic look */
-          tile.textContent = TREE_EMOJI[idx % TREE_EMOJI.length];
-
-        } else if (type === "B") {
+        if (type === "B") {
           var bldId = String(idx);
           if (villageBuildings[bldId]) {
             var bld = getBuildingById(villageBuildings[bldId]);
@@ -969,24 +923,8 @@
             tile.setAttribute("role", "button");
           }
           tile.onclick = (function(i) { return function() { onTileClick(i); }; })(idx);
-
-        } else if (type === "F") {
-          /* Garden plot — interactive */
-          var plantId = villagePlants[String(idx)];
-          if (plantId) {
-            var seed = getSeedById(plantId);
-            tile.textContent = seed ? seed.emoji : "🌿";
-            tile.classList.add("has-plant");
-            tile.setAttribute("aria-label", seed ? seed.name + " garden" : "Garden plot");
-          } else {
-            tile.textContent = "🟫";
-            tile.classList.add("empty");
-            tile.setAttribute("role", "button");
-          }
-          tile.onclick = (function(i) { return function() { onGardenTileClick(i); }; })(idx);
-
         } else {
-          tile.textContent = info.emoji || "";
+          tile.textContent = info.emoji;
         }
         mapEl.appendChild(tile);
       });
@@ -995,47 +933,9 @@
     function applyBuildModeStyles() {
       document.querySelectorAll(".tile-buildable").forEach(function(el) { el.classList.add("bmode"); });
       document.querySelectorAll(".tile-buildable.empty").forEach(function(el) { el.classList.add("glow"); });
-      document.querySelectorAll(".tile-garden").forEach(function(el) { el.classList.add("bmode"); });
     }
     function removeBuildModeStyles() {
       document.querySelectorAll(".tile-buildable").forEach(function(el) { el.classList.remove("bmode","glow"); });
-      document.querySelectorAll(".tile-garden").forEach(function(el) { el.classList.remove("bmode"); });
-    }
-
-    /* Claude: 2026-04-24 — garden tile click handler for seed planting */
-    function onGardenTileClick(idx) {
-      if (!buildModeOn) return;
-      if (!selectedSeed) {
-        document.getElementById("build-tip").textContent = "🌱 Pick a seed from the list above to plant here!";
-        return;
-      }
-      var plantId = String(idx);
-      if (villagePlants[plantId]) {
-        document.getElementById("build-tip").textContent = "Already planted here! Pick an empty 🟫 plot.";
-        return;
-      }
-      if (coins < selectedSeed.cost) {
-        document.getElementById("build-tip").textContent = "Not enough coins! Answer more questions to earn more.";
-        return;
-      }
-      /* Plant it */
-      coins -= selectedSeed.cost;
-      villagePlants[plantId] = selectedSeed.id;
-      document.getElementById("coin-count").textContent = coins;
-
-      var tile = document.querySelector("[data-tile-index='" + idx + "']");
-      if (tile) {
-        tile.textContent = selectedSeed.emoji;
-        tile.classList.remove("empty");
-        tile.classList.add("has-plant");
-      }
-
-      document.getElementById("build-tip").textContent =
-        selectedSeed.emoji + " " + selectedSeed.name + " planted! (" + selectedSeed.genus + ")";
-      selectedSeed = null;
-      document.querySelectorAll(".build-option").forEach(function(el) { el.classList.remove("selected"); });
-      renderBuildMenu();
-      saveVillage();
     }
 
     /* ── Build mode ───────────────────────────────────────────── */
@@ -1052,24 +952,16 @@
     }
 
     function cancelBuildMode() {
-      buildModeOn = false; selectedBuilding = null; selectedSeed = null;
+      buildModeOn = false; selectedBuilding = null;
       document.getElementById("btn-build").classList.remove("build-on");
       document.getElementById("btn-build").setAttribute("aria-pressed", "false");
       removeBuildModeStyles();
       document.getElementById("build-overlay").classList.remove("visible");
     }
 
-    /* Claude: 2026-04-24 — renderBuildMenu: two sections — Buildings + Seeds (Mary's HORT 328 flowers) */
     function renderBuildMenu() {
       var grid = document.getElementById("build-grid");
       grid.innerHTML = "";
-
-      /* Buildings section */
-      var bldLabel = document.createElement("div");
-      bldLabel.className = "build-section-label";
-      bldLabel.textContent = "🏗️ Buildings";
-      grid.appendChild(bldLabel);
-
       BUILDINGS.forEach(function(bld) {
         var btn = document.createElement("button");
         btn.className = "build-option";
@@ -1081,54 +973,18 @@
         btn.onclick = (function(b) { return function() { selectBuilding(b); }; })(bld);
         grid.appendChild(btn);
       });
-
-      /* Seeds section */
-      var seedLabel = document.createElement("div");
-      seedLabel.className = "build-section-label";
-      seedLabel.textContent = "🌱 Seeds — Mary's HORT 328 Flowers";
-      grid.appendChild(seedLabel);
-
-      SEEDS.forEach(function(seed) {
-        /* Count planted of this type */
-        var alreadyPlanted = Object.values ? Object.values(villagePlants).filter(function(v){ return v === seed.id; }).length : 0;
-        var gardenFull = Object.keys(villagePlants).length >= MAP_TILES.filter(function(t){ return t === 'F'; }).length;
-        var btn = document.createElement("button");
-        btn.className = "build-option seed-option";
-        if (coins < seed.cost || gardenFull) btn.setAttribute("disabled", "true");
-        btn.innerHTML =
-          '<span class="build-emoji">' + seed.emoji + '</span>' +
-          '<span class="build-name">'  + escHtml(seed.name) + '</span>' +
-          '<span class="build-cost" style="font-style:italic;font-size:0.65rem;opacity:0.7">' + escHtml(seed.genus) + '</span>' +
-          '<span class="build-cost">🪙 ' + seed.cost + '</span>';
-        btn.onclick = (function(s) { return function() { selectSeed(s); }; })(seed);
-        grid.appendChild(btn);
-      });
     }
 
     function selectBuilding(bld) {
       if (coins < bld.cost) return;
       selectedBuilding = bld;
-      selectedSeed     = null;
       document.querySelectorAll(".build-option").forEach(function(el) { el.classList.remove("selected"); });
       var btns = document.querySelectorAll(".build-option");
       for (var i = 0; i < btns.length; i++) {
         var nm = btns[i].querySelector(".build-name");
         if (nm && nm.textContent === bld.name) { btns[i].classList.add("selected"); break; }
       }
-      document.getElementById("build-tip").textContent = "Tap an empty 🟩 plot on the map to place " + bld.emoji + " " + bld.name + "!";
-    }
-
-    function selectSeed(seed) {
-      if (coins < seed.cost) return;
-      selectedSeed     = seed;
-      selectedBuilding = null;
-      document.querySelectorAll(".build-option").forEach(function(el) { el.classList.remove("selected"); });
-      var btns = document.querySelectorAll(".build-option");
-      for (var i = 0; i < btns.length; i++) {
-        var nm = btns[i].querySelector(".build-name");
-        if (nm && nm.textContent === seed.name) { btns[i].classList.add("selected"); break; }
-      }
-      document.getElementById("build-tip").textContent = "Tap an empty 🟫 garden plot to plant " + seed.emoji + " " + seed.name + "!";
+      document.getElementById("build-tip").textContent = "Now tap an empty 🟩 plot on the map to place " + bld.emoji + " " + bld.name + "!";
     }
 
     function onTileClick(idx) {
