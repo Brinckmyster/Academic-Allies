@@ -194,8 +194,6 @@
   <!-- Claude: 2026-03-19 — mode-gate: blocks page if feature is off for current mode -->
   <script>var AA_MODE_GATE = 'calendar';</script>
   <script src="/Academic-Allies/modular/js/mode-gate.js"></script>
-  <!-- Claude: 2026-04-26 — load aa-classes.js so calendar can filter dropped classes automatically -->
-  <script src="/Academic-Allies/modular/js/aa-classes.js?v=20260426"></script>
   <div id="site-header"></div>
   <div id="cal-loading"><span class="aa-spinner"></span> Loading calendar…</div>
 
@@ -285,25 +283,6 @@
     var classSchedule = [];  // loaded from Firestore
     var DOW_MAP = { 'Sun':0, 'Mon':1, 'Tue':2, 'Wed':3, 'Thu':4, 'Fri':5, 'Sat':6 };
 
-    /* Claude: 2026-04-26 — check if a class code is listed in aa-classes.js for the
-       trimester that covers a given date. Returns true if aa-classes.js isn't loaded
-       (fail-open), true if the date falls outside all known terms, and false if the
-       date is inside a known term but the class isn't in it (i.e. it was dropped). */
-    function isClassActiveInTerm(code, dk) {
-      if (!window.AA_CLASSES) { return true; }
-      var terms = window.AA_CLASSES.trimesters;
-      for (var t = 0; t < terms.length; t++) {
-        if (dk >= terms[t].start && dk <= terms[t].end) {
-          var cls = terms[t].classes;
-          for (var c = 0; c < cls.length; c++) {
-            if (cls[c].code === code || cls[c].section === code) { return true; }
-          }
-          return false; /* date is inside a known term, class not listed → dropped */
-        }
-      }
-      return true; /* date outside all known terms, don't filter */
-    }
-
     /* Check if a given date falls on a class day (within semester range) */
     function getClassesForDate(dk) {
       if (!classSchedule || !classSchedule.length) return [];
@@ -320,8 +299,6 @@
             /* Check semester date range if provided */
             if (cls.semesterStart && dk < cls.semesterStart) break;
             if (cls.semesterEnd && dk > cls.semesterEnd) break;
-            /* Claude: 2026-04-26 — skip if class was dropped from aa-classes.js */
-            if (!isClassActiveInTerm(cls.code, dk)) break;
             matches.push(cls);
             break;
           }
