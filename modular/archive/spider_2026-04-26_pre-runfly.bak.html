@@ -640,13 +640,6 @@ function tryRemoveRun(colIdx) {
         var c = col[start + i];
         if (!c.faceUp || c.suit !== suit || c.val !== 13 - i) { return false; }
     }
-    /* Claude: 2026-04-26 — animate King flying to the next foundation slot before splicing */
-    var cardEls  = document.querySelectorAll('#col-' + colIdx + ' .card');
-    var kingEl   = cardEls[start];
-    var destSlots = document.querySelectorAll('#foundations-row .slot');
-    var destSlot  = destSlots[state.completed];
-    spawnFly(kingEl, destSlot);
-
     /* Valid run — remove it */
     state.tableau[colIdx].splice(start, 13);
     state.completed++;
@@ -659,30 +652,6 @@ function tryRemoveRun(colIdx) {
 
 /* ── Auto-move (double-click / double-tap) ── Claude: 2026-04-26 */
 var lastTapInfo = { el: null, time: 0 };
-
-/* Claude: 2026-04-26 — fire-and-forget fly for run completions (no input blocking) */
-function spawnFly(srcEl, destEl) {
-    if (!srcEl || !destEl) { return; }
-    var srcRect  = srcEl.getBoundingClientRect();
-    var destRect = destEl.getBoundingClientRect();
-    var clone = srcEl.cloneNode(true);
-    clone.style.cssText =
-        'position:fixed;pointer-events:none;z-index:1000;margin:0;border-radius:6px;' +
-        'left:' + srcRect.left + 'px;top:' + srcRect.top + 'px;' +
-        'width:' + srcRect.width + 'px;height:' + srcRect.height + 'px;' +
-        'transition:left 0.3s ease-out,top 0.3s ease-out,width 0.3s ease-out,height 0.3s ease-out,opacity 0.3s ease-out;' +
-        'box-shadow:0 8px 24px rgba(0,0,0,0.5);';
-    document.body.appendChild(clone);
-    void clone.offsetWidth;
-    clone.style.left    = destRect.left   + 'px';
-    clone.style.top     = destRect.top    + 'px';
-    clone.style.width   = destRect.width  + 'px';
-    clone.style.height  = destRect.height + 'px';
-    clone.style.opacity = '0';
-    setTimeout(function() {
-        if (clone.parentNode) { clone.parentNode.removeChild(clone); }
-    }, 350);
-}
 
 /* Claude: 2026-04-26 — card flies from source to destination so player can see where it went */
 var isFlying = false;
