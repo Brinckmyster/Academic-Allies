@@ -390,10 +390,10 @@
         </div>
         <div class="slot waste-slot" id="waste-slot"><span class="slot-label">Waste</span></div>
         <div class="slot gap-slot"></div>
-        <div class="slot fn-slot" id="fn-0"><span class="slot-label">A</span></div>
-        <div class="slot fn-slot" id="fn-1"><span class="slot-label">A</span></div>
-        <div class="slot fn-slot" id="fn-2"><span class="slot-label">A</span></div>
-        <div class="slot fn-slot" id="fn-3"><span class="slot-label">A</span></div>
+        <div class="slot fn-slot" id="fn-0"><span class="slot-label">&#9824;</span></div>
+        <div class="slot fn-slot" id="fn-1"><span class="slot-label">&#9829;</span></div>
+        <div class="slot fn-slot" id="fn-2"><span class="slot-label">&#9830;</span></div>
+        <div class="slot fn-slot" id="fn-3"><span class="slot-label">&#9827;</span></div>
     </div>
 
     <!-- 7 tableau columns -->
@@ -406,7 +406,7 @@
     <strong>Klondike:</strong> Tap cards to select, tap where to move them.
     Build tableau columns <strong>down in alternating colors</strong>.
     Tap the <strong>stock pile</strong> (top-left) to draw cards.
-    Move <strong>Aces to any foundation slot</strong> (top-right) in whatever order you like, then build up by suit, Ace to King, to win.
+    Move <strong>Aces and sequences by suit</strong> (Ace to King) to the foundations (top-right) to win.
     Only <strong>Kings</strong> can go on empty tableau columns.
 </div>
 
@@ -425,30 +425,7 @@
 var SUITS          = ['S', 'H', 'D', 'C'];
 var SUIT_SYM       = { S: '\u2660', H: '\u2665', D: '\u2666', C: '\u2663' };
 var SUIT_COLOR     = { S: 'black',  H: 'red',    D: 'red',    C: 'black'  };
-/* Claude: 2026-04-26 — foundation slots are suit-agnostic; any Ace starts any empty slot */
-var FOUNDATION_SUIT = ['S', 'H', 'D', 'C']; /* kept for SUIT_SYM lookups only — not slot order */
-
-function findFoundationSlot(card) {
-    /* Non-ace: find the pile already building this suit */
-    for (var i = 0; i < 4; i++) {
-        var p = state.foundations[i];
-        if (p.length > 0 && p[0].suit === card.suit) { return i; }
-    }
-    /* Ace: first empty slot */
-    if (card.rank === 'A') {
-        for (var j = 0; j < 4; j++) {
-            if (state.foundations[j].length === 0) { return j; }
-        }
-    }
-    return -1;
-}
-
-function canGoToFoundationSlot(card, slotIdx) {
-    var pile = state.foundations[slotIdx];
-    if (pile.length === 0) { return card.rank === 'A'; }
-    return pile[pile.length - 1].suit === card.suit &&
-           pile[pile.length - 1].val  === card.val  - 1;
-}
+var FOUNDATION_SUIT = ['S', 'H', 'D', 'C'];
 var RANKS          = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
 var drawMode = 1; /* 1 or 3 */
@@ -528,7 +505,10 @@ function newGame() {
 
 /* ── Move legality ── */
 function canGoToFoundation(card) {
-    return findFoundationSlot(card) !== -1;
+    var fi = FOUNDATION_SUIT.indexOf(card.suit);
+    var pile = state.foundations[fi];
+    if (pile.length === 0) { return card.rank === 'A'; }
+    return pile[pile.length - 1].val === card.val - 1;
 }
 
 function canStackOnTab(card, topCard) {
@@ -545,30 +525,6 @@ function isValidSeq(cards) {
     return true;
 }
 
-/* Claude: 2026-04-26 — fire-and-forget fly for auto-foundation sweeps */
-function spawnFly(srcEl, destEl) {
-    if (!srcEl || !destEl) { return; }
-    var srcRect  = srcEl.getBoundingClientRect();
-    var destRect = destEl.getBoundingClientRect();
-    var clone = srcEl.cloneNode(true);
-    clone.style.cssText =
-        'position:fixed;pointer-events:none;z-index:1000;margin:0;border-radius:6px;' +
-        'left:' + srcRect.left + 'px;top:' + srcRect.top + 'px;' +
-        'width:' + srcRect.width + 'px;height:' + srcRect.height + 'px;' +
-        'transition:left 0.3s ease-out,top 0.3s ease-out,width 0.3s ease-out,height 0.3s ease-out,opacity 0.3s ease-out;' +
-        'box-shadow:0 8px 24px rgba(0,0,0,0.5);';
-    document.body.appendChild(clone);
-    void clone.offsetWidth;
-    clone.style.left    = destRect.left   + 'px';
-    clone.style.top     = destRect.top    + 'px';
-    clone.style.width   = destRect.width  + 'px';
-    clone.style.height  = destRect.height + 'px';
-    clone.style.opacity = '0';
-    setTimeout(function() {
-        if (clone.parentNode) { clone.parentNode.removeChild(clone); }
-    }, 350);
-}
-
 /* ── Auto-foundation (safe moves only) ── */
 function autoFoundation() {
     var changed = true;
@@ -578,10 +534,7 @@ function autoFoundation() {
         if (state.waste.length > 0) {
             var wTop = state.waste[state.waste.length - 1];
             if (canGoToFoundation(wTop) && isSafeToAutoMove(wTop)) {
-                var fi = findFoundationSlot(wTop);
-                /* Claude: 2026-04-26 — animate before state change */
-                spawnFly(document.querySelector('#waste-slot .card'),
-                         document.getElementById('fn-' + fi));
+                var fi = FOUNDATION_SUIT.indexOf(wTop.suit);
                 state.foundations[fi].push(state.waste.pop());
                 changed = true;
             }
@@ -592,11 +545,7 @@ function autoFoundation() {
             if (tab.length === 0) { continue; }
             var top = tab[tab.length - 1];
             if (canGoToFoundation(top) && isSafeToAutoMove(top)) {
-                var fi2 = findFoundationSlot(top);
-                /* Claude: 2026-04-26 — animate before state change */
-                var tabCards = document.querySelectorAll('#col-' + col + ' .card');
-                spawnFly(tabCards[tabCards.length - 1],
-                         document.getElementById('fn-' + fi2));
+                var fi2 = FOUNDATION_SUIT.indexOf(top.suit);
                 state.foundations[fi2].push(tab.pop());
                 if (tab.length > 0 && !tab[tab.length - 1].faceUp) {
                     tab[tab.length - 1].faceUp = true;
@@ -608,14 +557,9 @@ function autoFoundation() {
 }
 
 function foundationTop(suit) {
-    /* Search all slots for the pile that's building this suit */
-    for (var i = 0; i < 4; i++) {
-        var pile = state.foundations[i];
-        if (pile.length > 0 && pile[0].suit === suit) {
-            return pile[pile.length - 1].val;
-        }
-    }
-    return 0;
+    var fi = FOUNDATION_SUIT.indexOf(suit);
+    var pile = state.foundations[fi];
+    return pile.length > 0 ? pile[pile.length - 1].val : 0;
 }
 
 function isSafeToAutoMove(card) {
@@ -772,9 +716,10 @@ function executeMove(toZone, toIdx) {
         /* Foundation — single card only */
         if (sel.cards.length > 1) { showMsg('Move one card at a time to foundation'); return false; }
         var card = sel.cards[0];
-        if (!canGoToFoundationSlot(card, toIdx)) { showMsg('Not a valid foundation move'); return false; }
+        if (!canGoToFoundation(card)) { showMsg('Not a valid foundation move'); return false; }
         removeSelected();
-        state.foundations[toIdx].push(card);
+        var fi = FOUNDATION_SUIT.indexOf(card.suit);
+        state.foundations[fi].push(card);
         moved = true;
 
     } else if (toZone === 'tab') {
@@ -872,7 +817,7 @@ function autoMoveWaste() {
     /* Find destination first */
     var dz = null, di = -1;
     if (canGoToFoundation(card)) {
-        dz = 'fn'; di = findFoundationSlot(card);
+        dz = 'fn'; di = FOUNDATION_SUIT.indexOf(card.suit);
     } else {
         for (var t = 0; t < 7; t++) {
             var tTop = state.tableau[t].length > 0 ? state.tableau[t][state.tableau[t].length - 1] : null;
@@ -911,7 +856,7 @@ function autoMoveFromTab(colIdx, cardIdx) {
     /* Find destination first */
     var dz = null, di = -1;
     if (cards.length === 1 && canGoToFoundation(cards[0])) {
-        dz = 'fn'; di = findFoundationSlot(cards[0]);
+        dz = 'fn'; di = FOUNDATION_SUIT.indexOf(cards[0].suit);
     } else {
         for (var t = 0; t < 7; t++) {
             if (t === colIdx) { continue; }
@@ -1023,12 +968,12 @@ function hint() {
     /* 1. Foundation moves */
     if (state.waste.length > 0) {
         var wTop = state.waste[state.waste.length - 1];
-        if (canGoToFoundation(wTop)) { flashHint('waste-slot', 'fn-' + findFoundationSlot(wTop)); return; }
+        if (canGoToFoundation(wTop)) { flashHint('waste-slot', 'fn-' + FOUNDATION_SUIT.indexOf(wTop.suit)); return; }
     }
     for (var c = 0; c < 7; c++) {
         var tab = state.tableau[c];
         if (tab.length > 0 && canGoToFoundation(tab[tab.length-1])) {
-            flashHint('col-' + c, 'fn-' + findFoundationSlot(tab[tab.length-1])); return;
+            flashHint('col-' + c, 'fn-' + FOUNDATION_SUIT.indexOf(tab[tab.length-1].suit)); return;
         }
     }
     /* 2. Waste to tableau */
@@ -1152,7 +1097,7 @@ function renderTopZone() {
             fnEl.style.position = 'relative';
             fnEl.appendChild(fCardEl);
         } else {
-            fnEl.innerHTML = '<span class="slot-label">A</span>'; /* Claude: 2026-04-26 — any suit, any order */
+            fnEl.innerHTML = '<span class="slot-label">' + SUIT_SYM[FOUNDATION_SUIT[fn]] + '</span>';
         }
     }
 }
