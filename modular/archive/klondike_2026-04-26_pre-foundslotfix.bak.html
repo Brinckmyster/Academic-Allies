@@ -429,9 +429,16 @@ var SUIT_COLOR     = { S: 'black',  H: 'red',    D: 'red',    C: 'black'  };
 var FOUNDATION_SUIT = ['S', 'H', 'D', 'C']; /* kept for SUIT_SYM lookups only — not slot order */
 
 function findFoundationSlot(card) {
-    /* Find any slot where this card can legally be placed — Claude: 2026-04-26 fix */
+    /* Non-ace: find the pile already building this suit */
     for (var i = 0; i < 4; i++) {
-        if (canGoToFoundationSlot(card, i)) { return i; }
+        var p = state.foundations[i];
+        if (p.length > 0 && p[0].suit === card.suit) { return i; }
+    }
+    /* Ace: first empty slot */
+    if (card.rank === 'A') {
+        for (var j = 0; j < 4; j++) {
+            if (state.foundations[j].length === 0) { return j; }
+        }
     }
     return -1;
 }
