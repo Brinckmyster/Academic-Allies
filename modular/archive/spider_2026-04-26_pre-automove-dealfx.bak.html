@@ -265,20 +265,6 @@
             justify-content: center;
         }
 
-        /* ── Deal animation ── Claude: 2026-04-26 */
-        @keyframes dealIn {
-            from { opacity: 0; transform: translateY(-14px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        .card.dealt { animation: dealIn 0.25s ease-out both; }
-
-        @keyframes stockPulse {
-            0%   { box-shadow: 0 0 0 0   rgba(251,191,36,0.9); border-color: #fbbf24; }
-            60%  { box-shadow: 0 0 0 14px rgba(251,191,36,0);  border-color: #fbbf24; }
-            100% { box-shadow: 0 0 0 0   rgba(251,191,36,0);   border-color: rgba(255,255,255,0.3); }
-        }
-        .stock-pile.dealing { animation: stockPulse 0.6s ease-out forwards; }
-
         /* ── Win overlay ── */
         .win-overlay {
             display: none;
@@ -454,8 +440,7 @@ var state = {
     completed:  0,    /* number of K-A runs removed */
     selected:   null, /* { colIdx, cardIdx, cards } or null */
     moves:      0,
-    history:    [],
-    dealtCols:  []    /* Claude: 2026-04-26 — columns that just received a dealt card (for animation) */
+    history:    []
 };
 
 /* ── New game ── */
@@ -467,7 +452,6 @@ function newGame() {
     state.selected  = null;
     state.moves     = 0;
     state.history   = [];
-    state.dealtCols = [];
 
     for (var c = 0; c < 10; c++) { state.tableau.push([]); }
 
@@ -582,29 +566,16 @@ function dealRow() {
         }
     }
     state.history.push(takeSnapshot());
-    state.dealtCols = [];
     for (var col = 0; col < 10; col++) {
         var card = state.stock.pop();
         card.faceUp = true;
         state.tableau[col].push(card);
-        state.dealtCols.push(col);
     }
     state.moves++;
     state.selected = null;
-
-    /* Claude: 2026-04-26 — pulse the stock pile so the deal is clearly visible */
-    var stockEl = document.getElementById('stock-pile');
-    stockEl.classList.remove('dealing');
-    /* force reflow so re-adding the class restarts the animation */
-    void stockEl.offsetWidth;
-    stockEl.classList.add('dealing');
-
     checkAllCompletions();
     if (state.completed === 8) { showWin(); return; }
     render();
-    showMsg('Row dealt — ' + Math.floor(state.stock.length / 10) + ' deal' + (Math.floor(state.stock.length / 10) === 1 ? '' : 's') + ' left');
-    /* Clear deal animation flags after cards have animated in */
-    setTimeout(function() { state.dealtCols = []; }, 700);
 }
 
 /* ── Completion check: look for K-to-A same-suit run at top of any column ── */
@@ -639,44 +610,6 @@ function tryRemoveRun(colIdx) {
         state.tableau[colIdx][state.tableau[colIdx].length - 1].faceUp = true;
     }
     return true;
-}
-
-/* ── Auto-move (double-click / double-tap) ── Claude: 2026-04-26 */
-var lastTapInfo = { el: null, time: 0 };
-
-function autoMove(colIdx, cardIdx) {
-    var col = state.tableau[colIdx];
-    var cards = (typeof cardIdx === 'number') ? getSeqFromIdx(col, cardIdx) : getMovableSeq(col);
-    if (cards.length === 0) { showMsg('No movable sequence there'); return; }
-
-    var bottomCard = cards[0];
-    var bestTgt = -1, bestScore = -1;
-
-    for (var tgt = 0; tgt < 10; tgt++) {
-        if (tgt === colIdx) { continue; }
-        var tgtCol = state.tableau[tgt];
-        var tgtTop = tgtCol.length > 0 ? tgtCol[tgtCol.length - 1] : null;
-        if (!canPlaceOn(bottomCard, tgtTop)) { continue; }
-        /* Same-suit match scores highest; non-empty column scores better than empty */
-        var score = (tgtCol.length === 0) ? 0 : 1;
-        if (tgtTop && tgtTop.suit === bottomCard.suit) { score = 3; }
-        if (score > bestScore) { bestScore = score; bestTgt = tgt; }
-    }
-
-    if (bestTgt === -1) { showMsg('No valid destination found'); return; }
-
-    state.history.push(takeSnapshot());
-    var srcStart = col.length - cards.length;
-    state.tableau[colIdx].splice(srcStart, cards.length);
-    if (state.tableau[colIdx].length > 0 && !state.tableau[colIdx][state.tableau[colIdx].length - 1].faceUp) {
-        state.tableau[colIdx][state.tableau[colIdx].length - 1].faceUp = true;
-    }
-    for (var i = 0; i < cards.length; i++) { state.tableau[bestTgt].push(cards[i]); }
-    state.moves++;
-    state.selected = null;
-    checkAllCompletions();
-    if (state.completed === 8) { showWin(); return; }
-    render();
 }
 
 /* ── Tap handling ── */
@@ -873,31 +806,11 @@ function renderTableau() {
                 cardEl.classList.add('selected');
             }
 
-            /* Claude: 2026-04-26 — staggered deal-in animation for freshly dealt cards */
-            if (state.dealtCols.length > 0 && i === cards.length - 1 && state.dealtCols.indexOf(col) !== -1) {
-                cardEl.classList.add('dealt');
-                cardEl.style.animationDelay = (col * 45) + 'ms';
-            }
-
             if (card.faceUp) {
-                (function(colIdx, cardIdx, el) {
-                    /* Single tap / click */
-                    el.addEventListener('click', function(e) { e.stopPropagation(); tapColumn(colIdx, cardIdx); });
-                    /* Double-click (desktop) */
-                    el.addEventListener('dblclick', function(e) { e.stopPropagation(); autoMove(colIdx, cardIdx); });
-                    /* Touch: detect double-tap within 350 ms on same element */
-                    el.addEventListener('touchend', function(e) {
-                        e.preventDefault(); e.stopPropagation();
-                        var now = Date.now();
-                        if (lastTapInfo.el === el && now - lastTapInfo.time < 350) {
-                            lastTapInfo = { el: null, time: 0 };
-                            autoMove(colIdx, cardIdx);
-                        } else {
-                            lastTapInfo = { el: el, time: now };
-                            tapColumn(colIdx, cardIdx);
-                        }
-                    });
-                })(col, i, cardEl);
+                (function(colIdx, cardIdx) {
+                    cardEl.addEventListener('click',    function(e) { e.stopPropagation(); tapColumn(colIdx, cardIdx); });
+                    cardEl.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); tapColumn(colIdx, cardIdx); });
+                })(col, i);
             }
 
             colEl.appendChild(cardEl);
