@@ -782,62 +782,30 @@ function isDoubleTap(key) {
     return false;
 }
 
-/* Claude: 2026-04-26 — card flies from source to destination so player can see where it went */
-var isFlying = false;
-function flyCard(srcEl, destEl, callback) {
-    if (!srcEl || !destEl || isFlying) { callback(); return; }
-    isFlying = true;
-    var srcRect  = srcEl.getBoundingClientRect();
-    var destRect = destEl.getBoundingClientRect();
-    var clone = srcEl.cloneNode(true);
-    clone.style.cssText =
-        'position:fixed;pointer-events:none;z-index:1000;margin:0;border-radius:6px;' +
-        'left:' + srcRect.left + 'px;top:' + srcRect.top + 'px;' +
-        'width:' + srcRect.width + 'px;height:' + srcRect.height + 'px;' +
-        'transition:left 0.22s ease-out,top 0.22s ease-out,width 0.22s ease-out,height 0.22s ease-out;' +
-        'box-shadow:0 8px 24px rgba(0,0,0,0.5);';
-    srcEl.style.opacity = '0';
-    document.body.appendChild(clone);
-    void clone.offsetWidth;
-    clone.style.left   = destRect.left   + 'px';
-    clone.style.top    = destRect.top    + 'px';
-    clone.style.width  = destRect.width  + 'px';
-    clone.style.height = destRect.height + 'px';
-    setTimeout(function() {
-        if (clone.parentNode) { clone.parentNode.removeChild(clone); }
-        isFlying = false;
-        callback();
-    }, 240);
-}
-
 function autoMoveWaste() {
     if (state.waste.length === 0) { return; }
     var card  = state.waste[state.waste.length - 1];
     var cards = [card];
-    /* Find destination first */
-    var dz = null, di = -1;
+    state.selected = { zone: 'waste', idx: 0, cardIdx: state.waste.length - 1, cards: cards };
+    /* Foundation first */
     if (canGoToFoundation(card)) {
-        dz = 'fn'; di = FOUNDATION_SUIT.indexOf(card.suit);
-    } else {
-        for (var t = 0; t < 7; t++) {
-            var tTop = state.tableau[t].length > 0 ? state.tableau[t][state.tableau[t].length - 1] : null;
-            if (state.tableau[t].length > 0 && canStackOnTab(card, tTop)) { dz = 'tab'; di = t; break; }
+        executeMove('fn', FOUNDATION_SUIT.indexOf(card.suit)); return;
+    }
+    /* Non-empty tableau */
+    for (var t = 0; t < 7; t++) {
+        var tTop = state.tableau[t].length > 0 ? state.tableau[t][state.tableau[t].length - 1] : null;
+        if (state.tableau[t].length > 0 && canStackOnTab(card, tTop)) {
+            executeMove('tab', t); return;
         }
     }
-    if (!dz && card.rank === 'K') {
+    /* Empty column (Kings only) */
+    if (card.rank === 'K') {
         for (var t2 = 0; t2 < 7; t2++) {
-            if (state.tableau[t2].length === 0) { dz = 'tab'; di = t2; break; }
+            if (state.tableau[t2].length === 0) { executeMove('tab', t2); return; }
         }
     }
-    if (!dz) { showMsg('No valid move for that card'); return; }
-    /* Fly then execute */
-    var srcEl  = document.querySelector('#waste-slot .card');
-    var destEl = document.getElementById(dz === 'fn' ? 'fn-' + di : 'col-' + di);
-    var capZ = dz, capI = di, capCards = cards, capWasteLen = state.waste.length;
-    flyCard(srcEl, destEl, function() {
-        state.selected = { zone: 'waste', idx: 0, cardIdx: capWasteLen - 1, cards: capCards };
-        executeMove(capZ, capI);
-    });
+    state.selected = null;
+    showMsg('No valid move for that card');
 }
 
 function autoMoveFromTab(colIdx, cardIdx) {
@@ -853,32 +821,29 @@ function autoMoveFromTab(colIdx, cardIdx) {
     var seqStart = valid ? cardIdx : col.length - 1;
     var cards    = col.slice(seqStart);
     if (!cards[0] || !cards[0].faceUp) { return; }
-    /* Find destination first */
-    var dz = null, di = -1;
+    state.selected = { zone: 'tab', idx: colIdx, cardIdx: seqStart, cards: cards };
+    /* Foundation first (single card only) */
     if (cards.length === 1 && canGoToFoundation(cards[0])) {
-        dz = 'fn'; di = FOUNDATION_SUIT.indexOf(cards[0].suit);
-    } else {
-        for (var t = 0; t < 7; t++) {
-            if (t === colIdx) { continue; }
-            var tTop = state.tableau[t].length > 0 ? state.tableau[t][state.tableau[t].length - 1] : null;
-            if (state.tableau[t].length > 0 && canStackOnTab(cards[0], tTop) && isValidSeq(cards)) { dz = 'tab'; di = t; break; }
+        executeMove('fn', FOUNDATION_SUIT.indexOf(cards[0].suit)); return;
+    }
+    /* Non-empty tableau */
+    for (var t = 0; t < 7; t++) {
+        if (t === colIdx) { continue; }
+        var tTop = state.tableau[t].length > 0 ? state.tableau[t][state.tableau[t].length - 1] : null;
+        if (state.tableau[t].length > 0 && canStackOnTab(cards[0], tTop) && isValidSeq(cards)) {
+            executeMove('tab', t); return;
         }
     }
-    if (!dz && cards[0].rank === 'K') {
+    /* Empty column (Kings only) */
+    if (cards[0].rank === 'K') {
         for (var t2 = 0; t2 < 7; t2++) {
-            if (t2 !== colIdx && state.tableau[t2].length === 0) { dz = 'tab'; di = t2; break; }
+            if (t2 !== colIdx && state.tableau[t2].length === 0) {
+                executeMove('tab', t2); return;
+            }
         }
     }
-    if (!dz) { showMsg('No valid destination'); return; }
-    /* Fly then execute */
-    var cardEls = document.querySelectorAll('#col-' + colIdx + ' .card');
-    var srcEl   = cardEls[seqStart] || cardEls[cardEls.length - 1];
-    var destEl  = document.getElementById(dz === 'fn' ? 'fn-' + di : 'col-' + di);
-    var capZ = dz, capI = di, capSeq = seqStart, capCards = cards;
-    flyCard(srcEl, destEl, function() {
-        state.selected = { zone: 'tab', idx: colIdx, cardIdx: capSeq, cards: capCards };
-        executeMove(capZ, capI);
-    });
+    state.selected = null;
+    showMsg('No valid destination');
 }
 
 /* ── Tap handlers ── */

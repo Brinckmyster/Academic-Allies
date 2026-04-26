@@ -653,34 +653,6 @@ function tryRemoveRun(colIdx) {
 /* ── Auto-move (double-click / double-tap) ── Claude: 2026-04-26 */
 var lastTapInfo = { el: null, time: 0 };
 
-/* Claude: 2026-04-26 — card flies from source to destination so player can see where it went */
-var isFlying = false;
-function flyCard(srcEl, destEl, callback) {
-    if (!srcEl || !destEl || isFlying) { callback(); return; }
-    isFlying = true;
-    var srcRect  = srcEl.getBoundingClientRect();
-    var destRect = destEl.getBoundingClientRect();
-    var clone = srcEl.cloneNode(true);
-    clone.style.cssText =
-        'position:fixed;pointer-events:none;z-index:1000;margin:0;border-radius:6px;' +
-        'left:' + srcRect.left + 'px;top:' + srcRect.top + 'px;' +
-        'width:' + srcRect.width + 'px;height:' + srcRect.height + 'px;' +
-        'transition:left 0.22s ease-out,top 0.22s ease-out,width 0.22s ease-out,height 0.22s ease-out;' +
-        'box-shadow:0 8px 24px rgba(0,0,0,0.5);';
-    srcEl.style.opacity = '0';
-    document.body.appendChild(clone);
-    void clone.offsetWidth;
-    clone.style.left   = destRect.left   + 'px';
-    clone.style.top    = destRect.top    + 'px';
-    clone.style.width  = destRect.width  + 'px';
-    clone.style.height = destRect.height + 'px';
-    setTimeout(function() {
-        if (clone.parentNode) { clone.parentNode.removeChild(clone); }
-        isFlying = false;
-        callback();
-    }, 240);
-}
-
 function autoMove(colIdx, cardIdx) {
     var col = state.tableau[colIdx];
     var cards = (typeof cardIdx === 'number') ? getSeqFromIdx(col, cardIdx) : getMovableSeq(col);
@@ -702,24 +674,18 @@ function autoMove(colIdx, cardIdx) {
 
     if (bestTgt === -1) { showMsg('No valid destination found'); return; }
 
-    /* Fly then execute */
+    state.history.push(takeSnapshot());
     var srcStart = col.length - cards.length;
-    var cardEls  = document.querySelectorAll('#col-' + colIdx + ' .card');
-    var srcEl    = cardEls[srcStart] || cardEls[cardEls.length - 1];
-    var destEl   = document.getElementById('col-' + bestTgt);
-    var capTgt = bestTgt, capCards = cards, capColIdx = colIdx, capSrcStart = srcStart;
-    flyCard(srcEl, destEl, function() {
-        var c = state.tableau[capColIdx];
-        state.history.push(takeSnapshot());
-        c.splice(capSrcStart, capCards.length);
-        if (c.length > 0 && !c[c.length - 1].faceUp) { c[c.length - 1].faceUp = true; }
-        for (var i = 0; i < capCards.length; i++) { state.tableau[capTgt].push(capCards[i]); }
-        state.moves++;
-        state.selected = null;
-        checkAllCompletions();
-        if (state.completed === 8) { showWin(); return; }
-        render();
-    });
+    state.tableau[colIdx].splice(srcStart, cards.length);
+    if (state.tableau[colIdx].length > 0 && !state.tableau[colIdx][state.tableau[colIdx].length - 1].faceUp) {
+        state.tableau[colIdx][state.tableau[colIdx].length - 1].faceUp = true;
+    }
+    for (var i = 0; i < cards.length; i++) { state.tableau[bestTgt].push(cards[i]); }
+    state.moves++;
+    state.selected = null;
+    checkAllCompletions();
+    if (state.completed === 8) { showWin(); return; }
+    render();
 }
 
 /* ── Tap handling ── */

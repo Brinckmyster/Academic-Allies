@@ -845,63 +845,32 @@ function isDoubleTap(key) {
     lastTapKey = key; lastTapTime = now; return false;
 }
 
-/* Claude: 2026-04-26 — card flies from source to destination so player can see where it went */
-var isFlying = false;
-function flyCard(srcEl, destEl, callback) {
-    if (!srcEl || !destEl || isFlying) { callback(); return; }
-    isFlying = true;
-    var srcRect  = srcEl.getBoundingClientRect();
-    var destRect = destEl.getBoundingClientRect();
-    var clone = srcEl.cloneNode(true);
-    clone.style.cssText =
-        'position:fixed;pointer-events:none;z-index:1000;margin:0;border-radius:6px;' +
-        'left:' + srcRect.left + 'px;top:' + srcRect.top + 'px;' +
-        'width:' + srcRect.width + 'px;height:' + srcRect.height + 'px;' +
-        'transition:left 0.22s ease-out,top 0.22s ease-out,width 0.22s ease-out,height 0.22s ease-out;' +
-        'box-shadow:0 8px 24px rgba(0,0,0,0.5);';
-    srcEl.style.opacity = '0';
-    document.body.appendChild(clone);
-    void clone.offsetWidth;
-    clone.style.left   = destRect.left   + 'px';
-    clone.style.top    = destRect.top    + 'px';
-    clone.style.width  = destRect.width  + 'px';
-    clone.style.height = destRect.height + 'px';
-    setTimeout(function() {
-        if (clone.parentNode) { clone.parentNode.removeChild(clone); }
-        isFlying = false;
-        callback();
-    }, 240);
-}
-
 /* Claude: 2026-04-26 — auto-move from a free cell: foundation > non-empty tab > empty tab */
 function autoMoveFromFC(fcIdx) {
     var card = state.freeCells[fcIdx];
     if (!card) { return; }
-    /* Find destination first */
-    var dz = null, di = -1;
     if (canGoToFoundation(card)) {
-        dz = 'fn'; di = FOUNDATION_SUIT.indexOf(card.suit);
-    } else {
-        for (var c = 0; c < 8; c++) {
-            var col = state.tableau[c];
-            if (col.length === 0) { continue; }
-            if (canStackOnTab(card, col[col.length - 1])) { dz = 'tab'; di = c; break; }
+        state.selected = { zone: 'fc', idx: fcIdx, cards: [card] };
+        tryMove('fn', FOUNDATION_SUIT.indexOf(card.suit));
+        return;
+    }
+    for (var c = 0; c < 8; c++) {
+        var col = state.tableau[c];
+        if (col.length === 0) { continue; }
+        if (canStackOnTab(card, col[col.length - 1])) {
+            state.selected = { zone: 'fc', idx: fcIdx, cards: [card] };
+            tryMove('tab', c);
+            return;
         }
     }
-    if (!dz) {
-        for (var c2 = 0; c2 < 8; c2++) {
-            if (state.tableau[c2].length === 0) { dz = 'tab'; di = c2; break; }
+    for (var c2 = 0; c2 < 8; c2++) {
+        if (state.tableau[c2].length === 0) {
+            state.selected = { zone: 'fc', idx: fcIdx, cards: [card] };
+            tryMove('tab', c2);
+            return;
         }
     }
-    if (!dz) { showMsg('No valid move for this card'); return; }
-    /* Fly then execute */
-    var srcEl  = document.querySelector('#fc-' + fcIdx + ' .card');
-    var destEl = document.getElementById(dz === 'fn' ? 'fn-' + di : 'col-' + di);
-    var capZ = dz, capI = di, capCard = card, capFcIdx = fcIdx;
-    flyCard(srcEl, destEl, function() {
-        state.selected = { zone: 'fc', idx: capFcIdx, cards: [capCard] };
-        tryMove(capZ, capI);
-    });
+    showMsg('No valid move for this card');
 }
 
 /* Claude: 2026-04-26 — auto-move from tableau: foundation > non-empty tab > empty tab > free cell */
@@ -911,38 +880,38 @@ function autoMoveFromTab(colIdx, cardIdx) {
     var seqStart = _pickSeqStart(col, cardIdx);
     var cards  = col.slice(seqStart);
     var bottom = cards[0];
-    /* Find destination first */
-    var dz = null, di = -1;
     if (cards.length === 1 && canGoToFoundation(bottom)) {
-        dz = 'fn'; di = FOUNDATION_SUIT.indexOf(bottom.suit);
-    } else {
-        for (var c = 0; c < 8; c++) {
-            if (c === colIdx) { continue; }
-            var dest = state.tableau[c];
-            if (dest.length > 0 && canStackOnTab(bottom, dest[dest.length - 1]) && cards.length <= maxMovable()) { dz = 'tab'; di = c; break; }
+        state.selected = { zone: 'tab', idx: colIdx, cards: cards };
+        tryMove('fn', FOUNDATION_SUIT.indexOf(bottom.suit));
+        return;
+    }
+    for (var c = 0; c < 8; c++) {
+        if (c === colIdx) { continue; }
+        var dest = state.tableau[c];
+        if (dest.length > 0 && canStackOnTab(bottom, dest[dest.length - 1]) && cards.length <= maxMovable()) {
+            state.selected = { zone: 'tab', idx: colIdx, cards: cards };
+            tryMove('tab', c);
+            return;
         }
     }
-    if (!dz) {
-        for (var c2 = 0; c2 < 8; c2++) {
-            if (c2 === colIdx) { continue; }
-            if (state.tableau[c2].length === 0 && cards.length <= maxMovable()) { dz = 'tab'; di = c2; break; }
+    for (var c2 = 0; c2 < 8; c2++) {
+        if (c2 === colIdx) { continue; }
+        if (state.tableau[c2].length === 0 && cards.length <= maxMovable()) {
+            state.selected = { zone: 'tab', idx: colIdx, cards: cards };
+            tryMove('tab', c2);
+            return;
         }
     }
-    if (!dz && cards.length === 1) {
+    if (cards.length === 1) {
         for (var f = 0; f < 4; f++) {
-            if (!state.freeCells[f]) { dz = 'fc'; di = f; break; }
+            if (!state.freeCells[f]) {
+                state.selected = { zone: 'tab', idx: colIdx, cards: cards };
+                tryMove('fc', f);
+                return;
+            }
         }
     }
-    if (!dz) { showMsg('No valid move for this card'); return; }
-    /* Fly then execute */
-    var cardEls = document.querySelectorAll('#col-' + colIdx + ' .card');
-    var srcEl   = cardEls[seqStart] || cardEls[cardEls.length - 1];
-    var destEl  = document.getElementById(dz === 'fn' ? 'fn-' + di : dz === 'fc' ? 'fc-' + di : 'col-' + di);
-    var capZ = dz, capI = di, capSeq = seqStart, capCards = cards;
-    flyCard(srcEl, destEl, function() {
-        state.selected = { zone: 'tab', idx: colIdx, cards: capCards };
-        tryMove(capZ, capI);
-    });
+    showMsg('No valid move for this card');
 }
 
 /* Claude: 2026-04-26 — confetti burst on win */
