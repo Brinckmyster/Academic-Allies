@@ -27,38 +27,11 @@
         label: 'Spring 2026',
         start: '2026-04-27',
         end:   '2026-07-18',
-        /* Claude: 2026-04-26 — full schedule confirmed from BYUI class portal.
-           teacher = instructor email; teacherName = display name.
-           days/startTime/endTime/building/room used by calendar classSchedule + templates. */
         classes: [
-          {
-            code: 'COMM 130', section: 'COMM 130-03', name: 'Visual Media',
-            emoji: '🎤',
-            teacher: 'kerrc@byui.edu', teacherName: 'Kerr, Cory Ryan',
-            days: ['Mon','Fri'], startTime: '11:30', endTime: '13:00',
-            building: 'SPO', room: '107'
-          },
-          {
-            code: 'FCS 207',  section: 'FCS 207-01',  name: 'Apparel Construction I',
-            emoji: '🧵',
-            teacher: 'barlowt@byui.edu', teacherName: 'Barlow, Trinity B.',
-            days: ['Mon','Wed'], startTime: '14:00', endTime: '15:30',
-            building: 'CLK', room: '322'
-          },
-          {
-            code: 'HORT 328', section: 'HORT 328-01', name: 'Wedding & Event Planning',
-            emoji: '🌸',
-            teacher: 'robisonka@byui.edu', teacherName: 'Robison, Katherine M.',
-            days: ['Tue'], startTime: '12:45', endTime: '14:45',
-            building: 'BEN', room: '236'
-          },
-          {
-            code: 'IDS 101',  section: 'IDS 101-02',  name: 'Intro to Interdisc. Studies',
-            emoji: '📚',
-            teacher: 'wilsonc@byui.edu', teacherName: 'Wilson, Chris M.',
-            days: ['Wed'], startTime: '12:45', endTime: '13:45',
-            building: 'HIN', room: '371'
-          }
+          { code: 'IDS 101',  section: 'IDS 101-02', name: 'Intro to Interdisc. Studies', emoji: '📚', teacher: 'wilsonc@byui.edu' },
+          { code: 'COMM 130', section: 'COMM 130', name: 'Visual Media',                emoji: '🎤', teacher: 'kerrc@byui.edu' },
+          { code: 'FCS 207',  section: 'FCS 207',  name: 'Apparel Construction I',      emoji: '🧵', teacher: 'barlowt@byui.edu' },
+          { code: 'HORT 328', section: 'HORT 328', name: 'Wedding & Event Planning',    emoji: '🌸', teacher: 'robisonka@byui.edu' }
         ]
       }
       /* Add future trimesters below:

@@ -73,23 +73,6 @@
 
     .hint { font-size: .8rem; color: var(--muted); margin-bottom: 1rem; }
 
-    /* Claude: 2026-04-26 — class picker for Mary's teachers */
-    .class-picker-row {
-      background: #f0fafa; border: 1px solid var(--border); border-radius: 10px;
-      padding: 14px 16px; margin-bottom: 1.25rem;
-      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    }
-    .class-picker-label { font-size: .88rem; font-weight: 700; color: var(--teal-dk); white-space: nowrap; }
-    .class-picker-select {
-      flex: 1; min-width: 180px; padding: 8px 10px; border: 1px solid var(--border);
-      border-radius: 7px; font-family: inherit; font-size: .9rem; color: var(--text);
-      background: #fff; cursor: pointer;
-    }
-    .class-picker-select:focus { outline: 2px solid var(--teal); border-color: var(--teal); }
-    .class-picker-hint { font-size: .78rem; color: var(--muted); width: 100%; margin-top: -4px; }
-    html.aa-dark .class-picker-row { background: #1a2a2b; border-color: #333; }
-    html.aa-dark .class-picker-select { background: #1e1e1e; color: #e0e0e0; border-color: #444; }
-
     /* Claude: 2026-03-25 — dark mode for letter generator */
     html.aa-dark { --bg: #121212; --card: #1e1e1e; --border: #333; --text: #e0e0e0; --muted: #888; --teal: #8ec5c8; --teal-dk: #8ec5c8; }
     html.aa-dark .fill-in { color: #e0e0e0; border-bottom-color: #6CA0A3; }
@@ -124,8 +107,6 @@
     }
   </style>
 </head>
-<!-- Claude: 2026-04-26 — load aa-classes.js for teacher/class picker -->
-<script src="/Academic-Allies/modular/js/aa-classes.js?v=20260426"></script>
 <body>
   <div id="site-header"></div>
   <script>
@@ -148,16 +129,6 @@
     <a class="back-link" href="/Academic-Allies/modular/components/templates/templates.html">← Back to Templates</a>
     <h1>📄 Accommodation Request Letter</h1>
     <p class="subtitle">Fill in the blanks, then print, email, or screenshot to give to your teacher.</p>
-
-    <!-- Claude: 2026-04-26 — class picker: auto-fills teacher name, class, and email address -->
-    <div class="class-picker-row" id="class-picker-row" style="display:none">
-      <span class="class-picker-label">📚 Pick your class:</span>
-      <select class="class-picker-select" id="class-picker">
-        <option value="">— choose a class —</option>
-      </select>
-      <span class="class-picker-hint">Fills in teacher name, class section, and email automatically.</span>
-    </div>
-
     <p class="hint">Tip: Click any highlighted field to type your info. Everything stays on your device — nothing is saved or sent.</p>
 
     <div class="btn-row">
@@ -246,59 +217,9 @@
     body += 'Sincerely,\n' + signature;
     if (email) body += '\n' + email;
 
-    /* Claude: 2026-04-26 — pre-address to teacher if a class was picked */
-    var teacherEmail = '';
-    var pickerEl = document.getElementById('class-picker');
-    if (pickerEl) { teacherEmail = pickerEl.getAttribute('data-teacher-email') || ''; }
-
-    var mailto = 'mailto:' + encodeURIComponent(teacherEmail) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    var mailto = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
     window.open(mailto, '_blank');
   }
-  </script>
-
-  <script>
-  /* Claude: 2026-04-26 — class picker: load from aa-classes.js and wire up auto-fill */
-  (function() {
-    var pickerRow = document.getElementById('class-picker-row');
-    var picker    = document.getElementById('class-picker');
-    if (!window.AA_CLASSES || !picker) { return; }
-
-    var classes = window.AA_CLASSES.getActive();
-    if (!classes || classes.length === 0) { return; }
-
-    /* Populate dropdown */
-    for (var i = 0; i < classes.length; i++) {
-      var cls = classes[i];
-      var opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = cls.emoji + ' ' + cls.section + ' — ' + cls.name;
-      picker.appendChild(opt);
-    }
-    pickerRow.style.display = 'flex';
-
-    /* Auto-fill on selection */
-    picker.addEventListener('change', function() {
-      var idx = parseInt(picker.value, 10);
-      if (isNaN(idx)) { return; }
-      var cls = classes[idx];
-      if (!cls) { return; }
-
-      /* Teacher name → recipient field */
-      var recipientEl = document.getElementById('fRecipient');
-      if (recipientEl && cls.teacherName) {
-        /* Format as "Professor LastName" — just last name after comma */
-        var lastName = cls.teacherName.split(',')[0] || cls.teacherName;
-        recipientEl.value = 'Professor ' + lastName;
-      }
-
-      /* Section → class field */
-      var classEl = document.getElementById('fClass');
-      if (classEl) { classEl.value = cls.section + ' ' + cls.name; }
-
-      /* Teacher email → email button target (stored on the element for emailLetter()) */
-      picker.setAttribute('data-teacher-email', cls.teacher || '');
-    });
-  })();
   </script>
 
   <script>

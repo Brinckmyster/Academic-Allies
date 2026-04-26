@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260426a'; /* Claude: 2026-04-26 — Spring 2026 schedule in aa-classes.js; template pages in NEVER_CACHE */
+var CACHE   = 'aa-shell-20260422a'; /* Claude: 2026-04-22 — real teacher emails in templates.html + aa-classes.js */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -55,10 +55,7 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/comfort-games/freecell.html', /* Claude: 2026-04-06 — FreeCell card game */
   '/Academic-Allies/modular/components/comfort-games/spider.html',   /* Claude: 2026-04-06 — Spider Solitaire */
   '/Academic-Allies/modular/components/comfort-games/klondike.html', /* Claude: 2026-04-06 — Klondike Solitaire */
-  '/Academic-Allies/modular/components/templates/templates.html',              /* Claude: 2026-04-20 — teacher list changes, must be fresh */
-  '/Academic-Allies/modular/components/templates/accommodation-request.html', /* Claude: 2026-04-26 — loads aa-classes.js, must be fresh */
-  '/Academic-Allies/modular/components/templates/counselor-outreach.html',    /* Claude: 2026-04-26 — template page, must be fresh */
-  '/Academic-Allies/modular/components/templates/network-invite.html',        /* Claude: 2026-04-26 — template page, must be fresh */
+  '/Academic-Allies/modular/components/templates/templates.html', /* Claude: 2026-04-20 — teacher list changes, must be fresh */
   '/Academic-Allies/modular/components/comfort-games/battle-mode.html', /* Claude: 2026-04-20 — class roster changes, must be fresh */
   '/Academic-Allies/modular/components/comfort-games/farm-mode.html', /* Claude: 2026-04-20 — village builder rebuild, must be fresh */
   '/Academic-Allies/modular/components/brain-check/simon-says.html', /* Claude: 2026-04-01 — brain check game */
