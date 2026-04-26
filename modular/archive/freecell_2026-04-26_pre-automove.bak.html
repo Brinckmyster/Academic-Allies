@@ -201,15 +201,6 @@
         .card.compact .card-bot { display: none; }
         .card.compact .card-top { font-size: 0.95em; line-height: 1.3; }
 
-        /* Claude: 2026-04-26 — win bounce + confetti */
-        @keyframes winBounce {
-            0%   { transform: scale(0.5) translateY(-40px); opacity: 0; }
-            60%  { transform: scale(1.08) translateY(4px);  opacity: 1; }
-            80%  { transform: scale(0.96) translateY(-2px); }
-            100% { transform: scale(1)    translateY(0);    opacity: 1; }
-        }
-        .win-overlay.show .win-box { animation: winBounce 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
-
         /* ── Win overlay ── */
         .win-overlay {
             display: none;
@@ -565,7 +556,6 @@ function showWin() {
     document.getElementById('win-msg').textContent =
         'Solved in ' + state.moves + ' move' + (state.moves === 1 ? '' : 's') + '!';
     document.getElementById('win-overlay').classList.add('show');
-    launchConfetti(); /* Claude: 2026-04-26 — celebrate! */
 }
 
 /* ── Undo ── */
@@ -727,15 +717,6 @@ function renderTopZone() {
             if (state.selected && state.selected.zone === 'fc' && state.selected.idx === f) {
                 cardEl.classList.add('selected');
             }
-            /* Claude: 2026-04-26 — double-tap to auto-move; single tap to select */
-            (function(fi) {
-                cardEl.addEventListener('dblclick',  function(e) { e.stopPropagation(); autoMoveFromFC(fi); });
-                cardEl.addEventListener('click',     function(e) { e.stopPropagation(); tapFreeCell(fi); });
-                cardEl.addEventListener('touchend',  function(e) {
-                    e.preventDefault(); e.stopPropagation();
-                    if (isDoubleTap('fc:' + fi)) { autoMoveFromFC(fi); } else { tapFreeCell(fi); }
-                });
-            })(f);
             slotEl.appendChild(cardEl);
         } else {
             slotEl.innerHTML = '<span class="slot-label">Free</span>';
@@ -783,14 +764,9 @@ function renderTableau() {
             }
 
             /* Claude: 2026-04-06 — pass card index so user can start selection mid-stack */
-            /* Claude: 2026-04-26 — double-tap to auto-move */
             (function(colIdx, ci) {
-                cardEl.addEventListener('dblclick',  function(e) { e.stopPropagation(); autoMoveFromTab(colIdx, ci); });
-                cardEl.addEventListener('click',     function(e) { e.stopPropagation(); tapColumn(colIdx, ci); });
-                cardEl.addEventListener('touchend',  function(e) {
-                    e.preventDefault(); e.stopPropagation();
-                    if (isDoubleTap('tab:' + colIdx + ':' + ci)) { autoMoveFromTab(colIdx, ci); } else { tapColumn(colIdx, ci); }
-                });
+                cardEl.addEventListener('click',    function(e) { e.stopPropagation(); tapColumn(colIdx, ci); });
+                cardEl.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); tapColumn(colIdx, ci); });
             })(col, i);
 
             colEl.appendChild(cardEl);
@@ -832,134 +808,6 @@ function showMsg(msg) {
             }
         }, 2500);
     }
-}
-
-/* Claude: 2026-04-26 — double-tap detection (string-key based, survives DOM re-renders) */
-var lastTapKey  = '';
-var lastTapTime = 0;
-function isDoubleTap(key) {
-    var now = Date.now();
-    if (lastTapKey === key && now - lastTapTime < 350) {
-        lastTapKey = ''; lastTapTime = 0; return true;
-    }
-    lastTapKey = key; lastTapTime = now; return false;
-}
-
-/* Claude: 2026-04-26 — auto-move from a free cell: foundation > non-empty tab > empty tab */
-function autoMoveFromFC(fcIdx) {
-    var card = state.freeCells[fcIdx];
-    if (!card) { return; }
-    if (canGoToFoundation(card)) {
-        state.selected = { zone: 'fc', idx: fcIdx, cards: [card] };
-        tryMove('fn', FOUNDATION_SUIT.indexOf(card.suit));
-        return;
-    }
-    for (var c = 0; c < 8; c++) {
-        var col = state.tableau[c];
-        if (col.length === 0) { continue; }
-        if (canStackOnTab(card, col[col.length - 1])) {
-            state.selected = { zone: 'fc', idx: fcIdx, cards: [card] };
-            tryMove('tab', c);
-            return;
-        }
-    }
-    for (var c2 = 0; c2 < 8; c2++) {
-        if (state.tableau[c2].length === 0) {
-            state.selected = { zone: 'fc', idx: fcIdx, cards: [card] };
-            tryMove('tab', c2);
-            return;
-        }
-    }
-    showMsg('No valid move for this card');
-}
-
-/* Claude: 2026-04-26 — auto-move from tableau: foundation > non-empty tab > empty tab > free cell */
-function autoMoveFromTab(colIdx, cardIdx) {
-    var col = state.tableau[colIdx];
-    if (col.length === 0) { return; }
-    var seqStart = _pickSeqStart(col, cardIdx);
-    var cards  = col.slice(seqStart);
-    var bottom = cards[0];
-    if (cards.length === 1 && canGoToFoundation(bottom)) {
-        state.selected = { zone: 'tab', idx: colIdx, cards: cards };
-        tryMove('fn', FOUNDATION_SUIT.indexOf(bottom.suit));
-        return;
-    }
-    for (var c = 0; c < 8; c++) {
-        if (c === colIdx) { continue; }
-        var dest = state.tableau[c];
-        if (dest.length > 0 && canStackOnTab(bottom, dest[dest.length - 1]) && cards.length <= maxMovable()) {
-            state.selected = { zone: 'tab', idx: colIdx, cards: cards };
-            tryMove('tab', c);
-            return;
-        }
-    }
-    for (var c2 = 0; c2 < 8; c2++) {
-        if (c2 === colIdx) { continue; }
-        if (state.tableau[c2].length === 0 && cards.length <= maxMovable()) {
-            state.selected = { zone: 'tab', idx: colIdx, cards: cards };
-            tryMove('tab', c2);
-            return;
-        }
-    }
-    if (cards.length === 1) {
-        for (var f = 0; f < 4; f++) {
-            if (!state.freeCells[f]) {
-                state.selected = { zone: 'tab', idx: colIdx, cards: cards };
-                tryMove('fc', f);
-                return;
-            }
-        }
-    }
-    showMsg('No valid move for this card');
-}
-
-/* Claude: 2026-04-26 — confetti burst on win */
-function launchConfetti() {
-    var canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99;';
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    document.body.appendChild(canvas);
-    var ctx = canvas.getContext('2d');
-    var colors = ['#fbbf24', '#ef4444', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#fff'];
-    var pieces = [];
-    for (var i = 0; i < 80; i++) {
-        pieces.push({
-            x: Math.random() * canvas.width,
-            y: -20 - Math.random() * 200,
-            w: 6 + Math.random() * 8,
-            h: 10 + Math.random() * 8,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            vx: (Math.random() - 0.5) * 4,
-            vy: 3 + Math.random() * 4,
-            rot: Math.random() * 360,
-            rotV: (Math.random() - 0.5) * 8
-        });
-    }
-    var frameId;
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        var alive = false;
-        for (var i = 0; i < pieces.length; i++) {
-            var p = pieces[i];
-            p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.rot += p.rotV;
-            if (p.y < canvas.height + 20) { alive = true; }
-            ctx.save();
-            ctx.translate(p.x, p.y);
-            ctx.rotate(p.rot * Math.PI / 180);
-            ctx.fillStyle = p.color;
-            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-            ctx.restore();
-        }
-        if (alive) { frameId = requestAnimationFrame(draw); }
-        else { if (canvas.parentNode) { canvas.parentNode.removeChild(canvas); } }
-    }
-    draw();
-    setTimeout(function() {
-        cancelAnimationFrame(frameId);
-        if (canvas.parentNode) { canvas.parentNode.removeChild(canvas); }
-    }, 5000);
 }
 
 /* ── Wire up top-zone taps ── */

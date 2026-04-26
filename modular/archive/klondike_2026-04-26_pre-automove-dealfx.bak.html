@@ -270,29 +270,6 @@
             justify-content: center;
         }
 
-        /* ── Draw animation — Claude: 2026-04-26 ── */
-        @keyframes drawIn {
-            from { opacity: 0; transform: translateY(-10px) scale(0.95); }
-            to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .card.drawn { animation: drawIn 0.2s ease-out both; }
-
-        @keyframes stockPulse {
-            0%   { box-shadow: 0 0 0 0   rgba(251,191,36,0.9); border-color: #fbbf24; }
-            60%  { box-shadow: 0 0 0 14px rgba(251,191,36,0);  border-color: #fbbf24; }
-            100% { box-shadow: 0 0 0 0   rgba(251,191,36,0);   border-color: rgba(255,255,255,0.3); }
-        }
-        .stock-slot.drawing { animation: stockPulse 0.5s ease-out forwards; }
-
-        /* Claude: 2026-04-26 — win bounce + confetti */
-        @keyframes winBounce {
-            0%   { transform: scale(0.5) translateY(-40px); opacity: 0; }
-            60%  { transform: scale(1.08) translateY(4px);  opacity: 1; }
-            80%  { transform: scale(0.96) translateY(-2px); }
-            100% { transform: scale(1)    translateY(0);    opacity: 1; }
-        }
-        .win-overlay.show .win-box { animation: winBounce 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
-
         /* ── Win overlay ── */
         .win-overlay {
             display: none;
@@ -463,8 +440,7 @@ var state = {
     waste:       [],    /* face-up cards drawn from stock */
     selected:    null,  /* { zone, idx, cardIdx, cards } */
     moves:       0,
-    history:     [],
-    justDrawn:   false  /* Claude: 2026-04-26 — flag for draw animation */
+    history:     []
 };
 
 /* ── New game ── */
@@ -477,7 +453,6 @@ function newGame() {
     state.selected    = null;
     state.moves       = 0;
     state.history     = [];
-    state.justDrawn   = false;
 
     for (var col = 0; col < 7; col++) { state.tableau.push([]); }
 
@@ -625,17 +600,8 @@ function drawFromStock() {
         state.waste.push(card);
     }
     state.moves++;
-    state.justDrawn = true;
-
-    /* Claude: 2026-04-26 — pulse stock slot so the draw is clearly visible */
-    var stockEl = document.getElementById('stock-slot');
-    stockEl.classList.remove('drawing');
-    void stockEl.offsetWidth; /* restart animation */
-    stockEl.classList.add('drawing');
-
     clearSelection();
     render();
-    setTimeout(function() { state.justDrawn = false; }, 400);
 }
 
 /* ── Win check ── */
@@ -649,55 +615,6 @@ function showWin() {
     document.getElementById('win-msg').textContent =
         'Solved in ' + state.moves + ' move' + (state.moves === 1 ? '' : 's') + '!';
     document.getElementById('win-overlay').classList.add('show');
-    launchConfetti(); /* Claude: 2026-04-26 — celebrate! */
-}
-
-/* Claude: 2026-04-26 — confetti burst on win */
-function launchConfetti() {
-    var canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99;';
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    document.body.appendChild(canvas);
-    var ctx = canvas.getContext('2d');
-    var colors = ['#fbbf24', '#ef4444', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#fff'];
-    var pieces = [];
-    for (var i = 0; i < 80; i++) {
-        pieces.push({
-            x: Math.random() * canvas.width,
-            y: -20 - Math.random() * 200,
-            w: 6 + Math.random() * 8,
-            h: 10 + Math.random() * 8,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            vx: (Math.random() - 0.5) * 4,
-            vy: 3 + Math.random() * 4,
-            rot: Math.random() * 360,
-            rotV: (Math.random() - 0.5) * 8
-        });
-    }
-    var frameId;
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        var alive = false;
-        for (var i = 0; i < pieces.length; i++) {
-            var p = pieces[i];
-            p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.rot += p.rotV;
-            if (p.y < canvas.height + 20) { alive = true; }
-            ctx.save();
-            ctx.translate(p.x, p.y);
-            ctx.rotate(p.rot * Math.PI / 180);
-            ctx.fillStyle = p.color;
-            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-            ctx.restore();
-        }
-        if (alive) { frameId = requestAnimationFrame(draw); }
-        else { if (canvas.parentNode) { canvas.parentNode.removeChild(canvas); } }
-    }
-    draw();
-    setTimeout(function() {
-        cancelAnimationFrame(frameId);
-        if (canvas.parentNode) { canvas.parentNode.removeChild(canvas); }
-    }, 5000);
 }
 
 /* ── Selection / Move ── */
@@ -766,84 +683,6 @@ function removeSelected() {
     } else if (sel.zone === 'fn') {
         state.foundations[sel.idx].pop();
     }
-}
-
-/* ── Double-tap / auto-move — Claude: 2026-04-26 ── */
-var lastTapKey  = '';
-var lastTapTime = 0;
-
-function isDoubleTap(key) {
-    var now = Date.now();
-    if (lastTapKey === key && now - lastTapTime < 350) {
-        lastTapKey = ''; lastTapTime = 0;
-        return true;
-    }
-    lastTapKey = key; lastTapTime = now;
-    return false;
-}
-
-function autoMoveWaste() {
-    if (state.waste.length === 0) { return; }
-    var card  = state.waste[state.waste.length - 1];
-    var cards = [card];
-    state.selected = { zone: 'waste', idx: 0, cardIdx: state.waste.length - 1, cards: cards };
-    /* Foundation first */
-    if (canGoToFoundation(card)) {
-        executeMove('fn', FOUNDATION_SUIT.indexOf(card.suit)); return;
-    }
-    /* Non-empty tableau */
-    for (var t = 0; t < 7; t++) {
-        var tTop = state.tableau[t].length > 0 ? state.tableau[t][state.tableau[t].length - 1] : null;
-        if (state.tableau[t].length > 0 && canStackOnTab(card, tTop)) {
-            executeMove('tab', t); return;
-        }
-    }
-    /* Empty column (Kings only) */
-    if (card.rank === 'K') {
-        for (var t2 = 0; t2 < 7; t2++) {
-            if (state.tableau[t2].length === 0) { executeMove('tab', t2); return; }
-        }
-    }
-    state.selected = null;
-    showMsg('No valid move for that card');
-}
-
-function autoMoveFromTab(colIdx, cardIdx) {
-    var col = state.tableau[colIdx];
-    if (col.length === 0 || !col[cardIdx] || !col[cardIdx].faceUp) { return; }
-    /* Validate sequence from cardIdx down */
-    var valid = true;
-    for (var v = cardIdx + 1; v < col.length; v++) {
-        if (!col[v].faceUp || col[v].val !== col[v-1].val - 1 || col[v].color === col[v-1].color) {
-            valid = false; break;
-        }
-    }
-    var seqStart = valid ? cardIdx : col.length - 1;
-    var cards    = col.slice(seqStart);
-    if (!cards[0] || !cards[0].faceUp) { return; }
-    state.selected = { zone: 'tab', idx: colIdx, cardIdx: seqStart, cards: cards };
-    /* Foundation first (single card only) */
-    if (cards.length === 1 && canGoToFoundation(cards[0])) {
-        executeMove('fn', FOUNDATION_SUIT.indexOf(cards[0].suit)); return;
-    }
-    /* Non-empty tableau */
-    for (var t = 0; t < 7; t++) {
-        if (t === colIdx) { continue; }
-        var tTop = state.tableau[t].length > 0 ? state.tableau[t][state.tableau[t].length - 1] : null;
-        if (state.tableau[t].length > 0 && canStackOnTab(cards[0], tTop) && isValidSeq(cards)) {
-            executeMove('tab', t); return;
-        }
-    }
-    /* Empty column (Kings only) */
-    if (cards[0].rank === 'K') {
-        for (var t2 = 0; t2 < 7; t2++) {
-            if (t2 !== colIdx && state.tableau[t2].length === 0) {
-                executeMove('tab', t2); return;
-            }
-        }
-    }
-    state.selected = null;
-    showMsg('No valid destination');
 }
 
 /* ── Tap handlers ── */
@@ -1032,14 +871,9 @@ function renderTopZone() {
         var wCardEl   = makeCardEl(wasteCard, true);
         wCardEl.style.position = 'absolute';
         wCardEl.style.inset = '0';
-        if (state.selected && state.selected.zone === 'waste') { wCardEl.classList.add('selected'); }
-        if (state.justDrawn) { wCardEl.classList.add('drawn'); }
-        /* Claude: 2026-04-26 — double-tap waste card to auto-move */
-        wCardEl.addEventListener('dblclick', function(e) { e.stopPropagation(); autoMoveWaste(); });
-        wCardEl.addEventListener('touchend', function(e) {
-            e.preventDefault(); e.stopPropagation();
-            if (isDoubleTap('waste')) { autoMoveWaste(); } else { tapWaste(); }
-        });
+        if (state.selected && state.selected.zone === 'waste') {
+            wCardEl.classList.add('selected');
+        }
         wasteEl.style.position = 'relative';
         wasteEl.appendChild(wCardEl);
     } else {
@@ -1110,16 +944,7 @@ function renderTableau() {
             if (card.faceUp) {
                 (function(colIdx, ci) {
                     cardEl.addEventListener('click',    function(e) { e.stopPropagation(); tapColumn(colIdx, ci); });
-                    /* Claude: 2026-04-26 — double-click/tap to auto-move */
-                    cardEl.addEventListener('dblclick', function(e) { e.stopPropagation(); autoMoveFromTab(colIdx, ci); });
-                    cardEl.addEventListener('touchend', function(e) {
-                        e.preventDefault(); e.stopPropagation();
-                        if (isDoubleTap('tab:' + colIdx + ':' + ci)) {
-                            autoMoveFromTab(colIdx, ci);
-                        } else {
-                            tapColumn(colIdx, ci);
-                        }
-                    });
+                    cardEl.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); tapColumn(colIdx, ci); });
                 })(col, i);
             }
 
