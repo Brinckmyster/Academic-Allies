@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260426c'; /* Claude: 2026-04-26 — slowed all card game animations for human eyes */
+var CACHE   = 'aa-shell-20260427a'; /* Claude: 2026-04-27 — Klondike: pull cards back from foundation */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.

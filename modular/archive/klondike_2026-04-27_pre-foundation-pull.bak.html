@@ -408,7 +408,6 @@
     Tap the <strong>stock pile</strong> (top-left) to draw cards.
     Move <strong>Aces to any foundation slot</strong> (top-right) in whatever order you like, then build up by suit, Ace to King, to win.
     Only <strong>Kings</strong> can go on empty tableau columns.
-    <strong>Pull cards back:</strong> tap a foundation card to select it, then tap a valid column — or double-tap to auto-move it back.
 </div>
 
 <div class="win-overlay" id="win-overlay">
@@ -798,9 +797,7 @@ function executeMove(toZone, toIdx) {
             }
         }
         clearSelection();
-        /* Claude: 2026-04-27 — skip auto-foundation after pulling FROM foundation,
-           otherwise the card gets swept right back */
-        if (sel.zone !== 'fn') { autoFoundation(); }
+        autoFoundation();
         if (checkWin()) { showWin(); }
         render();
         return true;
@@ -859,33 +856,6 @@ function flyCard(srcEl, destEl, callback) {
         isFlying = false;
         callback();
     }, 750); /* Claude: 2026-04-26 — slowed more for human eye */
-}
-
-/* Claude: 2026-04-27 — double-tap foundation card to auto-move back to tableau */
-function autoMoveFromFoundation(fnIdx) {
-    var pile = state.foundations[fnIdx];
-    if (pile.length === 0) { return; }
-    var card = pile[pile.length - 1];
-    /* Find best tableau column — prefer stacking on existing cards over empty columns */
-    var dz = null, di = -1;
-    for (var t = 0; t < 7; t++) {
-        var tTop = state.tableau[t].length > 0 ? state.tableau[t][state.tableau[t].length - 1] : null;
-        if (state.tableau[t].length > 0 && canStackOnTab(card, tTop)) { dz = 'tab'; di = t; break; }
-    }
-    if (!dz && card.rank === 'K') {
-        for (var t2 = 0; t2 < 7; t2++) {
-            if (state.tableau[t2].length === 0) { dz = 'tab'; di = t2; break; }
-        }
-    }
-    if (!dz) { showMsg('No valid column for that card'); return; }
-    /* Fly then execute */
-    var srcEl  = document.querySelector('#fn-' + fnIdx + ' .card');
-    var destEl = document.getElementById('col-' + di);
-    var capI = di;
-    flyCard(srcEl, destEl, function() {
-        state.selected = { zone: 'fn', idx: fnIdx, cardIdx: pile.length - 1, cards: [card] };
-        executeMove('tab', capI);
-    });
 }
 
 function autoMoveWaste() {
@@ -1159,7 +1129,7 @@ function renderTopZone() {
         wasteEl.innerHTML = '<span class="slot-label">Waste</span>';
     }
 
-    /* Foundations — Claude: 2026-04-27 — added double-tap to pull cards back to tableau */
+    /* Foundations */
     for (var fn = 0; fn < 4; fn++) {
         var fnEl = document.getElementById('fn-' + fn);
         fnEl.innerHTML = '';
@@ -1172,14 +1142,6 @@ function renderTopZone() {
             if (state.selected && state.selected.zone === 'fn' && state.selected.idx === fn) {
                 fCardEl.classList.add('selected');
             }
-            /* Double-tap/click to auto-move back to tableau */
-            (function(idx) {
-                fCardEl.addEventListener('dblclick', function(e) { e.stopPropagation(); autoMoveFromFoundation(idx); });
-                fCardEl.addEventListener('touchend', function(e) {
-                    e.preventDefault(); e.stopPropagation();
-                    if (isDoubleTap('fn:' + idx)) { autoMoveFromFoundation(idx); } else { tapFoundation(idx); }
-                });
-            })(fn);
             fnEl.style.position = 'relative';
             fnEl.appendChild(fCardEl);
         } else {
