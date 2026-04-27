@@ -179,8 +179,12 @@
             padding: 1px 3px;
         }
 
-        /* Waste pile — top card visible */
-        .waste-slot { background: rgba(0,0,0,0.2); }
+        /* Waste pile — top card visible; overflow for Draw-3 fan — Claude: 2026-04-27 */
+        .waste-slot { background: rgba(0,0,0,0.2); overflow: visible; }
+
+        /* Fanned waste cards (Draw 3) — Claude: 2026-04-27 */
+        .waste-fan { pointer-events: none; opacity: 0.85; }
+        .waste-fan.drawn { animation: drawIn 0.7s ease-out both; }
 
         /* Gap between waste and foundations */
         .gap-slot { border: none; background: none; cursor: default; }
@@ -1137,24 +1141,40 @@ function renderTopZone() {
     stockEl.onclick = null;
     /* (listeners wired once in init) */
 
-    /* Waste */
+    /* Waste — Claude: 2026-04-27 — Draw 3 shows fanned cards */
     var wasteEl = document.getElementById('waste-slot');
     wasteEl.innerHTML = '';
+    wasteEl.style.position = 'relative';
     if (state.waste.length > 0) {
-        var wasteCard = state.waste[state.waste.length - 1];
-        var wCardEl   = makeCardEl(wasteCard, true);
-        wCardEl.style.position = 'absolute';
-        wCardEl.style.inset = '0';
-        if (state.selected && state.selected.zone === 'waste') { wCardEl.classList.add('selected'); }
-        if (state.justDrawn) { wCardEl.classList.add('drawn'); }
-        /* Claude: 2026-04-26 — double-tap waste card to auto-move */
-        wCardEl.addEventListener('dblclick', function(e) { e.stopPropagation(); autoMoveWaste(); });
-        wCardEl.addEventListener('touchend', function(e) {
-            e.preventDefault(); e.stopPropagation();
-            if (isDoubleTap('waste')) { autoMoveWaste(); } else { tapWaste(); }
-        });
-        wasteEl.style.position = 'relative';
-        wasteEl.appendChild(wCardEl);
+        /* In Draw 3: show up to 3 cards fanned; Draw 1: just the top card */
+        var showCount = (drawMode === 3) ? Math.min(3, state.waste.length) : 1;
+        var startIdx  = state.waste.length - showCount;
+        var fanOffset  = Math.round(wasteEl.offsetWidth * 0.35) || 25; /* horizontal fan spacing */
+        for (var wi = 0; wi < showCount; wi++) {
+            var wCard   = state.waste[startIdx + wi];
+            var wCardEl = makeCardEl(wCard, true);
+            var isTop   = (wi === showCount - 1);
+            wCardEl.style.position = 'absolute';
+            wCardEl.style.top    = '0';
+            wCardEl.style.bottom = '0';
+            wCardEl.style.left   = (wi * fanOffset) + 'px';
+            wCardEl.style.width  = '100%';
+            wCardEl.style.zIndex = wi + 1;
+            if (!isTop) {
+                /* Background cards: visible but not playable */
+                wCardEl.classList.add('waste-fan');
+            } else {
+                /* Top card: playable */
+                if (state.selected && state.selected.zone === 'waste') { wCardEl.classList.add('selected'); }
+                wCardEl.addEventListener('dblclick', function(e) { e.stopPropagation(); autoMoveWaste(); });
+                wCardEl.addEventListener('touchend', function(e) {
+                    e.preventDefault(); e.stopPropagation();
+                    if (isDoubleTap('waste')) { autoMoveWaste(); } else { tapWaste(); }
+                });
+            }
+            if (state.justDrawn) { wCardEl.classList.add('drawn'); }
+            wasteEl.appendChild(wCardEl);
+        }
     } else {
         wasteEl.innerHTML = '<span class="slot-label">Waste</span>';
     }
