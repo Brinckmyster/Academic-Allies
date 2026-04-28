@@ -133,7 +133,7 @@
       border-top: 1px solid rgba(255,255,255,0.18);
       padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr auto auto auto;
       gap: 8px;
       align-items: center;
     }
@@ -177,6 +177,7 @@
     </div>
     <div class="bottom">
       <div class="hint">Tap connected gates to build your path. Reach Goal with enough value.</div>
+      <button class="btn" id="hintBtn">Hint</button>
       <button class="btn" id="resetBtn">Reset Path</button>
       <button class="btn primary" id="nextBtn" style="display:none;">Start Next</button>
     </div>
@@ -237,11 +238,86 @@
       const valuePill = document.getElementById("valuePill");
       const goalPill = document.getElementById("goalPill");
       const levelChip = document.getElementById("levelChip");
+      const hintBtn = document.getElementById("hintBtn");
       const resetBtn = document.getElementById("resetBtn");
       const nextBtn = document.getElementById("nextBtn");
 
-      const state = { level: 0, currentValue: 0, path: [], done: false };
+      const state = { level: 0, currentValue: 0, path: [], done: false, hintStep: 0 };
       const nodeEls = new Map();
+
+      function randomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function randomPick(arr) {
+        return arr[randomInt(0, arr.length - 1)];
+      }
+
+      function makeGateLabel(op, val) {
+        if (op === "x") return "x" + val;
+        if (op === "+") return "+" + val;
+        return "-" + val;
+      }
+
+      function applyOpParts(value, opType, opVal) {
+        if (opType === "x") return value * opVal;
+        if (opType === "+") return value + opVal;
+        return value - opVal;
+      }
+
+      function generateLevel(levelNumber) {
+        const startValue = Math.min(36, 10 + (levelNumber * 2));
+        const useThreeLanes = levelNumber >= 6;
+        const depth = Math.min(4, 2 + Math.floor(levelNumber / 3));
+        const laneY = useThreeLanes ? [20, 50, 80] : [28, 72];
+        const nodes = [{ id: "S", type: "start", x: 10, y: 50, label: String(startValue) }];
+        const edges = [];
+        let gateCount = 0;
+        let prevLayerIds = ["S"];
+        let bestForecast = startValue;
+
+        for (let d = 0; d < depth; d++) {
+          const x = 28 + (d * (48 / depth));
+          const layerIds = [];
+          for (let lane = 0; lane < laneY.length; lane++) {
+            const id = "N" + gateCount++;
+            const opTypePool = d === 0 ? ["+", "x"] : ["+", "-", "x"];
+            const opType = randomPick(opTypePool);
+            const opVal = opType === "x" ? randomPick([2, 2, 3]) : randomInt(5 + d, 11 + d * 2);
+            const label = makeGateLabel(opType, opVal);
+            nodes.push({ id, type: "gate", x, y: laneY[lane], op: label, label });
+            layerIds.push(id);
+          }
+
+          for (const p of prevLayerIds) {
+            for (const c of layerIds) {
+              if (p === "S") {
+                edges.push([p, c]);
+              } else {
+                const pi = Number(p.replace("N", "")) % laneY.length;
+                const ci = Number(c.replace("N", "")) % laneY.length;
+                if (Math.abs(pi - ci) <= 1 || Math.random() < 0.4) edges.push([p, c]);
+              }
+            }
+          }
+
+          prevLayerIds = layerIds;
+        }
+
+        nodes.push({ id: "G", type: "goal", x: 90, y: 50, label: "GOAL" });
+        for (const p of prevLayerIds) edges.push([p, "G"]);
+
+        for (const n of nodes) {
+          if (n.type !== "gate") continue;
+          const opType = n.op[0] === "x" ? "x" : n.op[0];
+          const opVal = Number(n.op.slice(1));
+          const trial = applyOpParts(startValue, opType, opVal);
+          if (trial > bestForecast) bestForecast = trial;
+        }
+
+        const goalMin = Math.max(startValue + 18, Math.floor(bestForecast * (0.72 + Math.min(0.16, levelNumber * 0.01))));
+        return { startValue, goalMin, nodes, edges };
+      }
 
       function nodeById(id) {
         return levels[state.level].nodes.find(n => n.id === id);
@@ -311,15 +387,16 @@
         const lvl = levels[state.level];
         state.done = true;
         if (state.currentValue >= lvl.goalMin) {
-          statusText.textContent = "Nice route. You solved it.";
+          statusText.textContent = "Nice route. You solved it. Tap Start Next when you are ready.";
           if (state.level < levels.length - 1) {
             nextBtn.style.display = "inline-block";
           } else {
             nextBtn.style.display = "none";
-            statusText.textContent = "All levels cleared. Reset to replay.";
+            statusText.textContent = "Nice route. More levels are ready. Tap Start Next when ready.";
+            nextBtn.style.display = "inline-block";
           }
         } else {
-          statusText.textContent = "Close. Value too low, try a different route.";
+          statusText.textContent = "Close. Value is below goal. Reset Path, then try a different route.";
           nextBtn.style.display = "none";
         }
         markPath();
@@ -335,7 +412,7 @@
       function clickNode(id) {
         if (state.done) return;
         if (!canStepTo(id)) {
-          statusText.textContent = "Pick a connected node.";
+          statusText.textContent = "That node is not connected to your current spot. Pick a linked gate.";
           return;
         }
         state.path.push(id);
@@ -346,7 +423,7 @@
         if (node.type === "goal") {
           finishAttempt();
         } else {
-          statusText.textContent = "Keep routing to Goal.";
+          statusText.textContent = "Gate applied. Current value updated. Keep routing to Goal.";
         }
       }
 
@@ -372,14 +449,18 @@
         state.path = ["S"];
         state.currentValue = lvl.startValue;
         state.done = false;
+        state.hintStep = 0;
         nextBtn.style.display = "none";
-        statusText.textContent = "Choose a route from Start to Goal.";
+        statusText.textContent = "Step 1: Start at blue. Step 2: pick a connected gate. Step 3: reach Goal.";
         updateHud();
         markPath();
       }
 
       function loadLevel(index) {
         state.level = index;
+        if (state.level >= levels.length) {
+          levels.push(generateLevel(state.level + 1));
+        }
         const lvl = levels[state.level];
         levelChip.textContent = "Level " + (state.level + 1);
         const start = lvl.nodes.find(n => n.id === "S");
@@ -388,11 +469,23 @@
         resetPath();
       }
 
+      hintBtn.addEventListener("click", function () {
+        if (state.done) {
+          statusText.textContent = "You can Start Next, or Reset Path to replay this level.";
+          return;
+        }
+        const hints = [
+          "Tip: choose any gate directly connected to your current node.",
+          "Tip: multipliers are powerful later in a route.",
+          "Tip: if value drops too much, Reset Path and try a different branch.",
+          "Tip: watch Value and Goal pills after every gate so you always know where you stand."
+        ];
+        statusText.textContent = hints[state.hintStep % hints.length];
+        state.hintStep += 1;
+      });
       resetBtn.addEventListener("click", resetPath);
       nextBtn.addEventListener("click", function () {
-        if (state.level < levels.length - 1) {
-          loadLevel(state.level + 1);
-        }
+        loadLevel(state.level + 1);
       });
 
       loadLevel(0);
