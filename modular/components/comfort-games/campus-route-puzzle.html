@@ -110,6 +110,23 @@
       pointer-events: none;
       transition: left 0.34s ease, top 0.34s ease;
     }
+    .student-value {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      min-width: 44px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(7, 22, 18, 0.92);
+      border: 1px solid rgba(171, 225, 255, 0.75);
+      color: #e9f8ff;
+      font-size: 15px;
+      font-weight: 900;
+      text-align: center;
+      pointer-events: none;
+      z-index: 4;
+      transition: left 0.34s ease, top 0.34s ease, background 0.25s ease;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    }
     .links {
       position: absolute;
       inset: 0;
@@ -190,6 +207,7 @@
       <div class="board" id="board">
         <svg class="links" id="links" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
         <div class="student" id="studentAvatar" aria-hidden="true">🧑‍🎓</div>
+        <div class="student-value" id="studentValue">10</div>
       </div>
     </div>
     <div class="bottom">
@@ -259,6 +277,7 @@
       const resetBtn = document.getElementById("resetBtn");
       const nextBtn = document.getElementById("nextBtn");
       const studentAvatar = document.getElementById("studentAvatar");
+      const studentValue = document.getElementById("studentValue");
 
       const state = { level: 0, currentValue: 0, path: [], done: false, hintStep: 0 };
       const nodeEls = new Map();
@@ -399,6 +418,10 @@
         const lvl = levels[state.level];
         valuePill.textContent = "Value: " + state.currentValue;
         goalPill.textContent = "Goal: " + lvl.goalMin;
+        studentValue.textContent = String(state.currentValue);
+        studentValue.style.background = state.currentValue >= lvl.goalMin
+          ? "rgba(18, 80, 39, 0.95)"
+          : "rgba(7, 22, 18, 0.92)";
       }
 
       function moveStudentTo(nodeId) {
@@ -406,6 +429,8 @@
         if (!n) return;
         studentAvatar.style.left = n.x + "%";
         studentAvatar.style.top = n.y + "%";
+        studentValue.style.left = n.x + "%";
+        studentValue.style.top = (n.y - 9) + "%";
       }
 
       function finishAttempt() {
