@@ -167,20 +167,26 @@
       let dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
 
       const nodes = [
-        { id: 0, x: 0.22, y: 0.72, owner: "blue", value: 8, cap: 45, links: [1, 2] },
-        { id: 1, x: 0.42, y: 0.56, owner: "blue", value: 42, cap: 65, links: [0, 2, 3] },
-        { id: 2, x: 0.61, y: 0.73, owner: "red", value: 8, cap: 45, links: [0, 1, 4] },
-        { id: 3, x: 0.79, y: 0.50, owner: "gray", value: 2, cap: 30, links: [1, 4] },
-        { id: 4, x: 0.82, y: 0.35, owner: "gray", value: 10, cap: 30, links: [2, 3] }
+        { id: 0, x: 0.22, y: 0.72, owner: "blue", value: 8, cap: 45, links: [1, 2], unlockRound: 1, active: true },
+        { id: 1, x: 0.42, y: 0.56, owner: "blue", value: 42, cap: 65, links: [0, 2, 3, 5], unlockRound: 1, active: true },
+        { id: 2, x: 0.61, y: 0.73, owner: "red", value: 8, cap: 45, links: [0, 1, 4, 6], unlockRound: 1, active: true },
+        { id: 3, x: 0.79, y: 0.50, owner: "gray", value: 2, cap: 30, links: [1, 4, 7], unlockRound: 1, active: true },
+        { id: 4, x: 0.82, y: 0.35, owner: "gray", value: 10, cap: 30, links: [2, 3, 6], unlockRound: 1, active: true },
+        { id: 5, x: 0.30, y: 0.42, owner: "gray", value: 6, cap: 34, links: [1, 6], unlockRound: 3, active: false },
+        { id: 6, x: 0.56, y: 0.42, owner: "red", value: 12, cap: 40, links: [2, 4, 5, 7], unlockRound: 5, active: false },
+        { id: 7, x: 0.70, y: 0.63, owner: "gray", value: 9, cap: 38, links: [3, 6], unlockRound: 7, active: false }
       ];
 
-      const baseSetup = [
-        { owner: "blue", value: 8, cap: 45 },
-        { owner: "blue", value: 42, cap: 65 },
-        { owner: "red", value: 8, cap: 45 },
-        { owner: "gray", value: 2, cap: 30 },
-        { owner: "gray", value: 10, cap: 30 }
-      ];
+      const baseSetup = {
+        0: { owner: "blue", value: 8, cap: 45 },
+        1: { owner: "blue", value: 42, cap: 65 },
+        2: { owner: "red", value: 8, cap: 45 },
+        3: { owner: "gray", value: 2, cap: 30 },
+        4: { owner: "gray", value: 10, cap: 30 },
+        5: { owner: "gray", value: 6, cap: 34 },
+        6: { owner: "red", value: 12, cap: 40 },
+        7: { owner: "gray", value: 9, cap: 38 }
+      };
 
       function difficulty() {
         const r = state.round;
@@ -200,17 +206,20 @@
       function applyRoundSetup() {
         const d = difficulty();
         for (let i = 0; i < nodes.length; i++) {
-          const seed = baseSetup[i];
-          nodes[i].owner = seed.owner;
-          nodes[i].cap = seed.cap + d.capBoost;
+          const node = nodes[i];
+          const seed = baseSetup[node.id];
+          node.active = state.round >= node.unlockRound;
+          if (!node.active) continue;
+          node.owner = seed.owner;
+          node.cap = seed.cap + d.capBoost;
           if (seed.owner === ENEMY_TEAM) {
-            nodes[i].value = Math.min(nodes[i].cap, seed.value + d.blueBoost);
+            node.value = Math.min(node.cap, seed.value + d.blueBoost);
           } else if (seed.owner === "gray") {
-            nodes[i].value = Math.min(nodes[i].cap, seed.value + d.grayBoost);
-          } else if (seed.owner === PLAYER_TEAM && i === 1) {
-            nodes[i].value = Math.max(20, seed.value - Math.min(18, (state.round - 1) * 2));
+            node.value = Math.min(node.cap, seed.value + d.grayBoost);
+          } else if (seed.owner === PLAYER_TEAM && node.id === 1) {
+            node.value = Math.max(20, seed.value - Math.min(18, (state.round - 1) * 2));
           } else {
-            nodes[i].value = seed.value;
+            node.value = seed.value;
           }
         }
       }
@@ -253,6 +262,7 @@
 
       function send(fromNode, toNode, team, ratio) {
         if (state.over) return;
+        if (!fromNode.active || !toNode.active) return;
         const canLink = fromNode.links.includes(toNode.id);
         if (!canLink) {
           statusPill.textContent = "No road there yet.";
@@ -282,10 +292,10 @@
 
       function aiMove() {
         const d = difficulty();
-        const enemyNodes = nodes.filter(n => n.owner === ENEMY_TEAM && n.value >= 6);
+        const enemyNodes = nodes.filter(n => n.active && n.owner === ENEMY_TEAM && n.value >= 6);
         if (!enemyNodes.length) return;
         const from = enemyNodes.reduce((best, n) => (best == null || n.value > best.value ? n : best), null);
-        const targets = from.links.map(id => nodes[id]).filter(n => n.owner !== ENEMY_TEAM);
+        const targets = from.links.map(id => nodes[id]).filter(n => n.active && n.owner !== ENEMY_TEAM);
         if (!targets.length) return;
         const target = targets.reduce((best, n) => (best == null || n.value < best.value ? n : best), null);
         send(from, target, ENEMY_TEAM, d.aiSendRatio);
@@ -294,6 +304,7 @@
       function growNodes() {
         const d = difficulty();
         for (const n of nodes) {
+          if (!n.active) continue;
           let gain = d.grayGrowth;
           if (n.owner === "red") gain = d.redGrowth;
           if (n.owner === "blue") gain = d.blueGrowth;
@@ -305,6 +316,7 @@
         let red = 0;
         let blue = 0;
         for (const n of nodes) {
+          if (!n.active) continue;
           if (n.owner === ENEMY_TEAM) red += Math.floor(n.value);
           if (n.owner === PLAYER_TEAM) blue += Math.floor(n.value);
         }
@@ -312,12 +324,13 @@
       }
 
       function gameStateCheck() {
-        const playerHeld = nodes.some(n => n.owner === PLAYER_TEAM);
-        const enemyHeld = nodes.some(n => n.owner === ENEMY_TEAM);
+        const activeNodes = nodes.filter(n => n.active);
+        const playerHeld = activeNodes.some(n => n.owner === PLAYER_TEAM);
+        const enemyHeld = activeNodes.some(n => n.owner === ENEMY_TEAM);
         if (!playerHeld) {
           state.over = true;
           statusPill.textContent = "Red took the map. Tap Restart.";
-        } else if (!enemyHeld && nodes.every(n => n.owner === PLAYER_TEAM)) {
+        } else if (!enemyHeld && activeNodes.every(n => n.owner === PLAYER_TEAM)) {
           state.over = true;
           statusPill.textContent = "Round clear. Tap Start Next Round.";
           nextRoundBtn.style.display = "inline-block";
@@ -326,6 +339,7 @@
       }
 
       function drawNode(node) {
+        if (!node.active) return;
         const p = nodeScreen(node);
         const color = node.owner === "red" ? getComputedStyle(document.documentElement).getPropertyValue("--red").trim() :
           node.owner === "blue" ? getComputedStyle(document.documentElement).getPropertyValue("--blue").trim() :
@@ -362,11 +376,13 @@
         const seen = new Set();
         ctx.lineCap = "round";
         for (const n of nodes) {
+          if (!n.active) continue;
           for (const id of n.links) {
             const key = n.id < id ? n.id + "-" + id : id + "-" + n.id;
             if (seen.has(key)) continue;
             seen.add(key);
             const o = nodes[id];
+            if (!o.active) continue;
             const a = nodeScreen(n);
             const b = nodeScreen(o);
             ctx.strokeStyle = linkColor(n, o);
@@ -438,6 +454,7 @@
         const x = (clientX - rect.left) * dpr;
         const y = (clientY - rect.top) * dpr;
         for (const n of nodes) {
+          if (!n.active) continue;
           const p = nodeScreen(n);
           const r = canvas.width * 0.058;
           const dx = x - p.x;
