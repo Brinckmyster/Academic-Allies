@@ -157,7 +157,7 @@
       const levelChip = document.getElementById("levelChip");
       const resetBtn = document.getElementById("resetBtn");
 
-      const state = { selected: null, units: [], aiTick: 0, round: 1, over: false };
+      const state = { selected: null, units: [], aiTick: 0, round: 1, over: false, waitingNextRound: false };
       let dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
 
       const nodes = [
@@ -168,17 +168,55 @@
         { id: 4, x: 0.82, y: 0.35, owner: "gray", value: 10, cap: 30, links: [2, 3] }
       ];
 
+      const baseSetup = [
+        { owner: "red", value: 8, cap: 45 },
+        { owner: "red", value: 42, cap: 65 },
+        { owner: "blue", value: 8, cap: 45 },
+        { owner: "gray", value: 2, cap: 30 },
+        { owner: "gray", value: 10, cap: 30 }
+      ];
+
+      function difficulty() {
+        const r = state.round;
+        return {
+          aiInterval: Math.max(520, 1150 - ((r - 1) * 85)),
+          aiSendRatio: Math.min(0.80, 0.45 + ((r - 1) * 0.03)),
+          playerSendRatio: Math.max(0.46, 0.58 - ((r - 1) * 0.015)),
+          blueBoost: Math.min(26, (r - 1) * 3),
+          grayBoost: Math.min(18, Math.floor((r - 1) * 2.2)),
+          capBoost: Math.min(30, (r - 1) * 3),
+          blueGrowth: Math.min(0.46, 0.16 + ((r - 1) * 0.03)),
+          redGrowth: Math.max(0.15, 0.16 + ((r - 1) * 0.005)),
+          grayGrowth: Math.min(0.24, 0.08 + ((r - 1) * 0.018))
+        };
+      }
+
+      function applyRoundSetup() {
+        const d = difficulty();
+        for (let i = 0; i < nodes.length; i++) {
+          const seed = baseSetup[i];
+          nodes[i].owner = seed.owner;
+          nodes[i].cap = seed.cap + d.capBoost;
+          if (seed.owner === "blue") {
+            nodes[i].value = Math.min(nodes[i].cap, seed.value + d.blueBoost);
+          } else if (seed.owner === "gray") {
+            nodes[i].value = Math.min(nodes[i].cap, seed.value + d.grayBoost);
+          } else if (seed.owner === "red" && i === 1) {
+            nodes[i].value = Math.max(20, seed.value - Math.min(18, (state.round - 1) * 2));
+          } else {
+            nodes[i].value = seed.value;
+          }
+        }
+      }
+
       function resetRound() {
         state.selected = null;
         state.units = [];
         state.aiTick = 0;
         state.over = false;
+        state.waitingNextRound = false;
         levelChip.textContent = "Round " + state.round;
-        nodes[0].owner = "red"; nodes[0].value = 8;
-        nodes[1].owner = "red"; nodes[1].value = 42;
-        nodes[2].owner = "blue"; nodes[2].value = 8;
-        nodes[3].owner = "gray"; nodes[3].value = 2;
-        nodes[4].owner = "gray"; nodes[4].value = 10;
+        applyRoundSetup();
         statusPill.textContent = "Tap your building to send students.";
       }
 
@@ -236,18 +274,22 @@
       }
 
       function aiMove() {
+        const d = difficulty();
         const blueNodes = nodes.filter(n => n.owner === "blue" && n.value >= 6);
         if (!blueNodes.length) return;
-        const from = blueNodes[Math.floor(Math.random() * blueNodes.length)];
+        const from = blueNodes.reduce((best, n) => (best == null || n.value > best.value ? n : best), null);
         const targets = from.links.map(id => nodes[id]).filter(n => n.owner !== "blue");
         if (!targets.length) return;
-        const target = targets[Math.floor(Math.random() * targets.length)];
-        send(from, target, "blue", 0.45);
+        const target = targets.reduce((best, n) => (best == null || n.value < best.value ? n : best), null);
+        send(from, target, "blue", d.aiSendRatio);
       }
 
       function growNodes() {
+        const d = difficulty();
         for (const n of nodes) {
-          const gain = n.owner === "gray" ? 0.08 : 0.16;
+          let gain = d.grayGrowth;
+          if (n.owner === "red") gain = d.redGrowth;
+          if (n.owner === "blue") gain = d.blueGrowth;
           n.value = Math.min(n.cap, n.value + gain);
         }
       }
@@ -270,7 +312,14 @@
           statusPill.textContent = "Blue took the map. Tap Restart.";
         } else if (!blueHeld && nodes.every(n => n.owner === "red")) {
           state.over = true;
-          statusPill.textContent = "You win! Campus secured.";
+          statusPill.textContent = "Round clear. Next round loading...";
+          if (!state.waitingNextRound) {
+            state.waitingNextRound = true;
+            setTimeout(function () {
+              state.round += 1;
+              resetRound();
+            }, 1300);
+          }
         }
       }
 
@@ -416,7 +465,7 @@
           return;
         }
         const from = nodes[state.selected];
-        send(from, hit, "red", 0.58);
+        send(from, hit, "red", difficulty().playerSendRatio);
         state.selected = null;
       }
 
@@ -428,7 +477,7 @@
         drawRoads();
         growNodes();
         state.aiTick += dt;
-        if (!state.over && state.aiTick >= 1150) {
+        if (!state.over && state.aiTick >= difficulty().aiInterval) {
           state.aiTick = 0;
           aiMove();
         }
@@ -439,7 +488,10 @@
         requestAnimationFrame(loop);
       }
 
-      resetBtn.addEventListener("click", resetRound);
+      resetBtn.addEventListener("click", function () {
+        state.round = 1;
+        resetRound();
+      });
       canvas.addEventListener("click", handleTap);
       canvas.addEventListener("touchstart", function (e) { handleTap(e); e.preventDefault(); }, { passive: false });
       window.addEventListener("resize", function () { resize(); });
