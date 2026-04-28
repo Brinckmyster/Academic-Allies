@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Campus Clash - Academic Allies</title>
+  <link rel="icon" type="image/png" href="../../icons/mode-recovery.png">
+  <style>
+    :root {
+      --bg-top: #1a2b22;
+      --bg-bottom: #102017;
+      --grass: #1f6b44;
+      --road: #c5883f;
+      --red: #e64b4b;
+      --blue: #4a76e8;
+      --gray: #687178;
+      --text: #f4f6ee;
+      --panel: rgba(9, 14, 12, 0.84);
+      --button: #2bb05f;
+      --button-text: #09220f;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: "Atkinson Hyperlegible", "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+      overflow: hidden;
+    }
+    .wrap {
+      width: min(100vw, 520px);
+      margin: 0 auto;
+      height: 100vh;
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background: radial-gradient(circle at 20% 10%, rgba(255,255,255,0.1), transparent 28%), linear-gradient(180deg, #245736, #163f27);
+    }
+    .topbar {
+      padding: 10px 12px 8px;
+      background: var(--panel);
+      border-bottom: 1px solid rgba(255,255,255,0.18);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .back {
+      color: #b6dcc2;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .title {
+      flex: 1;
+      text-align: center;
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+    .chip {
+      padding: 4px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(255,255,255,0.12);
+      white-space: nowrap;
+    }
+    .board {
+      position: relative;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+    .hud {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .hud-pill {
+      pointer-events: auto;
+      background: rgba(0,0,0,0.42);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .bottom {
+      background: var(--panel);
+      border-top: 1px solid rgba(255,255,255,0.18);
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .help {
+      font-size: 12px;
+      line-height: 1.4;
+      color: #d7e6dc;
+    }
+    .btn {
+      border: none;
+      border-radius: 14px;
+      background: var(--button);
+      color: var(--button-text);
+      font-size: 18px;
+      font-weight: 800;
+      padding: 12px 18px;
+      min-width: 132px;
+    }
+    .btn:active { transform: translateY(1px); }
+    @media (min-width: 521px) {
+      .wrap { border-left: 1px solid rgba(255,255,255,0.15); border-right: 1px solid rgba(255,255,255,0.15); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="back" href="/Academic-Allies/modular/components/comfort-games/game-center.html">Back</a>
+      <div class="title">Campus Clash</div>
+      <div class="chip" id="levelChip">Round 1</div>
+    </div>
+    <div class="board">
+      <canvas id="game"></canvas>
+      <div class="hud">
+        <div class="hud-pill" id="statusPill">Tap your building to send students.</div>
+        <div class="hud-pill" id="scorePill">Red 0 - 0 Blue</div>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="help">Capture every blue/gray building. Tap a red building, then tap a target.</div>
+      <button class="btn" id="resetBtn">Restart</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const statusPill = document.getElementById("statusPill");
+      const scorePill = document.getElementById("scorePill");
+      const levelChip = document.getElementById("levelChip");
+      const resetBtn = document.getElementById("resetBtn");
+
+      const state = { selected: null, units: [], aiTick: 0, round: 1, over: false };
+      let dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+
+      const nodes = [
+        { id: 0, x: 0.22, y: 0.72, owner: "red", value: 8, cap: 45, links: [1, 2] },
+        { id: 1, x: 0.42, y: 0.56, owner: "red", value: 42, cap: 65, links: [0, 2, 3] },
+        { id: 2, x: 0.61, y: 0.73, owner: "blue", value: 8, cap: 45, links: [0, 1, 4] },
+        { id: 3, x: 0.79, y: 0.50, owner: "gray", value: 2, cap: 30, links: [1, 4] },
+        { id: 4, x: 0.82, y: 0.35, owner: "gray", value: 10, cap: 30, links: [2, 3] }
+      ];
+
+      function resetRound() {
+        state.selected = null;
+        state.units = [];
+        state.aiTick = 0;
+        state.over = false;
+        levelChip.textContent = "Round " + state.round;
+        nodes[0].owner = "red"; nodes[0].value = 8;
+        nodes[1].owner = "red"; nodes[1].value = 42;
+        nodes[2].owner = "blue"; nodes[2].value = 8;
+        nodes[3].owner = "gray"; nodes[3].value = 2;
+        nodes[4].owner = "gray"; nodes[4].value = 10;
+        statusPill.textContent = "Tap your building to send students.";
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+      }
+
+      function nodeScreen(node) {
+        return { x: node.x * canvas.width, y: node.y * canvas.height };
+      }
+
+      function linkColor(a, b) {
+        if (a.owner === "red" && b.owner === "red") return "#d08e46";
+        if (a.owner === "blue" && b.owner === "blue") return "#7ea7ff";
+        if (a.owner === "red" || b.owner === "red") return "#a66f31";
+        if (a.owner === "blue" || b.owner === "blue") return "#5f87df";
+        return "#7c6a55";
+      }
+
+      function spawnUnit(from, to, owner, amount) {
+        const start = nodeScreen(from);
+        const end = nodeScreen(to);
+        state.units.push({ from: from.id, to: to.id, owner, amount, t: 0, sx: start.x, sy: start.y, ex: end.x, ey: end.y });
+      }
+
+      function send(fromNode, toNode, team, ratio) {
+        if (state.over) return;
+        const canLink = fromNode.links.includes(toNode.id);
+        if (!canLink) {
+          statusPill.textContent = "No road there yet.";
+          return;
+        }
+        const amount = Math.max(1, Math.floor(fromNode.value * ratio));
+        if (fromNode.value <= 1 || amount < 1) {
+          statusPill.textContent = "Need more students first.";
+          return;
+        }
+        fromNode.value -= amount;
+        spawnUnit(fromNode, toNode, team, amount);
+      }
+
+      function applyArrival(unit) {
+        const target = nodes[unit.to];
+        if (target.owner === unit.owner) {
+          target.value = Math.min(target.cap, target.value + unit.amount);
+          return;
+        }
+        target.value -= unit.amount;
+        if (target.value < 0) {
+          target.owner = unit.owner;
+          target.value = Math.abs(target.value);
+        }
+      }
+
+      function aiMove() {
+        const blueNodes = nodes.filter(n => n.owner === "blue" && n.value >= 6);
+        if (!blueNodes.length) return;
+        const from = blueNodes[Math.floor(Math.random() * blueNodes.length)];
+        const targets = from.links.map(id => nodes[id]).filter(n => n.owner !== "blue");
+        if (!targets.length) return;
+        const target = targets[Math.floor(Math.random() * targets.length)];
+        send(from, target, "blue", 0.45);
+      }
+
+      function growNodes() {
+        for (const n of nodes) {
+          const gain = n.owner === "gray" ? 0.08 : 0.16;
+          n.value = Math.min(n.cap, n.value + gain);
+        }
+      }
+
+      function updateScore() {
+        let red = 0;
+        let blue = 0;
+        for (const n of nodes) {
+          if (n.owner === "red") red += Math.floor(n.value);
+          if (n.owner === "blue") blue += Math.floor(n.value);
+        }
+        scorePill.textContent = "Red " + red + " - " + blue + " Blue";
+      }
+
+      function gameStateCheck() {
+        const redHeld = nodes.some(n => n.owner === "red");
+        const blueHeld = nodes.some(n => n.owner === "blue");
+        if (!redHeld) {
+          state.over = true;
+          statusPill.textContent = "Blue took the map. Tap Restart.";
+        } else if (!blueHeld && nodes.every(n => n.owner === "red")) {
+          state.over = true;
+          statusPill.textContent = "You win! Campus secured.";
+        }
+      }
+
+      function drawNode(node) {
+        const p = nodeScreen(node);
+        const color = node.owner === "red" ? getComputedStyle(document.documentElement).getPropertyValue("--red").trim() :
+          node.owner === "blue" ? getComputedStyle(document.documentElement).getPropertyValue("--blue").trim() :
+          getComputedStyle(document.documentElement).getPropertyValue("--gray").trim();
+        const w = canvas.width * 0.09;
+        const h = canvas.height * 0.075;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.fillStyle = "rgba(0,0,0,0.24)";
+        ctx.beginPath();
+        ctx.ellipse(0, h * 0.62, w * 0.7, h * 0.28, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = color;
+        ctx.strokeStyle = "#f0f0f0";
+        ctx.lineWidth = Math.max(2, canvas.width * 0.0048);
+        roundRect(ctx, -w * 0.48, -h * 0.3, w * 0.96, h * 0.75, 10);
+        ctx.fill();
+        ctx.stroke();
+        if (state.selected === node.id) {
+          ctx.strokeStyle = "#ffe36d";
+          ctx.lineWidth = Math.max(2, canvas.width * 0.0056);
+          roundRect(ctx, -w * 0.56, -h * 0.38, w * 1.12, h * 0.91, 12);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "700 " + Math.max(14, canvas.width * 0.038) + "px Atkinson Hyperlegible, Segoe UI, Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(Math.floor(node.value)), 0, -h * 0.03);
+        ctx.restore();
+      }
+
+      function drawRoads() {
+        const seen = new Set();
+        ctx.lineCap = "round";
+        for (const n of nodes) {
+          for (const id of n.links) {
+            const key = n.id < id ? n.id + "-" + id : id + "-" + n.id;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const o = nodes[id];
+            const a = nodeScreen(n);
+            const b = nodeScreen(o);
+            ctx.strokeStyle = linkColor(n, o);
+            ctx.lineWidth = Math.max(7, canvas.width * 0.014);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+            ctx.strokeStyle = "rgba(0,0,0,0.18)";
+            ctx.lineWidth = Math.max(2, canvas.width * 0.003);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      function drawUnits(dt) {
+        for (let i = state.units.length - 1; i >= 0; i--) {
+          const u = state.units[i];
+          u.t += dt * 0.00045;
+          if (u.t >= 1) {
+            applyArrival(u);
+            state.units.splice(i, 1);
+            continue;
+          }
+          const x = u.sx + (u.ex - u.sx) * u.t;
+          const y = u.sy + (u.ey - u.sy) * u.t;
+          ctx.fillStyle = u.owner === "red" ? "#ffdfdf" : "#dce6ff";
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(4, canvas.width * 0.012), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function drawField() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, "#245b38");
+        gradient.addColorStop(1, "#18452c");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < 55; i++) {
+          ctx.fillStyle = i % 2 ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)";
+          const x = ((i * 113) % canvas.width);
+          const y = ((i * 197) % canvas.height);
+          ctx.beginPath();
+          ctx.arc(x, y, (i % 4) + 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function roundRect(context, x, y, w, h, r) {
+        context.beginPath();
+        context.moveTo(x + r, y);
+        context.lineTo(x + w - r, y);
+        context.quadraticCurveTo(x + w, y, x + w, y + r);
+        context.lineTo(x + w, y + h - r);
+        context.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        context.lineTo(x + r, y + h);
+        context.quadraticCurveTo(x, y + h, x, y + h - r);
+        context.lineTo(x, y + r);
+        context.quadraticCurveTo(x, y, x + r, y);
+        context.closePath();
+      }
+
+      function pickNode(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (clientX - rect.left) * dpr;
+        const y = (clientY - rect.top) * dpr;
+        for (const n of nodes) {
+          const p = nodeScreen(n);
+          const r = canvas.width * 0.058;
+          const dx = x - p.x;
+          const dy = y - p.y;
+          if (Math.sqrt(dx * dx + dy * dy) <= r) return n;
+        }
+        return null;
+      }
+
+      function handleTap(e) {
+        if (state.over) return;
+        const pt = e.touches ? e.touches[0] : e;
+        const hit = pickNode(pt.clientX, pt.clientY);
+        if (!hit) return;
+        if (state.selected == null) {
+          if (hit.owner !== "red") {
+            statusPill.textContent = "Pick a red building first.";
+            return;
+          }
+          state.selected = hit.id;
+          statusPill.textContent = "Now tap a linked target.";
+          return;
+        }
+        if (hit.id === state.selected) {
+          state.selected = null;
+          statusPill.textContent = "Selection cleared.";
+          return;
+        }
+        const from = nodes[state.selected];
+        send(from, hit, "red", 0.58);
+        state.selected = null;
+      }
+
+      let last = performance.now();
+      function loop(now) {
+        const dt = now - last;
+        last = now;
+        drawField();
+        drawRoads();
+        growNodes();
+        state.aiTick += dt;
+        if (!state.over && state.aiTick >= 1150) {
+          state.aiTick = 0;
+          aiMove();
+        }
+        drawUnits(dt);
+        nodes.forEach(drawNode);
+        updateScore();
+        gameStateCheck();
+        requestAnimationFrame(loop);
+      }
+
+      resetBtn.addEventListener("click", resetRound);
+      canvas.addEventListener("click", handleTap);
+      canvas.addEventListener("touchstart", function (e) { handleTap(e); e.preventDefault(); }, { passive: false });
+      window.addEventListener("resize", function () { resize(); });
+
+      resetRound();
+      resize();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
