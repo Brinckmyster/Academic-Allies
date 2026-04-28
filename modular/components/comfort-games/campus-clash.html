@@ -142,7 +142,10 @@
     </div>
     <div class="bottom">
       <div class="help">Capture every blue/gray building. Tap a red building, then tap a target.</div>
-      <button class="btn" id="resetBtn">Restart</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="nextRoundBtn" style="display:none;min-width:150px;">Start Next Round</button>
+        <button class="btn" id="resetBtn">Restart</button>
+      </div>
     </div>
   </div>
 
@@ -156,6 +159,7 @@
       const scorePill = document.getElementById("scorePill");
       const levelChip = document.getElementById("levelChip");
       const resetBtn = document.getElementById("resetBtn");
+      const nextRoundBtn = document.getElementById("nextRoundBtn");
 
       const state = { selected: null, units: [], aiTick: 0, round: 1, over: false, waitingNextRound: false };
       let dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
@@ -218,6 +222,7 @@
         levelChip.textContent = "Round " + state.round;
         applyRoundSetup();
         statusPill.textContent = "Tap your building to send students.";
+        nextRoundBtn.style.display = "none";
       }
 
       function resize() {
@@ -312,14 +317,9 @@
           statusPill.textContent = "Blue took the map. Tap Restart.";
         } else if (!blueHeld && nodes.every(n => n.owner === "red")) {
           state.over = true;
-          statusPill.textContent = "Round clear. Next round loading...";
-          if (!state.waitingNextRound) {
-            state.waitingNextRound = true;
-            setTimeout(function () {
-              state.round += 1;
-              resetRound();
-            }, 1300);
-          }
+          statusPill.textContent = "Round clear. Tap Start Next Round.";
+          nextRoundBtn.style.display = "inline-block";
+          state.waitingNextRound = true;
         }
       }
 
@@ -490,6 +490,11 @@
 
       resetBtn.addEventListener("click", function () {
         state.round = 1;
+        resetRound();
+      });
+      nextRoundBtn.addEventListener("click", function () {
+        if (!state.waitingNextRound) return;
+        state.round += 1;
         resetRound();
       });
       canvas.addEventListener("click", handleTap);
