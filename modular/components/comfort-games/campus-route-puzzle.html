@@ -94,6 +94,22 @@
       border: 1px solid rgba(255,255,255,0.14);
       overflow: hidden;
     }
+    .student {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      font-size: 21px;
+      background: rgba(255,255,255,0.92);
+      border: 2px solid rgba(130, 190, 255, 0.85);
+      box-shadow: 0 5px 14px rgba(0,0,0,0.28);
+      transform: translate(-50%, -50%);
+      z-index: 3;
+      pointer-events: none;
+      transition: left 0.34s ease, top 0.34s ease;
+    }
     .links {
       position: absolute;
       inset: 0;
@@ -166,17 +182,18 @@
       <div class="chip" id="levelChip">Level 1</div>
     </div>
     <div class="status">
-      <div id="statusText">Choose a route from Start to Goal.</div>
+      <div id="statusText">Help the student find the classroom route.</div>
       <div class="value-pill" id="valuePill">Value: 10</div>
       <div class="goal-pill" id="goalPill">Goal: 30</div>
     </div>
     <div class="board-wrap">
       <div class="board" id="board">
         <svg class="links" id="links" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+        <div class="student" id="studentAvatar" aria-hidden="true">🧑‍🎓</div>
       </div>
     </div>
     <div class="bottom">
-      <div class="hint">Tap connected gates to build your path. Reach Goal with enough value.</div>
+      <div class="hint">Tap connected gates to build your path. Reach class with enough value.</div>
       <button class="btn" id="hintBtn">Hint</button>
       <button class="btn" id="resetBtn">Reset Path</button>
       <button class="btn primary" id="nextBtn" style="display:none;">Start Next</button>
@@ -197,7 +214,7 @@
             { id: "B", type: "gate", x: 44, y: 70, op: "x2", label: "x2" },
             { id: "C", type: "gate", x: 68, y: 30, op: "-6", label: "-6" },
             { id: "D", type: "gate", x: 68, y: 70, op: "+5", label: "+5" },
-            { id: "G", type: "goal", x: 86, y: 50, label: "GOAL" }
+            { id: "G", type: "goal", x: 86, y: 50, label: "CLASS" }
           ],
           edges: [["S", "A"], ["S", "B"], ["A", "C"], ["A", "D"], ["B", "C"], ["B", "D"], ["C", "G"], ["D", "G"]]
         },
@@ -211,7 +228,7 @@
             { id: "C", type: "gate", x: 52, y: 50, op: "-8", label: "-8" },
             { id: "D", type: "gate", x: 70, y: 28, op: "x2", label: "x2" },
             { id: "E", type: "gate", x: 70, y: 72, op: "+13", label: "+13" },
-            { id: "G", type: "goal", x: 88, y: 50, label: "GOAL" }
+            { id: "G", type: "goal", x: 88, y: 50, label: "CLASS" }
           ],
           edges: [["S", "A"], ["S", "B"], ["A", "C"], ["B", "C"], ["C", "D"], ["C", "E"], ["D", "G"], ["E", "G"]]
         },
@@ -226,7 +243,7 @@
             { id: "D", type: "gate", x: 46, y: 76, op: "x3", label: "x3" },
             { id: "E", type: "gate", x: 64, y: 38, op: "+18", label: "+18" },
             { id: "F", type: "gate", x: 64, y: 66, op: "-12", label: "-12" },
-            { id: "G", type: "goal", x: 88, y: 50, label: "GOAL" }
+            { id: "G", type: "goal", x: 88, y: 50, label: "CLASS" }
           ],
           edges: [["S", "A"], ["S", "B"], ["A", "C"], ["A", "D"], ["B", "C"], ["B", "D"], ["C", "E"], ["D", "F"], ["E", "G"], ["F", "G"], ["D", "E"]]
         }
@@ -241,6 +258,7 @@
       const hintBtn = document.getElementById("hintBtn");
       const resetBtn = document.getElementById("resetBtn");
       const nextBtn = document.getElementById("nextBtn");
+      const studentAvatar = document.getElementById("studentAvatar");
 
       const state = { level: 0, currentValue: 0, path: [], done: false, hintStep: 0 };
       const nodeEls = new Map();
@@ -304,7 +322,7 @@
           prevLayerIds = layerIds;
         }
 
-        nodes.push({ id: "G", type: "goal", x: 90, y: 50, label: "GOAL" });
+        nodes.push({ id: "G", type: "goal", x: 90, y: 50, label: "CLASS" });
         for (const p of prevLayerIds) edges.push([p, "G"]);
 
         for (const n of nodes) {
@@ -383,20 +401,27 @@
         goalPill.textContent = "Goal: " + lvl.goalMin;
       }
 
+      function moveStudentTo(nodeId) {
+        const n = nodeById(nodeId);
+        if (!n) return;
+        studentAvatar.style.left = n.x + "%";
+        studentAvatar.style.top = n.y + "%";
+      }
+
       function finishAttempt() {
         const lvl = levels[state.level];
         state.done = true;
         if (state.currentValue >= lvl.goalMin) {
-          statusText.textContent = "Nice route. You solved it. Tap Start Next when you are ready.";
+          statusText.textContent = "Nice route. Student reached class. Tap Start Next when ready.";
           if (state.level < levels.length - 1) {
             nextBtn.style.display = "inline-block";
           } else {
             nextBtn.style.display = "none";
-            statusText.textContent = "Nice route. More levels are ready. Tap Start Next when ready.";
+            statusText.textContent = "Student made it to class. More levels are ready when you are.";
             nextBtn.style.display = "inline-block";
           }
         } else {
-          statusText.textContent = "Close. Value is below goal. Reset Path, then try a different route.";
+          statusText.textContent = "Close. Student got turned around. Reset Path and try another route.";
           nextBtn.style.display = "none";
         }
         markPath();
@@ -417,13 +442,14 @@
         }
         state.path.push(id);
         state.currentValue = pathValue(state.path);
+        moveStudentTo(id);
         updateHud();
         markPath();
         const node = nodeById(id);
         if (node.type === "goal") {
           finishAttempt();
         } else {
-          statusText.textContent = "Gate applied. Current value updated. Keep routing to Goal.";
+          statusText.textContent = "Gate applied. Student is still searching for class.";
         }
       }
 
@@ -451,8 +477,9 @@
         state.done = false;
         state.hintStep = 0;
         nextBtn.style.display = "none";
-        statusText.textContent = "Step 1: Start at blue. Step 2: pick a connected gate. Step 3: reach Goal.";
+        statusText.textContent = "Step 1: Start at blue. Step 2: pick a connected gate. Step 3: get student to class.";
         updateHud();
+        moveStudentTo("S");
         markPath();
       }
 
