@@ -138,9 +138,9 @@
             border: 3px solid #bbb;
             border-radius: 12px;
             display: flex;
-            flex-direction: column; /* Claude: 2026-04-25 — column+flex-end; render loop appends top-first */
+            flex-direction: column-reverse;  /* bottom = index 0 of array */
             align-items: center;
-            justify-content: flex-end;
+            justify-content: flex-start;
             padding: 6px 4px;
             gap: 4px;
             cursor: pointer;
@@ -316,7 +316,6 @@ function startGame(difficulty) {
         state.tubes = buildAdvancedTubes();
     } else {
         state.tubes = buildTubes(cfg.tubeCount, cfg.colorCount);
-        state.tubes.push([]); /* Claude: 2026-04-25 — empty helper tube in all modes */
     }
     state.held = -1;
     state.moves = 0;
@@ -459,8 +458,8 @@ function render() {
         if (state.held === i)  { div.className += ' selected'; }
         if (isLocked(i))       { div.className += ' locked'; }
 
-        /* Claude: 2026-04-25 — top-first: tube[length-1] appended first = first DOM child = visual top */
-        for (var j = tube.length - 1; j >= 0; j--) {
+        /* balls — appended bottom-first; flex-direction:column-reverse shows them correctly */
+        for (var j = 0; j < tube.length; j++) {
             var b = document.createElement('div');
             b.className = 'ball c-' + tube[j];
             div.appendChild(b);
