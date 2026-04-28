@@ -94,6 +94,12 @@
       border: 1px solid rgba(255,255,255,0.14);
       overflow: hidden;
     }
+    .board-zoom {
+      position: absolute;
+      inset: 0;
+      transform-origin: center center;
+      transition: transform 0.34s ease;
+    }
     .student {
       position: absolute;
       width: 40px;
@@ -109,6 +115,62 @@
       z-index: 3;
       pointer-events: none;
       transition: left 0.34s ease, top 0.34s ease;
+    }
+    .value-float {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      color: #ffe8b0;
+      font-size: 20px;
+      font-weight: 900;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      pointer-events: none;
+      z-index: 6;
+      animation: floatUp 0.8s ease-out forwards;
+    }
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translate(-50%, -30%); }
+      20% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -90%); }
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      z-index: 8;
+      background: rgba(0,0,0,0.42);
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 16px;
+    }
+    .overlay.show { display: flex; }
+    .overlay-card {
+      width: min(88%, 320px);
+      border-radius: 16px;
+      padding: 18px 14px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(6, 16, 13, 0.92);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+    }
+    .overlay-title {
+      font-size: 24px;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+    .overlay-text {
+      font-size: 14px;
+      color: #d5e8de;
+      line-height: 1.35;
+      margin-bottom: 12px;
+    }
+    .overlay-ok {
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-weight: 800;
+      background: #2cb063;
+      color: #0a2316;
     }
     .student-value {
       position: absolute;
@@ -132,6 +194,13 @@
       inset: 0;
       width: 100%;
       height: 100%;
+    }
+    .trail {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
     .node {
       position: absolute;
@@ -205,9 +274,19 @@
     </div>
     <div class="board-wrap">
       <div class="board" id="board">
-        <svg class="links" id="links" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
-        <div class="student" id="studentAvatar" aria-hidden="true">🧑‍🎓</div>
-        <div class="student-value" id="studentValue">10</div>
+        <div class="board-zoom" id="boardZoom">
+          <svg class="links" id="links" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+          <svg class="trail" id="trail" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+          <div class="student" id="studentAvatar" aria-hidden="true">🧑‍🎓</div>
+          <div class="student-value" id="studentValue">10</div>
+        </div>
+        <div class="overlay" id="resultOverlay" aria-live="polite">
+          <div class="overlay-card">
+            <div class="overlay-title" id="overlayTitle">Nice Route</div>
+            <div class="overlay-text" id="overlayText">Student reached class.</div>
+            <button class="overlay-ok" id="overlayBtn" type="button">Continue</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="bottom">
@@ -268,7 +347,9 @@
       ];
 
       const board = document.getElementById("board");
+      const boardZoom = document.getElementById("boardZoom");
       const links = document.getElementById("links");
+      const trail = document.getElementById("trail");
       const statusText = document.getElementById("statusText");
       const valuePill = document.getElementById("valuePill");
       const goalPill = document.getElementById("goalPill");
@@ -278,6 +359,10 @@
       const nextBtn = document.getElementById("nextBtn");
       const studentAvatar = document.getElementById("studentAvatar");
       const studentValue = document.getElementById("studentValue");
+      const resultOverlay = document.getElementById("resultOverlay");
+      const overlayTitle = document.getElementById("overlayTitle");
+      const overlayText = document.getElementById("overlayText");
+      const overlayBtn = document.getElementById("overlayBtn");
 
       const state = { level: 0, currentValue: 0, path: [], done: false, hintStep: 0 };
       const nodeEls = new Map();
@@ -304,9 +389,10 @@
 
       function generateLevel(levelNumber) {
         const startValue = Math.min(36, 10 + (levelNumber * 2));
-        const useThreeLanes = levelNumber >= 6;
+        const useThreeLanes = levelNumber >= 4;
+        const useFourLanes = levelNumber >= 10;
         const depth = Math.min(4, 2 + Math.floor(levelNumber / 3));
-        const laneY = useThreeLanes ? [20, 50, 80] : [28, 72];
+        const laneY = useFourLanes ? [14, 38, 62, 86] : (useThreeLanes ? [20, 50, 80] : [28, 72]);
         const nodes = [{ id: "S", type: "start", x: 10, y: 50, label: String(startValue) }];
         const edges = [];
         let gateCount = 0;
@@ -333,7 +419,7 @@
               } else {
                 const pi = Number(p.replace("N", "")) % laneY.length;
                 const ci = Number(c.replace("N", "")) % laneY.length;
-                if (Math.abs(pi - ci) <= 1 || Math.random() < 0.4) edges.push([p, c]);
+                if (Math.abs(pi - ci) <= 1 || Math.random() < 0.55) edges.push([p, c]);
               }
             }
           }
@@ -403,6 +489,25 @@
         }
       }
 
+      function drawTrail() {
+        trail.innerHTML = "";
+        if (state.path.length < 2) return;
+        for (let i = 1; i < state.path.length; i++) {
+          const a = nodeById(state.path[i - 1]);
+          const b = nodeById(state.path[i]);
+          if (!a || !b) continue;
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", a.x);
+          line.setAttribute("y1", a.y);
+          line.setAttribute("x2", b.x);
+          line.setAttribute("y2", b.y);
+          line.setAttribute("stroke", "rgba(104, 225, 255, 0.92)");
+          line.setAttribute("stroke-width", "2.2");
+          line.setAttribute("stroke-linecap", "round");
+          trail.appendChild(line);
+        }
+      }
+
       function markPath() {
         for (const [id, el] of nodeEls.entries()) {
           el.classList.toggle("on-path", state.path.includes(id));
@@ -412,6 +517,7 @@
             el.classList.remove("locked");
           }
         }
+        drawTrail();
       }
 
       function updateHud() {
@@ -431,6 +537,31 @@
         studentAvatar.style.top = n.y + "%";
         studentValue.style.left = n.x + "%";
         studentValue.style.top = (n.y - 9) + "%";
+        boardZoom.style.transform = "scale(1.04) translate(" + ((50 - n.x) * 0.02) + "%," + ((50 - n.y) * 0.02) + "%)";
+        setTimeout(function () { boardZoom.style.transform = "scale(1) translate(0,0)"; }, 360);
+      }
+
+      function showOverlay(title, text, buttonLabel) {
+        overlayTitle.textContent = title;
+        overlayText.textContent = text;
+        overlayBtn.textContent = buttonLabel;
+        resultOverlay.classList.add("show");
+      }
+
+      function hideOverlay() {
+        resultOverlay.classList.remove("show");
+      }
+
+      function showGatePop(nodeId, text) {
+        const n = nodeById(nodeId);
+        if (!n) return;
+        const pop = document.createElement("div");
+        pop.className = "value-float";
+        pop.textContent = text;
+        pop.style.left = n.x + "%";
+        pop.style.top = (n.y - 6) + "%";
+        boardZoom.appendChild(pop);
+        setTimeout(function () { pop.remove(); }, 820);
       }
 
       function finishAttempt() {
@@ -440,14 +571,17 @@
           statusText.textContent = "Nice route. Student reached class. Tap Start Next when ready.";
           if (state.level < levels.length - 1) {
             nextBtn.style.display = "inline-block";
+            showOverlay("Class Found", "Great route. Take a breath, then start the next level when ready.", "Keep Going");
           } else {
             nextBtn.style.display = "none";
             statusText.textContent = "Student made it to class. More levels are ready when you are.";
             nextBtn.style.display = "inline-block";
+            showOverlay("Class Found", "You cleared this level. Another one is ready whenever you want.", "Next Level");
           }
         } else {
           statusText.textContent = "Close. Student got turned around. Reset Path and try another route.";
           nextBtn.style.display = "none";
+          showOverlay("Not Quite", "Value did not reach goal. Reset path to try a different route.", "Try Again");
         }
         markPath();
       }
@@ -468,9 +602,10 @@
         state.path.push(id);
         state.currentValue = pathValue(state.path);
         moveStudentTo(id);
+        const node = nodeById(id);
+        if (node.type === "gate") showGatePop(id, node.op);
         updateHud();
         markPath();
-        const node = nodeById(id);
         if (node.type === "goal") {
           finishAttempt();
         } else {
@@ -502,6 +637,7 @@
         state.done = false;
         state.hintStep = 0;
         nextBtn.style.display = "none";
+        hideOverlay();
         statusText.textContent = "Step 1: Start at blue. Step 2: pick a connected gate. Step 3: get student to class.";
         updateHud();
         moveStudentTo("S");
@@ -522,6 +658,7 @@
       }
 
       hintBtn.addEventListener("click", function () {
+        hideOverlay();
         if (state.done) {
           statusText.textContent = "You can Start Next, or Reset Path to replay this level.";
           return;
@@ -537,7 +674,18 @@
       });
       resetBtn.addEventListener("click", resetPath);
       nextBtn.addEventListener("click", function () {
+        hideOverlay();
         loadLevel(state.level + 1);
+      });
+      overlayBtn.addEventListener("click", function () {
+        hideOverlay();
+        if (state.done && state.currentValue >= levels[state.level].goalMin) {
+          if (nextBtn.style.display !== "none") {
+            loadLevel(state.level + 1);
+          }
+        } else if (state.done) {
+          resetPath();
+        }
       });
 
       loadLevel(0);
