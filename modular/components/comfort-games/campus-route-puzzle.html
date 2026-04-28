@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Campus Route Puzzle - Academic Allies</title>
+  <style>
+    :root {
+      --bg-1: #0d1f1b;
+      --bg-2: #132f28;
+      --panel: rgba(7, 15, 13, 0.86);
+      --line: #7bb8ff;
+      --start: #2b78e4;
+      --goal: #2aa650;
+      --gate: #f0c64d;
+      --text: #ecf4ef;
+      --muted: #b4c8be;
+      --btn: #2cb063;
+      --btn-text: #082415;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Atkinson Hyperlegible", "Segoe UI", Arial, sans-serif;
+      min-height: 100vh;
+      min-height: 100dvh;
+      color: var(--text);
+      background: radial-gradient(circle at 20% 10%, #1c4f42 0%, transparent 36%), linear-gradient(180deg, var(--bg-1), var(--bg-2));
+      overflow: hidden;
+    }
+    .app {
+      width: min(100vw, 520px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
+    }
+    .topbar {
+      background: var(--panel);
+      border-bottom: 1px solid rgba(255,255,255,0.18);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .back {
+      color: #add7c0;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .title {
+      flex: 1;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .chip {
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 4px 8px;
+      background: rgba(255,255,255,0.12);
+    }
+    .status {
+      background: rgba(0,0,0,0.34);
+      border-bottom: 1px solid rgba(255,255,255,0.14);
+      padding: 8px 12px;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .value-pill {
+      font-weight: 800;
+      color: #d7efff;
+    }
+    .goal-pill {
+      font-weight: 800;
+      color: #d9ffde;
+    }
+    .board-wrap {
+      position: relative;
+      padding: 10px;
+    }
+    .board {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(11, 25, 22, 0.84), rgba(10, 20, 18, 0.9));
+      border: 1px solid rgba(255,255,255,0.14);
+      overflow: hidden;
+    }
+    .links {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .node {
+      position: absolute;
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      transform: translate(-50%, -50%);
+      font-weight: 900;
+      font-size: 20px;
+      border: 2px solid rgba(255,255,255,0.24);
+      user-select: none;
+    }
+    .node.start { background: var(--start); }
+    .node.goal { background: var(--goal); }
+    .node.gate {
+      background: var(--gate);
+      color: #3d2c0a;
+      font-size: 19px;
+    }
+    .node.locked {
+      filter: grayscale(0.4);
+      opacity: 0.65;
+    }
+    .node.on-path {
+      box-shadow: 0 0 0 4px rgba(125, 205, 255, 0.35);
+      border-color: #dff3ff;
+    }
+    .bottom {
+      background: var(--panel);
+      border-top: 1px solid rgba(255,255,255,0.18);
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 800;
+      background: #355a4d;
+      color: #d8efe5;
+    }
+    .btn.primary {
+      background: var(--btn);
+      color: var(--btn-text);
+      min-width: 124px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <a class="back" href="/Academic-Allies/modular/components/comfort-games/game-center.html">Back</a>
+      <div class="title">Campus Route Puzzle</div>
+      <div class="chip" id="levelChip">Level 1</div>
+    </div>
+    <div class="status">
+      <div id="statusText">Choose a route from Start to Goal.</div>
+      <div class="value-pill" id="valuePill">Value: 10</div>
+      <div class="goal-pill" id="goalPill">Goal: 30</div>
+    </div>
+    <div class="board-wrap">
+      <div class="board" id="board">
+        <svg class="links" id="links" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="hint">Tap connected gates to build your path. Reach Goal with enough value.</div>
+      <button class="btn" id="resetBtn">Reset Path</button>
+      <button class="btn primary" id="nextBtn" style="display:none;">Start Next</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const levels = [
+        {
+          startValue: 10,
+          goalMin: 30,
+          nodes: [
+            { id: "S", type: "start", x: 20, y: 50, label: "10" },
+            { id: "A", type: "gate", x: 44, y: 30, op: "+12", label: "+12" },
+            { id: "B", type: "gate", x: 44, y: 70, op: "x2", label: "x2" },
+            { id: "C", type: "gate", x: 68, y: 30, op: "-6", label: "-6" },
+            { id: "D", type: "gate", x: 68, y: 70, op: "+5", label: "+5" },
+            { id: "G", type: "goal", x: 86, y: 50, label: "GOAL" }
+          ],
+          edges: [["S", "A"], ["S", "B"], ["A", "C"], ["A", "D"], ["B", "C"], ["B", "D"], ["C", "G"], ["D", "G"]]
+        },
+        {
+          startValue: 14,
+          goalMin: 52,
+          nodes: [
+            { id: "S", type: "start", x: 14, y: 50, label: "14" },
+            { id: "A", type: "gate", x: 34, y: 26, op: "+9", label: "+9" },
+            { id: "B", type: "gate", x: 34, y: 74, op: "x3", label: "x3" },
+            { id: "C", type: "gate", x: 52, y: 50, op: "-8", label: "-8" },
+            { id: "D", type: "gate", x: 70, y: 28, op: "x2", label: "x2" },
+            { id: "E", type: "gate", x: 70, y: 72, op: "+13", label: "+13" },
+            { id: "G", type: "goal", x: 88, y: 50, label: "GOAL" }
+          ],
+          edges: [["S", "A"], ["S", "B"], ["A", "C"], ["B", "C"], ["C", "D"], ["C", "E"], ["D", "G"], ["E", "G"]]
+        },
+        {
+          startValue: 18,
+          goalMin: 120,
+          nodes: [
+            { id: "S", type: "start", x: 12, y: 50, label: "18" },
+            { id: "A", type: "gate", x: 28, y: 24, op: "x2", label: "x2" },
+            { id: "B", type: "gate", x: 28, y: 76, op: "+15", label: "+15" },
+            { id: "C", type: "gate", x: 46, y: 24, op: "-10", label: "-10" },
+            { id: "D", type: "gate", x: 46, y: 76, op: "x3", label: "x3" },
+            { id: "E", type: "gate", x: 64, y: 38, op: "+18", label: "+18" },
+            { id: "F", type: "gate", x: 64, y: 66, op: "-12", label: "-12" },
+            { id: "G", type: "goal", x: 88, y: 50, label: "GOAL" }
+          ],
+          edges: [["S", "A"], ["S", "B"], ["A", "C"], ["A", "D"], ["B", "C"], ["B", "D"], ["C", "E"], ["D", "F"], ["E", "G"], ["F", "G"], ["D", "E"]]
+        }
+      ];
+
+      const board = document.getElementById("board");
+      const links = document.getElementById("links");
+      const statusText = document.getElementById("statusText");
+      const valuePill = document.getElementById("valuePill");
+      const goalPill = document.getElementById("goalPill");
+      const levelChip = document.getElementById("levelChip");
+      const resetBtn = document.getElementById("resetBtn");
+      const nextBtn = document.getElementById("nextBtn");
+
+      const state = { level: 0, currentValue: 0, path: [], done: false };
+      const nodeEls = new Map();
+
+      function nodeById(id) {
+        return levels[state.level].nodes.find(n => n.id === id);
+      }
+
+      function neighbors(id) {
+        const out = [];
+        for (const [a, b] of levels[state.level].edges) {
+          if (a === id) out.push(b);
+          if (b === id) out.push(a);
+        }
+        return out;
+      }
+
+      function applyOp(value, op) {
+        if (!op) return value;
+        if (op[0] === "+") return value + Number(op.slice(1));
+        if (op[0] === "-") return value - Number(op.slice(1));
+        if (op[0] === "x" || op[0] === "X") return value * Number(op.slice(1));
+        return value;
+      }
+
+      function pathValue(path) {
+        let v = levels[state.level].startValue;
+        for (let i = 1; i < path.length; i++) {
+          const n = nodeById(path[i]);
+          if (n.type === "gate") v = applyOp(v, n.op);
+        }
+        return Math.max(0, Math.floor(v));
+      }
+
+      function drawLinks() {
+        links.innerHTML = "";
+        for (const [a, b] of levels[state.level].edges) {
+          const na = nodeById(a);
+          const nb = nodeById(b);
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", na.x);
+          line.setAttribute("y1", na.y);
+          line.setAttribute("x2", nb.x);
+          line.setAttribute("y2", nb.y);
+          line.setAttribute("stroke", "rgba(150,190,255,0.4)");
+          line.setAttribute("stroke-width", "1.6");
+          line.setAttribute("stroke-linecap", "round");
+          links.appendChild(line);
+        }
+      }
+
+      function markPath() {
+        for (const [id, el] of nodeEls.entries()) {
+          el.classList.toggle("on-path", state.path.includes(id));
+          if (state.done) {
+            el.classList.add("locked");
+          } else {
+            el.classList.remove("locked");
+          }
+        }
+      }
+
+      function updateHud() {
+        const lvl = levels[state.level];
+        valuePill.textContent = "Value: " + state.currentValue;
+        goalPill.textContent = "Goal: " + lvl.goalMin;
+      }
+
+      function finishAttempt() {
+        const lvl = levels[state.level];
+        state.done = true;
+        if (state.currentValue >= lvl.goalMin) {
+          statusText.textContent = "Nice route. You solved it.";
+          if (state.level < levels.length - 1) {
+            nextBtn.style.display = "inline-block";
+          } else {
+            nextBtn.style.display = "none";
+            statusText.textContent = "All levels cleared. Reset to replay.";
+          }
+        } else {
+          statusText.textContent = "Close. Value too low, try a different route.";
+          nextBtn.style.display = "none";
+        }
+        markPath();
+      }
+
+      function canStepTo(id) {
+        const last = state.path[state.path.length - 1];
+        if (!last) return id === "S";
+        if (state.path.includes(id)) return false;
+        return neighbors(last).includes(id);
+      }
+
+      function clickNode(id) {
+        if (state.done) return;
+        if (!canStepTo(id)) {
+          statusText.textContent = "Pick a connected node.";
+          return;
+        }
+        state.path.push(id);
+        state.currentValue = pathValue(state.path);
+        updateHud();
+        markPath();
+        const node = nodeById(id);
+        if (node.type === "goal") {
+          finishAttempt();
+        } else {
+          statusText.textContent = "Keep routing to Goal.";
+        }
+      }
+
+      function buildBoard() {
+        drawLinks();
+        for (const el of nodeEls.values()) el.remove();
+        nodeEls.clear();
+        for (const n of levels[state.level].nodes) {
+          const el = document.createElement("button");
+          el.type = "button";
+          el.className = "node " + n.type;
+          el.textContent = n.label;
+          el.style.left = n.x + "%";
+          el.style.top = n.y + "%";
+          el.addEventListener("click", function () { clickNode(n.id); });
+          board.appendChild(el);
+          nodeEls.set(n.id, el);
+        }
+      }
+
+      function resetPath() {
+        const lvl = levels[state.level];
+        state.path = ["S"];
+        state.currentValue = lvl.startValue;
+        state.done = false;
+        nextBtn.style.display = "none";
+        statusText.textContent = "Choose a route from Start to Goal.";
+        updateHud();
+        markPath();
+      }
+
+      function loadLevel(index) {
+        state.level = index;
+        const lvl = levels[state.level];
+        levelChip.textContent = "Level " + (state.level + 1);
+        const start = lvl.nodes.find(n => n.id === "S");
+        start.label = String(lvl.startValue);
+        buildBoard();
+        resetPath();
+      }
+
+      resetBtn.addEventListener("click", resetPath);
+      nextBtn.addEventListener("click", function () {
+        if (state.level < levels.length - 1) {
+          loadLevel(state.level + 1);
+        }
+      });
+
+      loadLevel(0);
+    })();
+  </script>
+</body>
+</html>
