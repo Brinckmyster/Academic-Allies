@@ -114,42 +114,7 @@
       transform: translate(-50%, -50%);
       z-index: 3;
       pointer-events: none;
-      transition: left 1.2s ease, top 1.2s ease; /* Claude: 2026-04-27 — slowed more */
-    }
-    /* Claude: 2026-04-27 — gate encounter bubble */
-    .gate-encounter {
-      position: absolute;
-      transform: translate(-50%, -50%);
-      z-index: 7;
-      pointer-events: none;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      animation: encounterPop 1.6s ease both;
-    }
-    .gate-encounter .enc-emoji {
-      font-size: 28px;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
-    }
-    .gate-encounter .enc-label {
-      font-size: 11px;
-      font-weight: 800;
-      padding: 2px 8px;
-      border-radius: 8px;
-      white-space: nowrap;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-    .gate-encounter.boost .enc-label { background: rgba(34,197,94,0.85); color: #fff; }
-    .gate-encounter.setback .enc-label { background: rgba(239,68,68,0.8); color: #fff; }
-    .gate-encounter.multiply .enc-label { background: rgba(139,92,246,0.85); color: #fff; }
-    @keyframes encounterPop {
-      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-      15%  { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
-      30%  { transform: translate(-50%, -50%) scale(0.95); }
-      45%  { transform: translate(-50%, -50%) scale(1); }
-      80%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-      100% { opacity: 0; transform: translate(-50%, -60%) scale(0.8); }
+      transition: left 0.8s ease, top 0.8s ease; /* Claude: 2026-04-27 — slowed for human eye */
     }
     .value-float {
       position: absolute;
@@ -221,7 +186,7 @@
       text-align: center;
       pointer-events: none;
       z-index: 4;
-      transition: left 1.2s ease, top 1.2s ease, background 0.25s ease; /* Claude: 2026-04-27 — slowed more */
+      transition: left 0.8s ease, top 0.8s ease, background 0.25s ease; /* Claude: 2026-04-27 — slowed for human eye */
       box-shadow: 0 4px 10px rgba(0,0,0,0.25);
     }
     .links {
@@ -587,69 +552,16 @@
         resultOverlay.classList.remove("show");
       }
 
-      /* Claude: 2026-04-27 — gate encounter system: campus-themed interactions at each gate */
-      var boostEncounters = [
-        { emoji: "🍫", text: "Hot cocoa boost!" },
-        { emoji: "📖", text: "Scripture power!" },
-        { emoji: "👥", text: "Study group!" },
-        { emoji: "🙏", text: "Prayer helped!" },
-        { emoji: "💡", text: "Lightbulb moment!" },
-        { emoji: "🎯", text: "Nailed the quiz!" },
-        { emoji: "🍪", text: "Snack break!" },
-        { emoji: "⭐", text: "Gold star!" },
-        { emoji: "📝", text: "Great notes!" },
-        { emoji: "🤝", text: "Friend helped!" }
-      ];
-      var setbackEncounters = [
-        { emoji: "😴", text: "Overslept!" },
-        { emoji: "📱", text: "Got distracted!" },
-        { emoji: "🌧️", text: "Rain delay!" },
-        { emoji: "😰", text: "Pop quiz stress!" },
-        { emoji: "📚", text: "Wrong textbook!" },
-        { emoji: "🔑", text: "Forgot keys!" },
-        { emoji: "⏰", text: "Alarm failed!" },
-        { emoji: "🧊", text: "Icy sidewalk!" },
-        { emoji: "🚶", text: "Wrong building!" },
-        { emoji: "😵‍💫", text: "Brain fog!" }
-      ];
-      var multiplyEncounters = [
-        { emoji: "🧠", text: "Brain power!" },
-        { emoji: "⚡", text: "Energy surge!" },
-        { emoji: "🏃", text: "Power walk!" },
-        { emoji: "🌟", text: "Inspired!" },
-        { emoji: "💪", text: "Devotional boost!" }
-      ];
-
-      function pickEncounter(op) {
-        if (op[0] === "-") return setbackEncounters[Math.floor(Math.random() * setbackEncounters.length)];
-        if (op[0] === "x" || op[0] === "X") return multiplyEncounters[Math.floor(Math.random() * multiplyEncounters.length)];
-        return boostEncounters[Math.floor(Math.random() * boostEncounters.length)];
-      }
-
-      function showGateEncounter(nodeId, op) {
-        var n = nodeById(nodeId);
-        if (!n) return;
-        var encounterType = (op[0] === "-") ? "setback" : (op[0] === "x" || op[0] === "X") ? "multiply" : "boost";
-        var enc = pickEncounter(op);
-        var bubble = document.createElement("div");
-        bubble.className = "gate-encounter " + encounterType;
-        bubble.style.left = n.x + "%";
-        bubble.style.top = (n.y - 10) + "%";
-        bubble.innerHTML = '<div class="enc-emoji">' + enc.emoji + '</div><div class="enc-label">' + enc.text + '</div>';
-        boardZoom.appendChild(bubble);
-        setTimeout(function () { if (bubble.parentNode) bubble.remove(); }, 1700);
-      }
-
       function showGatePop(nodeId, text) {
-        var n = nodeById(nodeId);
+        const n = nodeById(nodeId);
         if (!n) return;
-        var pop = document.createElement("div");
+        const pop = document.createElement("div");
         pop.className = "value-float";
         pop.textContent = text;
         pop.style.left = n.x + "%";
         pop.style.top = (n.y - 6) + "%";
         boardZoom.appendChild(pop);
-        setTimeout(function () { pop.remove(); }, 1500);
+        setTimeout(function () { pop.remove(); }, 1500); /* Claude: 2026-04-27 — slowed */
       }
 
       function finishAttempt() {
@@ -681,49 +593,23 @@
         return neighbors(last).includes(id);
       }
 
-      /* Claude: 2026-04-27 — sequenced: walk → encounter → value update. Blocks clicks during animation. */
-      var isAnimating = false;
-
       function clickNode(id) {
-        if (state.done || isAnimating) return;
+        if (state.done) return;
         if (!canStepTo(id)) {
           statusText.textContent = "That node is not connected to your current spot. Pick a linked gate.";
           return;
         }
         state.path.push(id);
+        state.currentValue = pathValue(state.path);
         moveStudentTo(id);
+        const node = nodeById(id);
+        if (node.type === "gate") showGatePop(id, node.op);
+        updateHud();
         markPath();
-        var node = nodeById(id);
-
-        if (node.type === "gate") {
-          isAnimating = true;
-          statusText.textContent = "Student is walking...";
-          /* Step 1: wait for student to arrive (1.2s walk) */
-          setTimeout(function () {
-            /* Step 2: show the encounter bubble */
-            showGateEncounter(id, node.op);
-            statusText.textContent = pickEncounter(node.op).text;
-            /* Step 3: after encounter plays (0.9s), update value + show number pop */
-            setTimeout(function () {
-              state.currentValue = pathValue(state.path);
-              showGatePop(id, node.op);
-              updateHud();
-              statusText.textContent = "Gate applied. Student is still searching for class.";
-              isAnimating = false;
-            }, 900);
-          }, 1250);
-        } else if (node.type === "goal") {
-          isAnimating = true;
-          statusText.textContent = "Student is heading to class...";
-          setTimeout(function () {
-            state.currentValue = pathValue(state.path);
-            updateHud();
-            isAnimating = false;
-            finishAttempt();
-          }, 1300);
+        if (node.type === "goal") {
+          finishAttempt();
         } else {
-          state.currentValue = pathValue(state.path);
-          updateHud();
+          statusText.textContent = "Gate applied. Student is still searching for class.";
         }
       }
 
