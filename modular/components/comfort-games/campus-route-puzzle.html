@@ -627,11 +627,11 @@
         return boostEncounters[Math.floor(Math.random() * boostEncounters.length)];
       }
 
-      function showGateEncounter(nodeId, op) {
+      function showGateEncounter(nodeId, op, enc) {
         var n = nodeById(nodeId);
         if (!n) return;
         var encounterType = (op[0] === "-") ? "setback" : (op[0] === "x" || op[0] === "X") ? "multiply" : "boost";
-        var enc = pickEncounter(op);
+        if (!enc) enc = pickEncounter(op); /* fallback if not provided */
         var bubble = document.createElement("div");
         bubble.className = "gate-encounter " + encounterType;
         bubble.style.left = n.x + "%";
@@ -700,10 +700,11 @@
           isAnimating = true;
           statusText.textContent = "Student is walking...";
           /* Step 1: wait for student to arrive (1.2s walk) */
+          var enc = pickEncounter(node.op); /* Claude: 2026-04-27 — pick once so bubble and status match */
           setTimeout(function () {
             /* Step 2: show the encounter bubble */
-            showGateEncounter(id, node.op);
-            statusText.textContent = pickEncounter(node.op).text;
+            showGateEncounter(id, node.op, enc);
+            statusText.textContent = enc.text;
             /* Step 3: after encounter plays (0.9s), update value + show number pop */
             setTimeout(function () {
               state.currentValue = pathValue(state.path);
