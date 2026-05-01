@@ -1,0 +1,235 @@
+<!-- /* Claude: 2026-05-01 — Tower defense game */ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tower Defense</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#16213e;color:#eee;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;height:100dvh;overflow:hidden;user-select:none}
+html.aa-dark body{background:#0a0a14}
+#wrap{position:relative;flex:1;width:100%;display:flex;justify-content:center;align-items:center;min-height:0}
+canvas{max-width:100%;max-height:100%;display:block;cursor:crosshair}
+#hud{display:flex;gap:6px;align-items:center;padding:5px 8px;background:#0d1b2a;width:100%;flex-shrink:0;font-size:13px;flex-wrap:wrap}
+#hud span{background:#1a2a3a;padding:2px 8px;border-radius:5px;white-space:nowrap}
+#bar{display:flex;gap:5px;padding:5px 8px;background:#0d1b2a;width:100%;flex-shrink:0;flex-wrap:wrap}
+button{padding:7px 11px;border:2px solid #444;border-radius:7px;cursor:pointer;font-size:12px;font-weight:bold;background:#1e293b;color:#eee;touch-action:manipulation}
+.tb{min-width:72px;text-align:center;border-color:#555}
+.tb.sel{border-color:#fbbf24;background:#2a2000}
+.tb small{display:block;font-weight:normal;font-size:10px;color:#aaa}
+#bWave{background:#166534;border-color:#16a34a;color:#fff;font-size:13px}
+#bWave:disabled{opacity:.5;cursor:default}
+#bFull{margin-left:auto;font-size:15px}
+#msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.75)}
+#mBox{background:#1e293b;border:2px solid #4ade80;border-radius:12px;padding:22px 32px;text-align:center;font-size:17px}
+#mBox button{margin-top:14px;background:#166534;border-color:#16a34a;font-size:14px;padding:8px 22px}
+</style>
+</head>
+<body>
+<div id="hud">
+  <span>💰 <b id="hC">100</b></span>
+  <span>❤️ <b id="hL">10</b></span>
+  <span>🌊 Wave <b id="hW">0</b></span>
+  <span>⭐ <b id="hS">0</b></span>
+</div>
+<div id="wrap">
+  <canvas id="cv"></canvas>
+  <div id="msg"><div id="mBox"><div id="mTxt"></div><button onclick="init()">▶ Play Again</button></div></div>
+</div>
+<div id="bar">
+  <button class="tb sel" id="b0" onclick="pick(0)">🔵 Basic<br><small>$50 · med</small></button>
+  <button class="tb" id="b1" onclick="pick(1)">🔴 Sniper<br><small>$100 · far</small></button>
+  <button class="tb" id="b2" onclick="pick(2)">🟢 Rapid<br><small>$75 · fast</small></button>
+  <button id="bWave" onclick="startWave()">▶ Send Wave</button>
+  <button id="bFull" onclick="goFull()">⛶</button>
+</div>
+<script>
+var cv = document.getElementById('cv'), cx = cv.getContext('2d');
+cv.width = 480; cv.height = 360;
+var W = cv.width, H = cv.height, TAU = Math.PI * 2;
+
+var PATH = [[0,65],[115,65],[115,185],[365,185],[365,300],[W+20,300]];
+
+var TT = [
+  {cost:50,  range:80,  dmg:15, rate:55,  col:'#38bdf8', bc:'#e0f2fe'},
+  {cost:100, range:155, dmg:55, rate:110, col:'#f87171', bc:'#fde68a'},
+  {cost:75,  range:60,  dmg:7,  rate:18,  col:'#4ade80', bc:'#fda4af'}
+];
+
+var gold, lives, wave, score, busy, over;
+var towers, enemies, bullets, q, qt, mx, my, sel, raf;
+
+function init() {
+  gold=100; lives=10; wave=0; score=0; busy=false; over=false;
+  towers=[]; enemies=[]; bullets=[]; q=[]; qt=0; mx=240; my=180; sel=0;
+  document.getElementById('msg').style.display='none';
+  document.getElementById('bWave').disabled=false;
+  document.getElementById('hW').textContent=0;
+  for(var j=0;j<3;j++) document.getElementById('b'+j).className='tb'+(j===0?' sel':'');
+  cancelAnimationFrame(raf);
+  loop();
+}
+
+function pick(i) {
+  sel=i;
+  for(var j=0;j<3;j++) document.getElementById('b'+j).className='tb'+(j===i?' sel':'');
+}
+
+function startWave() {
+  if(busy) return;
+  wave++; busy=true;
+  document.getElementById('bWave').disabled=true;
+  document.getElementById('hW').textContent=wave;
+  var n=4+wave*3;
+  for(var i=0;i<n;i++) q.push({hp:20+wave*12, spd:0.5+wave*0.07, rew:8+wave*2});
+  qt=0;
+}
+
+function spawnE(d) {
+  enemies.push({x:PATH[0][0]-20, y:PATH[0][1], wp:1, hp:d.hp, mhp:d.hp, spd:d.spd, rew:d.rew});
+}
+
+function dst(ax,ay,bx,by) { return Math.sqrt((ax-bx)*(ax-bx)+(ay-by)*(ay-by)); }
+
+function onPath(x,y) {
+  for(var i=0;i<PATH.length-1;i++){
+    var ax=PATH[i][0],ay=PATH[i][1],bx=PATH[i+1][0],by=PATH[i+1][1];
+    var len=dst(ax,ay,bx,by); if(!len) continue;
+    var t=((x-ax)*(bx-ax)+(y-ay)*(by-ay))/(len*len);
+    t=t<0?0:t>1?1:t;
+    if(dst(x,y,ax+t*(bx-ax),ay+t*(by-ay))<24) return true;
+  }
+  return false;
+}
+
+cv.addEventListener('click', function(e) {
+  if(over) return;
+  var r=cv.getBoundingClientRect(), sx=W/r.width, sy=H/r.height;
+  var x=(e.clientX-r.left)*sx, y=(e.clientY-r.top)*sy;
+  var td=TT[sel];
+  if(onPath(x,y)||gold<td.cost) return;
+  for(var i=0;i<towers.length;i++) if(dst(x,y,towers[i].x,towers[i].y)<26) return;
+  gold-=td.cost;
+  towers.push({x:x, y:y, t:sel, cd:0});
+});
+
+cv.addEventListener('mousemove', function(e) {
+  var r=cv.getBoundingClientRect();
+  mx=(e.clientX-r.left)*W/r.width;
+  my=(e.clientY-r.top)*H/r.height;
+});
+
+cv.addEventListener('touchmove', function(e) {
+  var r=cv.getBoundingClientRect(), t=e.touches[0];
+  mx=(t.clientX-r.left)*W/r.width;
+  my=(t.clientY-r.top)*H/r.height;
+},{passive:true});
+
+function loop() {
+  raf=requestAnimationFrame(loop);
+  if(over) return;
+
+  qt++;
+  if(q.length && qt>=40){ qt=0; spawnE(q.shift()); }
+
+  for(var i=enemies.length-1;i>=0;i--){
+    var e=enemies[i];
+    if(e.hp<=0){ gold+=e.rew; score+=e.rew; enemies.splice(i,1); continue; }
+    var wp=PATH[e.wp], dx=wp[0]-e.x, dy=wp[1]-e.y, d=Math.sqrt(dx*dx+dy*dy);
+    if(d < e.spd+1){
+      e.wp++;
+      if(e.wp>=PATH.length){ enemies.splice(i,1); lives--; if(lives<=0){ over=true; gameOver(); } continue; }
+    } else { e.x+=dx/d*e.spd; e.y+=dy/d*e.spd; }
+  }
+
+  for(var t=0;t<towers.length;t++){
+    var tw=towers[t], td=TT[tw.t];
+    if(tw.cd>0){ tw.cd--; continue; }
+    var tgt=null, best=td.range+1;
+    for(var j=0;j<enemies.length;j++){
+      if(enemies[j].hp<=0) continue;
+      var d2=dst(tw.x,tw.y,enemies[j].x,enemies[j].y);
+      if(d2<best){ best=d2; tgt=enemies[j]; }
+    }
+    if(tgt){ bullets.push({x:tw.x,y:tw.y,tx:tgt,dmg:td.dmg,col:td.bc,spd:5.5}); tw.cd=td.rate; }
+  }
+
+  for(var b=bullets.length-1;b>=0;b--){
+    var bl=bullets[b];
+    if(!bl.tx||bl.tx.hp<=0){ bullets.splice(b,1); continue; }
+    var dx2=bl.tx.x-bl.x, dy2=bl.tx.y-bl.y, bd=Math.sqrt(dx2*dx2+dy2*dy2);
+    if(bd < bl.spd+2){ bl.tx.hp-=bl.dmg; bullets.splice(b,1); }
+    else { bl.x+=dx2/bd*bl.spd; bl.y+=dy2/bd*bl.spd; }
+  }
+
+  if(busy && !q.length && !enemies.length){ busy=false; gold+=25; document.getElementById('bWave').disabled=false; }
+
+  document.getElementById('hC').textContent=gold;
+  document.getElementById('hL').textContent=lives;
+  document.getElementById('hS').textContent=score;
+
+  draw();
+}
+
+function draw() {
+  cx.fillStyle='#0f172a'; cx.fillRect(0,0,W,H);
+
+  cx.lineCap='round'; cx.lineJoin='round';
+  cx.strokeStyle='#334155'; cx.lineWidth=30;
+  cx.beginPath(); cx.moveTo(PATH[0][0],PATH[0][1]);
+  for(var i=1;i<PATH.length;i++) cx.lineTo(PATH[i][0],PATH[i][1]);
+  cx.stroke();
+  cx.strokeStyle='#475569'; cx.lineWidth=26;
+  cx.beginPath(); cx.moveTo(PATH[0][0],PATH[0][1]);
+  for(var i=1;i<PATH.length;i++) cx.lineTo(PATH[i][0],PATH[i][1]);
+  cx.stroke();
+
+  var ptd=TT[sel], canPlace=gold>=ptd.cost && !onPath(mx,my);
+  cx.beginPath(); cx.arc(mx,my,ptd.range,0,TAU);
+  cx.strokeStyle=canPlace?'rgba(255,255,255,.1)':'rgba(255,80,80,.15)';
+  cx.lineWidth=1.5; cx.stroke();
+  cx.beginPath(); cx.arc(mx,my,12,0,TAU);
+  cx.fillStyle=(canPlace?ptd.col:'#ef4444')+'99'; cx.fill();
+
+  for(var t=0;t<towers.length;t++){
+    var tw=towers[t], ttd=TT[tw.t];
+    cx.beginPath(); cx.arc(tw.x,tw.y,13,0,TAU);
+    cx.fillStyle=ttd.col; cx.fill();
+    cx.strokeStyle='rgba(255,255,255,.4)'; cx.lineWidth=1.5; cx.stroke();
+    cx.beginPath(); cx.arc(tw.x,tw.y,4,0,TAU);
+    cx.fillStyle='rgba(0,0,0,.4)'; cx.fill();
+  }
+
+  for(var e=0;e<enemies.length;e++){
+    var en=enemies[e]; if(en.hp<=0) continue;
+    cx.beginPath(); cx.arc(en.x,en.y,9,0,TAU);
+    cx.fillStyle='#dc2626'; cx.fill();
+    cx.strokeStyle='#fca5a5'; cx.lineWidth=1.5; cx.stroke();
+    cx.fillStyle='#1e293b'; cx.fillRect(en.x-10,en.y-17,20,4);
+    cx.fillStyle=en.hp/en.mhp>.5?'#22c55e':'#f59e0b';
+    cx.fillRect(en.x-10,en.y-17,Math.max(0,20*en.hp/en.mhp),4);
+  }
+
+  for(var b=0;b<bullets.length;b++){
+    var bl=bullets[b];
+    cx.beginPath(); cx.arc(bl.x,bl.y,3,0,TAU);
+    cx.fillStyle=bl.col; cx.fill();
+  }
+}
+
+function gameOver() {
+  document.getElementById('mTxt').textContent='💀 Game Over — Wave '+wave+' | Score: '+score;
+  document.getElementById('msg').style.display='flex';
+}
+
+function goFull() {
+  var el=document.getElementById('wrap');
+  if(el.requestFullscreen) el.requestFullscreen();
+  else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+}
+
+init();
+</script>
+</body>
+</html>
