@@ -1,0 +1,850 @@
+<!-- Claude: 2026-04-30 — Tower defense game for recovery mode -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tower Defense — Academic Allies</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0d14;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+    html.aa-dark body { background: #060810; }
+
+    /* Header */
+    .td-header {
+      width: 100%;
+      max-width: 420px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .td-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #27ae60;
+      text-decoration: none;
+      font-size: 13pt;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: rgba(39,174,96,0.12);
+      min-height: 48px;
+      white-space: nowrap;
+    }
+    .td-back:hover { background: rgba(39,174,96,0.22); }
+    .td-title { flex: 1; text-align: center; }
+    .td-title h1 { font-size: 15pt; color: #fff; }
+    .td-title p { font-size: 9pt; color: #777; margin-top: 1px; }
+
+    /* HUD */
+    .td-hud {
+      width: 100%;
+      max-width: 420px;
+      padding: 4px 16px 6px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 13pt;
+      font-weight: 700;
+    }
+    .hud-wave { color: #8ab4f8; }
+    .hud-lives { color: #e74c3c; }
+    .hud-coins { color: #f39c12; }
+
+    /* Canvas */
+    .td-canvas-wrap {
+      width: 100%;
+      max-width: 420px;
+      padding: 0 8px;
+      margin-bottom: 8px;
+    }
+    #td-canvas {
+      width: 100%;
+      display: block;
+      border-radius: 10px;
+      border: 3px solid #27ae60;
+      box-shadow: 0 0 16px rgba(39,174,96,0.3);
+      background: #0d1117;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    /* Tower picker */
+    .td-picker {
+      width: 100%;
+      max-width: 420px;
+      padding: 0 8px;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .td-tower-btn {
+      flex: 1;
+      padding: 8px 4px;
+      min-height: 54px;
+      font-size: 11pt;
+      font-weight: 700;
+      border: 3px solid #333;
+      border-radius: 10px;
+      cursor: pointer;
+      background: #141824;
+      color: #ccc;
+      line-height: 1.35;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .td-tower-btn.selected { background: #1e2640; border-color: #fff; }
+    .td-tower-btn.too-costly { opacity: 0.42; }
+    .td-tower-btn .tname { display: block; }
+    .td-tower-btn .tinfo { display: block; font-size: 9pt; font-weight: 400; }
+    .td-tower-btn.t-basic  .tname { color: #4a90d9; }
+    .td-tower-btn.t-rapid  .tname { color: #f39c12; }
+    .td-tower-btn.t-heavy  .tname { color: #e74c3c; }
+
+    /* Action row */
+    .td-actions {
+      width: 100%;
+      max-width: 420px;
+      padding: 0 8px;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .td-btn {
+      flex: 1;
+      padding: 12px 8px;
+      min-height: 50px;
+      font-size: 13pt;
+      font-weight: 700;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .td-btn-wave { background: #27ae60; }
+    .td-btn-wave:hover { background: #2ecc71; }
+    .td-btn-wave:disabled { background: #444; cursor: default; opacity: 0.65; }
+    .td-btn-fs { flex: 0 0 54px; background: #6c3483; font-size: 18pt; }
+    .td-btn-fs:hover { background: #8e44ad; }
+
+    /* Status message */
+    .td-msg {
+      width: 100%;
+      max-width: 420px;
+      padding: 0 16px 14px;
+      text-align: center;
+      font-size: 10.5pt;
+      color: #888;
+      min-height: 22px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="shared-header-root"></div>
+
+<div class="td-header">
+  <a href="/Academic-Allies/modular/components/comfort-games/game-center.html" class="td-back">← Games</a>
+  <div class="td-title">
+    <h1>🏰 Tower Defense</h1>
+    <p>Tap canvas to place towers</p>
+  </div>
+</div>
+
+<div class="td-hud">
+  <div class="hud-wave">Wave <span id="hud-wave">0/10</span></div>
+  <div class="hud-lives">❤️ <span id="hud-lives">10</span></div>
+  <div class="hud-coins">🪙 <span id="hud-coins">120</span></div>
+</div>
+
+<div class="td-canvas-wrap">
+  <canvas id="td-canvas"></canvas>
+</div>
+
+<div class="td-picker">
+  <button class="td-tower-btn t-basic selected" id="btn-basic" data-type="basic">
+    <span class="tname">🔵 Basic</span>
+    <span class="tinfo">50🪙 · balanced</span>
+  </button>
+  <button class="td-tower-btn t-rapid" id="btn-rapid" data-type="rapid">
+    <span class="tname">⚡ Rapid</span>
+    <span class="tinfo">75🪙 · fast/weak</span>
+  </button>
+  <button class="td-tower-btn t-heavy" id="btn-heavy" data-type="heavy">
+    <span class="tname">💥 Heavy</span>
+    <span class="tinfo">150🪙 · slow/pow</span>
+  </button>
+</div>
+
+<div class="td-actions">
+  <button class="td-btn td-btn-wave" id="btn-wave">▶ Start Wave 1</button>
+  <button class="td-btn td-btn-fs" id="btn-fs" title="Fullscreen">⛶</button>
+</div>
+
+<div class="td-msg" id="td-msg">Place towers on the canvas, then tap Start Wave!</div>
+
+<script>
+/* Claude: 2026-04-30 — Tower defense ES5 game */
+(function () {
+  'use strict';
+
+  /* ── Constants ─────────────────────────────────────── */
+  var CW = 360;          /* canvas logical width */
+  var CH = 580;          /* canvas logical height */
+  var MAX_WAVES = 10;
+  var START_COINS = 120;
+  var START_LIVES = 10;
+  var TOWER_R = 12;      /* tower circle radius */
+  var ENEMY_R = 10;      /* enemy circle radius */
+  var BULLET_R = 4;      /* bullet radius */
+  var PATH_HALF = 14;    /* half the visual path width */
+  var PLACE_EXCL = PATH_HALF + TOWER_R + 2; /* exclusion dist from path center */
+
+  /* Tower definitions */
+  var T_DEFS = {
+    basic: { cost: 50,  dmg: 12, range: 88,  cd: 55,  color: '#4a90d9', border: '#2c6fad', letter: 'B' },
+    rapid: { cost: 75,  dmg: 5,  range: 72,  cd: 18,  color: '#f39c12', border: '#b07d0e', letter: 'R' },
+    heavy: { cost: 150, dmg: 42, range: 100, cd: 110, color: '#e74c3c', border: '#a83226', letter: 'H' }
+  };
+
+  /* Normalized path waypoints — snake pattern from top to bottom */
+  var PATH_N = [
+    [0.12, 0.08],
+    [0.88, 0.08],
+    [0.88, 0.24],
+    [0.12, 0.24],
+    [0.12, 0.40],
+    [0.88, 0.40],
+    [0.88, 0.56],
+    [0.12, 0.56],
+    [0.12, 0.72],
+    [0.88, 0.72],
+    [0.88, 0.88],
+    [0.50, 0.88],
+    [0.50, 0.97]
+  ];
+
+  /* ── State ─────────────────────────────────────────── */
+  var canvas, ctx;
+  var pathPx = [];
+  var state;      /* 'idle' | 'wave' | 'gameover' | 'win' */
+  var coins, lives, wave, score;
+  var towers, enemies, bullets, particles;
+  var selType;
+  var eid = 0, tid = 0, bid = 0;
+  var spawnQ, spawnTimer, spawnInterv;
+  var lastTs = 0;
+
+  /* ── Boot ──────────────────────────────────────────── */
+  function boot() {
+    canvas = document.getElementById('td-canvas');
+    ctx = canvas.getContext('2d');
+    canvas.width = CW;
+    canvas.height = CH;
+    computePath();
+    bindEvents();
+    resetGame();
+    requestAnimationFrame(loop);
+  }
+
+  function resetGame() {
+    coins = START_COINS;
+    lives = START_LIVES;
+    wave  = 0;
+    score = 0;
+    towers    = [];
+    enemies   = [];
+    bullets   = [];
+    particles = [];
+    selType   = 'basic';
+    state     = 'idle';
+    spawnQ    = [];
+    spawnTimer = 0;
+    spawnInterv = 0;
+    refreshHUD();
+    refreshPicker();
+    setMsg('Place towers on the canvas, then tap Start Wave!');
+    setWaveBtn(true, 'Start Wave 1');
+  }
+
+  function computePath() {
+    pathPx = [];
+    for (var i = 0; i < PATH_N.length; i++) {
+      pathPx.push({ x: PATH_N[i][0] * CW, y: PATH_N[i][1] * CH });
+    }
+  }
+
+  /* ── HUD helpers ───────────────────────────────────── */
+  function refreshHUD() {
+    document.getElementById('hud-wave').textContent  = wave + '/' + MAX_WAVES;
+    document.getElementById('hud-lives').textContent = lives;
+    document.getElementById('hud-coins').textContent = coins;
+  }
+
+  function refreshPicker() {
+    var types = ['basic', 'rapid', 'heavy'];
+    for (var i = 0; i < types.length; i++) {
+      var t = types[i];
+      var btn = document.getElementById('btn-' + t);
+      btn.classList.toggle('selected',   t === selType);
+      btn.classList.toggle('too-costly', T_DEFS[t].cost > coins);
+    }
+  }
+
+  function setMsg(m) { document.getElementById('td-msg').textContent = m; }
+
+  function setWaveBtn(en, label) {
+    var b = document.getElementById('btn-wave');
+    b.disabled = !en;
+    b.textContent = label;
+  }
+
+  /* ── Events ────────────────────────────────────────── */
+  function bindEvents() {
+    /* Tower type buttons */
+    var types = ['basic', 'rapid', 'heavy'];
+    for (var i = 0; i < types.length; i++) {
+      (function (t) {
+        document.getElementById('btn-' + t).addEventListener('click', function () {
+          selType = t;
+          refreshPicker();
+        });
+      })(types[i]);
+    }
+
+    /* Wave button */
+    document.getElementById('btn-wave').addEventListener('click', function () {
+      if (state === 'idle') { startWave(); }
+    });
+
+    /* Fullscreen */
+    document.getElementById('btn-fs').addEventListener('click', function () {
+      if (document.fullscreenElement) {
+        document.exitFullscreen && document.exitFullscreen();
+      } else {
+        canvas.requestFullscreen && canvas.requestFullscreen();
+      }
+    });
+
+    /* Canvas click — place tower or restart */
+    canvas.addEventListener('click', function (e) {
+      if (state === 'gameover' || state === 'win') { resetGame(); return; }
+      placeTower(getPos(e));
+    });
+
+    /* Canvas touch — place tower or restart */
+    canvas.addEventListener('touchend', function (e) {
+      e.preventDefault();
+      if (!e.changedTouches || !e.changedTouches.length) { return; }
+      if (state === 'gameover' || state === 'win') { resetGame(); return; }
+      placeTower(getPos(e.changedTouches[0]));
+    });
+  }
+
+  function getPos(e) {
+    var r = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) * (CW / r.width),
+      y: (e.clientY - r.top)  * (CH / r.height)
+    };
+  }
+
+  /* ── Tower placement ───────────────────────────────── */
+  function placeTower(pos) {
+    var x = pos.x, y = pos.y;
+    /* bounds check */
+    if (x < TOWER_R + 2 || x > CW - TOWER_R - 2 || y < TOWER_R + 2 || y > CH - TOWER_R - 2) { return; }
+
+    /* path check */
+    if (onPath(x, y)) {
+      setMsg('Cannot place on the path!');
+      return;
+    }
+
+    /* overlap check */
+    for (var i = 0; i < towers.length; i++) {
+      var dx = towers[i].x - x, dy = towers[i].y - y;
+      if (Math.sqrt(dx * dx + dy * dy) < TOWER_R * 2.4) {
+        setMsg('Too close to another tower!');
+        return;
+      }
+    }
+
+    var def = T_DEFS[selType];
+    if (coins < def.cost) {
+      setMsg('Need ' + def.cost + ' coins — only have ' + coins + '!');
+      return;
+    }
+
+    coins -= def.cost;
+    towers.push({ id: ++tid, x: x, y: y, type: selType, cd: 0 });
+    refreshHUD();
+    refreshPicker();
+    setMsg(selType.charAt(0).toUpperCase() + selType.slice(1) + ' tower placed! (' + coins + ' coins left)');
+  }
+
+  function onPath(x, y) {
+    for (var i = 0; i < pathPx.length - 1; i++) {
+      if (segDist(x, y, pathPx[i].x, pathPx[i].y, pathPx[i + 1].x, pathPx[i + 1].y) < PLACE_EXCL) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function segDist(px, py, ax, ay, bx, by) {
+    var ddx = bx - ax, ddy = by - ay;
+    var lsq = ddx * ddx + ddy * ddy;
+    if (lsq === 0) { return Math.sqrt((px - ax) * (px - ax) + (py - ay) * (py - ay)); }
+    var t = ((px - ax) * ddx + (py - ay) * ddy) / lsq;
+    t = t < 0 ? 0 : (t > 1 ? 1 : t);
+    var nx = ax + t * ddx, ny = ay + t * ddy;
+    return Math.sqrt((px - nx) * (px - nx) + (py - ny) * (py - ny));
+  }
+
+  /* ── Wave management ───────────────────────────────── */
+  function waveCfg(n) {
+    return {
+      count:    8  + n * 3,
+      hp:       18 + n * 14,
+      speed:    0.75 + n * 0.10,
+      reward:   7  + n * 2,
+      interval: Math.max(26, 56 - n * 2)
+    };
+  }
+
+  function startWave() {
+    wave++;
+    state = 'wave';
+    var cfg = waveCfg(wave);
+    spawnQ = [];
+    for (var i = 0; i < cfg.count; i++) {
+      spawnQ.push({ hp: cfg.hp, speed: cfg.speed, reward: cfg.reward });
+    }
+    spawnTimer  = 0;
+    spawnInterv = cfg.interval;
+    refreshHUD();
+    setMsg('Wave ' + wave + ' incoming!');
+    setWaveBtn(false, 'Wave ' + wave + ' in progress...');
+  }
+
+  function spawnEnemy(data) {
+    enemies.push({
+      id: ++eid,
+      segIdx: 0, segProg: 0,
+      hp: data.hp, maxHp: data.hp,
+      speed: data.speed,
+      reward: data.reward,
+      alive: true,
+      x: pathPx[0].x, y: pathPx[0].y
+    });
+  }
+
+  /* ── Main loop ─────────────────────────────────────── */
+  function loop(ts) {
+    var dt = lastTs ? Math.min((ts - lastTs) / 16.667, 3) : 1;
+    lastTs = ts;
+
+    if (state === 'wave') {
+      tickSpawns(dt);
+      tickEnemies(dt);
+      tickTowers(dt);
+      tickBullets(dt);
+      checkWaveEnd();
+    }
+    tickParticles(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  /* ── Ticks ─────────────────────────────────────────── */
+  function tickSpawns(dt) {
+    if (!spawnQ.length) { return; }
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnEnemy(spawnQ.shift());
+      spawnTimer = spawnInterv;
+    }
+  }
+
+  function tickEnemies(dt) {
+    for (var i = enemies.length - 1; i >= 0; i--) {
+      var e = enemies[i];
+      if (!e.alive) { enemies.splice(i, 1); continue; }
+
+      var moved = e.speed * dt;
+      while (moved > 0 && e.segIdx < pathPx.length - 1) {
+        var a = pathPx[e.segIdx], b = pathPx[e.segIdx + 1];
+        var sdx = b.x - a.x, sdy = b.y - a.y;
+        var slen = Math.sqrt(sdx * sdx + sdy * sdy);
+        var rem = slen - e.segProg;
+        if (moved >= rem) {
+          moved -= rem;
+          e.segIdx++;
+          e.segProg = 0;
+        } else {
+          e.segProg += moved;
+          moved = 0;
+        }
+      }
+
+      if (e.segIdx >= pathPx.length - 1) {
+        /* reached end — lose a life */
+        e.alive = false;
+        lives--;
+        if (lives <= 0) {
+          lives = 0;
+          state = 'gameover';
+          setWaveBtn(false, 'Game Over');
+          setMsg('Game over! Tap the canvas to restart.');
+        }
+        refreshHUD();
+      } else {
+        var p1 = pathPx[e.segIdx], p2 = pathPx[e.segIdx + 1];
+        var ex = p2.x - p1.x, ey = p2.y - p1.y;
+        var el = Math.sqrt(ex * ex + ey * ey);
+        var tf = el > 0 ? e.segProg / el : 0;
+        e.x = p1.x + ex * tf;
+        e.y = p1.y + ey * tf;
+      }
+    }
+  }
+
+  function tickTowers(dt) {
+    for (var i = 0; i < towers.length; i++) {
+      var t = towers[i];
+      var def = T_DEFS[t.type];
+      if (t.cd > 0) { t.cd -= dt; continue; }
+
+      /* find nearest alive enemy in range */
+      var best = null, bestD = Infinity;
+      for (var j = 0; j < enemies.length; j++) {
+        var e = enemies[j];
+        if (!e.alive) { continue; }
+        var dx = e.x - t.x, dy = e.y - t.y;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d <= def.range && d < bestD) { bestD = d; best = e; }
+      }
+      if (best) {
+        fireBullet(t, best);
+        t.cd = def.cd;
+      }
+    }
+  }
+
+  function fireBullet(tower, enemy) {
+    var def = T_DEFS[tower.type];
+    var dx = enemy.x - tower.x, dy = enemy.y - tower.y;
+    var d = Math.sqrt(dx * dx + dy * dy);
+    if (d === 0) { return; }
+    var spd = 6;
+    bullets.push({
+      id: ++bid,
+      x: tower.x, y: tower.y,
+      targetId: enemy.id,
+      speed: spd,
+      dmg: def.dmg,
+      color: def.color,
+      alive: true
+    });
+  }
+
+  function tickBullets(dt) {
+    for (var i = bullets.length - 1; i >= 0; i--) {
+      var b = bullets[i];
+      if (!b.alive) { bullets.splice(i, 1); continue; }
+
+      /* find live target */
+      var target = null;
+      for (var j = 0; j < enemies.length; j++) {
+        if (enemies[j].id === b.targetId && enemies[j].alive) { target = enemies[j]; break; }
+      }
+      if (!target) { bullets.splice(i, 1); continue; }
+
+      /* home toward target */
+      var dx = target.x - b.x, dy = target.y - b.y;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      var step = b.speed * dt;
+
+      if (d <= step + BULLET_R + ENEMY_R) {
+        /* hit */
+        target.hp -= b.dmg;
+        hitParticles(target.x, target.y, b.color);
+        if (target.hp <= 0) {
+          target.alive = false;
+          coins += target.reward;
+          score += target.reward;
+          deathParticles(target.x, target.y);
+          refreshHUD();
+          refreshPicker();
+        }
+        bullets.splice(i, 1);
+      } else {
+        b.x += (dx / d) * step;
+        b.y += (dy / d) * step;
+      }
+    }
+  }
+
+  function tickParticles(dt) {
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var p = particles[i];
+      p.life -= dt;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 0.08 * dt;
+    }
+  }
+
+  function checkWaveEnd() {
+    if (state !== 'wave') { return; }
+    if (spawnQ.length) { return; }
+    for (var i = 0; i < enemies.length; i++) {
+      if (enemies[i].alive) { return; }
+    }
+    /* wave cleared */
+    if (wave >= MAX_WAVES) {
+      state = 'win';
+      setWaveBtn(false, 'You Win! 🎉');
+      setMsg('All ' + MAX_WAVES + ' waves cleared! Score: ' + score + '. Tap to restart.');
+    } else {
+      state = 'idle';
+      var bonus = 20 + wave * 5;
+      coins += bonus;
+      refreshHUD();
+      refreshPicker();
+      setMsg('Wave ' + wave + ' done! +' + bonus + ' bonus coins. Score: ' + score);
+      setWaveBtn(true, 'Start Wave ' + (wave + 1));
+    }
+  }
+
+  /* ── Particles ─────────────────────────────────────── */
+  function hitParticles(x, y, color) {
+    for (var i = 0; i < 3; i++) {
+      var a = Math.random() * Math.PI * 2;
+      var s = 1 + Math.random() * 2;
+      particles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        color: color, life: 10 + Math.random() * 8, maxLife: 18, size: 2 + Math.random() * 1.5 });
+    }
+  }
+
+  function deathParticles(x, y) {
+    for (var i = 0; i < 8; i++) {
+      var a = (Math.PI * 2 / 8) * i;
+      var s = 2 + Math.random() * 3;
+      particles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        color: '#f1c40f', life: 18 + Math.random() * 14, maxLife: 32, size: 3 + Math.random() * 2.5 });
+    }
+  }
+
+  /* ── Drawing ───────────────────────────────────────── */
+  function draw() {
+    ctx.clearRect(0, 0, CW, CH);
+    drawBg();
+    drawPath();
+    drawTowers();
+    drawEnemies();
+    drawBullets();
+    drawParticles();
+    if (state === 'gameover') { drawOverlay('GAME OVER', '#e74c3c', 'Score: ' + score + '   Tap to restart'); }
+    if (state === 'win')      { drawOverlay('YOU WIN! 🎉', '#27ae60', 'Score: ' + score + '   Tap to restart'); }
+  }
+
+  function drawBg() {
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, CW, CH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    var x, y;
+    for (x = 0; x < CW; x += 30) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CH); ctx.stroke();
+    }
+    for (y = 0; y < CH; y += 30) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CW, y); ctx.stroke();
+    }
+  }
+
+  function drawPath() {
+    if (pathPx.length < 2) { return; }
+    ctx.lineCap  = 'round';
+    ctx.lineJoin = 'round';
+
+    /* glow */
+    ctx.strokeStyle = 'rgba(200,160,80,0.22)';
+    ctx.lineWidth   = PATH_HALF * 2 + 10;
+    ctx.beginPath(); ctx.moveTo(pathPx[0].x, pathPx[0].y);
+    for (var i = 1; i < pathPx.length; i++) { ctx.lineTo(pathPx[i].x, pathPx[i].y); }
+    ctx.stroke();
+
+    /* road fill */
+    ctx.strokeStyle = '#2b1f13';
+    ctx.lineWidth   = PATH_HALF * 2;
+    ctx.beginPath(); ctx.moveTo(pathPx[0].x, pathPx[0].y);
+    for (var j = 1; j < pathPx.length; j++) { ctx.lineTo(pathPx[j].x, pathPx[j].y); }
+    ctx.stroke();
+
+    /* center dashes */
+    ctx.strokeStyle = 'rgba(255,200,100,0.22)';
+    ctx.lineWidth   = 2;
+    ctx.setLineDash([10, 14]);
+    ctx.beginPath(); ctx.moveTo(pathPx[0].x, pathPx[0].y);
+    for (var k = 1; k < pathPx.length; k++) { ctx.lineTo(pathPx[k].x, pathPx[k].y); }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    /* start marker */
+    ctx.fillStyle = '#27ae60';
+    ctx.beginPath(); ctx.arc(pathPx[0].x, pathPx[0].y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 7px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('IN', pathPx[0].x, pathPx[0].y);
+
+    /* end marker */
+    var last = pathPx[pathPx.length - 1];
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath(); ctx.arc(last.x, last.y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText('OUT', last.x, last.y);
+  }
+
+  function drawTowers() {
+    for (var i = 0; i < towers.length; i++) {
+      var t   = towers[i];
+      var def = T_DEFS[t.type];
+
+      /* range ring */
+      ctx.globalAlpha = 0.10;
+      ctx.fillStyle = def.color;
+      ctx.beginPath(); ctx.arc(t.x, t.y, def.range, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+
+      /* body */
+      ctx.fillStyle   = def.color;
+      ctx.strokeStyle = def.border;
+      ctx.lineWidth   = 2.5;
+      ctx.beginPath(); ctx.arc(t.x, t.y, TOWER_R, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+
+      /* label */
+      ctx.fillStyle    = '#fff';
+      ctx.font         = 'bold 10px sans-serif';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(def.letter, t.x, t.y);
+    }
+  }
+
+  function drawEnemies() {
+    for (var i = 0; i < enemies.length; i++) {
+      var e = enemies[i];
+      if (!e.alive) { continue; }
+
+      var hp = e.hp / e.maxHp;
+      ctx.fillStyle   = hp > 0.55 ? '#c0392b' : (hp > 0.28 ? '#d35400' : '#922b21');
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath(); ctx.arc(e.x, e.y, ENEMY_R, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+
+      /* simple face */
+      ctx.fillStyle    = '#fff';
+      ctx.font         = 'bold 9px sans-serif';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('X', e.x, e.y);
+
+      /* hp bar */
+      var bw = ENEMY_R * 2.4, bh = 3;
+      var bx = e.x - bw / 2, by = e.y - ENEMY_R - 5;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = hp > 0.5 ? '#2ecc71' : (hp > 0.25 ? '#f39c12' : '#e74c3c');
+      ctx.fillRect(bx, by, bw * hp, bh);
+    }
+  }
+
+  function drawBullets() {
+    for (var i = 0; i < bullets.length; i++) {
+      var b = bullets[i];
+      if (!b.alive) { continue; }
+      ctx.fillStyle = b.color;
+      ctx.beginPath(); ctx.arc(b.x, b.y, BULLET_R, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function drawParticles() {
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      ctx.globalAlpha = p.life / p.maxLife;
+      ctx.fillStyle   = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawOverlay(title, color, sub) {
+    ctx.fillStyle = 'rgba(0,0,0,0.74)';
+    ctx.fillRect(0, 0, CW, CH);
+    ctx.fillStyle    = color;
+    ctx.font         = 'bold 30px sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, CW / 2, CH / 2 - 22);
+    ctx.fillStyle = '#ddd';
+    ctx.font      = '14px sans-serif';
+    ctx.fillText(sub, CW / 2, CH / 2 + 18);
+  }
+
+  /* ── Start ─────────────────────────────────────────── */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+})();
+</script>
+
+<script>
+  /* Dark mode early detection */
+  try {
+    if (localStorage.getItem('AA_DARK_MODE') === 'true') {
+      document.documentElement.classList.add('aa-dark');
+    }
+  } catch (e) {}
+
+  /* Shared header fetch */
+  if (document.getElementById('shared-header-root')) {
+    fetch('/Academic-Allies/modular/shared-header.html?v=20260430')
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var container = document.getElementById('shared-header-root');
+        container.innerHTML = html;
+        var scripts = container.querySelectorAll('script');
+        for (var i = 0; i < scripts.length; i++) {
+          var old = scripts[i];
+          var nw  = document.createElement('script');
+          for (var j = 0; j < old.attributes.length; j++) {
+            nw.setAttribute(old.attributes[j].name, old.attributes[j].value);
+          }
+          nw.textContent = old.textContent;
+          old.parentNode.replaceChild(nw, old);
+        }
+      })
+      .catch(function (err) { console.warn('[TowerDefense] header load:', err); });
+  }
+</script>
+
+</body>
+</html>
