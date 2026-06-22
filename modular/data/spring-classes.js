@@ -1,4 +1,5 @@
-const SPRING_CLASSES = [
+/* Claude: 2026-06-22 — changed const → var for ES5 compliance */
+var SPRING_CLASSES = [
   {
     name: "Class Placeholder 1",
     code: "SPRING1",

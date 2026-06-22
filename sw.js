@@ -16,7 +16,7 @@
    bugs: the SW serving old shared-header.html after a fix was deployed.
    Static assets (icons, pages) are still cached for offline/speed. */
 /* Claude: 2026-03-22 — housekeeping: synced all cache-bust versions to 20260322 */
-var CACHE   = 'aa-shell-20260427f'; /* Claude: 2026-04-27 — fix encounter text matching bubble */
+var CACHE   = 'aa-shell-20260622a'; /* Claude: 2026-06-22 — added campus-clash, campus-route-puzzle, tower-defense to NEVER_CACHE + SHELL */
 var SCOPE   = '/Academic-Allies/';
 
 /* Files that must ALWAYS come from network — never serve stale versions.
@@ -61,6 +61,9 @@ var NEVER_CACHE = [
   '/Academic-Allies/modular/components/templates/network-invite.html',        /* Claude: 2026-04-26 — template page, must be fresh */
   '/Academic-Allies/modular/components/comfort-games/battle-mode.html', /* Claude: 2026-04-20 — class roster changes, must be fresh */
   '/Academic-Allies/modular/components/comfort-games/farm-mode.html', /* Claude: 2026-04-20 — village builder rebuild, must be fresh */
+  '/Academic-Allies/modular/components/comfort-games/campus-clash.html',       /* Claude: 2026-06-22 — new game, must be fresh */
+  '/Academic-Allies/modular/components/comfort-games/campus-route-puzzle.html', /* Claude: 2026-06-22 — new game, must be fresh */
+  '/Academic-Allies/modular/components/comfort-games/tower-defense.html',       /* Claude: 2026-06-22 — new game, must be fresh */
   '/Academic-Allies/modular/components/brain-check/simon-says.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/reaction-time.html', /* Claude: 2026-04-01 — brain check game */
   '/Academic-Allies/modular/components/brain-check/pattern-spotter.html', /* Claude: 2026-04-01 — brain check game */
@@ -138,6 +141,10 @@ var SHELL = [
   '/Academic-Allies/modular/components/brain-check/reaction-time.html',
   '/Academic-Allies/modular/components/brain-check/pattern-spotter.html',
   '/Academic-Allies/modular/components/brain-check/reading-check.html',
+  /* Claude: 2026-06-22 — new comfort games added to SHELL for offline fallback */
+  '/Academic-Allies/modular/components/comfort-games/campus-clash.html',
+  '/Academic-Allies/modular/components/comfort-games/campus-route-puzzle.html',
+  '/Academic-Allies/modular/components/comfort-games/tower-defense.html',
 
   /* Claude: 2026-03-16 — offline fallback page */
   '/Academic-Allies/offline.html'

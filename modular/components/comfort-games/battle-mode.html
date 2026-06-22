@@ -819,7 +819,7 @@
 
   <div id="site-header"></div>
   <script>
-    fetch("/Academic-Allies/modular/shared-header.html")
+    fetch("/Academic-Allies/modular/shared-header.html?v=20260402") /* Claude: 2026-06-22 — added cache-bust version string */
       .then(function(r){ return r.text(); })
       .then(function(html){
         var c = document.getElementById("site-header");
@@ -1175,6 +1175,8 @@
 
     function saveMissedToFirestore(uid, items) {
       if (!uid) return;
+      /* Claude: 2026-06-22 — mirror-write guard: supporters in mirror mode must not overwrite student data */
+      if (window.AA_MIRROR_UID && !window.AA_MIRROR_CAN_WRITE) return;
       firebase.firestore().doc("battleProgress/" + uid).set({
         missedItems: items,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
