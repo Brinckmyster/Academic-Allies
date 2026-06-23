@@ -247,7 +247,9 @@ var ROOM2 = {
   windows: [
     { wall:'right', pos:61,    size:42, sill:21.5  },   // right wall — 61" from top wall, sill 21.5"
     { wall:'top',   pos:53.5,  size:42, sill:29.25 }    // top wall — 48" from right wall, sill 29.25"
-  ]
+  ],
+  /* Claude: 2026-06-23 — baseboard heater on right wall, starts 20" from top wall, runs to bottom */
+  baseboard: { wall:'right', fromTop:20, clearance:12 }
 };
 // ═══════════════════════════════════════════════════════
 // FURNITURE  — height used only for window-blocking check
@@ -414,6 +416,9 @@ function getRoom2Collisions(id, x, y) {
   if(y<0)          msgs.push('Past top wall');
   if(x+w>ROOM2.w)  msgs.push('Past right wall');
   if(y+h>ROOM2.h)  msgs.push('Past bottom wall');
+  // Baseboard heater — right wall, starts 20" from top, runs to bottom
+  if(ROOM2.baseboard && x+w>ROOM2.w-ROOM2.baseboard.clearance && y+h>ROOM2.baseboard.fromTop)
+    msgs.push('Baseboard heat — keep 12" from right wall');
   // Entry door arc — hinge at bottom-left (0,156), sweeps right+up
   var door=ROOM2.doors[0];
   var hx=0, hy=ROOM2.h;
@@ -594,6 +599,26 @@ function drawRoom2Features(){
   ctx.fillStyle='#555';
   ctx.textAlign='center';
   ctx.fillText('Closet 65"',r2px(cl.pos+cl.size/2),H+14);
+  // Baseboard heater zone (right wall, from 20" down to bottom)
+  if(ROOM2.baseboard){
+    var bb=ROOM2.baseboard;
+    var bbTop=r2py(bb.fromTop), bbH=H-bbTop, bbW=r2px(bb.clearance);
+    ctx.save();
+    ctx.fillStyle='rgba(224,112,48,0.35)';
+    // Draw repeating diagonal stripe pattern
+    for(var si=0;si<bbH+bbW;si+=8){
+      ctx.beginPath();
+      ctx.moveTo(W-bbW,bbTop+si);
+      ctx.lineTo(W,bbTop+si-bbW);
+      ctx.strokeStyle='rgba(224,112,48,0.5)';
+      ctx.lineWidth=3;
+      ctx.stroke();
+    }
+    ctx.strokeStyle='#e07030';
+    ctx.lineWidth=1;
+    ctx.strokeRect(W-bbW,bbTop,bbW,bbH);
+    ctx.restore();
+  }
   // Windows
   for(var wi=0;wi<ROOM2.windows.length;wi++){
     var win=ROOM2.windows[wi];
