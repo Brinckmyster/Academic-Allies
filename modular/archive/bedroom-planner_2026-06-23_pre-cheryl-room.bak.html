@@ -136,14 +136,6 @@
     </div></div>
     <div class="panel" role="region" aria-label="Master bedroom furniture list"><div class="ph">→ Master Bedroom</div><div class="pb"><div class="flist" id="masterList" role="list"></div></div></div>
     <div class="panel" role="region" aria-label="Small room furniture list"><div class="ph">→ Small Room (leaving master)</div><div class="pb"><div class="flist" id="smallList" role="list"></div></div></div>
-    <!-- Claude: 2026-06-23 — Cheryl's room controls + furniture list -->
-    <div class="panel" role="region" aria-label="Cheryl's room selected piece"><div class="ph">Cheryl's Room — Selected</div><div class="pb"><div id="selInfo2" aria-live="polite"><span style="color:var(--muted);font-size:.62rem;">Click a piece to select</span></div></div></div>
-    <div class="panel" role="region" aria-label="Cheryl's room controls"><div class="ph">Cheryl's Room — Controls</div><div class="pb">
-      <button class="btn" id="btnRot2" disabled aria-label="Rotate selected piece in Cheryl's room">↩ Rotate selected</button>
-      <button class="btn" id="btnRem2" disabled aria-label="Return piece to list">✕ Return to list</button>
-      <button class="btn" id="btnReset2" aria-label="Reset Cheryl's room">↺ Reset room</button>
-    </div></div>
-    <div class="panel" role="region" aria-label="Cheryl's room furniture"><div class="ph">→ Cheryl's Room</div><div class="pb"><div class="flist" id="cherylList" role="list"></div></div></div>
   </div>
   <div class="cwrap">
     <div class="clabel">Master Bedroom — 189.5" wide × 152.5" deep — drag pieces from sidebar</div>
@@ -155,15 +147,7 @@
     </div>
     <!-- Claude: 2026-03-11 — Walk-in closet drop zone -->
     <!-- Claude: 2026-03-17 — closet resized to 8'×5' minus 5" for walls, rotated 90° -->
-    <!-- Claude: 2026-06-23 — Cheryl's room (second bedroom) canvas. Placed after closet. -->
     <!-- Claude: 2026-03-18 — clothing zone on LEFT side of closet -->
-    <!-- Claude: 2026-06-23 — Cheryl's room canvas -->
-    <div class="clabel" style="margin-top:32px;">Cheryl's Room — 143.5" wide × 156" deep — drag pieces from sidebar</div>
-    <div class="router" id="room2Router">
-      <div class="room" id="room2">
-        <canvas id="r2fc" style="position:absolute;top:0;left:0;z-index:3;pointer-events:none;overflow:visible;"></canvas>
-      </div>
-    </div>
     <div class="clabel" style="margin-top:24px;">Walk-in Closet — 55" × 91" (8' × 5' minus walls, rotated) — drag pieces here too</div>
     <div class="router" id="closetRouter">
       <div class="room" id="closetRoom">
@@ -233,22 +217,6 @@ var CLOSET = { w: 55, h: 91,
   door: { wall:'bottom', pos:25, size:30, hinge:'end' },  // hinge at right side (x:55,y:91), swings left
   clothingZone: 12  // standard rod depth from LEFT wall — floor usable for short items
 };
-/* Claude: 2026-06-23 — Cheryl's Room (second bedroom).
-   Width: 143.5" (36" door + 26.5" wall + 65" closet + 16" wall).
-   Depth: 156". Door bottom-left, closet on bottom wall, windows on right + top walls.
-   Window positions approximated — adjust once exact measurements are available. */
-var ROOM2 = {
-  w: 143.5,
-  h: 156,
-  doors: [
-    { id:'cheryl-entry', label:'Entry 36"', wall:'bottom', pos:0, size:36, hinge:'start' }
-  ],
-  closet: { wall:'bottom', pos:62.5, size:65 },  // 36" door + 26.5" wall = starts at 62.5"
-  windows: [
-    { wall:'right', pos:57,    size:42 },   // right wall — position approximate
-    { wall:'top',   pos:50.75, size:42 }    // top wall — position approximate
-  ]
-};
 // ═══════════════════════════════════════════════════════
 // FURNITURE  — height used only for window-blocking check
 // w = depth into room, l = run along wall
@@ -272,18 +240,9 @@ var DEFS_SMALL = [
 ];
 var ALL = [].concat(DEFS_MASTER, DEFS_SMALL);
 var def = function(id) { return ALL.find(function(d) { return d.id===id; }); };
-/* Claude: 2026-06-23 — Cheryl's room furniture list */
-var DEFS_CHERYL = [
-  {id:'c_bed',    name:"Cheryl's Bed",  w:40, l:76, height:28, color:'mo'},
-  {id:'c_sewing', name:'Sewing Table',  w:18, l:33, height:29, color:'mo'},
-];
-var def2 = function(id) { return DEFS_CHERYL.find(function(d) { return d.id===id; }); };
-// State — master/closet rooms
+// State
 var placed={}, sel=null, dragging=null, sdrag=null, doff={x:0,y:0}, dragRoom='master';
-// State — Cheryl's room (independent)
-/* Claude: 2026-06-23 — room2 state is fully separate from master/closet state */
-var placed2={}, sel2=null, dragging2=null, sdrag2=null, doff2={x:0,y:0};
-var RPX={w:0,h:0}, CRPX={w:0,h:0}, R2PX={w:0,h:0};
+var RPX={w:0,h:0}, CRPX={w:0,h:0};
 var px  = function(i) { return i/ROOM.w*RPX.w; };
 var py  = function(i) { return i/ROOM.h*RPX.h; };
 var inX = function(p) { return p/RPX.w*ROOM.w; };
@@ -294,13 +253,6 @@ var cinX = function(p) { return p/CRPX.w*CLOSET.w; };
 var cinY = function(p) { return p/CRPX.h*CLOSET.h; };
 var cw  = function(id) { var d=def(id),p=placed[id]; return p&&p.rotated?d.l:d.w; };
 var ch  = function(id) { var d=def(id),p=placed[id]; return p&&p.rotated?d.w:d.l; };
-/* Claude: 2026-06-23 — room2 pixel converters */
-var r2px  = function(i){return i/ROOM2.w*R2PX.w;};
-var r2py  = function(i){return i/ROOM2.h*R2PX.h;};
-var r2inX = function(p){return p/R2PX.w*ROOM2.w;};
-var r2inY = function(p){return p/R2PX.h*ROOM2.h;};
-var r2cw  = function(id){var d=def2(id),p=placed2[id];return p&&p.rotated?d.l:d.w;};
-var r2ch  = function(id){var d=def2(id),p=placed2[id];return p&&p.rotated?d.w:d.l;};
 // ── Collision detection ──────────────────────────────────────────
 // Rules:
 //   1. Don't go out of bounds
@@ -407,41 +359,6 @@ function getClosetCollisions(id, x, y) {
     if(oid===id||op.room!=='closet') continue;
     if(x<op.x+cw(oid)&&x+w>op.x&&y<op.y+ch(oid)&&y+h>op.y)
       msgs.push('Overlaps ' + def(oid).name);
-  }
-  return msgs;
-}
-// ── Cheryl's room collision detection ── Claude: 2026-06-23 ──────
-function getRoom2Collisions(id, x, y) {
-  var msgs=[], w=r2cw(id), h=r2ch(id), d=def2(id);
-  if(x<0)          msgs.push('Past left wall');
-  if(y<0)          msgs.push('Past top wall');
-  if(x+w>ROOM2.w)  msgs.push('Past right wall');
-  if(y+h>ROOM2.h)  msgs.push('Past bottom wall');
-  // Entry door arc — hinge at bottom-left (0,156), sweeps right+up
-  var door=ROOM2.doors[0];
-  var hx=0, hy=ROOM2.h;
-  var nx=Math.max(x,Math.min(hx,x+w));
-  var ny=Math.max(y,Math.min(hy,y+h));
-  if(Math.hypot(nx-hx,ny-hy)<door.size && nx>=hx && ny<=hy)
-    msgs.push('In entry door swing arc');
-  // Closet opening on bottom wall — don't block it
-  var cl=ROOM2.closet;
-  if(y+h>ROOM2.h-2 && x<cl.pos+cl.size && x+w>cl.pos)
-    msgs.push('Blocks closet opening');
-  // Windows — flag tall furniture (>36" sill)
-  for(var wi=0;wi<ROOM2.windows.length;wi++){
-    var win=ROOM2.windows[wi];
-    if(win.wall==='right' && x+w>ROOM2.w-10 && y+h>win.pos && y<win.pos+win.size && d.height>36)
-      msgs.push('Blocks right window');
-    if(win.wall==='top' && y<10 && x<win.pos+win.size && x+w>win.pos && d.height>36)
-      msgs.push('Blocks top window');
-  }
-  // Overlap
-  for(var oidKey in placed2){
-    if(!placed2.hasOwnProperty(oidKey)||oidKey===id) continue;
-    var op=placed2[oidKey];
-    if(x<op.x+r2cw(oidKey)&&x+w>op.x&&y<op.y+r2ch(oidKey)&&y+h>op.y)
-      msgs.push('Overlaps '+def2(oidKey).name);
   }
   return msgs;
 }
@@ -557,64 +474,6 @@ function drawBaseboard(){
   el.style.background='repeating-linear-gradient(45deg,#e07030,#e07030 5px,rgba(224,112,48,.3) 5px,rgba(224,112,48,.3) 10px)';
   el.style.opacity='0.65';
 }
-// ── Draw Cheryl's room features ── Claude: 2026-06-23 ───────────
-function drawRoom2Features(){
-  var canvas=document.getElementById('r2fc');
-  if(!canvas) return;
-  var W=R2PX.w, H=R2PX.h;
-  canvas.width=W; canvas.height=H;
-  canvas.style.width=W+'px'; canvas.style.height=H+'px';
-  var ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,W,H);
-  // Entry door arc — hinge at bottom-left (0,H), sweeps right+up
-  var door=ROOM2.doors[0];
-  var rp=(r2px(door.size)+r2py(door.size))/2;
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(0,H);
-  ctx.arc(0,H,rp,-Math.PI/2,0,false);
-  ctx.closePath();
-  ctx.fillStyle='rgba(196,154,60,0.13)';
-  ctx.fill();
-  ctx.setLineDash([4,3]);
-  ctx.strokeStyle='rgba(196,154,60,0.6)';
-  ctx.lineWidth=1.2;
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
-  // Door bar on bottom wall
-  ctx.fillStyle='#c49a3c';
-  ctx.fillRect(0,H-5,r2px(door.size),5);
-  ctx.font='9px DM Mono,monospace';
-  ctx.fillStyle='#8a6a10';
-  ctx.textAlign='center';
-  ctx.fillText(door.label,r2px(door.size/2),H+18);
-  // Closet opening on bottom wall
-  var cl=ROOM2.closet;
-  ctx.fillStyle='#888';
-  ctx.fillRect(r2px(cl.pos),H-5,r2px(cl.size),5);
-  ctx.font='8px DM Mono,monospace';
-  ctx.fillStyle='#555';
-  ctx.textAlign='center';
-  ctx.fillText('Closet 65"',r2px(cl.pos+cl.size/2),H+14);
-  // Windows
-  for(var wi=0;wi<ROOM2.windows.length;wi++){
-    var win=ROOM2.windows[wi];
-    ctx.fillStyle='#4a87b8';
-    if(win.wall==='right') ctx.fillRect(W-5,r2py(win.pos),5,r2py(win.size));
-    if(win.wall==='top')   ctx.fillRect(r2px(win.pos),0,r2px(win.size),5);
-  }
-  // Wall labels
-  ctx.font='9px DM Mono,monospace';
-  ctx.fillStyle='#7a6e5f';
-  ctx.textAlign='center';
-  ctx.fillText("Top wall — 143.5\"",W/2,-20);
-  ctx.fillText("Bottom wall — 143.5\"",W/2,H+30);
-  ctx.save(); ctx.translate(-52,H/2); ctx.rotate(-Math.PI/2);
-  ctx.fillText('Left wall — 156"',0,0); ctx.restore();
-  ctx.save(); ctx.translate(W+52,H/2); ctx.rotate(Math.PI/2);
-  ctx.fillText('Right wall — 156"',0,0); ctx.restore();
-}
 // ── Render furniture ─────────────────────
 function render(){
   document.querySelectorAll('.furn').forEach(function(e){e.remove();});
@@ -686,58 +545,6 @@ function updateBtns(){
   var ok=sel&&(sel in placed);
   document.getElementById('btnRot').disabled=!ok;
   document.getElementById('btnRem').disabled=!ok;
-}
-// ── Cheryl's room render + sidebar ── Claude: 2026-06-23 ─────────
-function render2(){
-  document.querySelectorAll('.furn2').forEach(function(e){e.remove();});
-  for(var idKey in placed2){
-    if(!placed2.hasOwnProperty(idKey)) continue;
-    var id=idKey, pos=placed2[id], d=def2(id); if(!d) continue;
-    var w=r2cw(id),h=r2ch(id);
-    var cols=getRoom2Collisions(id,pos.x,pos.y);
-    var el=document.createElement('div');
-    el.className=['furn2','furn',d.color,sel2===id?'sel':'',cols.length?'bad':'',dragging2===id?'drag':''].filter(function(x){return x;}).join(' ');
-    el.dataset.id=id;
-    el.style.cssText='left:'+r2px(pos.x)+'px;top:'+r2py(pos.y)+'px;width:'+r2px(w)+'px;height:'+r2py(h)+'px;';
-    el.innerHTML='<div class="fi"><span class="fn">'+d.name+'</span><span class="fd">'+w+'"×'+h+'"</span></div>';
-    el.addEventListener('mousedown',onFurn2Down);
-    el.addEventListener('touchstart',onFurn2Touch,{passive:false});
-    document.getElementById('room2').appendChild(el);
-  }
-  updateSidebar2(); updateInfo2(); updateBtns2();
-}
-function updateSidebar2(){
-  var list=document.getElementById('cherylList'); if(!list) return;
-  list.innerHTML='';
-  for(var di=0;di<DEFS_CHERYL.length;di++){
-    var d=DEFS_CHERYL[di];
-    var inRoom=d.id in placed2;
-    var c=document.createElement('div');
-    c.className=['chip',d.color,inRoom?'placed':'',sel2===d.id?'sc':''].filter(function(x){return x;}).join(' ');
-    c.dataset.id=d.id;
-    c.innerHTML='<span class="cn">'+d.name+'</span><span class="cd">'+d.w+'"×'+d.l+'" · '+d.height+'" tall</span>';
-    if(!inRoom){
-      c.addEventListener('mousedown',function(e){if(e.button!==0)return;sdrag2=e.currentTarget.dataset.id;e.preventDefault();});
-      c.addEventListener('touchstart',function(e){e.preventDefault();sdrag2=e.currentTarget.dataset.id;},{passive:false});
-    }
-    list.appendChild(c);
-  }
-}
-function updateInfo2(){
-  var box=document.getElementById('selInfo2'); if(!box) return;
-  if(!sel2||!(sel2 in placed2)){
-    box.innerHTML='<span style="color:var(--muted);font-size:.62rem;">Click a piece to select</span>';
-    return;
-  }
-  var d=def2(sel2),pos=placed2[sel2],w=r2cw(sel2),h=r2ch(sel2);
-  var cols=getRoom2Collisions(sel2,pos.x,pos.y);
-  var colsHtml=cols.length?cols.map(function(c){return '<div class="err">⚠ '+c+'</div>';}).join(''):'<div class="ok">✓ No conflicts</div>';
-  box.innerHTML='<strong>'+d.name+'</strong><br>Size: '+w+'"×'+h+'"'+(pos.rotated?' (rotated)':'')+' <br>Height: '+d.height+'" · Pos: ('+pos.x.toFixed(0)+'", '+pos.y.toFixed(0)+'")<br>'+colsHtml;
-}
-function updateBtns2(){
-  var ok=sel2&&(sel2 in placed2);
-  document.getElementById('btnRot2').disabled=!ok;
-  document.getElementById('btnRem2').disabled=!ok;
 }
 // ── Drop from sidebar ────────────────────
 function dropAt(id,rpx,rpy,targetRoom){
@@ -838,89 +645,6 @@ croom.addEventListener('mousedown',function(e){if(e.target===croom){sel=null;ren
 /* Claude: 2026-03-17 — touch deselect on empty room tap */
 room.addEventListener('touchstart',function(e){if(e.target===room){sel=null;render();}},{passive:true});
 croom.addEventListener('touchstart',function(e){if(e.target===croom){sel=null;render();}},{passive:true});
-/* Claude: 2026-06-23 — Cheryl's room drag/drop event listeners */
-var room2el=document.getElementById('room2');
-function dropAt2(id,rpx,rpy){
-  if(!id) return;
-  var d=def2(id); if(!d) return;
-  var rot=placed2[id]&&placed2[id].rotated;
-  var w=rot?d.l:d.w, h=rot?d.w:d.l;
-  var ix=r2inX(rpx)-w/2, iy=r2inY(rpy)-h/2;
-  ix=Math.max(0,Math.min(ROOM2.w-w,ix));
-  iy=Math.max(0,Math.min(ROOM2.h-h,iy));
-  placed2[id]={x:ix,y:iy,rotated:rot};
-  sel2=id; sdrag2=null; render2();
-}
-function onFurn2Down(e){
-  if(e.button!==0)return; e.preventDefault(); e.stopPropagation();
-  sel2=e.currentTarget.dataset.id; dragging2=sel2;
-  var r=e.currentTarget.getBoundingClientRect();
-  doff2={x:e.clientX-r.left,y:e.clientY-r.top};
-  render2();
-}
-function onFurn2Touch(e){
-  e.preventDefault();
-  var t=e.touches[0]; sel2=e.currentTarget.dataset.id; dragging2=sel2;
-  var r=e.currentTarget.getBoundingClientRect();
-  doff2={x:t.clientX-r.left,y:t.clientY-r.top};
-  render2();
-}
-room2el.addEventListener('dragover',function(e){e.preventDefault();});
-room2el.addEventListener('drop',function(e){
-  e.preventDefault();
-  var r=room2el.getBoundingClientRect();
-  dropAt2(sdrag2,e.clientX-r.left,e.clientY-r.top);
-});
-room2el.addEventListener('mousedown',function(e){if(e.target===room2el){sel2=null;render2();}});
-room2el.addEventListener('touchstart',function(e){if(e.target===room2el){sel2=null;render2();}},{passive:true});
-document.addEventListener('mousemove',function(e){
-  if(!dragging2)return;
-  var r=room2el.getBoundingClientRect();
-  var w=r2cw(dragging2),h=r2ch(dragging2);
-  placed2[dragging2].x=Math.max(0,Math.min(ROOM2.w-w,r2inX(e.clientX-r.left-doff2.x)));
-  placed2[dragging2].y=Math.max(0,Math.min(ROOM2.h-h,r2inY(e.clientY-r.top-doff2.y)));
-  render2();
-});
-document.addEventListener('mouseup',function(e){
-  if(sdrag2){
-    var r=room2el.getBoundingClientRect();
-    if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom)
-      dropAt2(sdrag2,e.clientX-r.left,e.clientY-r.top);
-    sdrag2=null;
-  }
-  if(dragging2){dragging2=null;render2();}
-});
-document.addEventListener('touchmove',function(e){
-  if(!dragging2)return;
-  var t=e.touches[0];
-  var r=room2el.getBoundingClientRect();
-  var w=r2cw(dragging2),h=r2ch(dragging2);
-  placed2[dragging2].x=Math.max(0,Math.min(ROOM2.w-w,r2inX(t.clientX-r.left-doff2.x)));
-  placed2[dragging2].y=Math.max(0,Math.min(ROOM2.h-h,r2inY(t.clientY-r.top-doff2.y)));
-  render2();
-},{passive:false});
-document.addEventListener('touchend',function(e){
-  if(sdrag2){
-    var t=e.changedTouches[0];
-    var r=room2el.getBoundingClientRect();
-    if(t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom)
-      dropAt2(sdrag2,t.clientX-r.left,t.clientY-r.top);
-    sdrag2=null;
-  }
-  if(dragging2){dragging2=null;render2();}
-});
-document.getElementById('btnRot2').addEventListener('click',function(){
-  if(!sel2||!(sel2 in placed2))return;
-  var p=placed2[sel2]; p.rotated=!p.rotated;
-  p.x=Math.max(0,Math.min(ROOM2.w-r2cw(sel2),p.x));
-  p.y=Math.max(0,Math.min(ROOM2.h-r2ch(sel2),p.y));
-  render2();
-});
-document.getElementById('btnRem2').addEventListener('click',function(){
-  if(!sel2||!(sel2 in placed2))return;
-  delete placed2[sel2]; sel2=null; render2();
-});
-document.getElementById('btnReset2').addEventListener('click',function(){placed2={};sel2=null;render2();});
 function onFurnTouch(e){
   e.preventDefault();
   var t=e.touches[0],id=e.currentTarget.dataset.id;
@@ -1126,17 +850,6 @@ function layoutRoom(){
     cctx.fillText('Door 30"',cpx(cd.pos+cd.size/2),CH+14);
   }
   drawFeatures(); drawBaseboard(); render();
-  // ── Cheryl's room sizing ── Claude: 2026-06-23 ──
-  var R2W=Math.round(ROOM2.w*scale);
-  var R2H=Math.round(ROOM2.h*scale);
-  var r2=document.getElementById('room2');
-  if(r2){
-    r2.style.width=R2W+'px'; r2.style.height=R2H+'px';
-    R2PX={w:R2W,h:R2H};
-    r2.style.setProperty('--gx',r2px(12)+'px');
-    r2.style.setProperty('--gy',r2py(12)+'px');
-    drawRoom2Features(); render2();
-  }
 }
 window.addEventListener('resize',layoutRoom);
 window.addEventListener('load',function(){layoutRoom();setTimeout(layoutRoom,350);});
