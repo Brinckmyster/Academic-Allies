@@ -57,26 +57,6 @@ var TT = [
   {cost:75,  range:60,  dmg:7,  rate:18,  col:'#4ade80', bc:'#fda4af'}
 ];
 
-/* Claude: 2026-05-01 — Visual upgrade step 1: terrain and scenery */
-var TREES=[
-  {x:18,y:28,s:16},{x:52,y:22,s:14},{x:88,y:32,s:15},
-  {x:198,y:22,s:18},{x:295,y:26,s:15},{x:415,y:22,s:17},{x:452,y:25,s:14},
-  {x:58,y:130,s:16},{x:28,y:168,s:15},{x:55,y:240,s:17},{x:22,y:282,s:14},
-  {x:425,y:78,s:16},{x:455,y:128,s:15},{x:438,y:160,s:14},
-  {x:195,y:338,s:16},{x:98,y:330,s:15},{x:268,y:340,s:14}
-];
-var ROCKS=[
-  {x:35,y:50,r:6},{x:168,y:48,r:5},{x:248,y:46,r:7},
-  {x:78,y:210,r:5},{x:198,y:210,r:6},
-  {x:308,y:225,r:5},{x:428,y:265,r:6}
-];
-var BUSHES=[
-  {x:142,y:148,r:8},{x:172,y:132,r:7},{x:78,y:92,r:7},
-  {x:338,y:138,r:8},{x:298,y:158,r:7},
-  {x:78,y:338,r:8},{x:418,y:338,r:7}
-];
-var GP=[[55,75],[145,35],[275,45],[370,75],[85,255],[215,305],[325,275],[440,195]];
-
 var gold, lives, wave, score, busy, over;
 var towers, enemies, bullets, q, qt, mx, my, sel, raf;
 
@@ -193,79 +173,18 @@ function loop() {
 }
 
 function draw() {
-  /* Claude: 2026-05-01 — Visual upgrade step 1: terrain and scenery */
+  cx.fillStyle='#0f172a'; cx.fillRect(0,0,W,H);
 
-  // Green grass background with gradient
-  var grd=cx.createLinearGradient(0,0,0,H);
-  grd.addColorStop(0,'#2f6320'); grd.addColorStop(1,'#254f18');
-  cx.fillStyle=grd; cx.fillRect(0,0,W,H);
-
-  // Sky gradient strip (portrait mode only)
-  if(H>W){
-    var sky=cx.createLinearGradient(0,0,0,H*0.22);
-    sky.addColorStop(0,'#5a9fd4'); sky.addColorStop(1,'rgba(95,160,212,0)');
-    cx.fillStyle=sky; cx.fillRect(0,0,W,H*0.22);
-  }
-
-  // Subtle darker grass patches for color variation
-  cx.globalAlpha=0.18; cx.fillStyle='#1e4f14';
-  for(var gi=0;gi<GP.length;gi++){
-    cx.beginPath(); cx.arc(GP[gi][0],GP[gi][1],22,0,TAU); cx.fill();
-  }
-  cx.globalAlpha=1;
-
-  // Rocks (dark circle + lighter highlight circle)
-  for(var ri=0;ri<ROCKS.length;ri++){
-    var rk=ROCKS[ri];
-    cx.fillStyle='#7a7060'; cx.beginPath(); cx.arc(rk.x,rk.y,rk.r,0,TAU); cx.fill();
-    cx.fillStyle='#9a8f7f'; cx.beginPath(); cx.arc(rk.x-1,rk.y-1,Math.max(1,rk.r*0.55),0,TAU); cx.fill();
-  }
-
-  // Bushes (dark green base + lighter top highlight)
-  for(var bui=0;bui<BUSHES.length;bui++){
-    var bsh=BUSHES[bui];
-    cx.fillStyle='#1e5c1a'; cx.beginPath(); cx.arc(bsh.x,bsh.y,bsh.r,0,TAU); cx.fill();
-    cx.fillStyle='#2a7a25'; cx.beginPath(); cx.arc(bsh.x-1,bsh.y-2,bsh.r*0.6,0,TAU); cx.fill();
-  }
-
-  // Trees: trunk rectangle + two stacked pine triangles
-  for(var ti=0;ti<TREES.length;ti++){
-    var tr=TREES[ti], tx=tr.x, ty=tr.y, ts=tr.s;
-    cx.fillStyle='#5c3a1e'; cx.fillRect(tx-2,ty+ts*0.5,5,ts*0.65);
-    cx.fillStyle='#1a6b15';
-    cx.beginPath(); cx.moveTo(tx,ty-ts*0.3); cx.lineTo(tx-ts*0.72,ty+ts*0.55); cx.lineTo(tx+ts*0.72,ty+ts*0.55); cx.closePath(); cx.fill();
-    cx.fillStyle='#228b1a';
-    cx.beginPath(); cx.moveTo(tx,ty-ts); cx.lineTo(tx-ts*0.5,ty+ts*0.15); cx.lineTo(tx+ts*0.5,ty+ts*0.15); cx.closePath(); cx.fill();
-  }
-
-  // Dirt/brown winding path (shadow edge → main dirt → lighter centre)
   cx.lineCap='round'; cx.lineJoin='round';
-  cx.strokeStyle='#4a2808'; cx.lineWidth=34;
+  cx.strokeStyle='#334155'; cx.lineWidth=30;
   cx.beginPath(); cx.moveTo(PATH[0][0],PATH[0][1]);
   for(var i=1;i<PATH.length;i++) cx.lineTo(PATH[i][0],PATH[i][1]);
   cx.stroke();
-  cx.strokeStyle='#7a4e1e'; cx.lineWidth=30;
-  cx.beginPath(); cx.moveTo(PATH[0][0],PATH[0][1]);
-  for(var i=1;i<PATH.length;i++) cx.lineTo(PATH[i][0],PATH[i][1]);
-  cx.stroke();
-  cx.strokeStyle='#9a6830'; cx.lineWidth=18;
+  cx.strokeStyle='#475569'; cx.lineWidth=26;
   cx.beginPath(); cx.moveTo(PATH[0][0],PATH[0][1]);
   for(var i=1;i<PATH.length;i++) cx.lineTo(PATH[i][0],PATH[i][1]);
   cx.stroke();
 
-  // Castle/base at path exit (right edge)
-  var bx=455, by=270;
-  cx.fillStyle='#786858'; cx.fillRect(bx-16,by,32,30);
-  cx.fillStyle='#8a7868';
-  cx.fillRect(bx-15,by-8,8,10); cx.fillRect(bx-3,by-8,8,10); cx.fillRect(bx+8,by-8,8,10);
-  cx.fillStyle='#1a0f08'; cx.fillRect(bx-5,by+16,10,14);
-  cx.beginPath(); cx.arc(bx,by+16,5,Math.PI,0,true); cx.fill();
-  cx.strokeStyle='#9a9080'; cx.lineWidth=1.5;
-  cx.beginPath(); cx.moveTo(bx,by-8); cx.lineTo(bx,by-20); cx.stroke();
-  cx.fillStyle='#bb2222';
-  cx.beginPath(); cx.moveTo(bx,by-20); cx.lineTo(bx+9,by-15); cx.lineTo(bx,by-10); cx.closePath(); cx.fill();
-
-  // Tower placement preview
   var ptd=TT[sel], canPlace=gold>=ptd.cost && !onPath(mx,my);
   cx.beginPath(); cx.arc(mx,my,ptd.range,0,TAU);
   cx.strokeStyle=canPlace?'rgba(255,255,255,.1)':'rgba(255,80,80,.15)';
