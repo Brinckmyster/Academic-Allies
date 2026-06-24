@@ -1,4 +1,5 @@
 /* Claude: 2026-06-23 — Campus RPG rebuild from campus-route-puzzle */
+/* Claude: 2026-06-23 — Fix d-pad overlapping loot; auto-collect crates on proximity */
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,10 +47,9 @@ canvas { display: block; width: 100%; cursor: pointer; }
   </div>
   <button id="invBtn">🎒 Inv</button>
   <div id="inv"><h3>Inventory</h3><ul id="invList"><li>Empty</li></ul></div>
-  <div id="msgBox" id="msgBox"></div>
+  <div id="msgBox"></div>
 </div>
 <script>
-// /* Claude: 2026-06-23 — Campus RPG rebuild from campus-route-puzzle */
 var canvas = document.getElementById('gc');
 var ctx = canvas.getContext('2d');
 var W = 700, H = 420;
@@ -67,8 +67,8 @@ var invOpen = false;
 var msgTimer = 0;
 
 var AREAS = [
-  { name: 'Campus Quad',    unlockLv: 1, bgTop: '#87CEEB', bgBot: '#6abf7b', px: 340, py: 210 },
-  { name: 'Library',        unlockLv: 3, bgTop: '#b0c4de', bgBot: '#5a9070', px: 340, py: 210 },
+  { name: 'Campus Quad',      unlockLv: 1, bgTop: '#87CEEB', bgBot: '#6abf7b', px: 340, py: 210 },
+  { name: 'Library',          unlockLv: 3, bgTop: '#b0c4de', bgBot: '#5a9070', px: 340, py: 210 },
   { name: 'Science Building', unlockLv: 5, bgTop: '#9eb8d4', bgBot: '#4a7060', px: 340, py: 210 }
 ];
 
@@ -140,16 +140,41 @@ function updateInv() {
   }
 }
 
+function openCrate(c) {
+  c.opened = true;
+  var item = LOOT_ITEMS[Math.floor(Math.random() * LOOT_ITEMS.length)];
+  var goldGain = 5 + Math.floor(Math.random() * 16);
+  gold += goldGain;
+  inventory.push(item);
+  addXP(10);
+  showMsg('Found ' + item + ' + ' + goldGain + ' gold!');
+  updateInv();
+}
+
+// Auto-collect: called every frame after movement
+function checkCratePickup() {
+  var crates = areaCrates[currentArea];
+  var i, c, dx, dy;
+  for (i = 0; i < crates.length; i++) {
+    c = crates[i];
+    if (c.opened) continue;
+    dx = player.x - c.x;
+    dy = player.y - c.y;
+    if (dx * dx + dy * dy < 900) { // 30px radius
+      openCrate(c);
+      return;
+    }
+  }
+}
+
 function drawBackground() {
   var a = AREAS[currentArea];
-  // Sky
   var skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.55);
   skyGrad.addColorStop(0, a.bgTop);
   skyGrad.addColorStop(1, '#d4eaf7');
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, W, H * 0.55);
 
-  // Mountains
   ctx.fillStyle = '#8baac0';
   ctx.beginPath(); ctx.moveTo(0, 200); ctx.lineTo(120, 80); ctx.lineTo(240, 200); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#a0b8cc';
@@ -157,7 +182,6 @@ function drawBackground() {
   ctx.fillStyle = '#8baac0';
   ctx.beginPath(); ctx.moveTo(400, 200); ctx.lineTo(560, 90); ctx.lineTo(700, 200); ctx.closePath(); ctx.fill();
 
-  // Ground
   var gGrad = ctx.createLinearGradient(0, H * 0.5, 0, H);
   gGrad.addColorStop(0, a.bgBot);
   gGrad.addColorStop(1, '#3a7050');
@@ -170,10 +194,8 @@ function drawBackground() {
 
 function drawBuildings() {
   if (currentArea === 0) {
-    // Quad — two brick buildings + flagpole
     drawBuilding(60, 100, 140, 120, '#b5651d', '#8b4513', 'Taylor Building');
     drawBuilding(500, 100, 140, 120, '#b5651d', '#8b4513', 'Spori Hall');
-    // Flagpole
     ctx.strokeStyle = '#888'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(W/2, 260); ctx.lineTo(W/2, 160); ctx.stroke();
     ctx.fillStyle = '#003DA5';
@@ -181,20 +203,16 @@ function drawBuildings() {
     ctx.fillStyle = '#fff';
     ctx.fillRect(W/2, 160, 30, 9);
   } else if (currentArea === 1) {
-    // Library — wide central building
     drawBuilding(150, 80, 400, 150, '#c0a882', '#8b7355', 'David O. McKay Library');
   } else {
-    // Science
     drawBuilding(80, 80, 160, 140, '#9090a0', '#606070', 'Rigby Science');
     drawBuilding(460, 80, 160, 140, '#9090a0', '#606070', 'Romney Hall');
   }
 }
 
 function drawBuilding(x, y, w, h, wallColor, roofColor, label) {
-  // Wall
   ctx.fillStyle = wallColor;
   ctx.fillRect(x, y, w, h);
-  // Brick lines
   ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
   var row, col;
   for (row = 0; row < h; row += 10) {
@@ -204,20 +222,16 @@ function drawBuilding(x, y, w, h, wallColor, roofColor, label) {
       ctx.beginPath(); ctx.moveTo(x + col + offset, y + row); ctx.lineTo(x + col + offset, y + row + 10); ctx.stroke();
     }
   }
-  // Roof
   ctx.fillStyle = roofColor;
   ctx.fillRect(x - 6, y - 12, w + 12, 14);
-  // Windows
   ctx.fillStyle = '#add8e6';
   var wx;
   for (wx = x + 15; wx < x + w - 20; wx += 30) {
     ctx.fillRect(wx, y + 20, 18, 24);
     ctx.fillRect(wx, y + 60, 18, 24);
   }
-  // Door
   ctx.fillStyle = '#4a2800';
   ctx.fillRect(x + w/2 - 10, y + h - 30, 20, 30);
-  // Label
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 9px Courier New';
   ctx.textAlign = 'center';
@@ -236,18 +250,16 @@ function drawPath() {
 
 function drawAreaPortals() {
   var i, a, px, py, locked;
-  var positions = [{x:30,y:210},{x:W-30,y:210},{x:W/2,y:H-20}];
-  var targets = [1, 2, -1];
   for (i = 0; i < 2; i++) {
-    a = AREAS[i+1];
-    locked = !areaUnlocked[i+1];
+    a = AREAS[i + 1];
+    locked = !areaUnlocked[i + 1];
     px = (i === 0) ? 30 : W - 30;
     py = 210;
     ctx.fillStyle = locked ? '#555' : '#f0c060';
     ctx.beginPath(); ctx.arc(px, py, 18, 0, 6.28); ctx.fill();
     ctx.fillStyle = locked ? '#999' : '#000';
     ctx.font = 'bold 9px Courier New'; ctx.textAlign = 'center';
-    ctx.fillText(locked ? ('Lv'+a.unlockLv) : a.name.substring(0,6), px, py + 4);
+    ctx.fillText(locked ? ('Lv' + a.unlockLv) : a.name.substring(0, 6), px, py + 4);
   }
 }
 
@@ -276,43 +288,17 @@ function drawCrates() {
 
 function drawPlayer() {
   var px = player.x, py = player.y;
-  // Shadow
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
   ctx.beginPath(); ctx.ellipse(px, py + 14, 10, 5, 0, 0, 6.28); ctx.fill();
-  // Body
   ctx.fillStyle = '#003DA5';
   ctx.fillRect(px - 8, py - 10, 16, 18);
-  // Head
   ctx.fillStyle = '#f5cba7';
   ctx.beginPath(); ctx.arc(px, py - 14, 9, 0, 6.28); ctx.fill();
-  // Backpack
   ctx.fillStyle = '#8b4513';
   ctx.fillRect(px + 6, py - 8, 7, 12);
-  // Eyes
   ctx.fillStyle = '#333';
   ctx.fillRect(px - 4, py - 16, 3, 3);
   ctx.fillRect(px + 2, py - 16, 3, 3);
-}
-
-function tryOpenCrate(mx, my) {
-  var crates = areaCrates[currentArea];
-  var i, c, dx, dy, item, goldGain;
-  for (i = 0; i < crates.length; i++) {
-    c = crates[i];
-    if (c.opened) continue;
-    dx = mx - c.x; dy = my - c.y;
-    if (dx*dx + dy*dy < 900) {
-      c.opened = true;
-      item = LOOT_ITEMS[Math.floor(Math.random() * LOOT_ITEMS.length)];
-      goldGain = 5 + Math.floor(Math.random() * 16);
-      gold += goldGain;
-      inventory.push(item);
-      addXP(10);
-      showMsg('Found ' + item + ' + ' + goldGain + ' gold!');
-      updateInv();
-      return;
-    }
-  }
 }
 
 function tryPortal() {
@@ -320,7 +306,7 @@ function tryPortal() {
   if (areaUnlocked[1] && Math.abs(px - 30) < 30 && Math.abs(py - 210) < 30) {
     switchArea(1); return;
   }
-  if (areaUnlocked[2] && Math.abs(px - (W-30)) < 30 && Math.abs(py - 210) < 30) {
+  if (areaUnlocked[2] && Math.abs(px - (W - 30)) < 30 && Math.abs(py - 210) < 30) {
     switchArea(2); return;
   }
 }
@@ -345,7 +331,10 @@ function movePlayer() {
   if (keys['ArrowRight'] || keys['d']) { player.x += player.speed; moved = true; }
   player.x = Math.max(20, Math.min(W - 20, player.x));
   player.y = Math.max(60, Math.min(H - 20, player.y));
-  if (moved) tryPortal();
+  if (moved) {
+    tryPortal();
+    checkCratePickup();
+  }
 }
 
 function gameLoop() {
@@ -362,7 +351,6 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// Controls
 document.addEventListener('keydown', function(e) {
   keys[e.key] = true;
   if (e.key === 'i' || e.key === 'I') { invOpen = !invOpen; document.getElementById('inv').style.display = invOpen ? 'block' : 'none'; }
@@ -370,16 +358,6 @@ document.addEventListener('keydown', function(e) {
 });
 document.addEventListener('keyup', function(e) { keys[e.key] = false; });
 
-// Click to open crate
-canvas.addEventListener('click', function(e) {
-  var rect = canvas.getBoundingClientRect();
-  var scaleX = W / rect.width, scaleY = H / rect.height;
-  var mx = (e.clientX - rect.left) * scaleX;
-  var my = (e.clientY - rect.top) * scaleY;
-  tryOpenCrate(mx, my);
-});
-
-// D-pad
 var dpad = document.getElementById('dpad');
 var dbtns = dpad.getElementsByTagName('button');
 var dmap = { '▲': 'ArrowUp', '▼': 'ArrowDown', '◀': 'ArrowLeft', '▶': 'ArrowRight' };
@@ -392,7 +370,6 @@ for (di = 0; di < dbtns.length; di++) {
   })(dbtns[di]);
 }
 
-// Inventory button
 document.getElementById('invBtn').addEventListener('click', function() {
   invOpen = !invOpen;
   document.getElementById('inv').style.display = invOpen ? 'block' : 'none';
