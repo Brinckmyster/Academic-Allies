@@ -1,6 +1,7 @@
 /* Claude: 2026-06-23 — Campus RPG rebuild from campus-route-puzzle */
 /* Claude: 2026-06-23 — Fix d-pad overlapping loot; auto-collect crates on proximity */
 /* Claude: 2026-06-23 — Add auto-combat system with campus-themed enemies */
+/* Claude: 2026-06-23 — Simplify combat to instant resolution — match ad style */
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,7 +37,7 @@ canvas { display: block; width: 100%; cursor: pointer; }
 <div id="gameWrap">
   <div id="hud">
     <span>Lv <b id="lvDisp">1</b></span>
-    <span><span id="xpBar"><span id="xpFill" style="width:100%"></span></span> XP</span>
+    <span><span id="xpBar"><span id="xpFill" style="width:0%"></span></span> XP</span>
     <span>HP <span id="hpBar"><span id="hpFill" style="width:100%"></span></span></span>
     <span>Gold: <b id="goldDisp">0</b></span>
     <span class="area-name" id="areaDisp">Campus Quad</span>
@@ -59,7 +60,8 @@ var W = 700, H = 420;
 canvas.width = W; canvas.height = H;
 
 var PLAYER_MAX_HP = 60;
-var player = { x: 340, y: 210, speed: 3, hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP, atk: 8, atkCd: 0 };
+// playerPower = level * 10; enemy power is a fixed number to compare against
+var player = { x: 340, y: 210, speed: 3, hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP };
 var keys = {};
 var gold = 0;
 var xp = 0;
@@ -69,7 +71,7 @@ var inventory = [];
 var currentArea = 0;
 var invOpen = false;
 var msgTimer = 0;
-var floats = []; // floating damage numbers
+var floats = [];
 
 var AREAS = [
   { name: 'Campus Quad',      unlockLv: 1, bgTop: '#87CEEB', bgBot: '#6abf7b', px: 340, py: 210 },
@@ -79,11 +81,11 @@ var AREAS = [
 
 var LOOT_ITEMS = ['Textbook','Pencil','Lab Goggles','Snack','Campus Map','Energy Drink'];
 
-// Enemy types: name, color, hp, atk, xpReward, emoji-style label
+// power: compared against playerPower (level*10). lv: badge shown on sprite.
 var ENEMY_TYPES = [
-  { label: 'Squirrel', col: '#a0522d', hpMax: 18, atk: 4, xp: 8,  spd: 0.6 },
-  { label: 'Raccoon',  col: '#555566', hpMax: 28, atk: 6, xp: 14, spd: 0.4 },
-  { label: 'Robot',    col: '#4488aa', hpMax: 40, atk: 9, xp: 20, spd: 0.3 }
+  { label: 'Squirrel', col: '#a0522d', power: 8,  lv: 1, xp: 8  },
+  { label: 'Raccoon',  col: '#555566', power: 16, lv: 2, xp: 14 },
+  { label: 'Robot',    col: '#4488aa', power: 28, lv: 3, xp: 22 }
 ];
 
 var enemies = [];
@@ -92,8 +94,8 @@ var discovered = [true, false, false];
 var areaUnlocked = [true, false, false];
 
 function makeCrates(n) {
-  var arr = [];
-  for (var i = 0; i < n; i++) {
+  var arr = [], i;
+  for (i = 0; i < n; i++) {
     arr.push({ x: 80 + Math.floor(Math.random() * 560), y: 80 + Math.floor(Math.random() * 300), opened: false });
   }
   return arr;
@@ -101,23 +103,15 @@ function makeCrates(n) {
 
 function spawnEnemies() {
   enemies = [];
-  var count = 3 + Math.floor(Math.random() * 2);
-  var i, t;
+  var count = 3 + Math.floor(Math.random() * 2), i, t;
   for (i = 0; i < count; i++) {
     t = ENEMY_TYPES[Math.floor(Math.random() * ENEMY_TYPES.length)];
-    enemies.push({
-      x: 120 + Math.floor(Math.random() * 460),
-      y: 200 + Math.floor(Math.random() * 180),
-      type: t,
-      hp: t.hpMax,
-      atkCd: 0,
-      alive: true
-    });
+    enemies.push({ x: 120 + Math.floor(Math.random() * 460), y: 200 + Math.floor(Math.random() * 180), type: t, alive: true });
   }
 }
 
 function addFloat(x, y, txt, color) {
-  floats.push({ x: x, y: y, txt: txt, color: color, life: 55, vy: -1.2 });
+  floats.push({ x: x, y: y, txt: txt, color: color, life: 60, vy: -1.4 });
 }
 
 function showMsg(txt) {
@@ -133,8 +127,7 @@ function addXP(n) {
     xp -= xpToNext;
     level++;
     xpToNext = Math.floor(xpToNext * 1.4);
-    player.atk = 8 + Math.floor(level * 1.5);
-    player.maxHp = PLAYER_MAX_HP + level * 5;
+    player.maxHp = PLAYER_MAX_HP + level * 6;
     player.hp = player.maxHp;
     showMsg('Level up! Now Lv ' + level);
     checkUnlocks();
@@ -156,22 +149,18 @@ function updateHUD() {
   document.getElementById('lvDisp').textContent = level;
   document.getElementById('goldDisp').textContent = gold;
   document.getElementById('areaDisp').textContent = AREAS[currentArea].name;
-  var pct = Math.min(100, Math.floor((xp / xpToNext) * 100));
-  document.getElementById('xpFill').style.width = pct + '%';
-  var hpPct = Math.max(0, Math.floor((player.hp / player.maxHp) * 100));
-  document.getElementById('hpFill').style.width = hpPct + '%';
+  document.getElementById('xpFill').style.width = Math.min(100, Math.floor((xp / xpToNext) * 100)) + '%';
+  document.getElementById('hpFill').style.width = Math.max(0, Math.floor((player.hp / player.maxHp) * 100)) + '%';
 }
 
 function updateInv() {
-  var ul = document.getElementById('invList');
+  var ul = document.getElementById('invList'), counts = {}, i, k2, li;
   if (inventory.length === 0) { ul.innerHTML = '<li>Empty</li>'; return; }
-  var counts = {};
-  var i;
   for (i = 0; i < inventory.length; i++) { counts[inventory[i]] = (counts[inventory[i]] || 0) + 1; }
   ul.innerHTML = '';
-  var k2 = Object.keys(counts);
+  k2 = Object.keys(counts);
   for (i = 0; i < k2.length; i++) {
-    var li = document.createElement('li');
+    li = document.createElement('li');
     li.textContent = k2[i] + (counts[k2[i]] > 1 ? ' x' + counts[k2[i]] : '');
     ul.appendChild(li);
   }
@@ -190,8 +179,7 @@ function openCrate(c) {
 }
 
 function checkCratePickup() {
-  var crates = areaCrates[currentArea];
-  var i, c, dx, dy;
+  var crates = areaCrates[currentArea], i, c, dx, dy;
   for (i = 0; i < crates.length; i++) {
     c = crates[i];
     if (c.opened) continue;
@@ -200,64 +188,46 @@ function checkCratePickup() {
   }
 }
 
-function doCombat() {
-  var i, e, dx, dy, dist, dmgToE, dmgToP, g, item;
+// Instant resolution: walk into enemy → compare powers → one float, enemy gone
+function checkEnemyCollision() {
+  var i, e, dx, dy, playerPower, diff, hpChange, g, item;
+  playerPower = level * 10;
   for (i = 0; i < enemies.length; i++) {
     e = enemies[i];
     if (!e.alive) continue;
     dx = player.x - e.x; dy = player.y - e.y;
-    dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < 38) {
-      // Player attacks enemy
-      if (player.atkCd <= 0) {
-        dmgToE = player.atk + Math.floor(Math.random() * 5);
-        e.hp -= dmgToE;
-        addFloat(e.x + (Math.random() * 20 - 10), e.y - 24, '-' + dmgToE, '#ff4444');
-        player.atkCd = 40;
-        if (e.hp <= 0) {
-          e.alive = false;
-          g = 8 + Math.floor(Math.random() * 20);
-          gold += g;
-          addXP(e.type.xp);
-          addFloat(e.x, e.y - 10, '+' + g + 'g', '#f0c060');
-          if (Math.random() < 0.4) {
-            item = LOOT_ITEMS[Math.floor(Math.random() * LOOT_ITEMS.length)];
-            inventory.push(item);
-            showMsg(e.type.label + ' dropped ' + item + '!');
-            updateInv();
-          } else {
-            showMsg(e.type.label + ' challenged!');
-          }
-          updateHUD();
+    if (dx * dx + dy * dy < 900) {
+      e.alive = false;
+      diff = playerPower - e.type.power;
+      if (diff >= 0) {
+        // WIN — absorb their energy, gain HP
+        hpChange = Math.min(diff + Math.floor(Math.random() * 6) + 2, 22);
+        player.hp = Math.min(player.maxHp, player.hp + hpChange);
+        addFloat(e.x, e.y - 22, '+' + hpChange + ' HP', '#44dd66');
+        g = 8 + Math.floor(Math.random() * 14);
+        gold += g;
+        addFloat(e.x + 22, e.y - 6, '+' + g + 'g', '#f0c060');
+        addXP(e.type.xp);
+        if (Math.random() < 0.35) {
+          item = LOOT_ITEMS[Math.floor(Math.random() * LOOT_ITEMS.length)];
+          inventory.push(item);
+          showMsg('Won! ' + e.type.label + ' dropped ' + item);
+          updateInv();
+        } else {
+          showMsg('Challenged the ' + e.type.label + ' and won!');
         }
+      } else {
+        // LOSE — take damage equal to difference
+        hpChange = Math.min(Math.abs(diff) + Math.floor(Math.random() * 4), 24);
+        player.hp = Math.max(1, player.hp - hpChange);
+        addFloat(player.x, player.y - 30, '-' + hpChange + ' HP', '#ff4444');
+        addXP(Math.floor(e.type.xp / 4));
+        showMsg(e.type.label + ' wins! Train harder. (Lv ' + e.type.lv + ' needed)');
       }
-      // Enemy attacks player
-      if (e.atkCd <= 0) {
-        dmgToP = e.type.atk + Math.floor(Math.random() * 4);
-        player.hp = Math.max(0, player.hp - dmgToP);
-        addFloat(player.x + (Math.random() * 16 - 8), player.y - 28, '-' + dmgToP, '#44aaff');
-        e.atkCd = 60;
-        updateHUD();
-        if (player.hp <= 0) { respawnPlayer(); return; }
-      }
-    } else if (dist < 120) {
-      // Enemy wanders toward player
-      e.x += (dx / dist) * e.type.spd;
-      e.y += (dy / dist) * e.type.spd;
+      updateHUD();
+      return; // one encounter per frame
     }
-
-    if (player.atkCd > 0) player.atkCd--;
-    if (e.atkCd > 0) e.atkCd--;
   }
-}
-
-function respawnPlayer() {
-  player.hp = Math.floor(player.maxHp * 0.5);
-  player.x = AREAS[currentArea].px;
-  player.y = AREAS[currentArea].py;
-  showMsg('Recovered! Half HP restored.');
-  updateHUD();
 }
 
 // ---- Drawing ----
@@ -265,23 +235,18 @@ function respawnPlayer() {
 function drawBackground() {
   var a = AREAS[currentArea];
   var skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.55);
-  skyGrad.addColorStop(0, a.bgTop);
-  skyGrad.addColorStop(1, '#d4eaf7');
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, W, H * 0.55);
+  skyGrad.addColorStop(0, a.bgTop); skyGrad.addColorStop(1, '#d4eaf7');
+  ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, H * 0.55);
   ctx.fillStyle = '#8baac0';
   ctx.beginPath(); ctx.moveTo(0,200); ctx.lineTo(120,80); ctx.lineTo(240,200); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#a0b8cc';
   ctx.beginPath(); ctx.moveTo(180,200); ctx.lineTo(330,60); ctx.lineTo(480,200); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#8baac0';
   ctx.beginPath(); ctx.moveTo(400,200); ctx.lineTo(560,90); ctx.lineTo(700,200); ctx.closePath(); ctx.fill();
-  var gGrad = ctx.createLinearGradient(0, H*0.5, 0, H);
-  gGrad.addColorStop(0, a.bgBot);
-  gGrad.addColorStop(1, '#3a7050');
-  ctx.fillStyle = gGrad;
-  ctx.fillRect(0, H*0.5, W, H*0.5);
-  drawBuildings();
-  drawPath();
+  var gGrad = ctx.createLinearGradient(0, H * 0.5, 0, H);
+  gGrad.addColorStop(0, a.bgBot); gGrad.addColorStop(1, '#3a7050');
+  ctx.fillStyle = gGrad; ctx.fillRect(0, H * 0.5, W, H * 0.5);
+  drawBuildings(); drawPath();
 }
 
 function drawBuildings() {
@@ -291,7 +256,7 @@ function drawBuildings() {
     ctx.strokeStyle='#888'; ctx.lineWidth=3;
     ctx.beginPath(); ctx.moveTo(W/2,260); ctx.lineTo(W/2,160); ctx.stroke();
     ctx.fillStyle='#003DA5'; ctx.fillRect(W/2,160,30,18);
-    ctx.fillStyle='#fff';    ctx.fillRect(W/2,160,30,9);
+    ctx.fillStyle='#fff'; ctx.fillRect(W/2,160,30,9);
   } else if (currentArea === 1) {
     drawBuilding(150,80,400,150,'#c0a882','#8b7355','David O. McKay Library');
   } else {
@@ -303,11 +268,11 @@ function drawBuildings() {
 function drawBuilding(x, y, w, h, wc, rc, label) {
   ctx.fillStyle = wc; ctx.fillRect(x,y,w,h);
   ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=1;
-  var row, col;
+  var row, col, off;
   for (row=0; row<h; row+=10) {
     ctx.beginPath(); ctx.moveTo(x,y+row); ctx.lineTo(x+w,y+row); ctx.stroke();
+    off = (Math.floor(row/10) % 2) * 10;
     for (col=0; col<w; col+=20) {
-      var off=(Math.floor(row/10)%2)*10;
       ctx.beginPath(); ctx.moveTo(x+col+off,y+row); ctx.lineTo(x+col+off,y+row+10); ctx.stroke();
     }
   }
@@ -356,31 +321,32 @@ function drawCrates() {
 }
 
 function drawEnemies() {
-  var i, e, t, hpPct, barW;
+  var i, e, t, canWin;
   for (i=0; i<enemies.length; i++) {
     e=enemies[i]; t=e.type;
     if (!e.alive) continue;
     // Shadow
     ctx.fillStyle='rgba(0,0,0,0.15)';
-    ctx.beginPath(); ctx.ellipse(e.x, e.y+12, 10, 4, 0, 0, 6.28); ctx.fill();
-    // Body blob
+    ctx.beginPath(); ctx.ellipse(e.x,e.y+12,10,4,0,0,6.28); ctx.fill();
+    // Body
     ctx.fillStyle=t.col;
-    ctx.beginPath(); ctx.arc(e.x, e.y, 14, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x,e.y,14,0,6.28); ctx.fill();
     // Eyes
     ctx.fillStyle='#ffee44';
-    ctx.beginPath(); ctx.arc(e.x-4, e.y-4, 3, 0, 6.28); ctx.fill();
-    ctx.beginPath(); ctx.arc(e.x+4, e.y-4, 3, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x-4,e.y-4,3,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x+4,e.y-4,3,0,6.28); ctx.fill();
     ctx.fillStyle='#000';
-    ctx.beginPath(); ctx.arc(e.x-4, e.y-4, 1.5, 0, 6.28); ctx.fill();
-    ctx.beginPath(); ctx.arc(e.x+4, e.y-4, 1.5, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x-4,e.y-4,1.5,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x+4,e.y-4,1.5,0,6.28); ctx.fill();
     // Label
     ctx.fillStyle='#fff'; ctx.font='bold 8px Courier New'; ctx.textAlign='center';
     ctx.fillText(t.label, e.x, e.y+26);
-    // HP bar
-    barW=30; hpPct=e.hp/t.hpMax;
-    ctx.fillStyle='#333'; ctx.fillRect(e.x-barW/2, e.y-22, barW, 5);
-    ctx.fillStyle=hpPct>0.5?'#6abf7b':'#e05050';
-    ctx.fillRect(e.x-barW/2, e.y-22, barW*hpPct, 5);
+    // Power badge — green if player can win, red if not
+    canWin = (level * 10 >= t.power);
+    ctx.fillStyle=canWin?'#2d9e50':'#c0302a';
+    ctx.beginPath(); ctx.arc(e.x+12,e.y-18,9,0,6.28); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 8px Courier New'; ctx.textAlign='center';
+    ctx.fillText('L'+t.lv, e.x+12, e.y-15);
   }
 }
 
@@ -391,28 +357,25 @@ function drawPlayer() {
   ctx.fillStyle='#003DA5'; ctx.fillRect(px-8,py-10,16,18);
   ctx.fillStyle='#f5cba7'; ctx.beginPath(); ctx.arc(px,py-14,9,0,6.28); ctx.fill();
   ctx.fillStyle='#8b4513'; ctx.fillRect(px+6,py-8,7,12);
-  ctx.fillStyle='#333';
-  ctx.fillRect(px-4,py-16,3,3);
-  ctx.fillRect(px+2,py-16,3,3);
+  ctx.fillStyle='#333'; ctx.fillRect(px-4,py-16,3,3); ctx.fillRect(px+2,py-16,3,3);
   // Level badge
-  ctx.fillStyle='#f0c060'; ctx.font='bold 8px Courier New'; ctx.textAlign='center';
-  ctx.fillText('Lv'+level, px, py-27);
+  ctx.fillStyle='#f0c060'; ctx.beginPath(); ctx.arc(px+12,py-22,10,0,6.28); ctx.fill();
+  ctx.fillStyle='#000'; ctx.font='bold 8px Courier New'; ctx.textAlign='center';
+  ctx.fillText('L'+level, px+12, py-19);
 }
 
 function drawFloats() {
   var i, f;
   for (i=floats.length-1; i>=0; i--) {
     f=floats[i];
-    ctx.globalAlpha = f.life/55;
-    ctx.fillStyle=f.color; ctx.font='bold 13px Courier New'; ctx.textAlign='center';
+    ctx.globalAlpha=f.life/60;
+    ctx.fillStyle=f.color; ctx.font='bold 14px Courier New'; ctx.textAlign='center';
     ctx.fillText(f.txt, f.x, f.y);
     f.y+=f.vy; f.life--;
     if (f.life<=0) { floats.splice(i,1); }
   }
   ctx.globalAlpha=1;
 }
-
-// ---- Movement & portals ----
 
 function tryPortal() {
   var px=player.x, py=player.y;
@@ -446,7 +409,7 @@ function movePlayer() {
 function gameLoop() {
   ctx.clearRect(0,0,W,H);
   movePlayer();
-  doCombat();
+  checkEnemyCollision();
   drawBackground();
   drawAreaPortals();
   drawCrates();
@@ -457,7 +420,6 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// ---- Controls ----
 document.addEventListener('keydown', function(e) {
   keys[e.key]=true;
   if (e.key==='i'||e.key==='I') { invOpen=!invOpen; document.getElementById('inv').style.display=invOpen?'block':'none'; }
