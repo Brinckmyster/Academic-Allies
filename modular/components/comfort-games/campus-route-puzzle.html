@@ -2,6 +2,9 @@
 /* Claude: 2026-06-23 — Fix d-pad overlapping loot; auto-collect crates on proximity */
 /* Claude: 2026-06-23 — Add auto-combat system with campus-themed enemies */
 /* Claude: 2026-06-23 — Simplify combat to instant resolution — match ad style */
+/* Claude: 2026-06-23 — Add hit animation before instant-resolution floating numbers */
+/* Claude: 2026-06-23 — Number-absorb combat — match ad power number mechanic */
+/* Claude: 2026-06-23 — Replace generic area names with real BYU-Idaho building names */
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,11 +15,9 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; font-family: 'Courier New', monospace; }
 #gameWrap { position: relative; width: 100%; max-width: 700px; }
-#hud { background: #0f3460; color: #eee; padding: 6px 10px; display: flex; align-items: center; gap: 10px; font-size: 12px; border-radius: 6px 6px 0 0; flex-wrap: wrap; }
+#hud { background: #0f3460; color: #eee; padding: 6px 12px; display: flex; align-items: center; gap: 14px; font-size: 13px; border-radius: 6px 6px 0 0; flex-wrap: wrap; }
+#hud .pw { font-size: 18px; font-weight: bold; color: #ffdd22; letter-spacing: 1px; }
 #hud .area-name { font-weight: bold; color: #f0c060; margin-left: auto; }
-#xpBar, #hpBar { width: 70px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; display: inline-block; vertical-align: middle; }
-#xpFill { height: 100%; background: #6abf7b; transition: width 0.3s; }
-#hpFill { height: 100%; background: #e05050; transition: width 0.2s; }
 canvas { display: block; width: 100%; cursor: pointer; }
 #dpad { display: none; position: absolute; bottom: 10px; left: 10px; width: 110px; height: 110px; }
 #dpad button { position: absolute; width: 34px; height: 34px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: #fff; font-size: 16px; cursor: pointer; user-select: none; }
@@ -36,9 +37,7 @@ canvas { display: block; width: 100%; cursor: pointer; }
 <body>
 <div id="gameWrap">
   <div id="hud">
-    <span>Lv <b id="lvDisp">1</b></span>
-    <span><span id="xpBar"><span id="xpFill" style="width:0%"></span></span> XP</span>
-    <span>HP <span id="hpBar"><span id="hpFill" style="width:100%"></span></span></span>
+    <span>Power <span class="pw" id="pwDisp">10</span></span>
     <span>Gold: <b id="goldDisp">0</b></span>
     <span class="area-name" id="areaDisp">Campus Quad</span>
   </div>
@@ -59,33 +58,33 @@ var ctx = canvas.getContext('2d');
 var W = 700, H = 420;
 canvas.width = W; canvas.height = H;
 
-var PLAYER_MAX_HP = 60;
-// playerPower = level * 10; enemy power is a fixed number to compare against
-var player = { x: 340, y: 210, speed: 3, hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP };
+var ANIM_FRAMES = 20;
+var playerPower = 10;   // THE number — displayed large, goes up forever
+var powerFlash = 0;     // frames to pulse the on-screen power badge
+var player = { x: 340, y: 210, speed: 3 };
 var keys = {};
 var gold = 0;
-var xp = 0;
-var level = 1;
-var xpToNext = 20;
 var inventory = [];
 var currentArea = 0;
 var invOpen = false;
 var msgTimer = 0;
 var floats = [];
+var encounters = [];    // active hit animations with pre-computed results
 
+// Area unlock thresholds based on playerPower
 var AREAS = [
-  { name: 'Campus Quad',      unlockLv: 1, bgTop: '#87CEEB', bgBot: '#6abf7b', px: 340, py: 210 },
-  { name: 'Library',          unlockLv: 3, bgTop: '#b0c4de', bgBot: '#5a9070', px: 340, py: 210 },
-  { name: 'Science Building', unlockLv: 5, bgTop: '#9eb8d4', bgBot: '#4a7060', px: 340, py: 210 }
+  { name: 'Manwaring Center', abbr: 'MWC',   unlockPow: 0,   bgTop: '#87CEEB', bgBot: '#6abf7b', px: 340, py: 210 },
+  { name: 'Ricks Building',   abbr: 'Ricks', unlockPow: 40,  bgTop: '#b0c4de', bgBot: '#5a9070', px: 340, py: 210 },
+  { name: 'Spori Building',   abbr: 'Spori', unlockPow: 100, bgTop: '#9eb8d4', bgBot: '#4a7060', px: 340, py: 210 }
 ];
 
 var LOOT_ITEMS = ['Textbook','Pencil','Lab Goggles','Snack','Campus Map','Energy Drink'];
 
-// power: compared against playerPower (level*10). lv: badge shown on sprite.
+// Each enemy spawns with a random power in its range — that number shows on their body
 var ENEMY_TYPES = [
-  { label: 'Squirrel', col: '#a0522d', power: 8,  lv: 1, xp: 8  },
-  { label: 'Raccoon',  col: '#555566', power: 16, lv: 2, xp: 14 },
-  { label: 'Robot',    col: '#4488aa', power: 28, lv: 3, xp: 22 }
+  { label: 'Squirrel', col: '#a0522d', minPow: 5,  maxPow: 14 },
+  { label: 'Raccoon',  col: '#555566', minPow: 16, maxPow: 30 },
+  { label: 'Robot',    col: '#4488aa', minPow: 32, maxPow: 55 }
 ];
 
 var enemies = [];
@@ -103,54 +102,47 @@ function makeCrates(n) {
 
 function spawnEnemies() {
   enemies = [];
-  var count = 3 + Math.floor(Math.random() * 2), i, t;
+  var count = 3 + Math.floor(Math.random() * 2), i, t, pow;
   for (i = 0; i < count; i++) {
     t = ENEMY_TYPES[Math.floor(Math.random() * ENEMY_TYPES.length)];
-    enemies.push({ x: 120 + Math.floor(Math.random() * 460), y: 200 + Math.floor(Math.random() * 180), type: t, alive: true });
+    pow = t.minPow + Math.floor(Math.random() * (t.maxPow - t.minPow + 1));
+    enemies.push({ x: 120 + Math.floor(Math.random() * 460), y: 200 + Math.floor(Math.random() * 180), col: t.col, label: t.label, power: pow, alive: true });
   }
 }
 
 function addFloat(x, y, txt, color) {
-  floats.push({ x: x, y: y, txt: txt, color: color, life: 60, vy: -1.4 });
+  floats.push({ x: x, y: y, txt: txt, color: color, life: 65, vy: -1.3 });
 }
 
 function showMsg(txt) {
   var el = document.getElementById('msgBox');
   el.textContent = txt;
   el.style.display = 'block';
-  msgTimer = 120;
+  msgTimer = 130;
 }
 
-function addXP(n) {
-  xp += n;
-  while (xp >= xpToNext) {
-    xp -= xpToNext;
-    level++;
-    xpToNext = Math.floor(xpToNext * 1.4);
-    player.maxHp = PLAYER_MAX_HP + level * 6;
-    player.hp = player.maxHp;
-    showMsg('Level up! Now Lv ' + level);
-    checkUnlocks();
-  }
+// Central routine: change playerPower, pulse the badge, update HUD, check area unlocks
+function changePower(delta) {
+  playerPower = Math.max(1, playerPower + delta);
+  powerFlash = 22;
   updateHUD();
+  checkPowerUnlocks();
 }
 
-function checkUnlocks() {
+function checkPowerUnlocks() {
   var i;
   for (i = 0; i < AREAS.length; i++) {
-    if (!areaUnlocked[i] && level >= AREAS[i].unlockLv) {
+    if (!areaUnlocked[i] && playerPower >= AREAS[i].unlockPow) {
       areaUnlocked[i] = true;
-      showMsg(AREAS[i].name + ' unlocked!');
+      showMsg(AREAS[i].name + ' unlocked! Power ' + AREAS[i].unlockPow + ' reached.');
     }
   }
 }
 
 function updateHUD() {
-  document.getElementById('lvDisp').textContent = level;
+  document.getElementById('pwDisp').textContent = playerPower;
   document.getElementById('goldDisp').textContent = gold;
   document.getElementById('areaDisp').textContent = AREAS[currentArea].name;
-  document.getElementById('xpFill').style.width = Math.min(100, Math.floor((xp / xpToNext) * 100)) + '%';
-  document.getElementById('hpFill').style.width = Math.max(0, Math.floor((player.hp / player.maxHp) * 100)) + '%';
 }
 
 function updateInv() {
@@ -169,12 +161,14 @@ function updateInv() {
 function openCrate(c) {
   c.opened = true;
   var item = LOOT_ITEMS[Math.floor(Math.random() * LOOT_ITEMS.length)];
-  var g = 5 + Math.floor(Math.random() * 16);
+  var g = 4 + Math.floor(Math.random() * 12);
+  var pw = 3 + Math.floor(Math.random() * 8);
   gold += g;
   inventory.push(item);
-  addXP(10);
-  addFloat(c.x, c.y - 20, '+' + g + 'g', '#f0c060');
-  showMsg('Found ' + item + ' + ' + g + ' gold!');
+  changePower(pw);
+  addFloat(c.x, c.y - 22, '+' + pw, '#ffdd22');
+  addFloat(c.x + 18, c.y - 8, '+' + g + 'g', '#f0c060');
+  showMsg('Found ' + item + '! +' + pw + ' power');
   updateInv();
 }
 
@@ -188,45 +182,97 @@ function checkCratePickup() {
   }
 }
 
-// Instant resolution: walk into enemy → compare powers → one float, enemy gone
+// On collision: mark enemy dead, queue animation with pre-computed outcome
 function checkEnemyCollision() {
-  var i, e, dx, dy, playerPower, diff, hpChange, g, item;
-  playerPower = level * 10;
+  var i, e, dx, dy, enc, diff;
   for (i = 0; i < enemies.length; i++) {
     e = enemies[i];
     if (!e.alive) continue;
     dx = player.x - e.x; dy = player.y - e.y;
     if (dx * dx + dy * dy < 900) {
       e.alive = false;
-      diff = playerPower - e.type.power;
-      if (diff >= 0) {
-        // WIN — absorb their energy, gain HP
-        hpChange = Math.min(diff + Math.floor(Math.random() * 6) + 2, 22);
-        player.hp = Math.min(player.maxHp, player.hp + hpChange);
-        addFloat(e.x, e.y - 22, '+' + hpChange + ' HP', '#44dd66');
-        g = 8 + Math.floor(Math.random() * 14);
-        gold += g;
-        addFloat(e.x + 22, e.y - 6, '+' + g + 'g', '#f0c060');
-        addXP(e.type.xp);
-        if (Math.random() < 0.35) {
-          item = LOOT_ITEMS[Math.floor(Math.random() * LOOT_ITEMS.length)];
-          inventory.push(item);
-          showMsg('Won! ' + e.type.label + ' dropped ' + item);
-          updateInv();
-        } else {
-          showMsg('Challenged the ' + e.type.label + ' and won!');
-        }
+      diff = playerPower - e.power;
+      enc = {
+        x: e.x, y: e.y, col: e.col, label: e.label,
+        enemyPow: e.power,
+        won: diff >= 0,
+        timer: ANIM_FRAMES
+      };
+      if (enc.won) {
+        // Absorb their power — player number goes UP by enemy's full value
+        enc.delta = e.power;
+        enc.goldGain = 6 + Math.floor(Math.random() * 10);
       } else {
-        // LOSE — take damage equal to difference
-        hpChange = Math.min(Math.abs(diff) + Math.floor(Math.random() * 4), 24);
-        player.hp = Math.max(1, player.hp - hpChange);
-        addFloat(player.x, player.y - 30, '-' + hpChange + ' HP', '#ff4444');
-        addXP(Math.floor(e.type.xp / 4));
-        showMsg(e.type.label + ' wins! Train harder. (Lv ' + e.type.lv + ' needed)');
+        // Shed the difference — player number goes DOWN by how much they exceeded us
+        enc.delta = diff; // negative
+        enc.goldGain = 0;
       }
-      updateHUD();
-      return; // one encounter per frame
+      encounters.push(enc);
+      return;
     }
+  }
+}
+
+// Apply power change and spawn floats when animation finishes
+function updateEncounters() {
+  var i, enc;
+  for (i = encounters.length - 1; i >= 0; i--) {
+    enc = encounters[i];
+    enc.timer--;
+    if (enc.timer <= 0) {
+      if (enc.won) {
+        changePower(enc.delta);
+        gold += enc.goldGain;
+        updateHUD();
+        addFloat(enc.x,      enc.y - 28, '+' + enc.delta,           '#ffdd22');
+        addFloat(enc.x + 26, enc.y - 10, '+' + enc.goldGain + 'g', '#f0c060');
+        showMsg('Absorbed the ' + enc.label + '! +' + enc.delta + ' power');
+      } else {
+        changePower(enc.delta); // delta is negative
+        addFloat(player.x, player.y - 34, '' + enc.delta, '#ff4444');
+        showMsg(enc.label + ' (' + enc.enemyPow + ') overpowered you!');
+      }
+      encounters.splice(i, 1);
+    }
+  }
+}
+
+// Starburst + slash arc at the impact point, gold on win / red on loss
+function drawEncounters() {
+  var i, enc, prog, color, j, angle, innerR, outerR;
+  for (i = 0; i < encounters.length; i++) {
+    enc = encounters[i];
+    prog = 1 - enc.timer / ANIM_FRAMES;
+    color = enc.won ? '#ffdd22' : '#ff5533';
+    ctx.save();
+    // Radiating spokes
+    innerR = 6 + prog * 4;
+    outerR = 14 + prog * 22;
+    ctx.globalAlpha = 1 - prog;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    for (j = 0; j < 8; j++) {
+      angle = (j / 8) * 6.2832;
+      ctx.beginPath();
+      ctx.moveTo(enc.x + Math.cos(angle) * innerR, enc.y + Math.sin(angle) * innerR);
+      ctx.lineTo(enc.x + Math.cos(angle) * outerR, enc.y + Math.sin(angle) * outerR);
+      ctx.stroke();
+    }
+    // Slash arc
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = (1 - prog) * 0.9;
+    ctx.beginPath();
+    ctx.arc(enc.x, enc.y, 18 + prog * 8, -1.0 + prog * 0.3, 1.0 - prog * 0.3);
+    ctx.stroke();
+    // Central flash
+    ctx.globalAlpha = (1 - prog) * 0.5;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(enc.x, enc.y, 12 + prog * 10, 0, 6.2832);
+    ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -251,17 +297,20 @@ function drawBackground() {
 
 function drawBuildings() {
   if (currentArea === 0) {
+    // Manwaring Center area — Taylor Building flanks the student center
     drawBuilding(60,100,140,120,'#b5651d','#8b4513','Taylor Building');
-    drawBuilding(500,100,140,120,'#b5651d','#8b4513','Spori Hall');
+    drawBuilding(490,100,150,120,'#c0874a','#8b5e2a','Manwaring Ctr');
     ctx.strokeStyle='#888'; ctx.lineWidth=3;
     ctx.beginPath(); ctx.moveTo(W/2,260); ctx.lineTo(W/2,160); ctx.stroke();
     ctx.fillStyle='#003DA5'; ctx.fillRect(W/2,160,30,18);
     ctx.fillStyle='#fff'; ctx.fillRect(W/2,160,30,9);
   } else if (currentArea === 1) {
-    drawBuilding(150,80,400,150,'#c0a882','#8b7355','David O. McKay Library');
+    // Ricks Building area — wide central academic hall
+    drawBuilding(130,80,440,150,'#8b7355','#5c4a2a','Ricks Building');
   } else {
-    drawBuilding(80,80,160,140,'#9090a0','#606070','Rigby Science');
-    drawBuilding(460,80,160,140,'#9090a0','#606070','Romney Hall');
+    // Spori Building area — art & design beside Romney
+    drawBuilding(60,80,170,140,'#7a6a9e','#4a3a6e','Spori Building');
+    drawBuilding(460,80,170,140,'#9090a0','#606070','Romney Building');
   }
 }
 
@@ -296,11 +345,13 @@ function drawAreaPortals() {
   for (i=0; i<2; i++) {
     a=AREAS[i+1]; locked=!areaUnlocked[i+1];
     px=(i===0)?30:W-30; py=210;
-    ctx.fillStyle=locked?'#555':'#f0c060';
-    ctx.beginPath(); ctx.arc(px,py,18,0,6.28); ctx.fill();
-    ctx.fillStyle=locked?'#999':'#000';
+    ctx.fillStyle=locked?'#444':'#f0c060';
+    ctx.beginPath(); ctx.arc(px,py,20,0,6.28); ctx.fill();
+    ctx.strokeStyle=locked?'#666':'#c89000'; ctx.lineWidth=2;
+    ctx.stroke();
+    ctx.fillStyle=locked?'#888':'#000';
     ctx.font='bold 9px Courier New'; ctx.textAlign='center';
-    ctx.fillText(locked?('Lv'+a.unlockLv):a.name.substring(0,6), px, py+4);
+    ctx.fillText(locked?(a.unlockPow+'+'):a.abbr, px, py+4);
   }
 }
 
@@ -321,55 +372,86 @@ function drawCrates() {
 }
 
 function drawEnemies() {
-  var i, e, t, canWin;
+  var i, e, canWin, numStr, tw, bw;
   for (i=0; i<enemies.length; i++) {
-    e=enemies[i]; t=e.type;
+    e=enemies[i];
     if (!e.alive) continue;
+    canWin = playerPower >= e.power;
     // Shadow
     ctx.fillStyle='rgba(0,0,0,0.15)';
-    ctx.beginPath(); ctx.ellipse(e.x,e.y+12,10,4,0,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(e.x,e.y+13,11,4,0,0,6.28); ctx.fill();
     // Body
-    ctx.fillStyle=t.col;
-    ctx.beginPath(); ctx.arc(e.x,e.y,14,0,6.28); ctx.fill();
+    ctx.fillStyle=e.col;
+    ctx.beginPath(); ctx.arc(e.x,e.y,16,0,6.28); ctx.fill();
+    // Rim — green if beatable, red if not
+    ctx.strokeStyle=canWin?'#44ee66':'#ee4444'; ctx.lineWidth=2.5;
+    ctx.stroke();
     // Eyes
     ctx.fillStyle='#ffee44';
-    ctx.beginPath(); ctx.arc(e.x-4,e.y-4,3,0,6.28); ctx.fill();
-    ctx.beginPath(); ctx.arc(e.x+4,e.y-4,3,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x-5,e.y-4,3.5,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x+5,e.y-4,3.5,0,6.28); ctx.fill();
+    ctx.fillStyle='#111';
+    ctx.beginPath(); ctx.arc(e.x-5,e.y-4,1.5,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x+5,e.y-4,1.5,0,6.28); ctx.fill();
+    // BIG power number on the enemy body
+    numStr = '' + e.power;
+    ctx.font='bold 13px Courier New'; ctx.textAlign='center';
     ctx.fillStyle='#000';
-    ctx.beginPath(); ctx.arc(e.x-4,e.y-4,1.5,0,6.28); ctx.fill();
-    ctx.beginPath(); ctx.arc(e.x+4,e.y-4,1.5,0,6.28); ctx.fill();
-    // Label
-    ctx.fillStyle='#fff'; ctx.font='bold 8px Courier New'; ctx.textAlign='center';
-    ctx.fillText(t.label, e.x, e.y+26);
-    // Power badge — green if player can win, red if not
-    canWin = (level * 10 >= t.power);
-    ctx.fillStyle=canWin?'#2d9e50':'#c0302a';
-    ctx.beginPath(); ctx.arc(e.x+12,e.y-18,9,0,6.28); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.font='bold 8px Courier New'; ctx.textAlign='center';
-    ctx.fillText('L'+t.lv, e.x+12, e.y-15);
+    ctx.fillText(numStr, e.x+1, e.y+7);
+    ctx.fillStyle='#fff';
+    ctx.fillText(numStr, e.x, e.y+6);
+    // Label below
+    ctx.fillStyle='#ddd'; ctx.font='bold 7px Courier New';
+    ctx.fillText(e.label, e.x, e.y+27);
   }
 }
 
+// Draw player with the power number as the most prominent visual element
 function drawPlayer() {
   var px=player.x, py=player.y;
+  var numStr = '' + playerPower;
+  var flashing = powerFlash > 0;
+  if (powerFlash > 0) powerFlash--;
+
+  // Shadow
   ctx.fillStyle='rgba(0,0,0,0.18)';
   ctx.beginPath(); ctx.ellipse(px,py+14,10,5,0,0,6.28); ctx.fill();
+  // Body
   ctx.fillStyle='#003DA5'; ctx.fillRect(px-8,py-10,16,18);
+  // Head
   ctx.fillStyle='#f5cba7'; ctx.beginPath(); ctx.arc(px,py-14,9,0,6.28); ctx.fill();
+  // Backpack
   ctx.fillStyle='#8b4513'; ctx.fillRect(px+6,py-8,7,12);
+  // Eyes
   ctx.fillStyle='#333'; ctx.fillRect(px-4,py-16,3,3); ctx.fillRect(px+2,py-16,3,3);
-  // Level badge
-  ctx.fillStyle='#f0c060'; ctx.beginPath(); ctx.arc(px+12,py-22,10,0,6.28); ctx.fill();
-  ctx.fillStyle='#000'; ctx.font='bold 8px Courier New'; ctx.textAlign='center';
-  ctx.fillText('L'+level, px+12, py-19);
+
+  // BIG POWER NUMBER — the main visual, floats above the player
+  ctx.font='bold ' + (flashing ? '22' : '18') + 'px Courier New';
+  ctx.textAlign='center';
+  ctx.measureText(numStr); // warm up
+  var bw = numStr.length * (flashing ? 13 : 11) + 14;
+  var bh = flashing ? 26 : 22;
+  var bx = px - bw / 2;
+  var by = py - 50;
+  // Badge background
+  ctx.fillStyle = flashing ? 'rgba(255,221,34,0.22)' : 'rgba(0,0,0,0.55)';
+  ctx.beginPath();
+  ctx.rect(bx, by, bw, bh);
+  ctx.fill();
+  ctx.strokeStyle = flashing ? '#ffdd22' : '#888';
+  ctx.lineWidth = flashing ? 2 : 1;
+  ctx.strokeRect(bx, by, bw, bh);
+  // Number text
+  ctx.fillStyle = flashing ? '#ffe84d' : '#ffdd22';
+  ctx.fillText(numStr, px, by + bh - 6);
 }
 
 function drawFloats() {
   var i, f;
   for (i=floats.length-1; i>=0; i--) {
     f=floats[i];
-    ctx.globalAlpha=f.life/60;
-    ctx.fillStyle=f.color; ctx.font='bold 14px Courier New'; ctx.textAlign='center';
+    ctx.globalAlpha=f.life/65;
+    ctx.fillStyle=f.color; ctx.font='bold 15px Courier New'; ctx.textAlign='center';
     ctx.fillText(f.txt, f.x, f.y);
     f.y+=f.vy; f.life--;
     if (f.life<=0) { floats.splice(i,1); }
@@ -384,13 +466,12 @@ function tryPortal() {
 }
 
 function switchArea(idx) {
-  if (!areaUnlocked[idx]) { showMsg('Reach Lv '+AREAS[idx].unlockLv+' first!'); return; }
-  currentArea=idx;
-  player.x=AREAS[idx].px; player.y=AREAS[idx].py;
+  if (!areaUnlocked[idx]) { showMsg('Need power ' + AREAS[idx].unlockPow + '+ to enter!'); return; }
+  currentArea=idx; player.x=AREAS[idx].px; player.y=AREAS[idx].py;
   spawnEnemies();
   if (!discovered[idx]) {
-    discovered[idx]=true; addXP(25);
-    showMsg('Discovered '+AREAS[idx].name+'! +25 XP');
+    discovered[idx]=true;
+    showMsg('Discovered ' + AREAS[idx].name + '!');
   }
   updateHUD();
 }
@@ -410,10 +491,12 @@ function gameLoop() {
   ctx.clearRect(0,0,W,H);
   movePlayer();
   checkEnemyCollision();
+  updateEncounters();
   drawBackground();
   drawAreaPortals();
   drawCrates();
   drawEnemies();
+  drawEncounters();
   drawPlayer();
   drawFloats();
   if (msgTimer>0) { msgTimer--; if (msgTimer===0) document.getElementById('msgBox').style.display='none'; }
