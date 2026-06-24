@@ -560,6 +560,13 @@ function drawBaseboard(){
   el.style.opacity='0.65';
 }
 // ── Draw Cheryl's room features ── Claude: 2026-06-23 ───────────
+/* Claude: 2026-06-23 — rewritten for 90° CCW rotation.
+   Mapping: room Y (depth) → screen X reversed; room X (width) → screen Y.
+   scaleW = px per inch along room depth  (screen X axis)
+   scaleH = px per inch along room width  (screen Y axis)
+   Bottom wall (door+closet) = LEFT screen edge.
+   Right wall (baseboard+window) = BOTTOM screen edge.
+   Top wall (window) = RIGHT screen edge. */
 function drawRoom2Features(){
   var canvas=document.getElementById('r2fc');
   if(!canvas) return;
@@ -568,13 +575,14 @@ function drawRoom2Features(){
   canvas.style.width=W+'px'; canvas.style.height=H+'px';
   var ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,W,H);
-  // Entry door arc — hinge at bottom-left (0,H), sweeps right+up
+  var scaleW=W/ROOM2.h, scaleH=H/ROOM2.w;
+  // Entry door — hinge at top-left corner (room x=0, y=156 → screen 0,0), arc sweeps right+down
   var door=ROOM2.doors[0];
-  var rp=(r2px(door.size)+r2py(door.size))/2;
+  var rp=door.size*scaleW;
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(0,H);
-  ctx.arc(0,H,rp,-Math.PI/2,0,false);
+  ctx.moveTo(0,0);
+  ctx.arc(0,0,rp,0,Math.PI/2,false);
   ctx.closePath();
   ctx.fillStyle='rgba(196,154,60,0.13)';
   ctx.fill();
@@ -584,35 +592,37 @@ function drawRoom2Features(){
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.restore();
-  // Door bar on bottom wall
+  // Door bar on left screen edge
   ctx.fillStyle='#c49a3c';
-  ctx.fillRect(0,H-5,r2px(door.size),5);
+  ctx.fillRect(0,0,5,door.size*scaleH);
   ctx.font='9px DM Mono,monospace';
   ctx.fillStyle='#8a6a10';
   ctx.textAlign='center';
-  ctx.fillText(door.label,r2px(door.size/2),H+18);
-  // Closet opening on bottom wall
+  ctx.save(); ctx.translate(-14,door.size*scaleH/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText(door.label,0,0); ctx.restore();
+  // Closet opening on left screen edge
   var cl=ROOM2.closet;
   ctx.fillStyle='#888';
-  ctx.fillRect(r2px(cl.pos),H-5,r2px(cl.size),5);
+  ctx.fillRect(0,cl.pos*scaleH,5,cl.size*scaleH);
   ctx.font='8px DM Mono,monospace';
   ctx.fillStyle='#555';
   ctx.textAlign='center';
-  ctx.fillText('Closet 65"',r2px(cl.pos+cl.size/2),H+14);
-  // Baseboard heater zone (right wall, from 20" down to bottom)
+  ctx.save(); ctx.translate(-14,(cl.pos+cl.size/2)*scaleH); ctx.rotate(-Math.PI/2);
+  ctx.fillText('Closet 65"',0,0); ctx.restore();
+  // Baseboard heater — bottom screen edge (right wall, room x=143.5", spans y=20"..156")
   if(ROOM2.baseboard){
     var bb=ROOM2.baseboard;
-    var bbTop=r2py(bb.fromTop), bbH=H-bbTop, bbW=r2px(bb.clearance);
+    var bbW2=W-bb.fromTop*scaleW, bbH2=bb.clearance*scaleH, bbTop2=H-bbH2;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(W-bbW,bbTop,bbW,bbH);
+    ctx.rect(0,bbTop2,bbW2,bbH2);
     ctx.clip();
     ctx.fillStyle='rgba(224,112,48,0.15)';
-    ctx.fillRect(W-bbW,bbTop,bbW,bbH);
-    for(var si=-bbW;si<bbH+bbW;si+=8){
+    ctx.fillRect(0,bbTop2,bbW2,bbH2);
+    for(var si=-bbH2;si<bbW2+bbH2;si+=8){
       ctx.beginPath();
-      ctx.moveTo(W-bbW,bbTop+si);
-      ctx.lineTo(W,bbTop+si-bbW);
+      ctx.moveTo(si,bbTop2);
+      ctx.lineTo(si+bbH2,H);
       ctx.strokeStyle='rgba(224,112,48,0.6)';
       ctx.lineWidth=3;
       ctx.stroke();
@@ -620,25 +630,31 @@ function drawRoom2Features(){
     ctx.restore();
     ctx.strokeStyle='#e07030';
     ctx.lineWidth=1;
-    ctx.strokeRect(W-bbW,bbTop,bbW,bbH);
+    ctx.strokeRect(0,bbTop2,bbW2,bbH2);
   }
   // Windows
   for(var wi=0;wi<ROOM2.windows.length;wi++){
     var win=ROOM2.windows[wi];
     ctx.fillStyle='#4a87b8';
-    if(win.wall==='right') ctx.fillRect(W-5,r2py(win.pos),5,r2py(win.size));
-    if(win.wall==='top')   ctx.fillRect(r2px(win.pos),0,r2px(win.size),5);
+    // right wall (room x=143.5") → bottom screen edge; pos/size are along room Y
+    if(win.wall==='right') ctx.fillRect(W-(win.pos+win.size)*scaleW,H-5,win.size*scaleW,5);
+    // top wall (room y=0) → right screen edge; pos/size are along room X
+    if(win.wall==='top')   ctx.fillRect(W-5,win.pos*scaleH,5,win.size*scaleH);
   }
   // Wall labels
   ctx.font='9px DM Mono,monospace';
   ctx.fillStyle='#7a6e5f';
   ctx.textAlign='center';
-  ctx.fillText("Top wall — 143.5\"",W/2,-20);
-  ctx.fillText("Bottom wall — 143.5\"",W/2,H+30);
-  ctx.save(); ctx.translate(-52,H/2); ctx.rotate(-Math.PI/2);
-  ctx.fillText('Left wall — 156"',0,0); ctx.restore();
-  ctx.save(); ctx.translate(W+52,H/2); ctx.rotate(Math.PI/2);
-  ctx.fillText('Right wall — 156"',0,0); ctx.restore();
+  // Left edge = bottom wall
+  ctx.save(); ctx.translate(-28,H/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('Bottom wall — 143.5"',0,0); ctx.restore();
+  // Right edge = top wall
+  ctx.save(); ctx.translate(W+28,H/2); ctx.rotate(Math.PI/2);
+  ctx.fillText('Top wall — 143.5"',0,0); ctx.restore();
+  // Top edge = left wall
+  ctx.fillText('Left wall — 156"',W/2,-12);
+  // Bottom edge = right wall
+  ctx.fillText('Right wall — 156"',W/2,H+18);
 }
 // ── Render furniture ─────────────────────
 function render(){
@@ -718,12 +734,15 @@ function render2(){
   for(var idKey in placed2){
     if(!placed2.hasOwnProperty(idKey)) continue;
     var id=idKey, pos=placed2[id], d=def2(id); if(!d) continue;
-    var w=r2cw(id),h=r2ch(id);
+    var fw=r2cw(id),fh=r2ch(id);
     var cols=getRoom2Collisions(id,pos.x,pos.y);
     var el=document.createElement('div');
     el.className=['furn2','furn',d.color,sel2===id?'sel':'',cols.length?'bad':'',dragging2===id?'drag':''].filter(function(x){return x;}).join(' ');
     el.dataset.id=id;
-    el.style.cssText='left:'+r2px(pos.x)+'px;top:'+r2py(pos.y)+'px;width:'+r2px(w)+'px;height:'+r2py(h)+'px;';
+    /* Claude: 2026-06-23 — rotated 90° CCW: room Y→screenX(reversed), room X→screenY */
+    var sleft=R2PX.w-r2px(pos.y)-r2px(fh);
+    el.style.cssText='left:'+sleft+'px;top:'+r2py(pos.x)+'px;width:'+r2px(fh)+'px;height:'+r2py(fw)+'px;';
+    var w=fw,h=fh;
     el.innerHTML='<div class="fi"><span class="fn">'+d.name+'</span><span class="fd">'+w+'"×'+h+'"</span></div>';
     el.addEventListener('mousedown',onFurn2Down);
     el.addEventListener('touchstart',onFurn2Touch,{passive:false});
@@ -870,9 +889,11 @@ function dropAt2(id,rpx,rpy){
   var d=def2(id); if(!d) return;
   var rot=placed2[id]&&placed2[id].rotated;
   var w=rot?d.l:d.w, h=rot?d.w:d.l;
-  var ix=r2inX(rpx)-w/2, iy=r2inY(rpy)-h/2;
-  ix=Math.max(0,Math.min(ROOM2.w-w,ix));
+  /* Claude: 2026-06-23 — rotated: screen X→room Y (reversed), screen Y→room X */
+  var iy=ROOM2.h*(1-rpx/R2PX.w)-h/2;
+  var ix=r2inY(rpy)-w/2;
   iy=Math.max(0,Math.min(ROOM2.h-h,iy));
+  ix=Math.max(0,Math.min(ROOM2.w-w,ix));
   placed2[id]={x:ix,y:iy,rotated:rot};
   sel2=id; sdrag2=null; render2();
 }
@@ -901,9 +922,10 @@ room2el.addEventListener('touchstart',function(e){if(e.target===room2el){sel2=nu
 document.addEventListener('mousemove',function(e){
   if(!dragging2)return;
   var r=room2el.getBoundingClientRect();
-  var w=r2cw(dragging2),h=r2ch(dragging2);
-  placed2[dragging2].x=Math.max(0,Math.min(ROOM2.w-w,r2inX(e.clientX-r.left-doff2.x)));
-  placed2[dragging2].y=Math.max(0,Math.min(ROOM2.h-h,r2inY(e.clientY-r.top-doff2.y)));
+  var fw=r2cw(dragging2),fh=r2ch(dragging2);
+  /* Claude: 2026-06-23 — rotated: screen X→room Y (reversed), screen Y→room X */
+  placed2[dragging2].y=Math.max(0,Math.min(ROOM2.h-fh,ROOM2.h-ROOM2.h*(e.clientX-r.left-doff2.x)/R2PX.w-fh));
+  placed2[dragging2].x=Math.max(0,Math.min(ROOM2.w-fw,ROOM2.w*(e.clientY-r.top-doff2.y)/R2PX.h));
   render2();
 });
 document.addEventListener('mouseup',function(e){
@@ -919,9 +941,10 @@ document.addEventListener('touchmove',function(e){
   if(!dragging2)return;
   var t=e.touches[0];
   var r=room2el.getBoundingClientRect();
-  var w=r2cw(dragging2),h=r2ch(dragging2);
-  placed2[dragging2].x=Math.max(0,Math.min(ROOM2.w-w,r2inX(t.clientX-r.left-doff2.x)));
-  placed2[dragging2].y=Math.max(0,Math.min(ROOM2.h-h,r2inY(t.clientY-r.top-doff2.y)));
+  var fw=r2cw(dragging2),fh=r2ch(dragging2);
+  /* Claude: 2026-06-23 — rotated: screen X→room Y (reversed), screen Y→room X */
+  placed2[dragging2].y=Math.max(0,Math.min(ROOM2.h-fh,ROOM2.h-ROOM2.h*(t.clientX-r.left-doff2.x)/R2PX.w-fh));
+  placed2[dragging2].x=Math.max(0,Math.min(ROOM2.w-fw,ROOM2.w*(t.clientY-r.top-doff2.y)/R2PX.h));
   render2();
 },{passive:false});
 document.addEventListener('touchend',function(e){
@@ -1152,8 +1175,9 @@ function layoutRoom(){
   }
   drawFeatures(); drawBaseboard(); render();
   // ── Cheryl's room sizing ── Claude: 2026-06-23 ──
-  var R2W=Math.round(ROOM2.w*scale);
-  var R2H=Math.round(ROOM2.h*scale);
+  /* Claude: 2026-06-23 — room2 rotated 90° CCW: depth(156") = screen width, width(143.5") = screen height */
+  var R2W=Math.round(ROOM2.h*scale);
+  var R2H=Math.round(ROOM2.w*scale);
   var r2=document.getElementById('room2');
   if(r2){
     r2.style.width=R2W+'px'; r2.style.height=R2H+'px';
