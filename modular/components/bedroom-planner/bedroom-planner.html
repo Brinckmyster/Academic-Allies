@@ -232,8 +232,8 @@ function hingeInches(door) {
 var CLOSET = { w: 55, h: 91,
   door: { wall:'bottom', pos:25, size:30, hinge:'end' },  // hinge at right side (x:55,y:91), swings left
   clothingZone: 12,  // standard rod depth from LEFT wall — floor usable for short items
-  /* Claude: 2026-06-27 — baseboard heater on right wall (across from clothing rod); keep 12" from right wall */
-  baseboard: { wall:'right', clearance:12 }
+  /* Claude: 2026-06-27 — baseboard heater on right wall (across from clothing rod); ends at y=61 before door arc begins */
+  baseboard: { wall:'right', clearance:12, endsAt:61 }
 };
 /* Claude: 2026-06-23 — Cheryl's Room (second bedroom).
    Width: 143.5" (36" door + 26.5" wall + 65" closet + 16" wall).
@@ -386,8 +386,10 @@ function getClosetCollisions(id, x, y) {
   /* Claude: 2026-03-18 — clothing rod zone: 12" from left wall. Warning only — dresses may need floor space */
   if(CLOSET.clothingZone && x < CLOSET.clothingZone)
     msgs.push('Under clothing rod — check for long dresses');
-  /* Claude: 2026-06-27 — baseboard heater on right wall, 12" clearance */
-  if(CLOSET.baseboard && CLOSET.baseboard.wall==='right' && x+w > CLOSET.w-CLOSET.baseboard.clearance)
+  /* Claude: 2026-06-27 — baseboard heater on right wall, 12" clearance, ends at y=61 */
+  if(CLOSET.baseboard && CLOSET.baseboard.wall==='right'
+     && x+w > CLOSET.w-CLOSET.baseboard.clearance
+     && y < CLOSET.baseboard.endsAt)
     msgs.push('Baseboard heat — keep 12" from right wall');
   /* Claude: 2026-03-18 — closet door arc: hinge at RIGHT side of entry (55,91), swings LEFT.
      Arc covers x:25-55, y:61-91. Door sweeps LEFT + UP from hinge. */
@@ -1196,16 +1198,18 @@ function layoutRoom(){
   }
   /* Claude: 2026-06-27 — closet baseboard heater on bottom wall, 12" clearance */
   /* Claude: 2026-06-27 — closet baseboard heater on RIGHT wall (across from clothing rod), 12" clearance */
+  /* Claude: 2026-06-27 — closet baseboard on RIGHT wall, stops at endsAt (before door arc) */
   if(CLOSET.baseboard && CLOSET.baseboard.wall==='right' && closetArc){
     var cbb=CLOSET.baseboard, cbbW=cpx(cbb.clearance), cbbX=CW-cbbW;
+    var cbbH=cpy(cbb.endsAt||CLOSET.h);
     var cctx2=closetArc.getContext('2d');
     cctx2.save();
     cctx2.beginPath();
-    cctx2.rect(cbbX,0,cbbW,CH);
+    cctx2.rect(cbbX,0,cbbW,cbbH);
     cctx2.clip();
     cctx2.fillStyle='rgba(224,112,48,0.15)';
-    cctx2.fillRect(cbbX,0,cbbW,CH);
-    for(var csi=-cbbW;csi<CH+cbbW;csi+=8){
+    cctx2.fillRect(cbbX,0,cbbW,cbbH);
+    for(var csi=-cbbW;csi<cbbH+cbbW;csi+=8){
       cctx2.beginPath();
       cctx2.moveTo(cbbX,csi);
       cctx2.lineTo(CW,csi-cbbW);
@@ -1216,11 +1220,11 @@ function layoutRoom(){
     cctx2.restore();
     cctx2.strokeStyle='#e07030';
     cctx2.lineWidth=1;
-    cctx2.strokeRect(cbbX,0,cbbW,CH);
+    cctx2.strokeRect(cbbX,0,cbbW,cbbH);
     cctx2.font='bold 9px DM Mono,monospace';
     cctx2.fillStyle='#a04010';
     cctx2.textAlign='right';
-    cctx2.fillText('🔥 Baseboard',cbbX-4,CH/2+4);
+    cctx2.fillText('🔥 Baseboard',cbbX-4,cbbH/2+4);
   }
   drawFeatures(); drawBaseboard(); render();
   // ── Cheryl's room sizing ── Claude: 2026-06-23 ──
