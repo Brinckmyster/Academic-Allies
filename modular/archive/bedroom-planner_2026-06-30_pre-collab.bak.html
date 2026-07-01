@@ -112,10 +112,6 @@
     .catch(function(err) { console.warn('[AA] shared-header fetch failed:', err); /* Claude: 2026-03-30 — W9 fix: show fallback nav if header load fails */ var _h = document.getElementById('site-header'); if (_h && !_h.innerHTML.trim()) _h.innerHTML = '<nav style="padding:8px 16px;background:#333;color:#fff;font-size:13px;">Navigation unavailable — please refresh the page</nav>'; });
 </script>
 
-<!-- Claude: 2026-06-30 — collaborative banner shown when supporter joins planning session -->
-<div id="collab-banner" style="display:none;background:#1a6040;color:#fff;text-align:center;padding:7px 12px;font-size:0.85rem;font-weight:600;letter-spacing:0.02em;">
-  🤝 Collaborating with <span id="collab-name">student</span> — both of you can move furniture
-</div>
 <h1>Master Bedroom Layout Planner</h1>
 <p class="sub">Chronic pain optimized · specs from CSV · door swing arcs · short furniture OK at window · Claude 2026-03-14</p>
 <div class="layout">
@@ -826,7 +822,7 @@ function dropAt(id,rpx,rpy,targetRoom){
   ix=Math.max(0,Math.min(rm.w-w,ix));
   iy=Math.max(0,Math.min(rm.h-h,iy));
   placed[id]={x:ix,y:iy,rotated:rot,room:targetRoom};
-  sel=id; sdrag=null; render(); scheduleSave();
+  sel=id; sdrag=null; render();
 }
 // ── Drag / drop events ───────────────────
 var room=document.getElementById('room');
@@ -903,7 +899,7 @@ document.addEventListener('mouseup',function(e){
       placed[dragging].y=Math.max(0,Math.min(rm2.h-h2,toInY2(e.clientY-tr.top-doff.y)));
       placed[dragging].room=targetName;
     }
-    dragging=null;render();scheduleSave();
+    dragging=null;render();
   }
 });
 room.addEventListener('mousedown',function(e){if(e.target===room){sel=null;render();}});
@@ -924,7 +920,7 @@ function dropAt2(id,rpx,rpy){
   iy=Math.max(0,Math.min(ROOM2.h-h,iy));
   ix=Math.max(0,Math.min(ROOM2.w-w,ix));
   placed2[id]={x:ix,y:iy,rotated:rot};
-  sel2=id; sdrag2=null; render2(); scheduleSave();
+  sel2=id; sdrag2=null; render2();
 }
 function onFurn2Down(e){
   if(e.button!==0)return; e.preventDefault(); e.stopPropagation();
@@ -964,7 +960,7 @@ document.addEventListener('mouseup',function(e){
       dropAt2(sdrag2,e.clientX-r.left,e.clientY-r.top);
     sdrag2=null;
   }
-  if(dragging2){dragging2=null;render2();scheduleSave();}
+  if(dragging2){dragging2=null;render2();}
 });
 document.addEventListener('touchmove',function(e){
   if(!dragging2)return;
@@ -984,20 +980,20 @@ document.addEventListener('touchend',function(e){
       dropAt2(sdrag2,t.clientX-r.left,t.clientY-r.top);
     sdrag2=null;
   }
-  if(dragging2){dragging2=null;render2();scheduleSave();}
+  if(dragging2){dragging2=null;render2();}
 });
 document.getElementById('btnRot2').addEventListener('click',function(){
   if(!sel2||!(sel2 in placed2))return;
   var p=placed2[sel2]; p.rotated=!p.rotated;
   p.x=Math.max(0,Math.min(ROOM2.w-r2cw(sel2),p.x));
   p.y=Math.max(0,Math.min(ROOM2.h-r2ch(sel2),p.y));
-  render2(); scheduleSave();
+  render2();
 });
 document.getElementById('btnRem2').addEventListener('click',function(){
   if(!sel2||!(sel2 in placed2))return;
-  delete placed2[sel2]; sel2=null; render2(); scheduleSave();
+  delete placed2[sel2]; sel2=null; render2();
 });
-document.getElementById('btnReset2').addEventListener('click',function(){placed2={};sel2=null;render2();scheduleSave();});
+document.getElementById('btnReset2').addEventListener('click',function(){placed2={};sel2=null;render2();});
 function onFurnTouch(e){
   e.preventDefault();
   var t=e.touches[0],id=e.currentTarget.dataset.id;
@@ -1055,7 +1051,7 @@ document.addEventListener('touchend',function(e){
       placed[dragging].y=Math.max(0,Math.min(rm2.h-h2,toInY2(t.clientY-tr.top-doff.y)));
       placed[dragging].room=targetName;
     }
-    dragging=null;render();scheduleSave();
+    dragging=null;render();
   }
 });
 // ── Buttons ──────────────────────────────
@@ -1065,13 +1061,13 @@ document.getElementById('btnRot').addEventListener('click',function(){
   var rm=p.room==='closet'?CLOSET:ROOM;
   p.x=Math.max(0,Math.min(rm.w-cw(sel),p.x));
   p.y=Math.max(0,Math.min(rm.h-ch(sel),p.y));
-  render(); scheduleSave();
+  render();
 });
 document.getElementById('btnRem').addEventListener('click',function(){
   if(!sel||!(sel in placed))return;
-  delete placed[sel];sel=null;render(); scheduleSave();
+  delete placed[sel];sel=null;render();
 });
-document.getElementById('btnReset').addEventListener('click',function(){placed={};sel=null;render();scheduleSave();});
+document.getElementById('btnReset').addEventListener('click',function(){placed={};sel=null;render();});
 // ── Suggested Layout — Claude 2026-03-17 — v12 ──────
 // USER REQUIREMENTS:
 //   1. Both beds can see the TV (on TV wall near entry door)
@@ -1149,7 +1145,7 @@ document.getElementById('btnSuggest').addEventListener('click',function(){
     placed[s.id] = { x: x, y: y, rotated: s.rotated, room: s.room||'master' };
   }
   sel = null;
-  render(); scheduleSave();
+  render();
 });
 // ── Layout + resize ───────────────────────
 function layoutRoom(){
@@ -1248,86 +1244,6 @@ function layoutRoom(){
 }
 window.addEventListener('resize',layoutRoom);
 window.addEventListener('load',function(){layoutRoom();setTimeout(layoutRoom,350);});
-
-/* ══════════════════════════════════════════════════════
-   Claude: 2026-06-30 — Firestore collaborative sync
-   Both student and supporter write to bedroomPlanner/{studentUID}.
-   onSnapshot keeps both screens in sync in real time (Canva-style).
-   _applyingRemote flag prevents save feedback loops.
-   ══════════════════════════════════════════════════════ */
-var _collabUid    = null;  /* Firestore UID we read/write (always student's) */
-var _saveTimer    = null;
-var _applyingRemote = false;
-var _mirrorUnsub  = null;
-
-function scheduleSave() {
-  if (_applyingRemote) return;   /* remote update — don't echo back */
-  if (!_collabUid) return;
-  if (_saveTimer) clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(function() { _doSave(); }, 800);
-}
-
-function _doSave() {
-  if (!_collabUid) return;
-  firebase.firestore().doc('bedroomPlanner/' + _collabUid).set({
-    placed:  placed,
-    placed2: placed2,
-    lastSaved: firebase.firestore.Timestamp.now()
-  }, { merge: true }).catch(function(err) {
-    console.warn('[AA bedroom] save failed:', err);
-  });
-}
-
-function _applySnapshot(data) {
-  if (!data) return;
-  _applyingRemote = true;
-  if (data.placed)  { placed  = data.placed;  render();  renderSidebar();  }
-  if (data.placed2) { placed2 = data.placed2; render2(); renderSidebar2(); }
-  _applyingRemote = false;
-}
-
-function _startCollab(uid) {
-  _collabUid = uid;
-  if (_mirrorUnsub) { _mirrorUnsub(); _mirrorUnsub = null; }
-  var docRef = firebase.firestore().doc('bedroomPlanner/' + uid);
-  /* Load existing layout once, then keep listening */
-  _mirrorUnsub = docRef.onSnapshot(function(snap) {
-    if (snap.exists) _applySnapshot(snap.data());
-  }, function(err) {
-    console.warn('[AA bedroom] onSnapshot error:', err);
-  });
-}
-
-function _showCollabBanner(name) {
-  var b = document.getElementById('collab-banner');
-  var n = document.getElementById('collab-name');
-  if (b) b.style.display = '';
-  if (n) n.textContent = name || 'student';
-}
-
-function _waitForAA(cb) {
-  if (window.AA && window.AA.auth && window.firebase && window.firebase.firestore) return cb();
-  setTimeout(function() { _waitForAA(cb); }, 80);
-}
-
-_waitForAA(function() {
-  window.AA.auth.onAuthStateChanged(function(user) {
-    if (!user) return;
-    if (window.AA_MIRROR_UID) {
-      /* Supporter — collaborate on student's layout */
-      _startCollab(window.AA_MIRROR_UID);
-      /* Get student's display name for banner */
-      firebase.firestore().doc('users/' + window.AA_MIRROR_UID).get()
-        .then(function(snap) {
-          var name = snap.exists ? (snap.data().displayName || snap.data().name || 'student') : 'student';
-          _showCollabBanner(name);
-        }).catch(function() { _showCollabBanner('student'); });
-    } else {
-      /* Student — own layout */
-      _startCollab(user.uid);
-    }
-  });
-});
 </script>
 </body>
 </html>
